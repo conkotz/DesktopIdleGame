@@ -26,8 +26,9 @@ public static class EnhancementUpgradeService
 
         ItemDefinition scrollDef = inventory.GetItemDef(scrollSlot.itemId);
         ItemDefinition targetDef = inventory.GetItemDef(targetSlot.itemId);
-        LogRejectedScrollTargetAttempt(scrollDef, targetDef);
-        if (!IsValidScrollTarget(scrollDef, targetDef))
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(scrollDef);
+        LogRejectedScrollTargetAttempt(scrollDef, targetDef, option);
+        if (!IsValidScrollTarget(scrollDef, targetDef, option))
             return false;
 
         ItemDefinition enhancedTarget = targetDef;
@@ -47,7 +48,7 @@ public static class EnhancementUpgradeService
 
         bool attempted = TryApplyEnhancementStats(
             inventory,
-            scrollDef.enhancementScrollStats,
+            EnhancementOptionResolver.BuildStatsForApply(option, enhancedTarget),
             enhancedTarget,
             targetDef,
             () => inventory.RemoveStackAtSlot(targetSlotIndex),
@@ -105,7 +106,7 @@ public static class EnhancementUpgradeService
 
         bool attempted = TryApplyEnhancementStats(
             inventory,
-            option.ToScrollStats(),
+            option.ToScrollStats(enhancedTarget),
             enhancedTarget,
             targetDef,
             () => inventory.RemoveStackAtSlot(gearSlotIndex),
@@ -140,8 +141,9 @@ public static class EnhancementUpgradeService
 
         ItemDefinition scrollDef = inventory.GetItemDef(scrollSlot.itemId);
         ItemDefinition targetDef = inventory.GetItemDef(targetItemId);
-        LogRejectedScrollTargetAttempt(scrollDef, targetDef);
-        if (!IsValidScrollTarget(scrollDef, targetDef))
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(scrollDef);
+        LogRejectedScrollTargetAttempt(scrollDef, targetDef, option);
+        if (!IsValidScrollTarget(scrollDef, targetDef, option))
             return false;
 
         ItemDefinition enhancedTarget = targetDef;
@@ -159,7 +161,7 @@ public static class EnhancementUpgradeService
 
         return TryApplyEnhancementStats(
             inventory,
-            scrollDef.enhancementScrollStats,
+            EnhancementOptionResolver.BuildStatsForApply(option, enhancedTarget),
             enhancedTarget,
             targetDef,
             clearTargetItem,
@@ -177,7 +179,7 @@ public static class EnhancementUpgradeService
             case EnhancementPaymentKind.Scroll:
                 return inventory.RemoveAmountAtSlot(payment.ScrollSlotIndex, 1) == 1;
             case EnhancementPaymentKind.Materials:
-                return inventory.TryConsumeItem(payment.MaterialItemId, payment.MaterialAmount);
+                return inventory.TryConsumeItems(payment.MaterialRequirements);
             default:
                 return false;
         }
@@ -235,9 +237,12 @@ public static class EnhancementUpgradeService
         return true;
     }
 
-    private static bool IsValidScrollTarget(ItemDefinition scrollDef, ItemDefinition targetDef)
+    private static bool IsValidScrollTarget(
+        ItemDefinition scrollDef,
+        ItemDefinition targetDef,
+        EnhancementOptionEntry option)
     {
-        if (!scrollDef || !targetDef)
+        if (!scrollDef || !targetDef || option == null)
             return false;
         if (scrollDef.itemKind != ItemKind.EnhancementScroll)
             return false;
@@ -245,11 +250,16 @@ public static class EnhancementUpgradeService
             return false;
         if (targetDef.MaxUpgradeSlots <= 0)
             return false;
-        if (!IsSlotReductionScroll(scrollDef) && targetDef.HasReachedEnhancementCap)
+        if (!EnhancementOptionResolver.ScrollMatchesDatabase(scrollDef, option))
+            return false;
+        if (!IsSlotReductionOption(option) && targetDef.HasReachedEnhancementCap)
             return false;
 
-        return scrollDef.CanUseEnhancementScrollOn(targetDef);
+        return option.CanApplyToGear(targetDef, SkillsManager.Instance);
     }
+
+    private static bool IsSlotReductionOption(EnhancementOptionEntry option) =>
+        option != null && option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction;
 
     private static void ApplyModifier(ItemDefinition target, EnhancementScrollStats scroll)
     {
@@ -279,6 +289,30 @@ public static class EnhancementUpgradeService
                 else
                 {
                     target.bonusStats.magicDamage = ApplyValue(target.bonusStats.magicDamage, value, percent);
+                }
+                break;
+
+            case EnhancementScrollTargetStat.FireDamage:
+                if (target.IsWeapon)
+                {
+                    target.weaponStats.minFireDamage = ApplyIntValue(target.weaponStats.minFireDamage, value, percent);
+                    target.weaponStats.maxFireDamage = ApplyIntValue(target.weaponStats.maxFireDamage, value, percent);
+                }
+                break;
+
+            case EnhancementScrollTargetStat.IceDamage:
+                if (target.IsWeapon)
+                {
+                    target.weaponStats.minIceDamage = ApplyIntValue(target.weaponStats.minIceDamage, value, percent);
+                    target.weaponStats.maxIceDamage = ApplyIntValue(target.weaponStats.maxIceDamage, value, percent);
+                }
+                break;
+
+            case EnhancementScrollTargetStat.LightningDamage:
+                if (target.IsWeapon)
+                {
+                    target.weaponStats.minLightningDamage = ApplyIntValue(target.weaponStats.minLightningDamage, value, percent);
+                    target.weaponStats.maxLightningDamage = ApplyIntValue(target.weaponStats.maxLightningDamage, value, percent);
                 }
                 break;
 
@@ -380,6 +414,22 @@ public static class EnhancementUpgradeService
                 target.bonusStats.poisonMultiplier = ApplyValue(target.bonusStats.poisonMultiplier, value, percent);
                 break;
 
+            case EnhancementScrollTargetStat.BurnChance:
+                target.bonusStats.burnChance = Mathf.Clamp01(ApplyValue(target.bonusStats.burnChance, value, percent));
+                break;
+
+            case EnhancementScrollTargetStat.ChillChance:
+                target.bonusStats.chillChance = Mathf.Clamp01(ApplyValue(target.bonusStats.chillChance, value, percent));
+                break;
+
+            case EnhancementScrollTargetStat.ShockChance:
+                target.bonusStats.shockChance = Mathf.Clamp01(ApplyValue(target.bonusStats.shockChance, value, percent));
+                break;
+
+            case EnhancementScrollTargetStat.BurnMultiplier:
+                target.bonusStats.burnExplosionMultiplierBonus = ApplyValue(target.bonusStats.burnExplosionMultiplierBonus, value, percent);
+                break;
+
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 int slotsToReduce = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(value)));
                 target.usedUpgradeSlots = Mathf.Clamp(
@@ -390,14 +440,10 @@ public static class EnhancementUpgradeService
         }
     }
 
-    private static bool IsSlotReductionScroll(ItemDefinition scrollDef)
-    {
-        return scrollDef &&
-               scrollDef.itemKind == ItemKind.EnhancementScroll &&
-               scrollDef.enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction;
-    }
-
-    private static void LogRejectedScrollTargetAttempt(ItemDefinition scrollDef, ItemDefinition targetDef)
+    private static void LogRejectedScrollTargetAttempt(
+        ItemDefinition scrollDef,
+        ItemDefinition targetDef,
+        EnhancementOptionEntry option)
     {
         if (!scrollDef || scrollDef.itemKind != ItemKind.EnhancementScroll || !targetDef)
             return;
@@ -405,9 +451,21 @@ public static class EnhancementUpgradeService
         string itemName = !string.IsNullOrWhiteSpace(targetDef.displayName) ? targetDef.displayName.Trim() : "Item";
         string scrollName = !string.IsNullOrWhiteSpace(scrollDef.displayName) ? scrollDef.displayName.Trim() : "Scroll";
 
-        if (IsSlotReductionScroll(scrollDef))
+        if (option == null)
         {
-            if (!scrollDef.EnhancementScrollCanTarget(targetDef))
+            GameLog.Add($"Cannot use {scrollName}: no matching enhancement option in database", GameLog.ItemLostColor);
+            return;
+        }
+
+        if (!EnhancementOptionResolver.ScrollMatchesDatabase(scrollDef, option))
+        {
+            GameLog.Add($"Cannot use {scrollName}: scroll data does not match enhancement database", GameLog.ItemLostColor);
+            return;
+        }
+
+        if (IsSlotReductionOption(option))
+        {
+            if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
                 GameLog.Add($"Cannot use {scrollName} on {itemName}", GameLog.ItemLostColor);
             else if (targetDef.UsedUpgradeSlots <= 0)
                 GameLog.Add($"Cannot reduce slots, no used slots: {itemName}", GameLog.ItemLostColor);
@@ -420,15 +478,15 @@ public static class EnhancementUpgradeService
             return;
         }
 
-        if (!scrollDef.EnhancementScrollCanTarget(targetDef))
+        if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
         {
             GameLog.Add($"Cannot use {scrollName} on {itemName}", GameLog.ItemLostColor);
             return;
         }
 
-        if (!targetDef.HasBaseStatForEnhancementScroll(scrollDef.enhancementScrollStats.targetStat))
+        if (!targetDef.HasBaseStatForEnhancementScroll(option.targetStat))
         {
-            string statName = ItemDefinition.GetEnhancementScrollTargetStatDisplayName(scrollDef.enhancementScrollStats.targetStat);
+            string statName = ItemDefinition.GetEnhancementScrollTargetStatDisplayName(option.targetStat);
             GameLog.Add($"Cannot use {scrollName} on {itemName}: item has no {statName} to enhance", GameLog.ItemLostColor);
             return;
         }

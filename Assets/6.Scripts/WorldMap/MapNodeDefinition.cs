@@ -416,7 +416,7 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Combat maps only. When enabled, kills on this map unlock scaling tiers that boost enemy HP, XP, loot, and gold from base values.")]
     public bool mapCombatScalingEnabled;
 
-    [Tooltip("Optional special loot per scaling level (2–7). Fixed drop chances — not scaled. Cumulative: at level N, drops from levels 2…N can roll from any enemy in this zone.")]
+    [Tooltip("Optional special loot per scaling level (2–7). Fixed drop chances — not scaled. Only the selected scaling tier's entries roll (not cumulative with lower tiers).")]
     public List<MapScalingLevelSpecialDrops> mapCombatScalingSpecialDropsByLevel = new();
 
     [Header("Enemy respawn (spawn group plans)")]
@@ -747,29 +747,38 @@ public class MapNodeDefinition : ScriptableObject
     public int GetCombatScalingLevel(WorldMapProgressManager progress) =>
         MapCombatScaling.ResolveActiveScalingLevel(this, progress);
 
-    /// <summary>Cumulative special drops unlocked up to map scaling slider <paramref name="sliderValue"/> (0–7).</summary>
-    public void CollectCombatScalingSpecialDropsUpToSlider(int sliderValue, List<MapScalingSpecialLootEntry> results)
+    /// <summary>Map-specific special drops for the selected scaling tier (excludes automatic scroll defaults).</summary>
+    public void CollectMapSpecificSpecialDrops(int sliderValue, List<MapScalingSpecialLootEntry> results)
     {
-        if (results == null || mapCombatScalingSpecialDropsByLevel == null || mapCombatScalingSpecialDropsByLevel.Count == 0)
+        if (results == null)
             return;
 
-        int cap = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
-        if (cap <= 0)
+        int tier = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+        if (tier <= 0 || mapCombatScalingSpecialDropsByLevel == null)
             return;
 
         for (int i = 0; i < mapCombatScalingSpecialDropsByLevel.Count; i++)
         {
-            MapScalingLevelSpecialDrops tier = mapCombatScalingSpecialDropsByLevel[i];
-            if (tier == null || tier.scalingLevel <= 0 || tier.scalingLevel > cap || tier.drops == null)
+            MapScalingLevelSpecialDrops tierEntry = mapCombatScalingSpecialDropsByLevel[i];
+            if (tierEntry == null || tierEntry.scalingLevel != tier || tierEntry.drops == null)
                 continue;
 
-            for (int j = 0; j < tier.drops.Count; j++)
+            for (int j = 0; j < tierEntry.drops.Count; j++)
             {
-                MapScalingSpecialLootEntry entry = tier.drops[j];
+                MapScalingSpecialLootEntry entry = tierEntry.drops[j];
                 if (entry?.item != null)
                     results.Add(entry);
             }
         }
+    }
+
+    /// <summary>Special drops for the selected map scaling slider tier only (not cumulative across lower tiers).</summary>
+    [Obsolete("Use CollectMapSpecificSpecialDrops for map entries and MapCombatScalingSpecialDropDefaults.CollectGroupRollsForScalingLevel for scroll defaults.")]
+    public void CollectCombatScalingSpecialDropsUpToSlider(int sliderValue, List<MapScalingSpecialLootEntry> results)
+    {
+        CollectMapSpecificSpecialDrops(sliderValue, results);
+        if (IsMapCombatScalingEnabled())
+            MapCombatScalingSpecialDropDefaults.CollectLegacyIndividualScrollEntries(sliderValue, results);
     }
 
     public const string EnterConditionTeleportAvailable = "Teleport to map available";

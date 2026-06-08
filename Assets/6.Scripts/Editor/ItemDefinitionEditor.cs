@@ -1110,12 +1110,41 @@ public class ItemDefinitionEditor : Editor
     {
         DrawModuleHeader("Enhancement Scroll Stats");
 
+        SerializedProperty optionId = serializedObject.FindProperty("enhancementOptionId");
+        if (optionId != null)
+            EditorGUILayout.PropertyField(optionId, new GUIContent("Enhancement Option Id"));
+
+        EnhancementOptionEntry linkedOption = null;
+        if (optionId != null && !string.IsNullOrWhiteSpace(optionId.stringValue))
+            linkedOption = EnhancementOptionResolver.GetOptionById(optionId.stringValue);
+
+        if (linkedOption != null)
+        {
+            EditorGUILayout.HelpBox(
+                $"Stats resolve from EnhancementOptionDatabase entry '{linkedOption.optionId}' ({linkedOption.displayName}). " +
+                "Use Tools/Create Enhancement Scroll Items to sync cached fields below.",
+                MessageType.Info);
+
+            EnhancementScrollStats resolved = linkedOption.ToScrollStats();
+            EditorGUILayout.LabelField("Resolved Stat", ItemDefinition.GetEnhancementScrollTargetStatDisplayName(resolved.targetStat));
+            EditorGUILayout.LabelField("Resolved Modifier", $"{resolved.modifierKind} {resolved.modifierValue}");
+            EditorGUILayout.LabelField("Linked Scroll Item Id", linkedOption.linkedScrollItemId ?? "(none)");
+        }
+
         if (enhancementScrollStats == null)
         {
             EditorGUILayout.HelpBox("enhancementScrollStats property not found.", MessageType.Error);
             return;
         }
 
+        using (new EditorGUI.DisabledScope(linkedOption != null))
+        {
+            DrawEnhancementScrollStatsFields();
+        }
+    }
+
+    private void DrawEnhancementScrollStatsFields()
+    {
         SerializedProperty successChance = enhancementScrollStats.FindPropertyRelative("successChance");
         SerializedProperty targetStat = enhancementScrollStats.FindPropertyRelative("targetStat");
         SerializedProperty modifierKind = enhancementScrollStats.FindPropertyRelative("modifierKind");
@@ -1127,13 +1156,16 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty allowedGearTypes = enhancementScrollStats.FindPropertyRelative("allowedGearTypes");
 
         EditorGUILayout.LabelField("Success Behaviour", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(successChance, new GUIContent("Success Chance"));
+        EditorGUILayout.HelpBox(
+            "Success chance is resolved from EnhancementOptionDatabase based on the target item's successful enhancements. " +
+            "Chaos gambles stay at 35%. Slot Reduction uses the database option value.",
+            MessageType.Info);
         EditorGUILayout.PropertyField(targetStat, new GUIContent("Stat Modifier Applied"));
         EditorGUILayout.PropertyField(modifierKind, new GUIContent("Modifier Type"));
         EditorGUILayout.PropertyField(modifierValue, new GUIContent("Modifier Value"));
 
         if (successChance != null)
-            successChance.floatValue = Mathf.Clamp01(successChance.floatValue);
+            successChance.floatValue = 0f;
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Failure Behaviour", EditorStyles.boldLabel);

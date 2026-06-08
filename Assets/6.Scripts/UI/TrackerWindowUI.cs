@@ -610,7 +610,7 @@ public class TrackerWindowUI : MonoBehaviour
 
             SessionTrackerData.LootSourceEntry e = entries[i];
             if (_lootSourceRowSourceLabels[i])
-                _lootSourceRowSourceLabels[i].text = e.source;
+                _lootSourceRowSourceLabels[i].text = FormatLootSourceLabel(e);
             if (_lootSourceRowItemsLabels[i])
                 _lootSourceRowItemsLabels[i].text = BuildLootItemsList(e);
             if (_lootSourceRowValueLabels[i])
@@ -628,19 +628,70 @@ public class TrackerWindowUI : MonoBehaviour
         }
     }
 
+    private static string FormatLootSourceLabel(SessionTrackerData.LootSourceEntry entry)
+    {
+        if (entry == null || string.IsNullOrWhiteSpace(entry.source))
+            return "Unknown";
+
+        if (entry.killCount > 0)
+            return $"{entry.source} ({entry.killCount} killed)";
+
+        return entry.source;
+    }
+
     private static string BuildLootItemsList(SessionTrackerData.LootSourceEntry entry)
     {
         if (entry == null || entry.orderedItemIds.Count == 0)
             return "—";
 
-        var sb = new StringBuilder(64);
+        Inventory inv = SessionTrackerData.Instance != null
+            ? FindFirstObjectByType<Inventory>(FindObjectsInactive.Include)
+            : null;
+
+        var grouped = new Dictionary<string, int>(StringComparer.Ordinal);
+        var groupedOrder = new List<string>();
+        var ungrouped = new List<(string label, int amount)>();
+
         for (int i = 0; i < entry.orderedItemIds.Count; i++)
         {
             string itemId = entry.orderedItemIds[i];
             int amount = entry.itemAmounts.TryGetValue(itemId, out int v) ? v : 0;
+            if (amount <= 0)
+                continue;
 
-            string label = ResolveItemDisplayName(itemId);
-            if (i > 0)
+            ItemDefinition def = inv != null ? inv.GetItemDef(itemId) : null;
+            if (def == null)
+                def = MapEnhancementRegistry.TryGetRuntimeDefinition(itemId);
+
+            if (LootTrackerGroupLabels.TryGetGroupLabel(itemId, def, out string groupLabel))
+            {
+                if (!grouped.ContainsKey(groupLabel))
+                {
+                    grouped[groupLabel] = 0;
+                    groupedOrder.Add(groupLabel);
+                }
+
+                grouped[groupLabel] += amount;
+                continue;
+            }
+
+            string label = ResolveItemDisplayName(itemId, def);
+            ungrouped.Add((label, amount));
+        }
+
+        groupedOrder.Sort((a, b) => LootTrackerGroupLabels.GetSortOrder(a).CompareTo(LootTrackerGroupLabels.GetSortOrder(b)));
+
+        var sb = new StringBuilder(64);
+        bool wroteAny = false;
+
+        for (int i = 0; i < groupedOrder.Count; i++)
+        {
+            string label = groupedOrder[i];
+            int amount = grouped[label];
+            if (amount <= 0)
+                continue;
+
+            if (wroteAny)
                 sb.Append(", ");
             sb.Append(label);
             if (amount > 1)
@@ -648,21 +699,42 @@ public class TrackerWindowUI : MonoBehaviour
                 sb.Append(" x");
                 sb.Append(amount);
             }
+
+            wroteAny = true;
         }
-        return sb.ToString();
+
+        for (int i = 0; i < ungrouped.Count; i++)
+        {
+            if (wroteAny)
+                sb.Append(", ");
+            sb.Append(ungrouped[i].label);
+            if (ungrouped[i].amount > 1)
+            {
+                sb.Append(" x");
+                sb.Append(ungrouped[i].amount);
+            }
+
+            wroteAny = true;
+        }
+
+        return wroteAny ? sb.ToString() : "—";
     }
 
-    private static string ResolveItemDisplayName(string itemId)
+    private static string ResolveItemDisplayName(string itemId, ItemDefinition def)
     {
+        if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
+            return def.displayName.Trim();
+
         Inventory inv = SessionTrackerData.Instance != null
             ? FindFirstObjectByType<Inventory>(FindObjectsInactive.Include)
             : null;
         if (inv != null)
         {
-            ItemDefinition def = inv.GetItemDef(itemId);
+            def = inv.GetItemDef(itemId);
             if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
                 return def.displayName;
         }
+
         return itemId;
     }
 

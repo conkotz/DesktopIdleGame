@@ -156,7 +156,7 @@ MonoBehaviour:
       effectId: 
   enhancementScrollStats:
     successChance: 0.35
-    targetStat: 1
+    targetStat: 20
     modifierKind: 0
     modifierValue: 6
     consumeSlotOnFailure: 1

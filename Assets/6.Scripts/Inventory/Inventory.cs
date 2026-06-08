@@ -616,6 +616,39 @@ public class Inventory : MonoBehaviour, ISaveable
         return remaining <= 0;
     }
 
+    public bool HasItems(IReadOnlyList<GearUpgradeMaterialRequirement> requirements)
+    {
+        if (requirements == null || requirements.Count == 0)
+            return false;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
+                return false;
+
+            if (CountItem(req.ItemId) < req.Amount)
+                return false;
+        }
+
+        return true;
+    }
+
+    public bool TryConsumeItems(IReadOnlyList<GearUpgradeMaterialRequirement> requirements)
+    {
+        if (!HasItems(requirements))
+            return false;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            if (!TryConsumeItem(req.ItemId, req.Amount))
+                return false;
+        }
+
+        return true;
+    }
+
 
     public int MoveAmount(int fromSlot, int toSlot, int amount, int? maxStackOverride = null)
     {

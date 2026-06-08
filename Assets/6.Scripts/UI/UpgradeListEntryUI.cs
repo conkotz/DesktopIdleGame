@@ -9,7 +9,7 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
     private static readonly Color NormalRowColor = new(0.16862746f, 0.12941177f, 0.09411765f, 0.8509804f);
     private static readonly Color SelectedRowColor = new(0.32f, 0.26f, 0.18f, 0.95f);
     private static readonly Color NormalTextColor = new(0.96862745f, 0.88235295f, 0.74509805f, 1f);
-    private static readonly Color DimTextColor = new(0.96862745f, 0.88235295f, 0.74509805f, 0.38f);
+    private static readonly Color DimTextColor = new(0.96862745f, 0.88235295f, 0.74509805f, 0.65f);
 
     [SerializeField] private Button button;
     [SerializeField] private Image rowBackground;
@@ -78,7 +78,7 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
             rowBackground.color = selected ? SelectedRowColor : NormalRowColor;
 
         EnsureRowCanvasGroup();
-        rowCanvasGroup.alpha = dimRow ? 0.42f : 1f;
+        rowCanvasGroup.alpha = dimRow ? 0.72f : 1f;
 
         if (!button)
             return;
@@ -125,7 +125,7 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
             rowBackground.color = selected ? SelectedRowColor : NormalRowColor;
 
         EnsureRowCanvasGroup();
-        rowCanvasGroup.alpha = dimRow ? 0.42f : 1f;
+        rowCanvasGroup.alpha = dimRow ? 0.72f : 1f;
 
         if (!button)
             return;

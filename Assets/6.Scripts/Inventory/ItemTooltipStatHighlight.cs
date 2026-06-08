@@ -94,10 +94,10 @@ public static class ItemTooltipStatHighlight
 
         s.Append(FormatFloatLine("Speed", $"{aps:0.##} atk/s", aps, baseAps, $"{baseAps:0.##} atk/s")).Append('\n');
 
-        if (HasSignificantPercentPoints(critChancePct) || current.IsCorruptionOnlyWeapon)
+        if (HasSignificantPercentPoints(critChancePct))
             s.Append(FormatPercentLine("Crit Chance", critChancePct, baseCritChancePct, signed: true)).Append('\n');
 
-        if (HasSignificantPercentPoints(critMultBonusPct) || current.IsCorruptionOnlyWeapon)
+        if (HasSignificantPercentPoints(critMultBonusPct))
             s.Append(FormatPercentLine("Crit Multi", critMultBonusPct, baseCritMultBonusPct, signed: true)).Append('\n');
 
         string matchingAilments = current.BuildWeaponAilmentsLineForTooltip(baseline);

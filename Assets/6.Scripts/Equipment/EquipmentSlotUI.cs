@@ -591,20 +591,8 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!IsDropReleaseConfirmed(eventData))
                 return;
 
-            bool success = false;
-            bool attempted = InventoryDragState.Source == InventoryDragState.SourceKind.Inventory &&
-                TryEnhanceEquippedItemFromScroll(fromSlot, out success);
-
             InventoryDragState.EndDrag();
             eventData.Use();
-
-            if (attempted)
-            {
-                EnhancementFlashUI.Flash(success);
-                RefreshFromState();
-                tooltip?.Hide();
-            }
-
             return;
         }
 
@@ -809,29 +797,6 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         return inventory.RemoveAmountAtSlot(fromSlot, amount) == amount;
-    }
-
-    private bool TryEnhanceEquippedItemFromScroll(int scrollSlotIndex, out bool success)
-    {
-        success = false;
-
-        string targetItemId = GetItemIdForThisSlot();
-        if (string.IsNullOrWhiteSpace(targetItemId))
-            return false;
-
-        if (slotType == EquipmentUISlotType.OffHand && _def != null && _def.IsCombatSupport && equipment != null &&
-            equipment.OffHandStackAmount > 1)
-        {
-            return false;
-        }
-
-        return EnhancementUpgradeService.TryUseScrollOnEquippedItem(
-            inventory,
-            scrollSlotIndex,
-            targetItemId,
-            ReplaceThisEquippedItemId,
-            ClearThisSlot,
-            out success);
     }
 
     private void ReplaceThisEquippedItemId(string itemId)

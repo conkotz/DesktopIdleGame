@@ -1,22 +1,21 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public readonly struct EnhancementOptionPayment
 {
     public EnhancementPaymentKind Kind { get; }
     public int ScrollSlotIndex { get; }
-    public string MaterialItemId { get; }
-    public int MaterialAmount { get; }
+    public IReadOnlyList<GearUpgradeMaterialRequirement> MaterialRequirements { get; }
 
     public EnhancementOptionPayment(
         EnhancementPaymentKind kind,
         int scrollSlotIndex = -1,
-        string materialItemId = null,
-        int materialAmount = 0)
+        IReadOnlyList<GearUpgradeMaterialRequirement> materialRequirements = null)
     {
         Kind = kind;
         ScrollSlotIndex = scrollSlotIndex;
-        MaterialItemId = materialItemId;
-        MaterialAmount = materialAmount;
+        MaterialRequirements = materialRequirements ?? Array.Empty<GearUpgradeMaterialRequirement>();
     }
 
     public static EnhancementOptionPayment None => new(EnhancementPaymentKind.None);
@@ -41,16 +40,10 @@ public readonly struct EnhancementOptionPayment
         if (RequiresScrollOnlyPayment(option) || gear == null)
             return None;
 
-        string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
-        int materialCost = EnhancementTierRules.GetMaterialCost(option.tier);
-        if (!string.IsNullOrWhiteSpace(materialId) &&
-            inventory.CountItem(materialId) >= materialCost)
-        {
-            return new EnhancementOptionPayment(
-                EnhancementPaymentKind.Materials,
-                materialItemId: materialId,
-                materialAmount: materialCost);
-        }
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements =
+            GearUpgradeMaterialResolver.ResolveMaterialRequirements(gear, option.tier, gear.SuccessfulEnhancements, option);
+        if (HasMaterialRequirements(inventory, requirements))
+            return new EnhancementOptionPayment(EnhancementPaymentKind.Materials, materialRequirements: requirements);
 
         return None;
     }
@@ -68,16 +61,13 @@ public readonly struct EnhancementOptionPayment
         if (inventory == null || option == null || gear == null || RequiresScrollOnlyPayment(option))
             return false;
 
-        string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
-        int materialCost = EnhancementTierRules.GetMaterialCost(option.tier);
-        return !string.IsNullOrWhiteSpace(materialId) &&
-               inventory.CountItem(materialId) >= materialCost;
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements =
+            GearUpgradeMaterialResolver.ResolveMaterialRequirements(gear, option.tier, gear.SuccessfulEnhancements, option);
+        return HasMaterialRequirements(inventory, requirements);
     }
 
-    public static bool HasAnyPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear)
-    {
-        return HasScrollPayment(inventory, option) || HasMaterialPayment(inventory, option, gear);
-    }
+    public static bool HasAnyPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear) =>
+        HasScrollPayment(inventory, option) || HasMaterialPayment(inventory, option, gear);
 
     public static string FormatCostLabel(EnhancementOptionPayment payment, ItemDatabase db)
     {
@@ -85,15 +75,50 @@ public readonly struct EnhancementOptionPayment
             return "Scroll";
 
         if (payment.Kind == EnhancementPaymentKind.Materials)
-        {
-            ItemDefinition mat = db != null ? db.Get(payment.MaterialItemId) : null;
-            string name = mat != null && !string.IsNullOrWhiteSpace(mat.displayName)
-                ? mat.displayName.Trim()
-                : payment.MaterialItemId;
-            return $"{payment.MaterialAmount} {name}";
-        }
+            return FormatMaterialRequirements(payment.MaterialRequirements, db);
 
         return "Unavailable";
+    }
+
+    private static bool HasMaterialRequirements(
+        Inventory inventory,
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements)
+    {
+        if (inventory == null || requirements == null || requirements.Count == 0)
+            return false;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
+                return false;
+
+            if (inventory.CountItem(req.ItemId) < req.Amount)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string FormatMaterialRequirements(
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements,
+        ItemDatabase db)
+    {
+        if (requirements == null || requirements.Count == 0)
+            return "Unavailable";
+
+        var parts = new List<string>(requirements.Count);
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            ItemDefinition mat = db != null ? db.Get(req.ItemId) : null;
+            string name = mat != null && !string.IsNullOrWhiteSpace(mat.displayName)
+                ? mat.displayName.Trim()
+                : req.ItemId;
+            parts.Add($"{req.Amount} {name}");
+        }
+
+        return string.Join(", ", parts);
     }
 
     private static int FindItemSlot(Inventory inventory, string itemId)
@@ -108,7 +133,7 @@ public readonly struct EnhancementOptionPayment
             if (slot.IsEmpty)
                 continue;
 
-            if (string.Equals(slot.itemId, target, System.StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(slot.itemId, target, StringComparison.OrdinalIgnoreCase))
                 return i;
         }
 

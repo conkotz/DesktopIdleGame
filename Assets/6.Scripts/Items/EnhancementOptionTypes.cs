@@ -27,3 +27,15 @@ public enum GearUpgradeMaterialFamily
     Linen = 3,
     Wood = 4,
 }
+
+public readonly struct GearUpgradeMaterialRequirement
+{
+    public string ItemId { get; }
+    public int Amount { get; }
+
+    public GearUpgradeMaterialRequirement(string itemId, int amount)
+    {
+        ItemId = itemId;
+        Amount = amount;
+    }
+}

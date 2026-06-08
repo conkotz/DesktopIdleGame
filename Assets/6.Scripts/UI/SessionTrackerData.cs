@@ -37,6 +37,7 @@ public class SessionTrackerData : MonoBehaviour
         public readonly Dictionary<string, int> itemAmounts = new Dictionary<string, int>(StringComparer.Ordinal);
         /// <summary>First-seen ordering so older items stay at the front of the list display.</summary>
         public readonly List<string> orderedItemIds = new List<string>();
+        public int killCount;
     }
 
     public event Action OnDataChanged;
@@ -231,6 +232,24 @@ public class SessionTrackerData : MonoBehaviour
         TotalLootValue += delta;
         TotalLootItemCount += amount;
 
+        OnDataChanged?.Invoke();
+    }
+
+    /// <summary>Records an enemy kill for a loot tracker source label (e.g. "Spider").</summary>
+    public void RegisterEnemyKill(string source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+            return;
+
+        string key = NormaliseSource(source);
+        if (!_lootBySource.TryGetValue(key, out LootSourceEntry entry))
+        {
+            entry = new LootSourceEntry { source = key };
+            _lootBySource[key] = entry;
+            _lootOrdered.Add(entry);
+        }
+
+        entry.killCount += 1;
         OnDataChanged?.Invoke();
     }
 

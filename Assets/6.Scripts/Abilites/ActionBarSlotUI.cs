@@ -921,7 +921,10 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (hasAssigned && assignedAction != null && assignedAction.IsAbility)
         {
             AbilityDefinition def = GetAbilityDefinition(assignedAction.id);
-            abilityEligibleForAuto = PlayerAbilityController.CanAbilityBeUsedByAutoBattle(def);
+            if (def != null && def.tag == AbilityTag.ToggleBuff && PlayerAbilityController.IsToggleBuffActive(def))
+                abilityEligibleForAuto = true;
+            else
+                abilityEligibleForAuto = PlayerAbilityController.CanAbilityBeUsedByAutoBattle(def);
         }
 
         bool shouldShow = isAutoBattleActive &&

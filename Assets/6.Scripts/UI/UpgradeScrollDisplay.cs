@@ -7,7 +7,7 @@ public static class UpgradeScrollDisplay
         if (scroll == null || !scroll.IsEnhancementScroll)
             return string.Empty;
 
-        EnhancementScrollStats stats = scroll.enhancementScrollStats;
+        EnhancementScrollStats stats = scroll.GetEffectiveEnhancementScrollStats();
         string statName = ItemDefinition.GetEnhancementScrollTargetStatDisplayName(stats.targetStat);
         string kindName = stats.modifierKind == EnhancementScrollModifierKind.Percent ? "Percent" : "Flat";
         return $"{statName} {kindName}";
@@ -47,7 +47,7 @@ public static class UpgradeScrollDisplay
         if (scroll == null || !scroll.IsEnhancementScroll)
             return string.Empty;
 
-        EnhancementScrollStats stats = scroll.enhancementScrollStats;
+        EnhancementScrollStats stats = scroll.GetEffectiveEnhancementScrollStats();
         return FormatStatsDescription(stats);
     }
 
@@ -57,6 +57,9 @@ public static class UpgradeScrollDisplay
         {
             EnhancementScrollTargetStat.PhysicalDamage => "physical damage",
             EnhancementScrollTargetStat.MagicDamage => "magic damage",
+            EnhancementScrollTargetStat.FireDamage => "fire damage",
+            EnhancementScrollTargetStat.IceDamage => "ice damage",
+            EnhancementScrollTargetStat.LightningDamage => "lightning damage",
             EnhancementScrollTargetStat.CorruptionDamage => "corruption damage",
             EnhancementScrollTargetStat.Health => "health",
             EnhancementScrollTargetStat.Energy => "energy",
@@ -74,6 +77,10 @@ public static class UpgradeScrollDisplay
             EnhancementScrollTargetStat.StaminaEfficiency => "stamina efficiency",
             EnhancementScrollTargetStat.PoisonChance => "poison chance",
             EnhancementScrollTargetStat.PoisonMultiplier => "poison multi",
+            EnhancementScrollTargetStat.BurnChance => "burn chance",
+            EnhancementScrollTargetStat.ChillChance => "chill chance",
+            EnhancementScrollTargetStat.ShockChance => "shock chance",
+            EnhancementScrollTargetStat.BurnMultiplier => "burn multi",
             EnhancementScrollTargetStat.UpgradeSlotReduction => "used slot",
             _ => stat.ToString().ToLowerInvariant()
         };

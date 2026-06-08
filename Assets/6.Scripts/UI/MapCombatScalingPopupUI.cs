@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -11,7 +12,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
     private const int TooltipSortOrder = CanvasSortOrder + 100;
-    private const int UiVersion = 7;
+    private const int UiVersion = 10;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
     private static MapCombatScalingPopupUI _instance;
@@ -23,8 +24,11 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private static readonly Color TickLockedColor = new(0.38f, 0.35f, 0.32f, 1f);
     private static readonly Color TickSelectedColor = new(0.98f, 0.88f, 0.35f, 1f);
 
+    private static readonly Color TickPreviewSelectedColor = new(0.72f, 0.58f, 0.24f, 1f);
+
     private RectTransform _panelRoot;
     private Slider _slider;
+    private Button _confirmButton;
     private RectTransform _customFillBar;
     private RectTransform _lockedTrackOverlay;
     private Image[] _tickMarks;
@@ -32,6 +36,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private TMP_Text _scaleValueText;
     private TMP_Text _reenterWarningText;
     private TMP_Text _detailsText;
+    private ScrollRect _detailsScrollRect;
     private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
     private MapEnhancementScalingSlotUI[] _enhancementSlots;
     private TMP_Text _appliedEffectsText;
@@ -56,6 +61,15 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     {
         if (_instance != null && _instance._panelRoot != null && _instance._panelRoot.gameObject.activeSelf)
             _instance.RefreshEnhancementSlots();
+    }
+
+    /// <summary>Closes the popup without saving (same as Cancel).</summary>
+    public static void CancelIfOpen()
+    {
+        if (_instance == null || _instance._panelRoot == null || !_instance._panelRoot.gameObject.activeSelf)
+            return;
+
+        _instance.HideImmediate();
     }
 
     public static MapCombatScalingPopupUI EnsureInstance()
@@ -114,7 +128,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         int kills = progress != null ? progress.GetEnemyKillsOnNode(node.nodeId) : 0;
         int unlocked = MapCombatScaling.GetUnlockedLevel(kills);
-        _maxSelectableSlider = MapCombatScaling.GetMaxSelectableSliderValue(unlocked);
+        _maxSelectableSlider = MapCombatScaling.GetMaxSelectableSliderValue(unlocked, kills);
 
         int selected = progress != null
             ? progress.GetCombatMapScalingSelectedTier(node.nodeId)
@@ -134,7 +148,9 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _currentSliderValue = selected;
         RefreshSliderVisuals();
         RefreshDetails(selected);
+        StartCoroutine(CoRefreshDetailsScrollNextFrame());
         RefreshReenterWarning(selected);
+        RefreshConfirmButtonState();
         RefreshEnhancementSlots();
         if (_panelRoot != null)
             _panelRoot.gameObject.SetActive(true);
@@ -142,7 +158,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
     private void HandleSliderChanged(float value)
     {
-        int sliderValue = Mathf.Clamp(Mathf.RoundToInt(value), MapCombatScaling.SliderMin, _maxSelectableSlider);
+        int sliderValue = Mathf.Clamp(Mathf.RoundToInt(value), MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
         if (_slider != null && Mathf.Abs(_slider.value - sliderValue) > 0.01f)
             _slider.SetValueWithoutNotify(sliderValue);
 
@@ -150,6 +166,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         RefreshSliderVisuals();
         RefreshDetails(sliderValue);
         RefreshReenterWarning(sliderValue);
+        RefreshConfirmButtonState();
     }
 
     private void RefreshSliderVisuals()
@@ -178,26 +195,42 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         for (int i = 0; i < _tickMarks.Length; i++)
         {
-            bool available = i <= _maxSelectableSlider;
+            bool unlocked = i <= _maxSelectableSlider;
             bool selected = i == _currentSliderValue;
-            Color tickColor = selected ? TickSelectedColor : available ? TickAvailableColor : TickLockedColor;
+            Color tickColor = selected
+                ? unlocked ? TickSelectedColor : TickPreviewSelectedColor
+                : unlocked ? TickAvailableColor : TickLockedColor;
             if (_tickMarks[i] != null)
                 _tickMarks[i].color = tickColor;
 
             if (_tickLabels[i] != null)
                 _tickLabels[i].color = selected
-                    ? TickSelectedColor
-                    : available
+                    ? unlocked ? TickSelectedColor : TickPreviewSelectedColor
+                    : unlocked
                         ? new Color(0.9f, 0.86f, 0.78f, 1f)
                         : new Color(0.45f, 0.42f, 0.38f, 1f);
         }
     }
 
+    private void RefreshConfirmButtonState()
+    {
+        if (_confirmButton == null)
+            return;
+
+        bool canConfirm = _currentSliderValue <= _maxSelectableSlider;
+        _confirmButton.interactable = canConfirm;
+    }
+
     private void RefreshDetails(int sliderValue)
     {
-        sliderValue = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, _maxSelectableSlider);
+        sliderValue = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+        bool previewLockedTier = sliderValue > _maxSelectableSlider;
         if (_scaleValueText != null)
-            _scaleValueText.text = $"Map Scaling: {sliderValue}";
+        {
+            _scaleValueText.text = previewLockedTier
+                ? $"Map Scaling: {sliderValue} (locked — preview only)"
+                : $"Map Scaling: {sliderValue}";
+        }
 
         if (_detailsText == null || _node == null)
             return;
@@ -210,10 +243,33 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         sb.AppendLine(MapCombatScaling.BuildSpecialLootText(_node, sliderValue));
 
         _detailsText.text = sb.ToString().TrimEnd();
+        RefreshDetailsScrollLayout();
+    }
+
+    private void RefreshDetailsScrollLayout()
+    {
+        if (_detailsScrollRect == null || _detailsText == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        RectTransform content = _detailsScrollRect.content;
+        if (content != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+
+        _detailsScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    private IEnumerator CoRefreshDetailsScrollNextFrame()
+    {
+        yield return null;
+        RefreshDetailsScrollLayout();
     }
 
     private void Confirm()
     {
+        if (_currentSliderValue > _maxSelectableSlider)
+            return;
+
         if (_node != null && _progress != null && _slider != null)
         {
             int value = Mathf.Clamp(Mathf.RoundToInt(_slider.value), MapCombatScaling.SliderMin, _maxSelectableSlider);
@@ -230,6 +286,13 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     {
         if (_reenterWarningText == null || _node == null)
             return;
+
+        if (sliderValue > _maxSelectableSlider)
+        {
+            _reenterWarningText.gameObject.SetActive(true);
+            _reenterWarningText.text = "SCALE LEVEL NOT YET UNLOCKED";
+            return;
+        }
 
         bool show = MapCombatScalingSessionState.ShouldShowReenterWarningForSlider(_node.nodeId, sliderValue);
         _reenterWarningText.gameObject.SetActive(show);
@@ -270,6 +333,8 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _scaleValueText = null;
         _reenterWarningText = null;
         _detailsText = null;
+        _detailsScrollRect = null;
+        _confirmButton = null;
         _appliedEffectsText = null;
         _enhancementSlots = null;
         _builtUiVersion = 0;
@@ -379,7 +444,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         row.childForceExpandHeight = false;
 
         CreateButton(buttonRow, "Cancel", HideImmediate);
-        CreateButton(buttonRow, "OK", Confirm);
+        _confirmButton = CreateButton(buttonRow, "OK", Confirm);
         _builtUiVersion = UiVersion;
     }
 
@@ -636,21 +701,25 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         return label;
     }
 
-    private static TMP_Text CreateSummaryArea(RectTransform parent)
+    private TMP_Text CreateSummaryArea(RectTransform parent)
     {
         RectTransform scrollRoot = CreateChild(parent, "DetailsScroll");
         LayoutElement scrollLe = scrollRoot.gameObject.AddComponent<LayoutElement>();
         scrollLe.minHeight = 180f;
         scrollLe.flexibleHeight = 1f;
+        scrollLe.preferredHeight = -1f;
 
         Image scrollBg = scrollRoot.gameObject.AddComponent<Image>();
         scrollBg.color = new Color(0.16f, 0.14f, 0.12f, 0.98f);
+        scrollBg.raycastTarget = true;
 
         ScrollRect scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 18f;
+        scroll.scrollSensitivity = 24f;
+        scroll.inertia = true;
+        _detailsScrollRect = scroll;
 
         RectTransform viewport = CreateChild(scrollRoot, "Viewport");
         Stretch(viewport, 0f, 0f, 1f, 1f);
@@ -662,11 +731,11 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         content.anchorMax = new Vector2(1f, 1f);
         content.pivot = new Vector2(0.5f, 1f);
         content.anchoredPosition = Vector2.zero;
-        content.sizeDelta = Vector2.zero;
+        content.sizeDelta = new Vector2(0f, 0f);
 
-        ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        ContentSizeFitter contentFitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         VerticalLayoutGroup contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
         contentLayout.padding = new RectOffset(12, 12, 10, 10);
@@ -677,14 +746,19 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         contentLayout.childForceExpandHeight = false;
         scroll.content = content;
 
-        RectTransform textRow = CreateChild(content, "DetailsTextRow");
-        LayoutElement textRowLe = textRow.gameObject.AddComponent<LayoutElement>();
-        textRowLe.flexibleWidth = 1f;
-
-        var textGo = new GameObject("Text", typeof(RectTransform));
-        textGo.transform.SetParent(textRow, false);
+        var textGo = new GameObject("DetailsText", typeof(RectTransform));
+        textGo.transform.SetParent(content, false);
         RectTransform textRt = textGo.GetComponent<RectTransform>();
-        Stretch(textRt, 0f, 0f, 1f, 1f);
+        textRt.anchorMin = new Vector2(0f, 1f);
+        textRt.anchorMax = new Vector2(1f, 1f);
+        textRt.pivot = new Vector2(0.5f, 1f);
+        textRt.anchoredPosition = Vector2.zero;
+        textRt.sizeDelta = new Vector2(0f, 0f);
+
+        LayoutElement textLayout = textGo.AddComponent<LayoutElement>();
+        textLayout.flexibleWidth = 1f;
+        textLayout.minHeight = 0f;
+        textLayout.preferredHeight = -1f;
 
         TMP_Text text = textGo.AddComponent<TextMeshProUGUI>();
         text.fontSize = 12f;
@@ -695,6 +769,12 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         text.richText = true;
         text.lineSpacing = 4f;
         text.paragraphSpacing = 6f;
+        text.raycastTarget = false;
+
+        ContentSizeFitter textFitter = textGo.AddComponent<ContentSizeFitter>();
+        textFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        textFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
         return text;
     }
 
@@ -753,7 +833,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         }
     }
 
-    private static void CreateButton(RectTransform parent, string label, Action onClick)
+    private static Button CreateButton(RectTransform parent, string label, Action onClick)
     {
         RectTransform rt = CreateChild(parent, label + "Button");
         LayoutElement le = rt.gameObject.AddComponent<LayoutElement>();
@@ -772,6 +852,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         text.color = new Color(0.92f, 0.88f, 0.8f, 1f);
 
         button.onClick.AddListener(() => onClick?.Invoke());
+        return button;
     }
 }
 

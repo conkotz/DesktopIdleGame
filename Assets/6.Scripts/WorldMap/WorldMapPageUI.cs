@@ -184,6 +184,7 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void OnDisable()
     {
+        MapCombatScalingPopupUI.CancelIfOpen();
         UnsubscribeProgressChanged();
         UnsubscribeSkillsLevelEvents();
         LevelSelectSharedState.HudPreviewSelection = null;

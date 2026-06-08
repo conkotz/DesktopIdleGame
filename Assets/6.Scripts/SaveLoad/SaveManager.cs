@@ -513,8 +513,11 @@ public class SaveManager : MonoBehaviour
     private static void ApplyRuntimeEnhancedItemsToDatabase(SaveData data)
     {
         ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
-        if (db != null)
-            db.LoadRuntimeEnhancedItemsFrom(data);
+        if (db == null)
+            return;
+
+        db.LoadRuntimeEnhancedItemsFrom(data);
+        MapEnhancementRegistry.LoadFrom(data, db);
     }
 
     private void ApplyPendingNewGamePlayerName()

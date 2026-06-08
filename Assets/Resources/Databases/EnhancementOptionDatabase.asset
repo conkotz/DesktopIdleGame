@@ -12,6 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e1b9630e605db24299deb530df84a6a, type: 3}
   m_Name: EnhancementOptionDatabase
   m_EditorClassIdentifier: Assembly-CSharp::EnhancementOptionDatabase
+  basicScrollIcon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
+  intermediateScrollIcon: {fileID: -7790903089807711391, guid: b86c104af4294c842adca9fd4ad359fe, type: 3}
+  advancedScrollIcon: {fileID: -49755086325953384, guid: 41f865b04ee77bd43807b7369717ac29, type: 3}
+  chaosScrollIcon: {fileID: -1833520815334128739, guid: 9727e071c536dc7428e52e04c944d69b, type: 3}
   options:
   - optionId: armour_basic
     displayName: Armour Basic
@@ -20,7 +24,7 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 5
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -33,12 +37,12 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 10
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_armour_scroll
   - optionId: armour_advanced
     displayName: Armour Advanced
     track: 0
@@ -46,12 +50,12 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_armour_scroll
   - optionId: health_basic
     displayName: Health Basic
     track: 0
@@ -59,7 +63,7 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 5
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -72,12 +76,12 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 10
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_health_scroll
   - optionId: health_advanced
     displayName: Health Advanced
     track: 0
@@ -85,19 +89,19 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_health_scroll
   - optionId: move_speed_basic
     displayName: Move Speed Basic
     track: 0
     tier: 0
     targetStat: 13
     modifierKind: 1
-    modifierValue: 0.07
+    modifierValue: 0.04
     allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -110,26 +114,26 @@ MonoBehaviour:
     tier: 1
     targetStat: 13
     modifierKind: 1
-    modifierValue: 0.14
+    modifierValue: 0.06
     allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_movespeed_scroll
   - optionId: move_speed_advanced
     displayName: Move Speed Advanced
     track: 0
     tier: 2
     targetStat: 13
     modifierKind: 1
-    modifierValue: 0.21000001
+    modifierValue: 0.08
     allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_movespeed_scroll
   - optionId: physical_basic
     displayName: Physical Damage Basic
     track: 0
@@ -155,7 +159,7 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_physical_scroll
   - optionId: physical_advanced
     displayName: Physical Damage Advanced
     track: 0
@@ -168,12 +172,12 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
-  - optionId: magic_basic
-    displayName: Magic Damage Basic
+    linkedScrollItemId: advanced_weapon_physical_scroll
+  - optionId: fire_basic
+    displayName: Fire Damage Basic
     track: 0
     tier: 0
-    targetStat: 1
+    targetStat: 20
     modifierKind: 0
     modifierValue: 2
     allowedGearTypes: 128
@@ -181,12 +185,12 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: basic_weapon_magic_scroll
-  - optionId: magic_intermediate
-    displayName: Magic Damage Intermediate
+    linkedScrollItemId: basic_weapon_fire_scroll
+  - optionId: fire_intermediate
+    displayName: Fire Damage Intermediate
     track: 0
     tier: 1
-    targetStat: 1
+    targetStat: 20
     modifierKind: 0
     modifierValue: 4
     allowedGearTypes: 128
@@ -194,12 +198,12 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
-  - optionId: magic_advanced
-    displayName: Magic Damage Advanced
+    linkedScrollItemId: intermediate_weapon_fire_scroll
+  - optionId: fire_advanced
+    displayName: Fire Damage Advanced
     track: 0
     tier: 2
-    targetStat: 1
+    targetStat: 20
     modifierKind: 0
     modifierValue: 6
     allowedGearTypes: 128
@@ -207,7 +211,85 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_fire_scroll
+  - optionId: ice_basic
+    displayName: Ice Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 21
+    modifierKind: 0
+    modifierValue: 2
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_ice_scroll
+  - optionId: ice_intermediate
+    displayName: Ice Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 21
+    modifierKind: 0
+    modifierValue: 4
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_ice_scroll
+  - optionId: ice_advanced
+    displayName: Ice Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 21
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_ice_scroll
+  - optionId: lightning_basic
+    displayName: Lightning Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 22
+    modifierKind: 0
+    modifierValue: 2
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_lightning_scroll
+  - optionId: lightning_intermediate
+    displayName: Lightning Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 22
+    modifierKind: 0
+    modifierValue: 4
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_lightning_scroll
+  - optionId: lightning_advanced
+    displayName: Lightning Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 22
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_lightning_scroll
   - optionId: corruption_basic
     displayName: Corruption Damage Basic
     track: 0
@@ -233,7 +315,7 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_corruption_scroll
   - optionId: corruption_advanced
     displayName: Corruption Damage Advanced
     track: 0
@@ -246,14 +328,14 @@ MonoBehaviour:
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_corruption_scroll
   - optionId: crit_chance_basic
     displayName: Crit Chance Basic
     track: 0
     tier: 0
     targetStat: 9
     modifierKind: 1
-    modifierValue: 0.03
+    modifierValue: 0.02
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -266,33 +348,33 @@ MonoBehaviour:
     tier: 1
     targetStat: 9
     modifierKind: 1
-    modifierValue: 0.06
+    modifierValue: 0.03
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_crit_chance_scroll
   - optionId: crit_chance_advanced
     displayName: Crit Chance Advanced
     track: 0
     tier: 2
     targetStat: 9
     modifierKind: 1
-    modifierValue: 0.089999996
+    modifierValue: 0.04
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_crit_chance_scroll
   - optionId: crit_multi_basic
     displayName: Crit Multi Basic
     track: 0
     tier: 0
     targetStat: 10
     modifierKind: 1
-    modifierValue: 0.05
+    modifierValue: 0.04
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -305,26 +387,26 @@ MonoBehaviour:
     tier: 1
     targetStat: 10
     modifierKind: 1
-    modifierValue: 0.1
+    modifierValue: 0.06
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_crit_multi_scroll
   - optionId: crit_multi_advanced
     displayName: Crit Multi Advanced
     track: 0
     tier: 2
     targetStat: 10
     modifierKind: 1
-    modifierValue: 0.15
+    modifierValue: 0.08
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_crit_multi_scroll
   - optionId: poison_chance_basic
     displayName: Poison Chance Basic
     track: 0
@@ -344,26 +426,26 @@ MonoBehaviour:
     tier: 1
     targetStat: 17
     modifierKind: 1
-    modifierValue: 0.06
+    modifierValue: 0.04
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_poison_chance_scroll
   - optionId: poison_chance_advanced
     displayName: Poison Chance Advanced
     track: 0
     tier: 2
     targetStat: 17
     modifierKind: 1
-    modifierValue: 0.089999996
+    modifierValue: 0.05
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_poison_chance_scroll
   - optionId: poison_multi_basic
     displayName: Poison Multi Basic
     track: 0
@@ -383,33 +465,189 @@ MonoBehaviour:
     tier: 1
     targetStat: 18
     modifierKind: 1
-    modifierValue: 0.1
+    modifierValue: 0.07
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_weapon_poison_multi_scroll
   - optionId: poison_multi_advanced
     displayName: Poison Multi Advanced
     track: 0
     tier: 2
     targetStat: 18
     modifierKind: 1
-    modifierValue: 0.15
+    modifierValue: 0.09
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_weapon_poison_multi_scroll
+  - optionId: burn_chance_basic
+    displayName: Burn Chance Basic
+    track: 0
+    tier: 0
+    targetStat: 23
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_burn_chance_scroll
+  - optionId: burn_chance_intermediate
+    displayName: Burn Chance Intermediate
+    track: 0
+    tier: 1
+    targetStat: 23
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_burn_chance_scroll
+  - optionId: burn_chance_advanced
+    displayName: Burn Chance Advanced
+    track: 0
+    tier: 2
+    targetStat: 23
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_burn_chance_scroll
+  - optionId: chill_chance_basic
+    displayName: Chill Chance Basic
+    track: 0
+    tier: 0
+    targetStat: 24
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_chill_chance_scroll
+  - optionId: chill_chance_intermediate
+    displayName: Chill Chance Intermediate
+    track: 0
+    tier: 1
+    targetStat: 24
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_chill_chance_scroll
+  - optionId: chill_chance_advanced
+    displayName: Chill Chance Advanced
+    track: 0
+    tier: 2
+    targetStat: 24
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_chill_chance_scroll
+  - optionId: shock_chance_basic
+    displayName: Shock Chance Basic
+    track: 0
+    tier: 0
+    targetStat: 25
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_shock_chance_scroll
+  - optionId: shock_chance_intermediate
+    displayName: Shock Chance Intermediate
+    track: 0
+    tier: 1
+    targetStat: 25
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_shock_chance_scroll
+  - optionId: shock_chance_advanced
+    displayName: Shock Chance Advanced
+    track: 0
+    tier: 2
+    targetStat: 25
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_shock_chance_scroll
+  - optionId: burn_multi_basic
+    displayName: Burn Multi Basic
+    track: 0
+    tier: 0
+    targetStat: 26
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_burn_multi_scroll
+  - optionId: burn_multi_intermediate
+    displayName: Burn Multi Intermediate
+    track: 0
+    tier: 1
+    targetStat: 26
+    modifierKind: 1
+    modifierValue: 0.07
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_burn_multi_scroll
+  - optionId: burn_multi_advanced
+    displayName: Burn Multi Advanced
+    track: 0
+    tier: 2
+    targetStat: 26
+    modifierKind: 1
+    modifierValue: 0.09
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_burn_multi_scroll
   - optionId: gather_speed_basic
     displayName: Gather Speed Basic
     track: 0
     tier: 0
     targetStat: 15
     modifierKind: 1
-    modifierValue: 0.15
+    modifierValue: 0.1
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -422,33 +660,33 @@ MonoBehaviour:
     tier: 1
     targetStat: 15
     modifierKind: 1
-    modifierValue: 0.3
+    modifierValue: 0.15
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_tool_gather_speed_scroll
   - optionId: gather_speed_advanced
     displayName: Gather Speed Advanced
     track: 0
     tier: 2
     targetStat: 15
     modifierKind: 1
-    modifierValue: 0.45000002
+    modifierValue: 0.2
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_tool_gather_speed_scroll
   - optionId: gathering_grit_basic
     displayName: Gathering Grit Basic
     track: 0
     tier: 0
     targetStat: 16
     modifierKind: 1
-    modifierValue: 0.05
+    modifierValue: 0.04
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -461,26 +699,26 @@ MonoBehaviour:
     tier: 1
     targetStat: 16
     modifierKind: 1
-    modifierValue: 0.1
+    modifierValue: 0.06
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_tool_grit_scroll
   - optionId: gathering_grit_advanced
     displayName: Gathering Grit Advanced
     track: 0
     tier: 2
     targetStat: 16
     modifierKind: 1
-    modifierValue: 0.15
+    modifierValue: 0.08
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: advanced_tool_grit_scroll
   - optionId: stamina_efficiency_basic
     displayName: Stamina Efficiency Basic
     track: 0
@@ -500,30 +738,30 @@ MonoBehaviour:
     tier: 1
     targetStat: 19
     modifierKind: 1
-    modifierValue: 0.12
+    modifierValue: 0.08
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
+    linkedScrollItemId: intermediate_tool_stamina_efficiency_scroll
   - optionId: stamina_efficiency_advanced
     displayName: Stamina Efficiency Advanced
     track: 0
     tier: 2
     targetStat: 19
     modifierKind: 1
-    modifierValue: 0.17999999
+    modifierValue: 0.1
     allowedGearTypes: 16
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
-    linkedScrollItemId: 
-  - optionId: corruption_physical_gamble
-    displayName: Corruption Physical Gamble
+    linkedScrollItemId: advanced_tool_stamina_efficiency_scroll
+  - optionId: chaos_physical_gamble
+    displayName: Chaos Physical Gamble
     track: 1
-    tier: 0
+    tier: 1
     targetStat: 0
     modifierKind: 0
     modifierValue: 6
@@ -533,11 +771,11 @@ MonoBehaviour:
     failureOutcome: 1
     destroyChanceOnFailure: 0.5
     linkedScrollItemId: chaos_weapon_physical_scroll
-  - optionId: corruption_magic_gamble
-    displayName: Corruption Magic Gamble
+  - optionId: chaos_fire_gamble
+    displayName: Chaos Fire Gamble
     track: 1
-    tier: 0
-    targetStat: 1
+    tier: 1
+    targetStat: 20
     modifierKind: 0
     modifierValue: 6
     allowedGearTypes: 128
@@ -546,10 +784,10 @@ MonoBehaviour:
     failureOutcome: 1
     destroyChanceOnFailure: 0.5
     linkedScrollItemId: chaos_weapon_magic_scroll
-  - optionId: corruption_damage_gamble
-    displayName: Corruption Damage Gamble
+  - optionId: chaos_corruption_gamble
+    displayName: Chaos Corruption Gamble
     track: 1
-    tier: 0
+    tier: 1
     targetStat: 2
     modifierKind: 0
     modifierValue: 6
@@ -559,14 +797,14 @@ MonoBehaviour:
     failureOutcome: 1
     destroyChanceOnFailure: 0.5
     linkedScrollItemId: chaos_weapon_corruption_scroll
-  - optionId: corruption_health_gamble
-    displayName: Corruption Health Gamble
+  - optionId: chaos_health_gamble
+    displayName: Chaos Health Gamble
     track: 1
-    tier: 0
+    tier: 1
     targetStat: 3
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
     successChance: 0.35
     consumeSlotOnFailure: 1
     failureOutcome: 1
@@ -579,7 +817,7 @@ MonoBehaviour:
     targetStat: 14
     modifierKind: 0
     modifierValue: 1
-    allowedGearTypes: 1809
+    allowedGearTypes: 3857
     successChance: 0.5
     consumeSlotOnFailure: 0
     failureOutcome: 0

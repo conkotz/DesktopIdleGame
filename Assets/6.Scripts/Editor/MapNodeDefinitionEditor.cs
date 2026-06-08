@@ -4,6 +4,8 @@ using UnityEngine;
 [CustomEditor(typeof(MapNodeDefinition))]
 public sealed class MapNodeDefinitionEditor : Editor
 {
+    private bool _showDefaultScrollDrops = true;
+
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -44,17 +46,43 @@ public sealed class MapNodeDefinitionEditor : Editor
             if (isCombat && scalingEnabledProp.boolValue)
             {
                 EditorGUILayout.HelpBox(
-                    "Level 1 = current base stats. Unlocks: 200 / 500 / 1k / 2k / 5k / 10k kills on this map.\n" +
-                    "Per level (from base): HP +100%, XP +10%, loot chance +25%, gold +25%. Special drops use fixed chances.",
+                    "Level 1 = current base stats. Unlocks: 200 / 500 / 1k / 2k / 5k / 10k / 20k kills on this map.\n" +
+                    "Per level (from base): HP +100%, XP +10%, loot chance +25%, gold +25%. Special drops use fixed chances.\n\n" +
+                    "Enhancement scroll, map enhancement, and slot reduction scroll drops are shared defaults (see below) and are not stored in this map's list. " +
+                    "Use the list below only for map-specific extras you add manually.",
                     MessageType.Info);
 
+                DrawDefaultScrollDropPreview();
+
                 if (specialDrops != null)
-                    EditorGUILayout.PropertyField(specialDrops, new GUIContent("Special Drops By Scaling Level"), true);
+                    EditorGUILayout.PropertyField(specialDrops, new GUIContent("Map-Specific Special Drops By Scaling Level"), true);
             }
             else if (!isCombat && scalingEnabledProp.boolValue)
             {
                 EditorGUILayout.HelpBox("Map scaling applies to Combat node type only.", MessageType.Warning);
             }
+        }
+    }
+
+    private void DrawDefaultScrollDropPreview()
+    {
+        _showDefaultScrollDrops = EditorGUILayout.Foldout(
+            _showDefaultScrollDrops,
+            "Default Scaling Special Drops (automatic)",
+            true);
+
+        if (!_showDefaultScrollDrops)
+            return;
+
+        using (new EditorGUI.IndentLevelScope())
+        {
+            EditorGUILayout.HelpBox(
+                "Applied at runtime to every combat map with scaling enabled. Each tier uses these total rates only (one roll per scroll category per kill, then a random scroll from that pool; map enhancements and slot reduction scroll roll individually).",
+                MessageType.None);
+
+            EditorGUILayout.TextArea(
+                MapCombatScalingSpecialDropDefaults.BuildEditorPreviewText(),
+                GUILayout.MinHeight(140f));
         }
     }
 }

@@ -987,7 +987,7 @@ public class PlayerAbilityController : MonoBehaviour
         SyncCleavingChopHudBuff();
     }
 
-    private bool TryHandleToggleAbilityUse(AbilityDefinition def)
+    private bool TryHandleToggleAbilityUse(AbilityDefinition def, bool allowToggleOff = true)
     {
         if (def == null || def.tag != AbilityTag.ToggleBuff)
             return false;
@@ -997,6 +997,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (_energyInfusionActive)
         {
+            if (!allowToggleOff)
+                return false;
+
             ForceEndEnergyInfusionEarly(applyCooldown: false);
             return true;
         }
@@ -2368,9 +2371,23 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
 
         if (def.tag == AbilityTag.ToggleBuff)
-            return false;
+            return !IsToggleBuffActive(def);
 
         return true;
+    }
+
+    public static bool IsToggleBuffActive(AbilityDefinition def)
+    {
+        if (def == null || def.tag != AbilityTag.ToggleBuff)
+            return false;
+
+        if (_instance == null)
+            return false;
+
+        if (string.Equals(def.abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
+            return _instance._energyInfusionActive;
+
+        return false;
     }
 
     private const string NoTargetsInRangeLogMessage = "No targets in range";
@@ -2937,7 +2954,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!showLockedFeedback && !CanAbilityBeUsedByAutoBattle(def))
             return false;
 
-        if (TryHandleToggleAbilityUse(def))
+        if (TryHandleToggleAbilityUse(def, allowToggleOff: showLockedFeedback))
             return true;
 
         bool isWhirlwind = string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase);

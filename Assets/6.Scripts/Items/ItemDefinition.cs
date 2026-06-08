@@ -435,6 +435,14 @@ public struct BonusStats
     [Tooltip("Bonus chance to apply a burn stack on fire hits (additive, player).")]
     public float burnChance;
 
+    [Range(0f, 1f)]
+    [Tooltip("Bonus chance to apply chill on hit (additive, player).")]
+    public float chillChance;
+
+    [Range(0f, 1f)]
+    [Tooltip("Bonus chance to apply shock on hit (additive, player).")]
+    public float shockChance;
+
     [Tooltip("Adds to chill slow per stack. 0.02 means +2 percentage points (e.g. 15% -> 17%).")]
     public float chillSlowPerStackBonus;
 
@@ -474,6 +482,8 @@ public struct BonusStats
                poisonDurationBonus != 0f || poisonMaxStacksBonus != 0 ||
                burnExplosionMultiplierBonus != 0f ||
                burnChance > 0f ||
+               chillChance > 0f ||
+               shockChance > 0f ||
                chillSlowPerStackBonus != 0f ||
                shockDamageTakenMultiplierBonus != 0f ||
                parryChance > 0f ||
@@ -709,6 +719,13 @@ public enum EnhancementScrollTargetStat
     PoisonChance,
     PoisonMultiplier,
     StaminaEfficiency,
+    FireDamage,
+    IceDamage,
+    LightningDamage,
+    BurnChance,
+    ChillChance,
+    ShockChance,
+    BurnMultiplier,
 }
 
 public enum EnhancementScrollModifierKind
@@ -748,7 +765,9 @@ public enum EnhancementScrollGearMask
     Body = 1 << 9,
     [InspectorName("Feet")]
     Boots = 1 << 10,
-    AllArmorSlots = Helmet | Body | Boots,
+    [InspectorName("Offhand")]
+    OffHand = 1 << 11,
+    AllArmorSlots = Helmet | Body | Boots | OffHand,
     AllGear = Weapon | AllArmorSlots | Tool
 }
 
@@ -907,6 +926,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public ConsumableStats consumableStats;
 
     [Header("Enhancement Scroll Stats (Only if ItemKind = EnhancementScroll)")]
+    [Tooltip("When set, scroll behaviour resolves from EnhancementOptionDatabase instead of the fields below.")]
+    public string enhancementOptionId;
+
     public EnhancementScrollStats enhancementScrollStats;
 
     [Header("Cookable Stats")]
@@ -917,6 +939,30 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsArmor => itemKind == ItemKind.Armor;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
+
+    public EnhancementOptionEntry ResolveEnhancementOption()
+    {
+        if (!IsEnhancementScroll)
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(enhancementOptionId))
+        {
+            EnhancementOptionEntry byOptionId = EnhancementOptionResolver.GetOptionById(enhancementOptionId);
+            if (byOptionId != null)
+                return byOptionId;
+        }
+
+        return EnhancementOptionResolver.GetOptionForScroll(this);
+    }
+
+    public EnhancementScrollStats GetEffectiveEnhancementScrollStats()
+    {
+        EnhancementOptionEntry option = ResolveEnhancementOption();
+        if (option != null)
+            return option.ToScrollStats();
+
+        return enhancementScrollStats;
+    }
     public bool IsEquippable => IsWeapon || IsTool || IsArmor || IsJewelry || IsCombatSupport;
 
     public IReadOnlyList<RandomStatPoolEntry> RandomStatPoolEntries => randomStatPool;
@@ -1101,6 +1147,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.TotalElementalDamageMin > 0 || weaponStats.TotalElementalDamageMax > 0);
+    public bool HasFireWeaponDamage => IsWeapon && (weaponStats.minFireDamage > 0 || weaponStats.maxFireDamage > 0);
+    public bool HasIceWeaponDamage => IsWeapon && (weaponStats.minIceDamage > 0 || weaponStats.maxIceDamage > 0);
+    public bool HasLightningWeaponDamage => IsWeapon && (weaponStats.minLightningDamage > 0 || weaponStats.maxLightningDamage > 0);
     public bool HasCorruptionWeaponDamage => IsWeapon && (weaponStats.minCorruptionDamage > 0 || weaponStats.maxCorruptionDamage > 0);
 
     /// <summary>Weapon hits are corruption-only (direct hits cannot crit; poison may still use gear crit via Master of Venoms).</summary>
@@ -1156,13 +1205,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         };
     }
 
-    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool;
+    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool || IsOffhandCombatSupport;
 
     public int MaxUpgradeSlots
     {
         get
         {
-            if (IsWeapon || IsArmor)
+            if (IsWeapon || IsArmor || IsOffhandCombatSupport)
                 return 5 + (int)GetEquipmentTierRank();
             if (IsTool)
                 return 3;
@@ -1288,7 +1337,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!scrollDef || scrollDef.itemKind != ItemKind.EnhancementScroll || !target)
             return "";
 
-        EnhancementScrollStats scroll = scrollDef.enhancementScrollStats;
+        EnhancementScrollStats scroll = scrollDef.GetEffectiveEnhancementScrollStats();
         float value = scroll.modifierValue;
         bool percent = scroll.modifierKind == EnhancementScrollModifierKind.Percent;
         bool displayAsPercent = percent || IsPercentDisplayedScrollStat(scroll.targetStat);
@@ -1587,29 +1636,46 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return result;
     }
 
-    public float EnhancementScrollSuccessChance =>
-        IsEnhancementScroll ? Mathf.Clamp01(enhancementScrollStats.successChance) : 0f;
+    public float EnhancementScrollSuccessChance
+    {
+        get
+        {
+            if (!IsEnhancementScroll)
+                return 0f;
+
+            EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+            if (option == null)
+                return 0f;
+
+            if (option.track == EnhancementTrack.Corruption)
+                return EnhancementSuccessChanceRules.ChaosSuccessChance;
+
+            if (option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+                return Mathf.Clamp01(option.successChance);
+
+            return 0f;
+        }
+    }
 
     public bool EnhancementScrollCanTarget(ItemDefinition gear)
     {
         if (!IsEnhancementScroll || gear == null || !gear.HasUpgradeSlots)
             return false;
 
-        return EnhancementScrollGearRules.MaskAllowsGear(enhancementScrollStats.allowedGearTypes, gear);
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+        if (option == null || !EnhancementOptionResolver.ScrollMatchesDatabase(this, option))
+            return false;
+
+        return EnhancementScrollGearRules.MaskAllowsGear(option.allowedGearTypes, gear);
     }
 
     public bool CanUseEnhancementScrollOn(ItemDefinition gear)
     {
-        if (!EnhancementScrollCanTarget(gear))
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+        if (option == null || !EnhancementOptionResolver.ScrollMatchesDatabase(this, option))
             return false;
 
-        if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
-            return gear.UsedUpgradeSlots > 0;
-
-        if (!gear.HasBaseStatForEnhancementScroll(enhancementScrollStats.targetStat))
-            return false;
-
-        return gear.HasAvailableUpgradeSlot && !gear.HasReachedEnhancementCap;
+        return option.CanApplyToGear(gear, SkillsManager.Instance);
     }
 
     /// <summary>
@@ -1631,6 +1697,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 if (IsWeapon)
                     return HasMagicWeaponDamage || Mathf.Abs(bonusStats.magicDamage) > eps;
                 return Mathf.Abs(bonusStats.magicDamage) > eps;
+
+            case EnhancementScrollTargetStat.FireDamage:
+                return HasFireWeaponDamage;
+
+            case EnhancementScrollTargetStat.IceDamage:
+                return HasIceWeaponDamage;
+
+            case EnhancementScrollTargetStat.LightningDamage:
+                return HasLightningWeaponDamage;
 
             case EnhancementScrollTargetStat.CorruptionDamage:
                 if (IsWeapon)
@@ -1692,13 +1767,28 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 return Mathf.Abs(bonusStats.poisonChance) > eps;
 
             case EnhancementScrollTargetStat.PoisonMultiplier:
-                return Mathf.Abs(bonusStats.poisonMultiplier) > eps;
+                return Mathf.Abs(bonusStats.poisonMultiplier) > eps || Mathf.Abs(bonusStats.poisonChance) > eps;
+
+            case EnhancementScrollTargetStat.BurnChance:
+                return Mathf.Abs(bonusStats.burnChance) > eps || ResolveWeaponBurnApplyChance() > eps || HasFireWeaponDamage;
+
+            case EnhancementScrollTargetStat.ChillChance:
+                return Mathf.Abs(bonusStats.chillChance) > eps || HasIceWeaponDamage;
+
+            case EnhancementScrollTargetStat.ShockChance:
+                return Mathf.Abs(bonusStats.shockChance) > eps || HasLightningWeaponDamage;
+
+            case EnhancementScrollTargetStat.BurnMultiplier:
+                return Mathf.Abs(bonusStats.burnExplosionMultiplierBonus) > eps ||
+                       Mathf.Abs(bonusStats.burnChance) > eps ||
+                       ResolveWeaponBurnApplyChance() > eps ||
+                       HasFireWeaponDamage;
 
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 return true;
 
             default:
-                return true;
+                return false;
         }
     }
 
@@ -1908,11 +1998,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             s += $"Speed: {speed}\n";
 
-            bool showCritOnTooltip = IsCorruptionOnlyWeapon;
-            if (HasSignificantPercentPoints(critChancePct) || showCritOnTooltip)
+            if (HasSignificantPercentPoints(critChancePct))
                 s += $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n";
 
-            if (HasSignificantPercentPoints(critMultBonusPct) || showCritOnTooltip)
+            if (HasSignificantPercentPoints(critMultBonusPct))
                 s += $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n";
 
             string ailments = BuildWeaponAilmentsLine();
@@ -2077,18 +2166,34 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (IsEnhancementScroll)
         {
+            EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+            if (option == null)
+            {
+                return "Enhancement scroll (no matching database entry)\n" +
+                       $"Effect: {FormatEnhancementScrollModifier()}\n" +
+                       $"Allowed Gear: {FormatEnhancementGearMask(GetEffectiveEnhancementScrollStats().allowedGearTypes)}";
+            }
+
+            string successLine = option.track == EnhancementTrack.Corruption
+                ? $"Success Chance: {EnhancementSuccessChanceRules.ChaosSuccessChance * 100f:0.#}%"
+                : option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction
+                    ? $"Success Chance: {Mathf.Clamp01(option.successChance) * 100f:0.#}%"
+                    : option.allowedGearTypes == EnhancementScrollGearMask.Tool
+                        ? "Success Chance: Varies by item (70%–30%)"
+                        : "Success Chance: Varies by item (70%–5%)";
+
             string s =
-                $"Success Chance: {EnhancementScrollSuccessChance * 100f:0.#}%\n" +
-                $"Effect: {FormatEnhancementScrollModifier()}\n" +
-                $"Allowed Gear: {FormatEnhancementGearMask(enhancementScrollStats.allowedGearTypes)}\n";
+                $"{successLine}\n" +
+                $"Effect: {FormatEnhancementScrollModifierFromOption(option)}\n" +
+                $"Allowed Gear: {FormatEnhancementGearMask(option.allowedGearTypes)}\n";
 
-            if (enhancementScrollStats.targetStat != EnhancementScrollTargetStat.UpgradeSlotReduction)
-                s += $"\nRequires Target: {GetEnhancementScrollTargetStatDisplayName(enhancementScrollStats.targetStat)}";
+            if (option.targetStat != EnhancementScrollTargetStat.UpgradeSlotReduction)
+                s += $"\nRequires Target: {GetEnhancementScrollTargetStatDisplayName(option.targetStat)}";
 
-            s += $"\nConsumes Slot On Use: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}";
+            s += $"\nConsumes Slot On Use: {(option.consumeSlotOnFailure ? "Yes" : "No")}";
 
-            if (enhancementScrollStats.failureOutcome != EnhancementScrollFailureOutcome.Nothing)
-                s += $"\nFailure: {FormatEnhancementFailure()}";
+            if (option.failureOutcome != EnhancementScrollFailureOutcome.Nothing)
+                s += $"\nFailure: {FormatEnhancementFailureFromOption(option)}";
 
             return s;
         }
@@ -3057,6 +3162,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         AppendUnifiedWeaponAilmentStatLine(
             matching,
             bonus,
+            bonusStats.chillChance,
+            baseline.bonusStats.chillChance,
+            v => $"Chill Chance: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.shockChance,
+            baseline.bonusStats.shockChance,
+            v => $"Shock Chance: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
             bonusStats.bleedMultiplier,
             baseline.bonusStats.bleedMultiplier,
             v => FormatAilmentMultiplierLine(v, "Bleed Multi"),
@@ -3067,6 +3186,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             bonusStats.poisonMultiplier,
             baseline.bonusStats.poisonMultiplier,
             v => FormatAilmentMultiplierLine(v, "Poison Multi"),
+            DeltaPercentFractionNote);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.burnExplosionMultiplierBonus,
+            baseline.bonusStats.burnExplosionMultiplierBonus,
+            v => FormatAilmentMultiplierLine(v, "Burn Multi"),
             DeltaPercentFractionNote);
         AppendUnifiedWeaponAilmentStatLine(
             matching,
@@ -3219,25 +3345,69 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return sb.ToString();
     }
 
-    private string FormatEnhancementScrollModifier()
+    private static string FormatEnhancementScrollModifierFromOption(EnhancementOptionEntry option)
     {
-        if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+        if (option == null)
+            return string.Empty;
+
+        if (option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
         {
-            int slots = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(enhancementScrollStats.modifierValue)));
+            int slots = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(option.modifierValue)));
             return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
         }
 
-        // Stats stored as 0..1 fractions read more naturally as percentages in the tooltip
-        // (e.g. "+6% Stamina Efficiency" instead of "+0.06 Stamina Efficiency"). Gather Speed is
-        // an additive multiplier modifier (e.g. +0.15x), so we leave it in flat form.
-        bool displayAsPercent = enhancementScrollStats.modifierKind == EnhancementScrollModifierKind.Percent ||
-            IsPercentDisplayedScrollStat(enhancementScrollStats.targetStat);
+        bool displayAsPercent = option.modifierKind == EnhancementScrollModifierKind.Percent ||
+            IsPercentDisplayedScrollStat(option.targetStat);
 
         string value = displayAsPercent
-            ? FormatSignedPercent01(enhancementScrollStats.modifierValue)
-            : FormatSignedNumber(enhancementScrollStats.modifierValue);
+            ? FormatSignedPercent01(option.modifierValue)
+            : FormatSignedNumber(option.modifierValue);
 
-        return $"{value} {GetEnhancementScrollTargetStatDisplayName(enhancementScrollStats.targetStat)}";
+        return $"{value} {GetEnhancementScrollTargetStatDisplayName(option.targetStat)}";
+    }
+
+    private static string FormatEnhancementFailureFromOption(EnhancementOptionEntry option)
+    {
+        if (option == null)
+            return string.Empty;
+
+        string outcome = option.failureOutcome switch
+        {
+            EnhancementScrollFailureOutcome.Nothing => "Nothing",
+            EnhancementScrollFailureOutcome.DestroyItem => "Item may be destroyed",
+            EnhancementScrollFailureOutcome.DowngradeOrRemoveStat => "Downgrade/remove stat (future)",
+            _ => option.failureOutcome.ToString()
+        };
+
+        if (option.failureOutcome == EnhancementScrollFailureOutcome.DestroyItem ||
+            option.track == EnhancementTrack.Corruption)
+        {
+            outcome += $" ({Mathf.Clamp01(option.destroyChanceOnFailure) * 100f:0.#}% destroy chance)";
+        }
+
+        if (option.track == EnhancementTrack.Corruption)
+            outcome += ", Cursed";
+
+        return outcome;
+    }
+
+    private string FormatEnhancementScrollModifier()
+    {
+        EnhancementScrollStats stats = GetEffectiveEnhancementScrollStats();
+        if (stats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+        {
+            int slots = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(stats.modifierValue)));
+            return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
+        }
+
+        bool displayAsPercent = stats.modifierKind == EnhancementScrollModifierKind.Percent ||
+            IsPercentDisplayedScrollStat(stats.targetStat);
+
+        string value = displayAsPercent
+            ? FormatSignedPercent01(stats.modifierValue)
+            : FormatSignedNumber(stats.modifierValue);
+
+        return $"{value} {GetEnhancementScrollTargetStatDisplayName(stats.targetStat)}";
     }
 
     private static bool IsPercentDisplayedScrollStat(EnhancementScrollTargetStat stat)
@@ -3258,6 +3428,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             EnhancementScrollTargetStat.PhysicalDamage => "Physical Damage",
             EnhancementScrollTargetStat.MagicDamage => "Magic Damage",
+            EnhancementScrollTargetStat.FireDamage => "Fire Damage",
+            EnhancementScrollTargetStat.IceDamage => "Ice Damage",
+            EnhancementScrollTargetStat.LightningDamage => "Lightning Damage",
             EnhancementScrollTargetStat.CorruptionDamage => "Corruption Damage",
             EnhancementScrollTargetStat.Health => "Health",
             EnhancementScrollTargetStat.Energy => "Energy",
@@ -3276,6 +3449,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.UpgradeSlotReduction => "Used Upgrade Slot",
             EnhancementScrollTargetStat.PoisonChance => "Poison Chance",
             EnhancementScrollTargetStat.PoisonMultiplier => "Poison Multi",
+            EnhancementScrollTargetStat.BurnChance => "Burn Chance",
+            EnhancementScrollTargetStat.ChillChance => "Chill Chance",
+            EnhancementScrollTargetStat.ShockChance => "Shock Chance",
+            EnhancementScrollTargetStat.BurnMultiplier => "Burn Multi",
             _ => stat.ToString()
         };
     }
@@ -3330,6 +3507,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Helmet, "Head");
         AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Body, "Body");
         AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Boots, "Feet");
+        AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.OffHand, "Offhand");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Tool, "Tool");
         return s;
     }
@@ -3410,7 +3588,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
 
         if (IsEnhancementScroll)
-            return $"{EnhancementScrollSuccessChance * 100f:0.#}% • {FormatEnhancementScrollModifier()}";
+        {
+            EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+            if (option == null)
+                return FormatEnhancementScrollModifier();
+
+            if (option.track == EnhancementTrack.Corruption)
+                return $"{EnhancementSuccessChanceRules.ChaosSuccessChance * 100f:0.#}% • {FormatEnhancementScrollModifierFromOption(option)}";
+
+            if (option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+                return $"{Mathf.Clamp01(option.successChance) * 100f:0.#}% • {FormatEnhancementScrollModifierFromOption(option)}";
+
+            return $"Varies • {FormatEnhancementScrollModifierFromOption(option)}";
+        }
 
         if (CanCook())
             return "Cookable";

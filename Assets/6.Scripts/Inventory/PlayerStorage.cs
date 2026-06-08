@@ -693,6 +693,12 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
+        if (itemDb)
+        {
+            itemDb.LoadRuntimeEnhancedItemsFrom(data);
+            MapEnhancementRegistry.LoadFrom(data, itemDb);
+        }
+
         if (data.storageSlots != null)
         {
             int n = Mathf.Min(_slots.Count, data.storageSlots.Count);

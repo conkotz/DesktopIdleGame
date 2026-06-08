@@ -338,6 +338,7 @@ public class MainMenuWindowUI : MonoBehaviour
         HideAllPages();
         currentPage = null;
 
+        MapCombatScalingPopupUI.CancelIfOpen();
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
 
@@ -498,6 +499,7 @@ public class MainMenuWindowUI : MonoBehaviour
         }
 
         // Ensure merchant mode never blocks opening pages.
+        MapCombatScalingPopupUI.CancelIfOpen();
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
 

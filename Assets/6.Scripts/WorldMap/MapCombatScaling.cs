@@ -15,7 +15,7 @@ public static class MapCombatScaling
     public const int SliderMax = 7;
 
     /// <summary>Kills required to unlock scaling level 2 … 7 (index 0 → level 2, etc.).</summary>
-    public static readonly int[] KillThresholdsForLevel = { 200, 500, 1000, 2000, 5000, 10000 };
+    public static readonly int[] KillThresholdsForLevel = { 200, 500, 1000, 2000, 5000, 10000, 20000 };
 
     public const float HpMultiplierPerLevelAboveBase = 1f;
     public const float XpRateBonusPerLevelAboveBase = 0.10f;
@@ -80,9 +80,23 @@ public static class MapCombatScaling
         return Mathf.Clamp(slider + 1, 2, MaxLevel);
     }
 
-    /// <summary>Max slider index allowed from kill-unlocked play level.</summary>
-    public static int GetMaxSelectableSliderValue(int unlockedLevel) =>
-        unlockedLevel <= MinLevel ? SliderMin : Mathf.Clamp(unlockedLevel - 1, SliderMin, SliderMax);
+    /// <summary>Max slider index allowed from kill-unlocked play level and total kills on this map.</summary>
+    public static int GetMaxSelectableSliderValue(int unlockedLevel, int totalKillsOnMap = 0)
+    {
+        if (unlockedLevel <= MinLevel)
+            return SliderMin;
+
+        int kills = Math.Max(0, totalKillsOnMap);
+        int maxFromLevel = unlockedLevel >= MaxLevel
+            ? SliderMax - 1
+            : Mathf.Clamp(unlockedLevel - 1, SliderMin, SliderMax);
+
+        if (KillThresholdsForLevel.Length > 0 &&
+            kills >= KillThresholdsForLevel[KillThresholdsForLevel.Length - 1])
+            return SliderMax;
+
+        return maxFromLevel;
+    }
 
     public static int GetEffectivePlayLevel(MapNodeDefinition node, WorldMapProgressManager progress)
     {
@@ -109,7 +123,6 @@ public static class MapCombatScaling
             return string.Empty;
 
         int kills = progress != null ? progress.GetEnemyKillsOnNode(node.nodeId) : 0;
-        int unlocked = GetUnlockedLevel(kills);
         var sb = new StringBuilder();
 
         sb.AppendLine($"<b><size=14>Total enemies killed in this area: {kills}</size></b>");
@@ -117,12 +130,13 @@ public static class MapCombatScaling
 
         for (int scaling = 1; scaling <= KillThresholdsForLevel.Length; scaling++)
         {
-            int playLevel = scaling + 1;
-            int required = GetKillsRequiredForLevel(playLevel);
-            bool tierUnlocked = unlocked >= playLevel;
+            int required = KillThresholdsForLevel[scaling - 1];
+            bool tierUnlocked = kills >= required;
             int displayKills = tierUnlocked ? required : kills;
             string status = tierUnlocked ? "unlocked" : "locked";
-            sb.AppendLine($"Scaling {scaling}: Kills on this map {displayKills}/{required} - {status}");
+            string color = tierUnlocked ? "#55CC55" : "#DD4444";
+            sb.AppendLine(
+                $"<color={color}>Scaling {scaling}: Kills on this map {displayKills}/{required} - {status}</color>");
         }
 
         return sb.ToString().TrimEnd();
@@ -149,7 +163,7 @@ public static class MapCombatScaling
     public static string BuildSpecialLootText(MapNodeDefinition node, int sliderValue)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Special loot in this scale tier:");
+        sb.AppendLine("Special loot in this scale tier (these values do not get scaled):");
 
         if (node == null)
         {
@@ -158,14 +172,9 @@ public static class MapCombatScaling
         }
 
         var entries = new List<MapScalingSpecialLootEntry>();
-        node.CollectCombatScalingSpecialDropsUpToSlider(sliderValue, entries);
+        node.CollectMapSpecificSpecialDrops(sliderValue, entries);
 
-        if (entries.Count == 0)
-        {
-            sb.AppendLine("None.");
-            return sb.ToString().TrimEnd();
-        }
-
+        var customLines = new List<string>();
         for (int i = 0; i < entries.Count; i++)
         {
             MapScalingSpecialLootEntry entry = entries[i];
@@ -175,8 +184,24 @@ public static class MapCombatScaling
             string name = !string.IsNullOrWhiteSpace(entry.item.displayName)
                 ? entry.item.displayName.Trim()
                 : entry.item.name;
-            sb.AppendLine($"• {name} — {FormatSpecialDropChancePercent(entry.dropChance)}");
+            customLines.Add($"• {name} — {FormatSpecialDropChancePercent(entry.dropChance)}");
         }
+
+        if (node.IsMapCombatScalingEnabled() && sliderValue >= 2)
+        {
+            IReadOnlyList<string> defaultLines = MapCombatScalingSpecialDropDefaults.BuildSummaryLinesForScalingLevel(sliderValue);
+            for (int i = 0; i < defaultLines.Count; i++)
+                customLines.Add($"• {defaultLines[i]}");
+        }
+
+        if (customLines.Count == 0)
+        {
+            sb.AppendLine("None.");
+            return sb.ToString().TrimEnd();
+        }
+
+        for (int i = 0; i < customLines.Count; i++)
+            sb.AppendLine(customLines[i]);
 
         return sb.ToString().TrimEnd();
     }
@@ -234,12 +259,32 @@ public class MapScalingSpecialLootEntry
     public int amountMax = 1;
 }
 
+/// <summary>
+/// One drop chance per category; on success a random item from <see cref="itemPool"/> is granted.
+/// </summary>
+[Serializable]
+public class MapScalingSpecialLootGroupRoll
+{
+    [UnityEngine.Range(0f, 1f)]
+    public float dropChance;
+
+    public List<ItemDefinition> itemPool = new();
+
+    public ItemDefinition RollRandomItem()
+    {
+        if (itemPool == null || itemPool.Count == 0)
+            return null;
+
+        return itemPool[UnityEngine.Random.Range(0, itemPool.Count)];
+    }
+}
+
 /// <summary>Special zone drops that unlock when the map reaches this scaling level (2–7).</summary>
 [Serializable]
 public class MapScalingLevelSpecialDrops
 {
     [UnityEngine.Range(1, MapCombatScaling.SliderMax)]
-    [UnityEngine.Tooltip("Map scaling slider value when these drops unlock (cumulative with lower slider tiers).")]
+    [UnityEngine.Tooltip("Map scaling slider value when these drops apply. Only this tier's entries roll when that tier is selected.")]
     public int scalingLevel = 3;
 
     public List<MapScalingSpecialLootEntry> drops = new();

@@ -36,22 +36,21 @@ public static class UpgradeOptionDisplay
 
         string type = FormatOptionType(option);
         string value = FormatOptionValue(option);
-        string cost = EnhancementOptionPayment.FormatCostLabel(payment, itemDb);
-        if (payment.Kind == EnhancementPaymentKind.None)
-            return $"Enhancement Selected: {type}: {value}";
-
-        return $"Enhancement Selected: {type}: {value} ({cost})";
+        return $"Enhancement Selected: {type}: {value}";
     }
 
     public static string FormatSectionTitle(EnhancementTrack track)
     {
         return track switch
         {
-            EnhancementTrack.Corruption => "Corruption Upgrades",
+            EnhancementTrack.Corruption => "Chaos Upgrades",
             EnhancementTrack.Special => "Special Upgrades",
             _ => "Standard Upgrades",
         };
     }
+
+    public static string FormatOptionDetailName(EnhancementOptionEntry option) =>
+        FormatOptionType(option);
 
     public static string FormatOptionScrollName(EnhancementOptionEntry option, ItemDatabase itemDb)
     {
@@ -121,12 +120,12 @@ public static class UpgradeOptionDisplay
         return string.Join(", ", labels);
     }
 
-    public static string FormatOptionChance(EnhancementOptionEntry option)
+    public static string FormatOptionChance(EnhancementOptionEntry option, ItemDefinition gear = null)
     {
         if (option == null)
             return string.Empty;
 
-        return FormatSuccessChancePercent(option);
+        return EnhancementSuccessChanceRules.FormatSuccessChanceLabel(option, gear);
     }
 
     public static string FormatLabeledValue(EnhancementOptionEntry option)
@@ -156,12 +155,12 @@ public static class UpgradeOptionDisplay
         bool scrollOnly = EnhancementOptionPayment.RequiresScrollOnlyPayment(option);
         if (gear != null && !scrollOnly)
         {
-            string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
-            int amount = EnhancementTierRules.GetMaterialCost(option.tier);
-            if (!string.IsNullOrWhiteSpace(materialId))
+            IReadOnlyList<GearUpgradeMaterialRequirement> requirements =
+                GearUpgradeMaterialResolver.ResolveMaterialRequirements(gear, option.tier, gear.SuccessfulEnhancements, option);
+            if (requirements != null && requirements.Count > 0)
             {
-                materialCost = FormatMaterialCost(amount, materialId, itemDb);
-                hasMaterials = EnhancementOptionPayment.HasMaterialPayment(inventory, option, gear);
+                materialCost = FormatMaterialRequirements(requirements, itemDb);
+                hasMaterials = inventory != null && inventory.HasItems(requirements);
             }
         }
 
@@ -183,13 +182,14 @@ public static class UpgradeOptionDisplay
             builder.Append(ColorCostPart(materialCost, hasMaterials));
             wrotePart = true;
         }
-        else if (!string.IsNullOrWhiteSpace(scrollCost) && gear == null)
+        else if (!scrollOnly && gear == null && string.IsNullOrWhiteSpace(scrollCost))
         {
-            builder.Append(" or materials");
+            builder.Append(ColorCostPart("Materials", false));
+            wrotePart = true;
         }
 
         if (!wrotePart)
-            builder.Append(ColorCostPart("Unavailable", false));
+            builder.Append(ColorCostPart("Materials", false));
 
         return builder.ToString();
     }
@@ -219,12 +219,12 @@ public static class UpgradeOptionDisplay
         return $"{FormatLinkedScrollName(option, itemDb)} or materials";
     }
 
-    public static string FormatLabeledSuccessChance(EnhancementOptionEntry option)
+    public static string FormatLabeledSuccessChance(EnhancementOptionEntry option, ItemDefinition gear = null)
     {
         if (option == null)
             return string.Empty;
 
-        return $"Success Chance: {FormatSuccessChancePercent(option)}";
+        return $"Success Chance: {EnhancementSuccessChanceRules.FormatSuccessChanceLabel(option, gear)}";
     }
 
     public static string FormatLabeledAdditionalInfo(EnhancementOptionEntry option)
@@ -277,12 +277,6 @@ public static class UpgradeOptionDisplay
             : displayName.ToLowerInvariant();
     }
 
-    private static string FormatSuccessChancePercent(EnhancementOptionEntry option)
-    {
-        float pct = Mathf.Clamp01(option.successChance) * 100f;
-        return pct >= 1f ? $"{Mathf.RoundToInt(pct)}%" : $"{pct:0.#}%";
-    }
-
     private static string FormatGearTypeLabels(EnhancementOptionEntry option)
     {
         EnhancementScrollGearMask mask = EnhancementScrollGearRules.NormalizeMask(option.allowedGearTypes);
@@ -296,6 +290,8 @@ public static class UpgradeOptionDisplay
             labels.Add("Body");
         if ((mask & EnhancementScrollGearMask.Boots) != 0)
             labels.Add("Feet");
+        if ((mask & EnhancementScrollGearMask.OffHand) != 0)
+            labels.Add("Offhand");
         if ((mask & EnhancementScrollGearMask.Tool) != 0)
             labels.Add("Tool");
 
@@ -335,10 +331,10 @@ public static class UpgradeOptionDisplay
         string materialCost = null;
         if (gear != null)
         {
-            string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
-            int amount = EnhancementTierRules.GetMaterialCost(option.tier);
-            if (!string.IsNullOrWhiteSpace(materialId))
-                materialCost = FormatMaterialCost(amount, materialId, itemDb);
+            IReadOnlyList<GearUpgradeMaterialRequirement> requirements =
+                GearUpgradeMaterialResolver.ResolveMaterialRequirements(gear, option.tier, gear.SuccessfulEnhancements, option);
+            if (requirements != null && requirements.Count > 0)
+                materialCost = FormatMaterialRequirements(requirements, itemDb);
         }
 
         if (!string.IsNullOrWhiteSpace(scrollCost) && !string.IsNullOrWhiteSpace(materialCost))
@@ -372,6 +368,23 @@ public static class UpgradeOptionDisplay
         }
 
         return option.linkedScrollItemId.Trim();
+    }
+
+    private static string FormatMaterialRequirements(
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements,
+        ItemDatabase itemDb)
+    {
+        if (requirements == null || requirements.Count == 0)
+            return "materials";
+
+        List<string> parts = new(requirements.Count);
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            parts.Add(FormatMaterialCost(req.Amount, req.ItemId, itemDb));
+        }
+
+        return string.Join(", ", parts);
     }
 
     private static string FormatMaterialCost(int amount, string materialItemId, ItemDatabase itemDb)

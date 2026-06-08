@@ -1295,6 +1295,10 @@ public class EnemyBaseController : MonoBehaviour
 
         OnDeath?.Invoke();
 
+        string lootSourceName = ResolveLootSourceName();
+        if (!string.IsNullOrWhiteSpace(lootSourceName))
+            SessionTrackerData.EnsureInstance().RegisterEnemyKill(lootSourceName);
+
         string eid = EnemyId;
         QuestProgressManager.Instance?.NotifyEnemyKilledForActiveMap(eid);
 
@@ -1739,6 +1743,7 @@ public class EnemyBaseController : MonoBehaviour
 
     private void TryDropMapCombatScalingSpecialLoot()
     {
+        // Fixed per-entry chances — never multiplied by map scaling loot bonuses or gear drop-rate modifiers.
         MapNodeDefinition node = MapCombatScaling.ResolveActiveCombatMapNode();
         if (node == null || !node.IsMapCombatScalingEnabled())
             return;
@@ -1752,9 +1757,16 @@ public class EnemyBaseController : MonoBehaviour
         if (sliderTier <= 0)
             return;
 
-        var entries = new List<MapScalingSpecialLootEntry>();
-        node.CollectCombatScalingSpecialDropsUpToSlider(sliderTier, entries);
-        if (entries.Count == 0)
+        var individualEntries = new List<MapScalingSpecialLootEntry>();
+        var groupRolls = new List<MapScalingSpecialLootGroupRoll>();
+        node.CollectMapSpecificSpecialDrops(sliderTier, individualEntries);
+        if (node.IsMapCombatScalingEnabled())
+        {
+            MapCombatScalingSpecialDropDefaults.CollectIndividualDropsForScalingLevel(sliderTier, individualEntries);
+            MapCombatScalingSpecialDropDefaults.CollectGroupRollsForScalingLevel(sliderTier, groupRolls);
+        }
+
+        if (individualEntries.Count == 0 && groupRolls.Count == 0)
             return;
 
         DropManager dm = DropManager.Instance != null
@@ -1769,30 +1781,64 @@ public class EnemyBaseController : MonoBehaviour
         Vector3 spawnBase = anchor ? anchor.position : transform.position;
         string sourceName = ResolveLootSourceName();
 
-        for (int i = 0; i < entries.Count; i++)
+        for (int i = 0; i < individualEntries.Count; i++)
+            TrySpawnMapScalingSpecialDrop(individualEntries[i], node, itemDb, dm, spawnBase, sourceName);
+
+        for (int i = 0; i < groupRolls.Count; i++)
         {
-            MapScalingSpecialLootEntry entry = entries[i];
-            if (entry?.item == null || string.IsNullOrWhiteSpace(entry.item.itemId))
+            MapScalingSpecialLootGroupRoll groupRoll = groupRolls[i];
+            if (groupRoll?.itemPool == null || groupRoll.itemPool.Count == 0)
                 continue;
 
-            float p = Mathf.Clamp01(entry.dropChance);
+            float p = Mathf.Clamp01(groupRoll.dropChance);
             if (p <= 0f)
                 continue;
             if (p < 1f && UnityEngine.Random.value > p)
                 continue;
 
-            int amtMin = Mathf.Max(1, entry.amountMin);
-            int amtMax = Mathf.Max(amtMin, entry.amountMax);
-            int stack = UnityEngine.Random.Range(amtMin, amtMax + 1);
-            if (stack <= 0)
+            ItemDefinition picked = groupRoll.RollRandomItem();
+            if (picked == null)
                 continue;
 
-            string dropItemId = MapEnhancementService.ResolveLootDropItemId(entry.item.itemId.Trim(), node, itemDb);
-            ItemDefinition dropDef = itemDb != null ? itemDb.Get(dropItemId) : entry.item;
-            Sprite dropIcon = dropDef != null && dropDef.icon != null ? dropDef.icon : entry.item.icon;
-
-            dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName);
+            var entry = new MapScalingSpecialLootEntry
+            {
+                item = picked,
+                dropChance = 1f,
+                amountMin = 1,
+                amountMax = 1,
+            };
+            TrySpawnMapScalingSpecialDrop(entry, node, itemDb, dm, spawnBase, sourceName);
         }
+    }
+
+    private static void TrySpawnMapScalingSpecialDrop(
+        MapScalingSpecialLootEntry entry,
+        MapNodeDefinition node,
+        ItemDatabase itemDb,
+        DropManager dm,
+        Vector3 spawnBase,
+        string sourceName)
+    {
+        if (entry?.item == null || string.IsNullOrWhiteSpace(entry.item.itemId) || dm == null)
+            return;
+
+        float p = Mathf.Clamp01(entry.dropChance);
+        if (p <= 0f)
+            return;
+        if (p < 1f && UnityEngine.Random.value > p)
+            return;
+
+        int amtMin = Mathf.Max(1, entry.amountMin);
+        int amtMax = Mathf.Max(amtMin, entry.amountMax);
+        int stack = UnityEngine.Random.Range(amtMin, amtMax + 1);
+        if (stack <= 0)
+            return;
+
+        string dropItemId = MapEnhancementService.ResolveLootDropItemId(entry.item.itemId.Trim(), node, itemDb);
+        ItemDefinition dropDef = itemDb != null ? itemDb.Get(dropItemId) : entry.item;
+        Sprite dropIcon = dropDef != null && dropDef.icon != null ? dropDef.icon : entry.item.icon;
+
+        dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName);
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)

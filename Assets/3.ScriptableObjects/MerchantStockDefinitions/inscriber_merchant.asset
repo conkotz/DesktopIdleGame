@@ -43,7 +43,7 @@ MonoBehaviour:
       amount: 500
       itemId: 
     defaultQuantity: -1
-  - itemId: basic_weapon_magic_scroll
+  - itemId: basic_weapon_fire_scroll
     costs:
     - type: 0
       amount: 500

@@ -3,7 +3,10 @@ using UnityEngine;
 public static class EnhancementScrollGearRules
 {
     public static EnhancementScrollGearMask AllArmorSlots =>
-        EnhancementScrollGearMask.Helmet | EnhancementScrollGearMask.Body | EnhancementScrollGearMask.Boots;
+        EnhancementScrollGearMask.Helmet |
+        EnhancementScrollGearMask.Body |
+        EnhancementScrollGearMask.Boots |
+        EnhancementScrollGearMask.OffHand;
 
     public static EnhancementScrollGearMask NormalizeMask(EnhancementScrollGearMask mask)
     {
@@ -51,9 +54,13 @@ public static class EnhancementScrollGearRules
                 EquipSlot.Helmet => EnhancementScrollGearMask.Helmet,
                 EquipSlot.Body => EnhancementScrollGearMask.Body,
                 EquipSlot.Boots => EnhancementScrollGearMask.Boots,
+                EquipSlot.OffHand => EnhancementScrollGearMask.OffHand,
                 _ => EnhancementScrollGearMask.None
             };
         }
+
+        if (gear.itemKind == ItemKind.CombatSupport && gear.equipSlot == EquipSlot.OffHand)
+            return EnhancementScrollGearMask.OffHand;
 
         return gear.itemKind switch
         {

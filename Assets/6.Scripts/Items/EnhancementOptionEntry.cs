@@ -44,6 +44,13 @@ public sealed class EnhancementOptionEntry
         };
     }
 
+    public EnhancementScrollStats ToScrollStats(ItemDefinition gear)
+    {
+        EnhancementScrollStats stats = ToScrollStats();
+        stats.successChance = EnhancementSuccessChanceRules.GetSuccessChance(gear, this);
+        return stats;
+    }
+
     public bool TargetsGear(ItemDefinition gear)
     {
         if (gear == null)

@@ -1111,24 +1111,47 @@ public sealed class UpgradePageUI : MonoBehaviour
         ItemDefinition gear = GetSelectedGearDefinition();
         Inventory inv = ResolveInventory();
 
-        SetOptionDetailText(optionNameText, UpgradeOptionDisplay.FormatOptionScrollName(_selectedOption, itemDatabase));
+        SetOptionDetailText(optionNameText, UpgradeOptionDisplay.FormatOptionDetailName(_selectedOption));
         SetOptionDetailText(
             optionCostText,
             UpgradeOptionDisplay.FormatLabeledEnhanceCost(_selectedOption, gear, itemDatabase, inv),
             richText: true);
         SetOptionDetailText(optionValueText, UpgradeOptionDisplay.FormatLabeledValue(_selectedOption));
         SetOptionDetailText(optionAvailableItemsText, UpgradeOptionDisplay.FormatLabeledItemType(_selectedOption));
-        SetOptionDetailText(optionChanceText, UpgradeOptionDisplay.FormatLabeledSuccessChance(_selectedOption));
+        SetOptionDetailText(optionChanceText, UpgradeOptionDisplay.FormatLabeledSuccessChance(_selectedOption, gear));
         SetOptionDetailText(optionAdditionalText, UpgradeOptionDisplay.FormatLabeledAdditionalInfo(_selectedOption));
     }
 
+    private const string MaxRankErrorMessage = "ITEM IS AT MAX RANK";
+
     private void RefreshSlotsAvailableLabel()
     {
+        ItemDefinition gear = GetSelectedGearDefinition();
+
+        if (gear != null && gear.HasUpgradeSlots && IsGearAtMaxRank(gear))
+        {
+            ShowApplyError(MaxRankErrorMessage);
+            if (slotsAvailableText)
+                slotsAvailableText.text = string.Empty;
+            return;
+        }
+
+        if (errorLabelText != null &&
+            string.Equals(errorLabelText.text, MaxRankErrorMessage, StringComparison.OrdinalIgnoreCase))
+            ClearApplyError();
+
         if (!slotsAvailableText)
             return;
 
-        ItemDefinition gear = GetSelectedGearDefinition();
         slotsAvailableText.text = UpgradeOptionDisplay.FormatAvailableUpgradeSlots(gear);
+    }
+
+    private static bool IsGearAtMaxRank(ItemDefinition gear)
+    {
+        if (gear == null || !gear.HasUpgradeSlots)
+            return false;
+
+        return !gear.HasAvailableUpgradeSlot || gear.HasReachedEnhancementCap;
     }
 
     private static void SetOptionDetailText(TMP_Text text, string value, bool richText = false)
@@ -1196,10 +1219,10 @@ public sealed class UpgradePageUI : MonoBehaviour
         else
         {
             if (gear.HasReachedEnhancementCap)
-                return "This item has reached its enhancement cap.";
+                return MaxRankErrorMessage;
 
             if (!gear.HasAvailableUpgradeSlot)
-                return "No upgrade slots available on this item.";
+                return MaxRankErrorMessage;
 
             if (!gear.HasBaseStatForEnhancementScroll(stats.targetStat))
                 return "This item does not have the required stat for that upgrade.";
