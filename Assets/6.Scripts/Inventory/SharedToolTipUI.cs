@@ -320,7 +320,7 @@ public class SharedTooltipUI : MonoBehaviour
         canvasGroup.alpha = 1f;
     }
 
-    public void ShowForEquipment(ItemDefinition def)
+    public void ShowForEquipment(ItemDefinition def, string itemIdForHighlights = null)
     {
         if (!def || !canvasGroup || !nameText)
             return;
@@ -347,7 +347,7 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.gameObject.SetActive(true);
         }
 
-        BindTooltipStats(def);
+        BindTooltipStats(def, itemIdForHighlights: itemIdForHighlights);
         BindEnhancementDisplay(def);
 
         if (descriptionText)
@@ -1200,7 +1200,7 @@ public class SharedTooltipUI : MonoBehaviour
         SetAnchor(anchor);
 
         if (compact)
-            ShowForEquipment(def);
+            ShowForEquipment(def, itemId);
         else
             Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats, itemId);
     }

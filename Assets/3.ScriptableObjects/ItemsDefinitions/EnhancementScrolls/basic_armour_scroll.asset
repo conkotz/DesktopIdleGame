@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 8
   maxStack: 5
   itemId: basic_armour_scroll
-  displayName: Basic Armour Scroll
+  displayName: Armour Basic Scroll
   displayNameSingular: 
   icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
   heldSprite: {fileID: 0}
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A simple enhancement scroll that can add a small armour bonus to gear.
+  description: An enhancement scroll that can add armour to eligible gear.
   rarity: 1
   value: 20
   equipSlot: 0
@@ -178,8 +178,9 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: armour_basic
   enhancementScrollStats:
-    successChance: 0
+    successChance: 0.5
     targetStat: 6
     modifierKind: 0
     modifierValue: 5
@@ -187,7 +188,7 @@ MonoBehaviour:
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 1792
+    allowedGearTypes: 3840
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

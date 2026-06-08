@@ -77,7 +77,11 @@ public sealed class UpgradePageUI : MonoBehaviour
     private TMP_Text _tierTooLowLabel;
 
     private Inventory _inventory;
+    private EquipmentManager _equipment;
+    private ToolbeltManager _toolbelt;
     private int _selectedGearSlotIndex = -1;
+    private bool _selectedFromEquipment;
+    private EquipmentUISlotType _selectedEquipmentSlot = EquipmentUISlotType.None;
     private string _selectedGearItemId;
     private EnhancementOptionEntry _selectedOption;
     private UpgradeOptionFilter _activeFilter = UpgradeOptionFilter.None;
@@ -122,6 +126,8 @@ public sealed class UpgradePageUI : MonoBehaviour
         RefreshFilterButtonVisuals();
         ClearApplyError();
         TrySubscribeInventory();
+        TrySubscribeEquipment();
+        TrySubscribeToolbelt();
         DisableLegacyInventoryGrids();
         RefreshAll();
     }
@@ -133,6 +139,8 @@ public sealed class UpgradePageUI : MonoBehaviour
         UnwireSearchField();
         UnwireCollapseButton();
         UnsubscribeInventory();
+        UnsubscribeEquipment();
+        UnsubscribeToolbelt();
         ClearSelectedOption();
     }
 
@@ -215,6 +223,8 @@ public sealed class UpgradePageUI : MonoBehaviour
         if (def == null || !IsUpgradableGear(def))
             return;
 
+        _selectedFromEquipment = false;
+        _selectedEquipmentSlot = EquipmentUISlotType.None;
         _selectedGearSlotIndex = inventorySlotIndex;
         _selectedGearItemId = slot.itemId;
         ValidateSelectedOptionForGear(def);
@@ -228,8 +238,47 @@ public sealed class UpgradePageUI : MonoBehaviour
         ClearApplyError();
     }
 
+    public void SelectGearFromEquipmentSlot(EquipmentUISlotType equipmentSlot)
+    {
+        if (equipmentSlot == EquipmentUISlotType.None)
+            return;
+
+        Inventory inv = ResolveInventory();
+        EquipmentManager eq = ResolveEquipment();
+        ToolbeltManager belt = ResolveToolbelt();
+        if (inv == null)
+            return;
+
+        string itemId = EquipmentSlotUI.GetItemIdForSlot(equipmentSlot, eq, belt);
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        ItemDefinition def = inv.GetItemDef(itemId);
+        if (def == null && itemDatabase != null)
+            def = itemDatabase.Get(itemId);
+
+        if (def == null || !IsUpgradableGear(def) || def.IsCombatSupport)
+            return;
+
+        _selectedFromEquipment = true;
+        _selectedEquipmentSlot = equipmentSlot;
+        _selectedGearSlotIndex = -1;
+        _selectedGearItemId = itemId;
+        ValidateSelectedOptionForGear(def);
+        RefreshSelectedGearSlotImage(def);
+        RefreshItemLabel(def);
+        RefreshInventoryGrid();
+        RefreshEnhancementOptionsList();
+        RefreshEnhancementSelectedLabel();
+        RefreshOptionDetailPanel();
+        RefreshSlotsAvailableLabel();
+        ClearApplyError();
+    }
+
     public void ClearSelectedGear()
     {
+        _selectedFromEquipment = false;
+        _selectedEquipmentSlot = EquipmentUISlotType.None;
         _selectedGearSlotIndex = -1;
         _selectedGearItemId = null;
         ValidateSelectedOptionForGear(null);
@@ -258,12 +307,28 @@ public sealed class UpgradePageUI : MonoBehaviour
         ItemDefinition gear = GetSelectedGearDefinition();
         EnhancementOptionPayment payment = EnhancementOptionPayment.Resolve(inv, _selectedOption, gear);
 
-        bool attempted = EnhancementUpgradeService.TryApplyOptionOnInventorySlot(
-            inv,
-            _selectedGearSlotIndex,
-            _selectedOption,
-            payment,
-            out bool success);
+        bool success = false;
+        bool attempted;
+        if (_selectedFromEquipment)
+        {
+            attempted = EnhancementUpgradeService.TryApplyOptionOnEquippedItem(
+                inv,
+                ResolveEquipment(),
+                ResolveToolbelt(),
+                _selectedEquipmentSlot,
+                _selectedOption,
+                payment,
+                out success);
+        }
+        else
+        {
+            attempted = EnhancementUpgradeService.TryApplyOptionOnInventorySlot(
+                inv,
+                _selectedGearSlotIndex,
+                _selectedOption,
+                payment,
+                out success);
+        }
 
         if (attempted)
         {
@@ -851,6 +916,8 @@ public sealed class UpgradePageUI : MonoBehaviour
 
     private void OnGearSelected(int sourceSlotIndex, ItemDefinition def, string itemId)
     {
+        _selectedFromEquipment = false;
+        _selectedEquipmentSlot = EquipmentUISlotType.None;
         _selectedGearSlotIndex = sourceSlotIndex;
         _selectedGearItemId = itemId;
         ValidateSelectedOptionForGear(def);
@@ -876,7 +943,26 @@ public sealed class UpgradePageUI : MonoBehaviour
     {
         ItemDefinition def = null;
 
-        if (_selectedGearSlotIndex >= 0 && _inventory != null &&
+        if (_selectedFromEquipment)
+        {
+            Inventory inv = ResolveInventory();
+            string itemId = EquipmentSlotUI.GetItemIdForSlot(
+                _selectedEquipmentSlot,
+                ResolveEquipment(),
+                ResolveToolbelt());
+            if (!string.IsNullOrWhiteSpace(itemId) && inv != null)
+            {
+                def = inv.GetItemDef(itemId);
+                if (def == null && itemDatabase != null)
+                    def = itemDatabase.Get(itemId);
+
+                if (def != null && IsUpgradableGear(def) && !def.IsCombatSupport)
+                    _selectedGearItemId = itemId;
+                else
+                    def = null;
+            }
+        }
+        else if (_selectedGearSlotIndex >= 0 && _inventory != null &&
             _selectedGearSlotIndex < _inventory.SlotCount)
         {
             Inventory.Slot slot = _inventory.GetSlot(_selectedGearSlotIndex);
@@ -895,6 +981,8 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         if (def == null)
         {
+            _selectedFromEquipment = false;
+            _selectedEquipmentSlot = EquipmentUISlotType.None;
             _selectedGearSlotIndex = -1;
             _selectedGearItemId = null;
             ValidateSelectedOptionForGear(null);
@@ -922,6 +1010,33 @@ public sealed class UpgradePageUI : MonoBehaviour
 
     private ItemDefinition GetSelectedGearDefinition()
     {
+        Inventory inv = ResolveInventory();
+        if (inv == null)
+            return null;
+
+        if (_selectedFromEquipment)
+        {
+            if (_selectedEquipmentSlot == EquipmentUISlotType.None)
+                return null;
+
+            string itemId = EquipmentSlotUI.GetItemIdForSlot(
+                _selectedEquipmentSlot,
+                ResolveEquipment(),
+                ResolveToolbelt());
+            if (string.IsNullOrWhiteSpace(itemId))
+                return null;
+
+            ItemDefinition equippedDef = inv.GetItemDef(itemId);
+            if (equippedDef == null && itemDatabase != null)
+                equippedDef = itemDatabase.Get(itemId);
+
+            if (!IsUpgradableGear(equippedDef) || equippedDef.IsCombatSupport)
+                return null;
+
+            _selectedGearItemId = itemId;
+            return equippedDef;
+        }
+
         if (_selectedGearSlotIndex < 0 || _inventory == null)
             return null;
 
@@ -954,6 +1069,17 @@ public sealed class UpgradePageUI : MonoBehaviour
 
     private void SyncSelectedGearItemIdFromSlot()
     {
+        if (_selectedFromEquipment)
+        {
+            string itemId = EquipmentSlotUI.GetItemIdForSlot(
+                _selectedEquipmentSlot,
+                ResolveEquipment(),
+                ResolveToolbelt());
+            if (!string.IsNullOrWhiteSpace(itemId))
+                _selectedGearItemId = itemId;
+            return;
+        }
+
         if (_inventory == null || _selectedGearSlotIndex < 0 ||
             _selectedGearSlotIndex >= _inventory.SlotCount)
             return;
@@ -1123,35 +1249,45 @@ public sealed class UpgradePageUI : MonoBehaviour
     }
 
     private const string MaxRankErrorMessage = "ITEM IS AT MAX RANK";
+    private const string AllSlotsUsedErrorMessage = "ALL UPGRADE SLOTS USED";
 
     private void RefreshSlotsAvailableLabel()
     {
         ItemDefinition gear = GetSelectedGearDefinition();
 
-        if (gear != null && gear.HasUpgradeSlots && IsGearAtMaxRank(gear))
+        if (slotsAvailableText)
+            slotsAvailableText.text = UpgradeOptionDisplay.FormatAvailableUpgradeSlots(gear);
+
+        if (gear == null || !gear.HasUpgradeSlots)
         {
-            ShowApplyError(MaxRankErrorMessage);
-            if (slotsAvailableText)
-                slotsAvailableText.text = string.Empty;
+            ClearSlotLimitApplyError();
             return;
         }
 
-        if (errorLabelText != null &&
-            string.Equals(errorLabelText.text, MaxRankErrorMessage, StringComparison.OrdinalIgnoreCase))
-            ClearApplyError();
-
-        if (!slotsAvailableText)
+        if (gear.HasReachedEnhancementCap)
+        {
+            ShowApplyError(MaxRankErrorMessage);
             return;
+        }
 
-        slotsAvailableText.text = UpgradeOptionDisplay.FormatAvailableUpgradeSlots(gear);
+        if (!gear.HasAvailableUpgradeSlot)
+        {
+            ShowApplyError(AllSlotsUsedErrorMessage);
+            return;
+        }
+
+        ClearSlotLimitApplyError();
     }
 
-    private static bool IsGearAtMaxRank(ItemDefinition gear)
+    private void ClearSlotLimitApplyError()
     {
-        if (gear == null || !gear.HasUpgradeSlots)
-            return false;
+        if (errorLabelText == null)
+            return;
 
-        return !gear.HasAvailableUpgradeSlot || gear.HasReachedEnhancementCap;
+        string current = errorLabelText.text ?? string.Empty;
+        if (string.Equals(current, MaxRankErrorMessage, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(current, AllSlotsUsedErrorMessage, StringComparison.OrdinalIgnoreCase))
+            ClearApplyError();
     }
 
     private static void SetOptionDetailText(TMP_Text text, string value, bool richText = false)
@@ -1188,7 +1324,7 @@ public sealed class UpgradePageUI : MonoBehaviour
         if (_selectedOption == null)
             return "Select an upgrade option.";
 
-        if (_selectedGearSlotIndex < 0)
+        if (!HasSelectedGear())
             return "Select an item to upgrade.";
 
         Inventory inv = ResolveInventory();
@@ -1222,7 +1358,7 @@ public sealed class UpgradePageUI : MonoBehaviour
                 return MaxRankErrorMessage;
 
             if (!gear.HasAvailableUpgradeSlot)
-                return MaxRankErrorMessage;
+                return AllSlotsUsedErrorMessage;
 
             if (!gear.HasBaseStatForEnhancementScroll(stats.targetStat))
                 return "This item does not have the required stat for that upgrade.";
@@ -1415,6 +1551,10 @@ public sealed class UpgradePageUI : MonoBehaviour
             _sectionRows.Add(UpgradeListSectionHeaderUI.Create(upgradeListContent, string.Empty));
     }
 
+    private bool HasSelectedGear() =>
+        (_selectedFromEquipment && _selectedEquipmentSlot != EquipmentUISlotType.None) ||
+        _selectedGearSlotIndex >= 0;
+
     private Inventory ResolveInventory()
     {
         if (_inventory != null)
@@ -1426,6 +1566,113 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         _inventory ??= FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         return _inventory;
+    }
+
+    private EquipmentManager ResolveEquipment()
+    {
+        if (_equipment != null)
+            return _equipment;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+            _equipment = player.GetComponent<EquipmentManager>();
+
+        _equipment ??= FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+        return _equipment;
+    }
+
+    private ToolbeltManager ResolveToolbelt()
+    {
+        if (_toolbelt != null)
+            return _toolbelt;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+            _toolbelt = player.GetComponent<ToolbeltManager>();
+
+        _toolbelt ??= FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
+        return _toolbelt;
+    }
+
+    private EquipmentManager _subscribedEquipment;
+    private ToolbeltManager _subscribedToolbelt;
+
+    private void TrySubscribeEquipment()
+    {
+        EquipmentManager eq = ResolveEquipment();
+        if (eq == _subscribedEquipment)
+            return;
+
+        if (_subscribedEquipment != null)
+            _subscribedEquipment.OnUISlotChanged -= OnEquipmentSlotChanged;
+
+        _subscribedEquipment = eq;
+        if (_subscribedEquipment != null)
+            _subscribedEquipment.OnUISlotChanged += OnEquipmentSlotChanged;
+    }
+
+    private void UnsubscribeEquipment()
+    {
+        if (_subscribedEquipment != null)
+            _subscribedEquipment.OnUISlotChanged -= OnEquipmentSlotChanged;
+        _subscribedEquipment = null;
+    }
+
+    private void TrySubscribeToolbelt()
+    {
+        ToolbeltManager belt = ResolveToolbelt();
+        if (belt == _subscribedToolbelt)
+            return;
+
+        if (_subscribedToolbelt != null)
+            _subscribedToolbelt.OnToolSlotChanged -= OnToolbeltSlotChanged;
+
+        _subscribedToolbelt = belt;
+        if (_subscribedToolbelt != null)
+            _subscribedToolbelt.OnToolSlotChanged += OnToolbeltSlotChanged;
+    }
+
+    private void UnsubscribeToolbelt()
+    {
+        if (_subscribedToolbelt != null)
+            _subscribedToolbelt.OnToolSlotChanged -= OnToolbeltSlotChanged;
+        _subscribedToolbelt = null;
+    }
+
+    private void OnEquipmentSlotChanged(EquipmentUISlotType slot, string _)
+    {
+        if (!_selectedFromEquipment || slot != _selectedEquipmentSlot)
+            return;
+
+        RefreshSelectedGearSlot();
+        RefreshEnhancementOptionsList();
+        RefreshEnhancementSelectedLabel();
+        RefreshOptionDetailPanel();
+        RefreshSlotsAvailableLabel();
+    }
+
+    private void OnToolbeltSlotChanged(int index, string _)
+    {
+        if (!_selectedFromEquipment)
+            return;
+
+        int selectedIndex = _selectedEquipmentSlot switch
+        {
+            EquipmentUISlotType.Toolbelt0 => 0,
+            EquipmentUISlotType.Toolbelt1 => 1,
+            EquipmentUISlotType.Toolbelt2 => 2,
+            EquipmentUISlotType.Toolbelt3 => 3,
+            _ => -1
+        };
+
+        if (selectedIndex != index)
+            return;
+
+        RefreshSelectedGearSlot();
+        RefreshEnhancementOptionsList();
+        RefreshEnhancementSelectedLabel();
+        RefreshOptionDetailPanel();
+        RefreshSlotsAvailableLabel();
     }
 
     private static Transform FindDeepChild(Transform root, string childName)

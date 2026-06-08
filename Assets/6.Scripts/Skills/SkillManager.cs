@@ -816,13 +816,17 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return true;
     }
 
-    public void TryApplyLinkedPresetForWeaponSet(int weaponSetIndex)
+    public bool TryApplyLinkedPresetForWeaponSet(int weaponSetIndex, ActionBarUI actionBar = null)
     {
         SkillAbilityPresetWeaponSetLinkSave link = GetWeaponSetPresetLink(weaponSetIndex);
         if (!link.enabled || !IsCombatSkillType(link.skillType))
-            return;
+            return false;
 
-        TryLoadAbilityPreset(link.skillType, link.presetSlotIndex);
+        if (!TryLoadAbilityPreset(link.skillType, link.presetSlotIndex))
+            return false;
+
+        actionBar?.ApplyCombatLoadoutFromSkillRowPicks(link.skillType);
+        return true;
     }
 
     private void ClearWeaponSetLinksForPreset(SkillType skillType, int presetSlotIndex)

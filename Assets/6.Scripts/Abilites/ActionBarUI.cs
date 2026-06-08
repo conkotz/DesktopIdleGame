@@ -415,6 +415,29 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// Rebuilds the visible combat ability bar from committed skill-tree row picks (e.g. after loading a weapon-set preset).
+    /// </summary>
+    public void ApplyCombatLoadoutFromSkillRowPicks(SkillType skillType)
+    {
+        ResolveCoreRefs();
+        if (skillDatabase == null || skillsManager == null || !SkillsManager.IsCombatSkillType(skillType))
+            return;
+
+        ExitGatheringBarToCombat();
+
+        SkillDefinition skill = skillDatabase.Get(skillType);
+        if (skill == null)
+            return;
+
+        int playerLevel = skillsManager.GetLevel(skillType);
+        List<AbilityDefinition> abilities = SkillAbilityCommitRules.CollectUnlockedAbilitiesInPanelOrder(
+            skill,
+            playerLevel,
+            skillsManager);
+        ReplaceLoadoutAbilitiesInOrder(abilities);
+    }
+
+    /// <summary>
     /// Clears all ability loadout slots and assigns <paramref name="abilitiesInOrder"/> top-to-bottom (slot 1, 2, …).
     /// Does not change potion/food slots.
     /// </summary>

@@ -71,6 +71,10 @@ public static class InventoryContextMenuBuilder
             return entries;
 
         entries.Add(new ContextMenuEntry("Unequip", slot.PerformUnequipAction));
+
+        if (CanUpgradeFromEquipment(slot))
+            entries.Add(new ContextMenuEntry("Enhance", slot.PerformUpgradeAction));
+
         AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;
@@ -111,7 +115,18 @@ public static class InventoryContextMenuBuilder
     private static bool CanEat(ItemDefinition def) =>
         def.IsConsumable && (def.IsFood || def.IsPotion) && def.ConsumeOnUse;
 
-    private static bool CanUpgradeFromInventory(ItemDefinition def)
+    private static bool CanUpgradeFromInventory(ItemDefinition def) => CanUpgradeGear(def);
+
+    private static bool CanUpgradeFromEquipment(EquipmentSlotUI slot)
+    {
+        ItemDefinition def = slot != null ? slot.ContextDefinition : null;
+        if (!CanUpgradeGear(def))
+            return false;
+
+        return !def.IsCombatSupport;
+    }
+
+    private static bool CanUpgradeGear(ItemDefinition def)
     {
         if (!def || !def.HasUpgradeSlots)
             return false;

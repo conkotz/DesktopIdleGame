@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -1293,5 +1293,57 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
     public void SetRing1(string itemId) => SetEquippedItemId(EquipSlot.Ring, itemId, 0);
     public void SetRing2(string itemId) => SetEquippedItemId(EquipSlot.Ring, itemId, 1);
+
+    /// <summary>Swap an equipped item id in-place (e.g. runtime enhancement clone) without inventory movement.</summary>
+    public void ReplaceEquippedItemIdForUiSlot(EquipmentUISlotType uiSlot, string newItemId)
+    {
+        string next = string.IsNullOrWhiteSpace(newItemId) ? null : newItemId;
+
+        switch (uiSlot)
+        {
+            case EquipmentUISlotType.MainHand:
+                SetMainHandForSet(activeWeaponSetIndex, next);
+                NotifyMainHandChanged();
+                break;
+
+            case EquipmentUISlotType.OffHand:
+                SetOffHandForSet(activeWeaponSetIndex, next, string.IsNullOrWhiteSpace(next) ? 0 : Mathf.Max(1, OffHandStackAmount));
+                NotifyOffHandChanged();
+                break;
+
+            case EquipmentUISlotType.Helmet:
+                SetEquippedItemId(EquipSlot.Helmet, next);
+                return;
+
+            case EquipmentUISlotType.Body:
+                SetEquippedItemId(EquipSlot.Body, next);
+                return;
+
+            case EquipmentUISlotType.Boots:
+                SetEquippedItemId(EquipSlot.Boots, next);
+                return;
+
+            case EquipmentUISlotType.Trinket:
+                SetEquippedItemId(EquipSlot.Trinket, next);
+                return;
+
+            case EquipmentUISlotType.Pendant:
+                SetEquippedItemId(EquipSlot.Pendant, next);
+                return;
+
+            case EquipmentUISlotType.Ring1:
+                SetEquippedItemId(EquipSlot.Ring, next, 0);
+                return;
+
+            case EquipmentUISlotType.Ring2:
+                SetEquippedItemId(EquipSlot.Ring, next, 1);
+                return;
+
+            default:
+                return;
+        }
+
+        RequestImmediateSave();
+    }
 }
 

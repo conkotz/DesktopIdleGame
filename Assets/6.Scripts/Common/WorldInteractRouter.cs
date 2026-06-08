@@ -444,8 +444,7 @@ public static class WorldInteractRouter
     }
 
     /// <summary>
-    /// Non-enemy interact (NPC, storage, notice board, etc.): drop a far-away combat target, keep one still in weapon range,
-    /// or retarget the closest enemy within interact range (±<see cref="InteractHotkeyHalfRangeX"/>).
+    /// Non-enemy interact (NPC, storage, notice board, etc.): stop fighting and focus the clicked interactable.
     /// </summary>
     private static void ApplyCombatTargetWhenInteractingNonEnemy(PlayerController player)
     {
@@ -456,20 +455,8 @@ public static class WorldInteractRouter
         if (combat == null)
             return;
 
-        EnemyBaseController current = combat.CurrentTarget;
-        if (current != null && !current.IsDead && current.gameObject.activeInHierarchy &&
-            combat.IsEnemyWithinAttackRange(current))
-            return;
-
-        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(player);
-        if (closestInInteractRange != null)
-        {
-            combat.SetTarget(closestInInteractRange);
-            return;
-        }
-
-        if (current != null && !current.IsDead && current.gameObject.activeInHierarchy)
-            combat.ClearTarget();
+        PlayerAbilityController.EndAutoBattleWhirlwindChannelIfActive();
+        combat.ClearTarget();
     }
 
     private static EnemyBaseController FindClosestEnemyInInteractRange(PlayerController player)

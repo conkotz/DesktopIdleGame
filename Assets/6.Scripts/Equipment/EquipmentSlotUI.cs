@@ -349,7 +349,13 @@ public class EquipmentSlotUI : MonoBehaviour,
         };
     }
 
-    private string GetItemIdForThisSlot()
+    private string GetItemIdForThisSlot() =>
+        GetItemIdForSlot(slotType, equipment, toolbelt);
+
+    public static string GetItemIdForSlot(
+        EquipmentUISlotType slotType,
+        EquipmentManager equipment,
+        ToolbeltManager toolbelt)
     {
         switch (slotType)
         {
@@ -387,6 +393,36 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         return null;
     }
+
+    public static void ReplaceItemIdForSlot(
+        EquipmentUISlotType slotType,
+        EquipmentManager equipment,
+        ToolbeltManager toolbelt,
+        string newItemId)
+    {
+        int toolIndex = slotType switch
+        {
+            EquipmentUISlotType.Toolbelt0 => 0,
+            EquipmentUISlotType.Toolbelt1 => 1,
+            EquipmentUISlotType.Toolbelt2 => 2,
+            EquipmentUISlotType.Toolbelt3 => 3,
+            _ => -1
+        };
+
+        if (toolIndex >= 0)
+        {
+            toolbelt?.SetToolItemId(toolIndex, newItemId);
+            return;
+        }
+
+        equipment?.ReplaceEquippedItemIdForUiSlot(slotType, newItemId);
+    }
+
+    public static void ClearSlotOnEnhancementDestroy(
+        EquipmentUISlotType slotType,
+        EquipmentManager equipment,
+        ToolbeltManager toolbelt) =>
+        UnequipDragSource(slotType, equipment, toolbelt);
 
     private int GetToolbeltIndex()
     {
@@ -462,7 +498,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         bool compact = !_def.IsCombatSupport;
-        tooltip.ShowAt(transform, _def, GetEquippedAmountForThisSlot(), compact);
+        tooltip.ShowAt(transform, _def, GetEquippedAmountForThisSlot(), compact, itemId: _itemId);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -500,8 +536,25 @@ public class EquipmentSlotUI : MonoBehaviour,
     public bool HasItemContext => _bound && _def != null && !string.IsNullOrWhiteSpace(_itemId);
     public ItemDefinition ContextDefinition => _def;
     public string ContextItemId => _itemId;
+    public EquipmentUISlotType UISlotType => slotType;
 
     public void PerformUnequipAction() => DoubleClickReturnToInventory();
+
+    public void PerformUpgradeAction()
+    {
+        if (!HasItemContext)
+            return;
+
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu != null)
+            menu.OpenUpgrade();
+
+        UpgradePageUI upgradePage = FindFirstObjectByType<UpgradePageUI>(FindObjectsInactive.Include);
+        if (upgradePage != null)
+            upgradePage.SelectGearFromEquipmentSlot(slotType);
+
+        tooltip?.Hide();
+    }
 
     public void PerformDropAction()
     {

@@ -1,0 +1,198 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
+  m_Name: advanced_tool_stamina_efficiency_scroll
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  itemKind: 8
+  maxStack: 5
+  itemId: advanced_tool_stamina_efficiency_scroll
+  displayName: Stamina Efficiency Advanced Scroll
+  displayNameSingular: 
+  icon: {fileID: -49755086325953384, guid: 41f865b04ee77bd43807b7369717ac29, type: 3}
+  heldSprite: {fileID: 0}
+  equippedSprite: {fileID: 0}
+  useCustomEquippedPose: 0
+  equippedLocalOffset: {x: 0, y: 0}
+  equippedLocalRotationZ: 0
+  equippedFlipX: 0
+  equippedFlipY: 0
+  description: An enhancement scroll that can add stamina efficiency to eligible
+    gear.
+  rarity: 3
+  value: 20
+  equipSlot: 0
+  handVisualKey: 0
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
+  enhancementScrollHistory: []
+  weaponStats:
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    legacyMinMagicDamage: 0
+    legacyMaxMagicDamage: 0
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
+    attacksPerSecond: 0
+    critChance: 0
+    critMultiplier: 0
+    handedness: 0
+    attackRange: 0
+    attackSkill: 0
+    mainHandArchetype: 0
+    rangedBowType: 0
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
+    unusedLegacyWeaponBurnChance: 0
+    canEquipInOffHand: 0
+    requiresOffhandSupport: 0
+    requiredSupportType: 0
+    equipmentTier: 0
+  combatSupportStats:
+    supportType: 0
+    requiredMainHandArchetype: 0
+    bonusPhysicalDamage: 0
+    bonusMagicDamage: 0
+    bonusCorruptionDamage: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackSpeedPercent: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
+    magicDamagePercent: 0
+    fireDamagePercent: 0
+    iceDamagePercent: 0
+    coldDamagePercent: 0
+    corruptionDamagePercent: 0
+    consumableOnAttack: 0
+    consumeAmountPerAttack: 0
+  toolStats:
+    toolType: 0
+    equipmentTier: 0
+    gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
+  armorStats:
+    equipmentTier: 0
+    armor: 0
+    magicResist: 0
+    corruptionResist: 0
+    physBlockChance: 0
+    bonusHealth: 0
+    bonusEnergy: 0
+    energyEfficiency: 0
+    flatGuard: 0
+    maxGuardPercent: 0
+  bonusStats:
+    bonusHealth: 0
+    bonusEnergy: 0
+    bonusMana: 0
+    armor: 0
+    magicResist: 0
+    corruptionResist: 0
+    physBlockChance: 0
+    lifeRegen: 0
+    energyRegen: 0
+    manaRegen: 0
+    energyEfficiency: 0
+    lifeSteal: 0
+    moveSpeedPercent: 0
+    physicalDamage: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
+    magicDamage: 0
+    magicDamagePercent: 0
+    fireSkillDamagePercent: 0
+    iceSkillDamagePercent: 0
+    lightningSkillDamagePercent: 0
+    corruptionDamagePercent: 0
+    corruptionDamage: 0
+    abilityPower: 0
+    attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackRangeBonus: 0
+    bleedChance: 0
+    bleedMultiplier: 0
+    poisonChance: 0
+    poisonMultiplier: 0
+    poisonDurationBonus: 0
+    poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    burnChance: 0
+    chillChance: 0
+    shockChance: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool: []
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: stamina_efficiency_advanced
+  enhancementScrollStats:
+    successChance: 0.5
+    targetStat: 19
+    modifierKind: 1
+    modifierValue: 0.1
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 16
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0

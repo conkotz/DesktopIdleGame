@@ -211,7 +211,7 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         RefreshVisuals();
         yield return null; // spread swap load across frames
         _actionBar?.SetCombatLoadoutSet(setIndex);
-        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex);
+        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, _actionBar);
         _characterStats?.NotifyStatsChanged();
         RefreshVisuals();
         _swapInProgress = false;

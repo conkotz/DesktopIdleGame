@@ -827,6 +827,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             TickIdleAutoPickup();
         }
 
+        if (PlayerAbilityController.BlocksCombatActions)
+            return;
+
         if (_target == null)
             return;
 
@@ -834,6 +837,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         {
             _isClosingDistanceForAttack = false;
             _attackBufferedFromRange = false;
+
             ClearTargetInternal();
 
             if (player != null)
@@ -853,9 +857,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (isGathering)
                 return;
         }
-
-        if (PlayerAbilityController.BlocksCombatActions)
-            return;
 
         if (IsSupportEquippedWithoutCompatibleMainWeapon(out string supportMismatchMessage))
         {
@@ -1892,10 +1893,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         float primaryHalf = HalfWidthX(primaryCol);
         float yTol = Mathf.Max(0.85f, cleaveRadius * 0.4f);
 
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        var nearest = new List<(EnemyBaseController enemy, float gap)>(candidates.Length);
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
+        var nearest = new List<(EnemyBaseController enemy, float gap)>(candidates.Count);
 
-        for (int i = 0; i < candidates.Length; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!IsValidSecondaryTarget(e, alreadyHit))
@@ -1974,8 +1975,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         float r2 = radius * radius;
         Vector3 origin = originEnemy.transform.position;
 
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < candidates.Length; i++)
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == originEnemy)
@@ -2048,10 +2049,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         float reach = AbilityCombatPower.CrescentSlashReach;
         float forward = player != null ? Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f) : 1f;
         Vector3 origin = transform.position;
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        var forwardHits = new List<(EnemyBaseController enemy, float dist)>(candidates.Length);
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
+        var forwardHits = new List<(EnemyBaseController enemy, float dist)>(candidates.Count);
 
-        for (int i = 0; i < candidates.Length; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!IsValidSecondaryTarget(e, alreadyHit))
@@ -2167,6 +2168,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _autoBattleDeferExtraFlameCharge = false;
             _autoBattleNonFlameSlotsBeforeNextFlameCharge = 0;
             _autoBattleAbilityRoundRobinIndex = -1;
+            PlayerAbilityController.EndAutoBattleWhirlwindChannelIfActive();
         }
 
         OnIdleCombatChanged?.Invoke(idleCombatEnabled);
@@ -2214,6 +2216,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private void TickIdleCombatTargeting()
     {
+        if (PlayerAbilityController.SuppressesIdleCombatTargeting)
+            return;
+
         if (Time.time < _nextIdleScanTime) return;
         _nextIdleScanTime = Time.time + Mathf.Max(0.05f, idleRescanInterval);
 
@@ -2369,15 +2374,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (maxRange <= 0.0001f)
             return null;
 
-        var enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        if (enemies == null || enemies.Length == 0) return null;
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        if (enemies == null || enemies.Count == 0) return null;
 
         float bestDist = -1f;
         EnemyBaseController best = null;
 
         float myX = transform.position.x;
 
-        for (int i = 0; i < enemies.Length; i++)
+        for (int i = 0; i < enemies.Count; i++)
         {
             var e = enemies[i];
             if (!e) continue;
@@ -2401,15 +2406,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private EnemyBaseController FindClosestLivingEnemy()
     {
-        var enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        if (enemies == null || enemies.Length == 0) return null;
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        if (enemies == null || enemies.Count == 0) return null;
 
         float bestDist = float.MaxValue;
         EnemyBaseController best = null;
 
         float myX = transform.position.x;
 
-        for (int i = 0; i < enemies.Length; i++)
+        for (int i = 0; i < enemies.Count; i++)
         {
             var e = enemies[i];
             if (!e) continue;
@@ -2430,15 +2435,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private EnemyBaseController FindFurthestLivingEnemy()
     {
-        var enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        if (enemies == null || enemies.Length == 0) return null;
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        if (enemies == null || enemies.Count == 0) return null;
 
         float bestDist = -1f;
         EnemyBaseController best = null;
 
         float myX = transform.position.x;
 
-        for (int i = 0; i < enemies.Length; i++)
+        for (int i = 0; i < enemies.Count; i++)
         {
             var e = enemies[i];
             if (!e) continue;

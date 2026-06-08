@@ -48,6 +48,27 @@ public static class AbilityCombatPower
     public const int HammerTempestCrushingMomentumMaxStacks = 10;
     public const int HammerTempestSacredArsenalChoiceIndex = 0;
     public const int HammerTempestCrushingMomentumChoiceIndex = 1;
+    /// <summary>Slow-reference APS — hit damage stays at the base weapon-% scale (1.0×).</summary>
+    public const float HammerTempestWeaponSpeedSlowReferenceAps = 0.5f;
+    /// <summary>Fast-reference APS — hit damage reaches <see cref="HammerTempestWeaponSpeedMaxHitDamageBonusFraction"/> bonus.</summary>
+    public const float HammerTempestWeaponSpeedFastReferenceAps = 1f;
+    /// <summary>Max extra per-hit damage for fast weapons (1.5× at fast reference APS).</summary>
+    public const float HammerTempestWeaponSpeedMaxHitDamageBonusFraction = 0.5f;
+
+    public static float GetHammerTempestWeaponSpeedHitDamageMultiplier(float attacksPerSecond)
+    {
+        float aps = Mathf.Max(0.01f, attacksPerSecond);
+        float t = Mathf.Clamp01(Mathf.InverseLerp(
+            HammerTempestWeaponSpeedSlowReferenceAps,
+            HammerTempestWeaponSpeedFastReferenceAps,
+            aps));
+        return Mathf.Lerp(1f, 1f + HammerTempestWeaponSpeedMaxHitDamageBonusFraction, t);
+    }
+
+    public static int GetHammerTempestWeaponSpeedHitDamageBonusPercent(float attacksPerSecond)
+    {
+        return Mathf.RoundToInt((GetHammerTempestWeaponSpeedHitDamageMultiplier(attacksPerSecond) - 1f) * 100f);
+    }
 
     public const float BattleTranceBaseDurationSeconds = 10f;
     public const float BattleTranceBaseAttackSpeedBonus = 0.15f;
@@ -148,6 +169,7 @@ public static class AbilityCombatPower
     /// <summary>Melee Lv40 major passive — Bloodbath (skill tree slot 2 at level 40).</summary>
     public const string BloodbathEnhancementParentSpineNodeId = "Lv40_2";
     public const int BloodbathMaxStacks = 5;
+    public const float BloodbathBleedChanceBonus = 0.05f;
     public const float BloodbathPhysicalDamagePerStack = 0.03f;
     public const float BloodbathStackDurationSeconds = 12f;
     public const float BloodbathCarnageBleedMultiplierPerStack = 0.02f;
@@ -239,6 +261,7 @@ public static class AbilityCombatPower
     public const float EnergyInfusionOverchargedAbilityPowerPercentBonus = 10f;
 
     public const float ShadowStrikeForwardReach = 15f;
+    public const float ShadowStrikeLandBehindTargetDistance = 2f;
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
     public const float ShadowStrikeExecutionCooldownRefundSeconds = 4f;
     public const float GuardiansHammerForwardReach = 8f;
@@ -326,6 +349,7 @@ public static class AbilityCombatPower
     public const float WhirlwindExpansiveDamagePerSecond = 0.05f;
     public const float WhirlwindBaseMoveSpeedPenaltyFraction = 0.25f;
     public const float WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier = 0.5f;
+    public const float WhirlwindAutoBattleMinEnergyFraction = 0.5f;
     public const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
     public const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
     public const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;
@@ -356,11 +380,19 @@ public static class AbilityCombatPower
     private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
     private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
 
-    /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
+    private static int _slottedAbilityDpsCacheFrame = -1;
+    private static CharacterStats _slottedAbilityDpsCacheStats;
+    private static float _slottedAbilityDpsCacheValue;
+
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
     {
         if (!stats)
             return 0f;
+
+        if (!logDiagnostics
+            && _slottedAbilityDpsCacheFrame == Time.frameCount
+            && _slottedAbilityDpsCacheStats == stats)
+            return _slottedAbilityDpsCacheValue;
 
         bool log = logDiagnostics;
 
@@ -474,7 +506,15 @@ public static class AbilityCombatPower
         if (log)
             Debug.Log($"[AbilityCombatPower] --- end --- totalAbilityDps={total:F4}", stats);
 
-        return Mathf.Max(0f, total);
+        float result = Mathf.Max(0f, total);
+        if (!logDiagnostics)
+        {
+            _slottedAbilityDpsCacheFrame = Time.frameCount;
+            _slottedAbilityDpsCacheStats = stats;
+            _slottedAbilityDpsCacheValue = result;
+        }
+
+        return result;
     }
 
     private static string DescribeDb(AbilityDatabase db)
@@ -740,7 +780,7 @@ public static class AbilityCombatPower
             if (choice == HammerTempestSacredArsenalChoiceIndex)
                 duration = Mathf.Max(0.1f, duration - HammerTempestSacredArsenalDurationPenaltySeconds);
             float hitsPerTarget = duration / Mathf.Max(0.01f, interval);
-            float perHit = perCast;
+            float perHit = perCast * GetHammerTempestWeaponSpeedHitDamageMultiplier(stats.AttacksPerSecond);
             if (choice == HammerTempestSacredArsenalChoiceIndex)
                 perHit *= HammerTempestSacredArsenalDamageMultiplier;
             if (choice == HammerTempestCrushingMomentumChoiceIndex)

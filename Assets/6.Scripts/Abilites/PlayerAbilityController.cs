@@ -53,6 +53,19 @@ public class PlayerAbilityController : MonoBehaviour
         _instance != null && (_instance._finalSeveranceChanneling || _instance._bladestormChanneling ||
                               _instance._whirlwindChanneling || _instance._bladestormRoutine != null ||
                               _instance._flameChargeRoutine != null);
+
+    public static bool IsWhirlwindAutoChanneling =>
+        _instance != null && _instance._whirlwindChanneling && _instance._whirlwindAutoChanneling;
+
+    public static bool SuppressesIdleCombatTargeting => IsWhirlwindAutoChanneling;
+
+    public static void EndAutoBattleWhirlwindChannelIfActive()
+    {
+        if (_instance == null || !_instance._whirlwindAutoChanneling)
+            return;
+
+        _instance.ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+    }
     private const string PowerSlashId = "power_slash";
     private const string CrusaderStrikeId = "crusader_strike";
     public const string CrusaderStrikeFireBalanceHudBuffId = "crusader_strike_fire_balance";
@@ -158,6 +171,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const float CrusaderStrikeComboTimeoutSeconds = 7f;
     private bool _whirlwindChanneling;
     private bool _whirlwindAutoChanneling;
+    private EnemyBaseController _whirlwindSavedCombatTarget;
     private bool _whirlwindActionBarHeld;
     private float _whirlwindChannelStartedAt;
     private float _whirlwindLastTickAt;
@@ -1089,7 +1103,6 @@ public class PlayerAbilityController : MonoBehaviour
         abilityVfx?.SpawnBattleTranceGlowVfx();
         _lastSyncedBattleTranceHudEnd = float.NaN;
         SyncBattleTranceHudBuff();
-        stats?.NotifyStatsChanged();
     }
 
     private void ForceEndBattleTranceEarly(bool applyCooldown)
@@ -1112,8 +1125,6 @@ public class PlayerAbilityController : MonoBehaviour
             if (def != null && def.cooldown > 0f)
                 StartCooldown(def);
         }
-
-        stats?.NotifyStatsChanged();
     }
 
     private void CleanupBattleTranceIfExpired()
@@ -1177,11 +1188,7 @@ public class PlayerAbilityController : MonoBehaviour
             moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
         }
 
-        stats.CombatMeleeDamageMultiplier = meleeDamage;
-        stats.CombatAttackSpeedPercentBonus = atkSpeed;
-        stats.CombatAbilityCooldownReductionFraction = cdr;
-        stats.CombatDamageTakenMultiplier = damageTaken;
-        stats.CombatMoveSpeedPercentBonus = moveSpeed;
+        stats.ApplyBattleTranceCombatModifiers(meleeDamage, atkSpeed, cdr, damageTaken, moveSpeed);
     }
 
     private int GetBattleTranceSelectedChoice()
@@ -1354,6 +1361,11 @@ public class PlayerAbilityController : MonoBehaviour
     private float GetHammerTempestHitDamageMultiplier(EnemyBaseController target)
     {
         float mult = 1f;
+        if (stats != null)
+        {
+            mult *= AbilityCombatPower.GetHammerTempestWeaponSpeedHitDamageMultiplier(stats.AttacksPerSecond);
+        }
+
         if (GetHammerTempestSelectedChoice() == HammerTempestSacredArsenalChoiceIndex)
             mult *= AbilityCombatPower.HammerTempestSacredArsenalDamageMultiplier;
 
@@ -2304,6 +2316,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (!ShouldUseEnergyInfusionForAbility(def) || energyCost <= 0)
             return 0;
 
+        int manaCost = Mathf.RoundToInt(energyCost * GetEnergyInfusionManaCostFraction(def));
+        return Mathf.Clamp(manaCost, 0, energyCost);
+    }
+
+    private float GetEnergyInfusionManaCostFraction(AbilityDefinition def)
+    {
+        if (!ShouldUseEnergyInfusionForAbility(def))
+            return 0f;
+
         float manaFraction = AbilityCombatPower.EnergyInfusionBaseManaCostFraction;
         int selectedChoice = GetEnergyInfusionSelectedChoice();
         if (selectedChoice == 0)
@@ -2311,16 +2332,18 @@ public class PlayerAbilityController : MonoBehaviour
         else if (selectedChoice == 1)
             manaFraction = AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction;
 
-        int manaCost = Mathf.RoundToInt(energyCost * Mathf.Clamp01(manaFraction));
-        return Mathf.Clamp(manaCost, 0, energyCost);
+        return Mathf.Clamp01(manaFraction);
     }
 
     private bool ShouldUseEnergyInfusionForAbility(AbilityDefinition def)
     {
-        return _energyInfusionActive &&
-               def != null &&
-               def.sourceSkill == SkillType.Melee &&
-               def.GetResourceCostType() == AbilityResourceCostType.Energy;
+        if (!_energyInfusionActive || def == null || def.sourceSkill != SkillType.Melee)
+            return false;
+
+        if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+            return def.energyCost > 0f;
+
+        return def.GetResourceCostType() == AbilityResourceCostType.Energy;
     }
 
     private void RecordLastAbilityResourceSpend(
@@ -3211,6 +3234,9 @@ public class PlayerAbilityController : MonoBehaviour
                 return true;
 
             if (requireWhirlwindTargetInRadius && !CanHitAnyEnemyWithWhirlwind())
+                return false;
+
+            if (requireWhirlwindTargetInRadius && !HasEnoughEnergyForAutoBattleWhirlwind())
                 return false;
 
             if (!TryStartWhirlwindChannel(def, showLockedFeedback, requireWhirlwindTargetInRadius))
@@ -4472,7 +4498,7 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         Vector3 departPosition = player.transform.position;
-        TeleportPlayerToMeleeStrikePosition(target);
+        TeleportPlayerBehindTarget(target, departPosition, AbilityCombatPower.ShadowStrikeLandBehindTargetDistance);
         if (combat != null && def.SetsTargetOnHit())
             combat.SetTargetIfNone(target);
 
@@ -4567,6 +4593,33 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         return forwardHits;
+    }
+
+    private void TeleportPlayerBehindTarget(EnemyBaseController target, Vector3 approachFromPosition, float behindDistance)
+    {
+        if (!target || !player)
+            return;
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        combat?.NotifyPlayerTeleported();
+
+        float enemyX = target.transform.position.x;
+        float approachSign = Mathf.Sign(enemyX - approachFromPosition.x);
+        if (Mathf.Approximately(approachSign, 0f))
+            approachSign = GetCombatFacingSign();
+        if (Mathf.Approximately(approachSign, 0f))
+            approachSign = 1f;
+
+        float landX = enemyX + approachSign * Mathf.Max(0f, behindDistance);
+
+        Vector3 pos = player.transform.position;
+        pos.x = landX;
+        player.transform.position = pos;
+
+        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+        if (rb)
+            rb.position = pos;
     }
 
     private void TeleportPlayerToMeleeStrikePosition(EnemyBaseController target)
@@ -5163,22 +5216,27 @@ public class PlayerAbilityController : MonoBehaviour
 
         _whirlwindChanneling = true;
         _whirlwindAutoChanneling = autoBattleChannel;
+        _whirlwindSavedCombatTarget = autoBattleChannel && combat != null ? combat.CurrentTarget : null;
         _whirlwindChannelStartedAt = Time.time;
         _whirlwindLastTickAt = Time.time;
         _whirlwindNextTickAt = Time.time + GetWhirlwindChannelHitIntervalSeconds();
         _whirlwindNextVfxAt = Time.time + AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
-        if (stats != null)
-            stats.AbilityChannelMoveSpeedMultiplier = GetWhirlwindMoveSpeedMultiplier();
+        ApplyWhirlwindChannelMoveSpeedPenalty();
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
         abilityVfx?.SpawnWhirlwind(radius);
 
-        if (TrySpendWhirlwindChannelEnergy(def, showInsufficientFeedback) && TryUseWhirlwind(def))
-            return true;
+        if (stats != null && stats.Energy <= 0.0001f)
+        {
+            if (showInsufficientFeedback)
+                player.ShowPopup("Not enough energy.");
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: false);
+            return false;
+        }
 
-        ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: false);
-        return false;
+        TryUseWhirlwind(def);
+        return true;
     }
 
     private void TickWhirlwindChannel()
@@ -5205,7 +5263,25 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        if (_whirlwindAutoChanneling && !CanHitAnyEnemyWithWhirlwind())
+        if (_whirlwindAutoChanneling)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            if (combat != null && !combat.IdleCombatEnabled)
+            {
+                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+                return;
+            }
+        }
+
+        if (_whirlwindAutoChanneling && !HasAnyLiveEnemyOnScreen())
+        {
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+            return;
+        }
+
+        ApplyWhirlwindChannelMoveSpeedPenalty();
+        if (!DrainWhirlwindChannelEnergy(def, showInsufficientFeedback: false))
         {
             ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
             return;
@@ -5223,49 +5299,248 @@ public class PlayerAbilityController : MonoBehaviour
 
         while (_whirlwindChanneling && Time.time + 0.0001f >= _whirlwindNextTickAt)
         {
-            if (_whirlwindAutoChanneling && !CanHitAnyEnemyWithWhirlwind())
-            {
-                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
-                return;
-            }
-
-            if (!TrySpendWhirlwindChannelEnergy(def, showInsufficientFeedback: false) || !TryUseWhirlwind(def))
-            {
-                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
-                return;
-            }
+            TryUseWhirlwind(def);
 
             _whirlwindLastTickAt = _whirlwindNextTickAt;
             _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
         }
 
+        if (_whirlwindAutoChanneling)
+        {
+            TickWhirlwindAutoBattleRetarget();
+            TickWhirlwindAutoBattleAdvance();
+        }
+
         TryUseWhirlwind(def);
     }
 
-    private bool TrySpendWhirlwindChannelEnergy(AbilityDefinition def, bool showInsufficientFeedback)
+    private bool HasAnyLiveEnemyOnScreen()
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+            if (IsEnemyRoughlyOnScreen(enemy))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void TickWhirlwindAutoBattleRetarget()
+    {
+        if (!_whirlwindAutoChanneling || combat == null)
+            return;
+
+        EnemyBaseController current = combat.CurrentTarget;
+        if (current != null && !current.IsDead)
+            return;
+
+        if (!TryFindClosestEnemyInWhirlwindRadius(out EnemyBaseController replacement))
+            return;
+
+        combat.SetTarget(replacement);
+    }
+
+    private void TickWhirlwindAutoBattleAdvance()
+    {
+        if (!_whirlwindAutoChanneling || player == null)
+            return;
+
+        if (!TryFindWhirlwindAutoBattleAdvanceX(out float moveToX))
+            return;
+
+        player.MoveToPointX_Combat(moveToX);
+    }
+
+    private bool TryFindWhirlwindAutoBattleAdvanceX(out float moveToX)
+    {
+        moveToX = 0f;
+        if (player == null)
+            return false;
+
+        float playerX = player.transform.position.x;
+        float forwardSign = player.FacingDirectionX;
+        if (Mathf.Approximately(forwardSign, 0f) && combat != null && combat.CurrentTarget != null && !combat.CurrentTarget.IsDead)
+            forwardSign = Mathf.Sign(combat.CurrentTarget.transform.position.x - playerX);
+        if (Mathf.Approximately(forwardSign, 0f))
+            forwardSign = InferWhirlwindForwardSignFromEnemies(playerX);
+
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController furthest = null;
+        float bestForwardScore = float.NegativeInfinity;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+            if (!IsEnemyRoughlyOnScreen(enemy))
+                continue;
+
+            float forwardScore = forwardSign * enemy.transform.position.x;
+            if (forwardScore > bestForwardScore)
+            {
+                bestForwardScore = forwardScore;
+                furthest = enemy;
+            }
+        }
+
+        if (furthest == null)
+            return false;
+
+        moveToX = furthest.transform.position.x;
+        return Mathf.Abs(moveToX - playerX) > 0.05f;
+    }
+
+    private float InferWhirlwindForwardSignFromEnemies(float playerX)
+    {
+        int rightCount = 0;
+        int leftCount = 0;
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy || !IsEnemyRoughlyOnScreen(enemy))
+                continue;
+
+            if (enemy.transform.position.x >= playerX)
+                rightCount++;
+            else
+                leftCount++;
+        }
+
+        if (rightCount == 0 && leftCount == 0)
+            return 1f;
+
+        return rightCount >= leftCount ? 1f : -1f;
+    }
+
+    private static bool IsEnemyRoughlyOnScreen(EnemyBaseController enemy)
+    {
+        if (enemy == null)
+            return false;
+
+        Camera cam = Camera.main;
+        if (cam == null)
+            return true;
+
+        Vector3 viewport = cam.WorldToViewportPoint(enemy.transform.position);
+        return viewport.z > 0f
+               && viewport.x >= -0.05f
+               && viewport.x <= 1.05f
+               && viewport.y >= -0.15f
+               && viewport.y <= 1.15f;
+    }
+
+    private void ApplyWhirlwindChannelMoveSpeedPenalty()
+    {
+        if (stats != null)
+            stats.AbilityChannelMoveSpeedMultiplier = GetWhirlwindMoveSpeedMultiplier();
+    }
+
+    private bool HasEnoughEnergyForAutoBattleWhirlwind()
+    {
+        if (stats == null)
+            return false;
+
+        float maxEnergy = stats.MaxEnergy;
+        if (maxEnergy <= 0f)
+            return false;
+
+        return stats.Energy > maxEnergy * AbilityCombatPower.WhirlwindAutoBattleMinEnergyFraction;
+    }
+
+    /// <summary>Drains whirlwind energy smoothly over time (per-second rate, FPS-independent via deltaTime).</summary>
+    private bool DrainWhirlwindChannelEnergy(AbilityDefinition def, bool showInsufficientFeedback)
     {
         if (player == null || stats == null)
             return false;
 
-        int cost = Mathf.Max(0, Mathf.RoundToInt(GetWhirlwindChannelEnergyCostPerTick(def)));
-        if (cost <= 0)
+        float perSecond = GetWhirlwindChannelEnergyPerSecond(def);
+        if (perSecond <= 0f)
+        {
+            _whirlwindUsedEnergyInfusionMana = false;
+            return true;
+        }
+
+        float deltaSeconds = Mathf.Max(0f, Time.deltaTime);
+        if (deltaSeconds <= 0f)
+            return true;
+
+        float spendAmount = perSecond * deltaSeconds;
+        if (spendAmount <= 0f)
+            return true;
+
+        return TrySpendWhirlwindChannelEnergyAmount(def, spendAmount, showInsufficientFeedback);
+    }
+
+    private bool TrySpendWhirlwindChannelEnergyAmount(
+        AbilityDefinition def,
+        float energyCost,
+        bool showInsufficientFeedback)
+    {
+        if (player == null || stats == null)
+            return false;
+
+        if (energyCost <= 0f)
         {
             _whirlwindUsedEnergyInfusionMana = false;
             return true;
         }
 
         ResetLastAbilityResourceSpend();
-        if (!TrySpendEnergyAbilityCost(def, cost, showInsufficientFeedback, out int energySpent, out int manaSpent))
+
+        if (ShouldUseEnergyInfusionForAbility(def))
+        {
+            float manaFraction = GetEnergyInfusionManaCostFraction(def);
+            float manaSpend = energyCost * manaFraction;
+            float energySpend = energyCost - manaSpend;
+
+            if (manaSpend > 0.0001f && stats.Mana + 0.0001f >= manaSpend)
+            {
+                if (stats.Energy + 0.0001f < energySpend)
+                {
+                    if (showInsufficientFeedback)
+                        player.ShowPopup("Not enough energy.");
+                    return false;
+                }
+
+                if (!player.SpendMana(manaSpend))
+                    return false;
+
+                if (energySpend > 0.0001f && !player.SpendEnergy(energySpend))
+                {
+                    player.AddMana(manaSpend);
+                    return false;
+                }
+
+                RecordLastAbilityResourceSpend(
+                    def,
+                    0,
+                    Mathf.RoundToInt(manaSpend),
+                    Mathf.RoundToInt(energySpend),
+                    true);
+                _whirlwindUsedEnergyInfusionMana = true;
+                return true;
+            }
+        }
+
+        if (stats.Energy + 0.0001f < energyCost)
+        {
+            if (showInsufficientFeedback)
+                player.ShowPopup("Not enough energy.");
+            return false;
+        }
+
+        if (!player.SpendEnergy(energyCost))
             return false;
 
-        RecordLastAbilityResourceSpend(def, 0, manaSpent, energySpent, manaSpent > 0);
-        _whirlwindUsedEnergyInfusionMana = manaSpent > 0;
+        RecordLastAbilityResourceSpend(def, 0, 0, Mathf.RoundToInt(energyCost), false);
+        _whirlwindUsedEnergyInfusionMana = false;
         return true;
-    }
-
-    private float GetWhirlwindChannelEnergyCostPerTick(AbilityDefinition def)
-    {
-        return GetWhirlwindChannelEnergyPerSecond(def) * GetWhirlwindChannelHitIntervalSeconds();
     }
 
     private float GetWhirlwindChannelHitIntervalSeconds()
@@ -5351,8 +5626,10 @@ public class PlayerAbilityController : MonoBehaviour
     private void ForceEndWhirlwindChannel(bool clearHeldState, bool applyCooldown)
     {
         AbilityDefinition def = applyCooldown ? GetAbilityDefinition(WhirlwindId) : null;
+        EnemyBaseController resumeTarget = _whirlwindSavedCombatTarget;
         _whirlwindChanneling = false;
         _whirlwindAutoChanneling = false;
+        _whirlwindSavedCombatTarget = null;
         _whirlwindChannelStartedAt = 0f;
         _whirlwindLastTickAt = 0f;
         _whirlwindNextTickAt = 0f;
@@ -5369,6 +5646,9 @@ public class PlayerAbilityController : MonoBehaviour
             buffController.ClearHudAbilityBuff(WhirlwindId);
         if (applyCooldown && def != null)
             StartCooldown(def);
+
+        if (resumeTarget != null && !resumeTarget.IsDead && combat != null)
+            combat.SetTarget(resumeTarget);
     }
 
     private float GetOwnerHalfWidthX()

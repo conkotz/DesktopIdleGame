@@ -25,14 +25,14 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A specialised enhancement scroll that can free one used upgrade slot
-    from a piece of gear.
+  description: An enhancement scroll that can add used upgrade slot to eligible gear.
   rarity: 3
-  value: 5000
+  value: 20
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
@@ -96,6 +96,7 @@ MonoBehaviour:
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -109,6 +110,7 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
@@ -124,6 +126,7 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
     minionAttackSpeedPercent: 0
     minionCritChance: 0
@@ -139,8 +142,13 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool: []
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
@@ -154,8 +162,25 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: slot_reduction
   enhancementScrollStats:
-    successChance: 0.5
+    successChance: 0
     targetStat: 14
     modifierKind: 0
     modifierValue: 1
@@ -163,7 +188,7 @@ MonoBehaviour:
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 19
+    allowedGearTypes: 1809
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

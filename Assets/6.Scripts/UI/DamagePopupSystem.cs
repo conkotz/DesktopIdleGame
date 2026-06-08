@@ -230,7 +230,6 @@ public class DamagePopupSystem : MonoBehaviour
 
         floater.BeginWorldAnchorFollow(worldPos, spawnJitter, _worldProjectionCamera, rectForMath, eventCam);
         RegisterFollower(floater, worldPos, spawnJitter);
-        RefreshFollowerPositions();
         return true;
     }
 

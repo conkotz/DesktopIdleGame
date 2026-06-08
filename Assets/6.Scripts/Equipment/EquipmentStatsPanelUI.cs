@@ -7,6 +7,9 @@ using UnityEngine.Serialization;
 public class EquipmentStatsPanelUI : MonoBehaviour
 {
     private bool _refreshQueued;
+    private bool _statsChangePending;
+    private bool _statTooltipsWired;
+    private float _nextStatsRefreshAllowedAt;
     private int _gatheringToolLiveStamp = int.MinValue;
     private int _livingInfernoLiveStamp = int.MinValue;
     private static readonly Color BleedAilmentColor = new Color(0.78f, 0.12f, 0.12f);
@@ -18,6 +21,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private static readonly Color RangedStyleBonusColor = new Color(0.14f, 0.52f, 0.18f);
     /// <summary>Dimmed ailment block when apply chance is 0% (matches prior elemental inactive styling).</summary>
     private static readonly Color AilmentInactiveGrey = new Color(0.48f, 0.52f, 0.5f);
+
+    [Tooltip("Minimum seconds between stat-line repaints while buffs change in combat. Equipment swaps refresh immediately.")]
+    [SerializeField, Min(0.05f)] private float statsRefreshMinInterval = 0.15f;
 
     [Header("Refs")]
     [SerializeField] private CharacterStats stats;
@@ -217,6 +223,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         PlayerSprintInput.SprintStateChanged += HandleSprintStateChanged;
 
+        WireStatTooltipsOnce();
+        _statsChangePending = false;
+        _nextStatsRefreshAllowedAt = 0f;
         Refresh();
     }
 
@@ -243,22 +252,37 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         PlayerSprintInput.SprintStateChanged -= HandleSprintStateChanged;
     }
 
-    private void HandleSprintStateChanged(bool _) => QueueRefresh();
+    private void HandleSprintStateChanged(bool _) => QueueImmediateRefresh();
 
     private void HandleVitalsChangedForEnergyInfusionDisplay(float _, float __)
     {
         if (abilityController != null && abilityController.IsEnergyInfusionActive)
-            QueueRefresh();
+            QueueStatsRefresh();
     }
 
-    private void HandleRefresh(string _) => QueueRefresh();
-    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueRefresh();
-    private void HandleToolChanged(int _, string __) => QueueRefresh();
+    private void HandleRefresh(string _) => QueueImmediateRefresh();
+    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueImmediateRefresh();
+    private void HandleToolChanged(int _, string __) => QueueImmediateRefresh();
     private void HandleActiveSetChanged(int _)
     {
         // Weapon swap can suppress per-slot UI events; repaint immediately and again next frame.
         Refresh();
-        QueueRefresh();
+        QueueImmediateRefresh();
+    }
+
+    private void WireStatTooltipsOnce()
+    {
+        if (_statTooltipsWired)
+            return;
+
+        _statTooltipsWired = true;
+        EnsureGuardStatTextRefs();
+        EnsureParryStatTextRefs();
+        EnsureStunChanceTextRef();
+        EnsureOffenceBonusLineTooltips();
+        BindAilmentLineTooltips();
+        EnsureParryStatTooltips();
+        EnsureToolStatLineTooltips();
     }
 
     private static string FormatSignedPercentFrom01(float value01)
@@ -302,7 +326,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private void HandleStatsChanged()
     {
-        QueueRefresh();
+        QueueStatsRefresh();
     }
 
     private void LateUpdate()
@@ -310,6 +334,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (_refreshQueued)
         {
             _refreshQueued = false;
+            _statsChangePending = false;
+            _nextStatsRefreshAllowedAt = Time.unscaledTime + statsRefreshMinInterval;
+            Refresh();
+        }
+        else if (_statsChangePending && Time.unscaledTime >= _nextStatsRefreshAllowedAt)
+        {
+            _statsChangePending = false;
+            _nextStatsRefreshAllowedAt = Time.unscaledTime + statsRefreshMinInterval;
             Refresh();
         }
 
@@ -317,18 +349,19 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         PollLivingInfernoLiveRefresh();
     }
 
-    private void QueueRefresh()
+    private void QueueImmediateRefresh()
     {
         _refreshQueued = true;
+    }
+
+    private void QueueStatsRefresh()
+    {
+        _statsChangePending = true;
     }
 
     public void Refresh()
     {
         if (!stats) return;
-
-        EnsureGuardStatTextRefs();
-        EnsureParryStatTextRefs();
-        EnsureStunChanceTextRef();
 
         // -------------------------
         // Defensive
@@ -486,9 +519,6 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         PopulateDetailedAilmentLines();
         ApplyOffenceBonusLineColors();
-        EnsureOffenceBonusLineTooltips();
-        BindAilmentLineTooltips();
-        EnsureParryStatTooltips();
 
         // -------------------------
         // DPS
@@ -526,8 +556,6 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         if (player != null)
             _gatheringToolLiveStamp = HashCode.Combine(player.GetWoodcuttingStatsPanelStamp(), player.GetFishingStatsPanelStamp());
-
-        EnsureToolStatLineTooltips();
     }
 
     private void PollGatheringToolsLiveRefresh()
@@ -563,7 +591,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             return;
 
         _livingInfernoLiveStamp = stamp;
-        QueueRefresh();
+        QueueStatsRefresh();
     }
 
     private void PopulateGatheringToolsSection()

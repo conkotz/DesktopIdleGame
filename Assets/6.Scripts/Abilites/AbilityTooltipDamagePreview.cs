@@ -673,6 +673,17 @@ public static class AbilityTooltipDamagePreview
 
         float allDamageMult = def.GetEffectiveAllDamageMultiplier();
         scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
+        if (IsHammerTempest(def) && stats != null)
+        {
+            int maxBonusPct = Mathf.RoundToInt(AbilityCombatPower.HammerTempestWeaponSpeedMaxHitDamageBonusFraction * 100f);
+            int speedBonusPct = AbilityCombatPower.GetHammerTempestWeaponSpeedHitDamageBonusPercent(stats.AttacksPerSecond);
+            if (speedBonusPct > 0)
+            {
+                scaling.AppendLine(S(
+                    $"+{speedBonusPct}% hit damage with your weapon ({stats.AttacksPerSecond:0.##} atk/s, max +{maxBonusPct}%)"));
+            }
+        }
+
         AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allDamageMult);
         return scaling.ToString().TrimEnd();
     }
@@ -1074,8 +1085,7 @@ public static class AbilityTooltipDamagePreview
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
             body.AppendLine(O(
-                $"Teleports to the closest enemy up to {AbilityCombatPower.ShadowStrikeForwardReach:0.#} units ahead in your facing arc."));
-            body.AppendLine(O("Does not consume your auto-attack swing timer."));
+                $"Dashes behind the closest enemy ({AbilityCombatPower.ShadowStrikeForwardReach:0.#} units)."));
 
             if (includeEnhancementEffects)
             {
@@ -1193,6 +1203,8 @@ public static class AbilityTooltipDamagePreview
             if (wwEnhance == 0)
                 movePenalty *= AbilityCombatPower.WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier;
             body.AppendLine(O($"Move speed is reduced by {movePenalty * 100f:0.#}% while channelling."));
+            body.AppendLine(O(
+                $"(During auto battle, whirlwind only starts when energy is above {AbilityCombatPower.WhirlwindAutoBattleMinEnergyFraction * 100f:0.#}%)"));
 
             if (includeEnhancementEffects && wwEnhance == 1)
             {
@@ -1232,6 +1244,23 @@ public static class AbilityTooltipDamagePreview
         else if (IsPowerSlash(def))
         {
             AppendPowerSlashTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
+        }
+        else if (IsHammerTempest(def))
+        {
+            string dmgSuffix = DamageTimingSuffix();
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+            float hammerHitMult = stats != null
+                ? AbilityCombatPower.GetHammerTempestWeaponSpeedHitDamageMultiplier(stats.AttacksPerSecond)
+                : 1f;
+            int hammerEnhance = GetHammerTempestBranchChoice(skillsManager);
+            if (hammerEnhance == AbilityCombatPower.HammerTempestSacredArsenalChoiceIndex)
+                hammerHitMult *= AbilityCombatPower.HammerTempestSacredArsenalDamageMultiplier;
+
+            physHit *= hammerHitMult;
+            magHit *= hammerHitMult;
+            corrHit *= hammerHitMult;
+
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
         }
         else if (UsesCombinedTotalHitDamageTooltip(def))
         {

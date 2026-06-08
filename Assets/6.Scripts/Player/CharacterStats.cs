@@ -787,32 +787,56 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatAbilityCooldownReductionFraction;
     private float _shadowHunterAttackSpeedEndsAt = -1f;
 
-    private void SetCombatStatMultiplier(ref float field, float value)
+    private bool SetCombatStatMultiplier(ref float field, float value, bool notify = true)
     {
         float v = Mathf.Max(0f, value);
         if (Mathf.Approximately(field, v))
-            return;
+            return false;
         field = v;
-        NotifyStatsChanged();
+        if (notify)
+            NotifyStatsChanged();
+        return true;
     }
 
-    private void SetCombatStatAdditive(ref float field, float value)
+    private bool SetCombatStatAdditive(ref float field, float value, bool notify = true)
     {
         float v = Mathf.Max(0f, value);
         if (Mathf.Approximately(field, v))
-            return;
+            return false;
         field = v;
-        NotifyStatsChanged();
+        if (notify)
+            NotifyStatsChanged();
+        return true;
+    }
+
+    /// <summary>Applies Battle Trance combat modifiers in one pass (single stats-changed notification).</summary>
+    public void ApplyBattleTranceCombatModifiers(
+        float meleeDamageMultiplier,
+        float attackSpeedPercentBonus,
+        float abilityCooldownReductionFraction,
+        float damageTakenMultiplier,
+        float moveSpeedPercentBonus)
+    {
+        bool changed = false;
+        changed |= SetCombatStatMultiplier(ref _combatMeleeDamageMultiplier, meleeDamageMultiplier, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatAttackSpeedPercentBonus, attackSpeedPercentBonus, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, abilityCooldownReductionFraction, notify: false);
+        changed |= SetCombatStatMultiplier(ref _combatDamageTakenMultiplier, damageTakenMultiplier, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, moveSpeedPercentBonus, notify: false);
+        if (changed)
+            NotifyStatsChanged();
     }
 
     public void ClearBattleTranceCombatModifiers()
     {
-        _combatMeleeDamageMultiplier = 1f;
-        _combatAttackSpeedPercentBonus = 0f;
-        _combatMoveSpeedPercentBonus = 0f;
-        _combatDamageTakenMultiplier = 1f;
-        _combatAbilityCooldownReductionFraction = 0f;
-        NotifyStatsChanged();
+        bool changed = false;
+        changed |= SetCombatStatMultiplier(ref _combatMeleeDamageMultiplier, 1f, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatAttackSpeedPercentBonus, 0f, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, 0f, notify: false);
+        changed |= SetCombatStatMultiplier(ref _combatDamageTakenMultiplier, 1f, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, 0f, notify: false);
+        if (changed)
+            NotifyStatsChanged();
     }
 
     public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient = 1f, float bonusAbilityPowerPercent = 0f)
@@ -1730,8 +1754,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
+    private int _combatPowerBreakdownCacheFrame = -1;
+    private CombatPowerBreakdown _combatPowerBreakdownCache;
+
     /// <summary>Bucket values for combat power; same math as <see cref="CombatPower"/>.</summary>
-    public CombatPowerBreakdown GetCombatPowerBreakdown() => BuildCombatPowerBreakdown();
+    public CombatPowerBreakdown GetCombatPowerBreakdown()
+    {
+        if (_combatPowerBreakdownCacheFrame == Time.frameCount)
+            return _combatPowerBreakdownCache;
+
+        _combatPowerBreakdownCache = BuildCombatPowerBreakdown();
+        _combatPowerBreakdownCacheFrame = Time.frameCount;
+        return _combatPowerBreakdownCache;
+    }
 
     public float CombatPower => GetCombatPowerBreakdown().TotalCombatPower;
 
@@ -2902,6 +2937,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         ApplyLevel20PredatorsInstinctBranch(meleeLevel, ref total);
         ApplyLevel40PhoenixSoulBranch(meleeLevel, ref total);
         ApplyLevel40MasterOfVenomsBranch(meleeLevel, ref total);
+        ApplyLevel40BloodbathBranch(meleeLevel, ref total);
 
         int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
         if (pastCap > 0)
@@ -3097,6 +3133,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (GetMasterOfVenomsEnhancementPick() == 1)
             total.poisonMaxStacksBonus += AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus;
+    }
+
+    private void ApplyLevel40BloodbathBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    {
+        if (meleeLevel < PhoenixSoulMajorPassiveLevel || !IsBloodbathUnlocked() || !AreMeleeMajorPassiveEffectsEnabled())
+            return;
+
+        total.meleeBleedChance += AbilityCombatPower.BloodbathBleedChanceBonus;
     }
 
     private void ApplyLevel20PredatorsInstinctBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
@@ -5334,8 +5378,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return damage * multiplier;
     }
 
+    private bool _statsChangedPending;
+
     public void NotifyStatsChanged()
     {
+        _statsChangedPending = true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!_statsChangedPending)
+            return;
+
+        _statsChangedPending = false;
+        _combatPowerBreakdownCacheFrame = -1;
         OnStatsChanged?.Invoke();
     }
 }

@@ -309,6 +309,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
     private GameObject _battleTranceGlowRoot;
+    private ParticleSystem _battleTranceGlowParticles;
     private GameObject _hammerTempestOrbitRoot;
     private Coroutine _hammerTempestOrbitRoutine;
     private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
@@ -2664,11 +2665,43 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     public void SpawnBattleTranceGlowVfx()
     {
-        DestroyBattleTranceGlowVfx();
         Transform parent = player != null ? player.transform : transform;
         if (parent == null)
             return;
 
+        if (_battleTranceGlowRoot == null || _battleTranceGlowParticles == null)
+            CreateBattleTranceGlowVfx(parent);
+
+        if (_battleTranceGlowRoot == null || _battleTranceGlowParticles == null)
+            return;
+
+        _battleTranceGlowRoot.transform.SetParent(parent, false);
+        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
+        _battleTranceGlowRoot.transform.localRotation = Quaternion.identity;
+        _battleTranceGlowRoot.transform.localScale = Vector3.one;
+        _battleTranceGlowRoot.SetActive(true);
+        _battleTranceGlowParticles.Play(true);
+    }
+
+    public void UpdateBattleTranceGlowVfx(bool buffActive)
+    {
+        if (!buffActive || _battleTranceGlowRoot == null)
+            return;
+        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
+    }
+
+    public void DestroyBattleTranceGlowVfx()
+    {
+        if (_battleTranceGlowRoot != null)
+        {
+            if (_battleTranceGlowParticles != null)
+                _battleTranceGlowParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            _battleTranceGlowRoot.SetActive(false);
+        }
+    }
+
+    private void CreateBattleTranceGlowVfx(Transform parent)
+    {
         _battleTranceGlowRoot = new GameObject("BattleTranceGlow");
         _battleTranceGlowRoot.transform.SetParent(parent, false);
         _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
@@ -2680,6 +2713,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         emitterGO.transform.localPosition = Vector3.zero;
 
         ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        _battleTranceGlowParticles = ps;
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
         var main = ps.main;
@@ -2755,24 +2789,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 12))
             renderer.sortingOrder = 24;
         ApplyRuntimeParticleMaterialIfNeeded(renderer);
-
-        ps.Play(true);
-    }
-
-    public void UpdateBattleTranceGlowVfx(bool buffActive)
-    {
-        if (!buffActive || _battleTranceGlowRoot == null)
-            return;
-        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
-    }
-
-    public void DestroyBattleTranceGlowVfx()
-    {
-        if (_battleTranceGlowRoot != null)
-        {
-            Destroy(_battleTranceGlowRoot);
-            _battleTranceGlowRoot = null;
-        }
     }
 
     public void SpawnHammerTempestOrbitVfx(float durationSeconds, int hammerCount)

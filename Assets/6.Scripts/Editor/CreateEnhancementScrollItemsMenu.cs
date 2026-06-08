@@ -124,12 +124,15 @@ public static class CreateEnhancementScrollItemsMenu
         string displayName = BuildScrollDisplayName(option);
         Sprite icon = db.GetScrollIconForOption(option);
 
+        ItemRarity rarity = GetRarityForOption(option);
+
         bool dirty =
             item.itemKind != ItemKind.EnhancementScroll ||
             !string.Equals(item.itemId, scrollId, StringComparison.Ordinal) ||
             !string.Equals(item.enhancementOptionId, option.optionId, StringComparison.Ordinal) ||
             !string.Equals(item.displayName, displayName, StringComparison.Ordinal) ||
             item.icon != icon ||
+            item.rarity != rarity ||
             !ScrollStatsEqual(item.enhancementScrollStats, stats);
 
         item.itemKind = ItemKind.EnhancementScroll;
@@ -137,7 +140,7 @@ public static class CreateEnhancementScrollItemsMenu
         item.enhancementOptionId = option.optionId;
         item.displayName = displayName;
         item.maxStack = 5;
-        item.rarity = option.track == EnhancementTrack.Corruption ? ItemRarity.Rare : ItemRarity.Uncommon;
+        item.rarity = rarity;
         item.value = option.track == EnhancementTrack.Corruption ? 100 : 20;
         item.description = BuildScrollDescription(option);
         if (icon != null)
@@ -165,6 +168,25 @@ public static class CreateEnhancementScrollItemsMenu
             return null;
 
         return AssetDatabase.LoadAssetAtPath<EnhancementOptionDatabase>(AssetDatabase.GUIDToAssetPath(guids[0]));
+    }
+
+    private static ItemRarity GetRarityForOption(EnhancementOptionEntry option)
+    {
+        if (option == null)
+            return ItemRarity.Uncommon;
+
+        if (option.track == EnhancementTrack.Corruption)
+            return ItemRarity.Rare;
+
+        if (option.track == EnhancementTrack.Special)
+            return ItemRarity.Epic;
+
+        return option.tier switch
+        {
+            EnhancementTier.Intermediate => ItemRarity.Rare,
+            EnhancementTier.Advanced => ItemRarity.Epic,
+            _ => ItemRarity.Uncommon,
+        };
     }
 
     private static string BuildScrollDisplayName(EnhancementOptionEntry option)

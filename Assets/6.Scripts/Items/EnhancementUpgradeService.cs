@@ -120,6 +120,58 @@ public static class EnhancementUpgradeService
         return true;
     }
 
+    public static bool TryApplyOptionOnEquippedItem(
+        Inventory inventory,
+        EquipmentManager equipment,
+        ToolbeltManager toolbelt,
+        EquipmentUISlotType equipmentSlot,
+        EnhancementOptionEntry option,
+        EnhancementOptionPayment payment,
+        out bool success)
+    {
+        success = false;
+
+        if (inventory == null || option == null || equipmentSlot == EquipmentUISlotType.None)
+            return false;
+
+        if (payment.Kind == EnhancementPaymentKind.None)
+            return false;
+
+        string targetItemId = EquipmentSlotUI.GetItemIdForSlot(equipmentSlot, equipment, toolbelt);
+        if (string.IsNullOrWhiteSpace(targetItemId))
+            return false;
+
+        ItemDefinition targetDef = inventory.GetItemDef(targetItemId);
+        if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
+            return false;
+
+        ItemDefinition enhancedTarget = targetDef;
+        if (!inventory.IsRuntimeEnhancedItem(targetItemId))
+        {
+            enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
+            if (!enhancedTarget)
+                return false;
+
+            EquipmentSlotUI.ReplaceItemIdForSlot(equipmentSlot, equipment, toolbelt, enhancedTarget.itemId);
+        }
+
+        if (!TryConsumePayment(inventory, payment))
+            return false;
+
+        ItemDefinition historyScroll = !string.IsNullOrWhiteSpace(option.linkedScrollItemId)
+            ? inventory.GetItemDef(option.linkedScrollItemId)
+            : null;
+
+        return TryApplyEnhancementStats(
+            inventory,
+            option.ToScrollStats(enhancedTarget),
+            enhancedTarget,
+            targetDef,
+            () => EquipmentSlotUI.ClearSlotOnEnhancementDestroy(equipmentSlot, equipment, toolbelt),
+            historyScroll,
+            out success);
+    }
+
     public static bool TryUseScrollOnEquippedItem(
         Inventory inventory,
         int scrollSlotIndex,
@@ -329,15 +381,17 @@ public static class EnhancementUpgradeService
                 break;
 
             case EnhancementScrollTargetStat.Health:
-                target.bonusStats.bonusHealth = ApplyIntValue(target.bonusStats.bonusHealth, value, percent);
                 if (target.IsArmor)
                     target.armorStats.bonusHealth = ApplyIntValue(target.armorStats.bonusHealth, value, percent);
+                else
+                    target.bonusStats.bonusHealth = ApplyIntValue(target.bonusStats.bonusHealth, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.Energy:
-                target.bonusStats.bonusEnergy = ApplyIntValue(target.bonusStats.bonusEnergy, value, percent);
                 if (target.IsArmor)
                     target.armorStats.bonusEnergy = ApplyIntValue(target.armorStats.bonusEnergy, value, percent);
+                else
+                    target.bonusStats.bonusEnergy = ApplyIntValue(target.bonusStats.bonusEnergy, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.Mana:
@@ -345,21 +399,24 @@ public static class EnhancementUpgradeService
                 break;
 
             case EnhancementScrollTargetStat.Armor:
-                target.bonusStats.armor = ApplyIntValue(target.bonusStats.armor, value, percent);
                 if (target.IsArmor)
                     target.armorStats.armor = ApplyIntValue(target.armorStats.armor, value, percent);
+                else
+                    target.bonusStats.armor = ApplyIntValue(target.bonusStats.armor, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.MagicResist:
-                target.bonusStats.magicResist = ApplyIntValue(target.bonusStats.magicResist, value, percent);
                 if (target.IsArmor)
                     target.armorStats.magicResist = ApplyIntValue(target.armorStats.magicResist, value, percent);
+                else
+                    target.bonusStats.magicResist = ApplyIntValue(target.bonusStats.magicResist, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.CorruptionResist:
-                target.bonusStats.corruptionResist = ApplyIntValue(target.bonusStats.corruptionResist, value, percent);
                 if (target.IsArmor)
                     target.armorStats.corruptionResist = ApplyIntValue(target.armorStats.corruptionResist, value, percent);
+                else
+                    target.bonusStats.corruptionResist = ApplyIntValue(target.bonusStats.corruptionResist, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.CritChance:

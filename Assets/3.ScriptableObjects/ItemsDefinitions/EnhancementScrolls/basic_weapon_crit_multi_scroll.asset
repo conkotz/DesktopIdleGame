@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 8
   maxStack: 5
   itemId: basic_weapon_crit_multi_scroll
-  displayName: Basic Weapon Crit Multi Scroll
+  displayName: Crit Multi Basic Scroll
   displayNameSingular: 
   icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
   heldSprite: {fileID: 0}
@@ -25,8 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A simple enhancement scroll that can add a small crit multiplier bonus
-    to a weapon.
+  description: An enhancement scroll that can add crit multi to eligible gear.
   rarity: 1
   value: 20
   equipSlot: 0
@@ -179,11 +178,11 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
-  enhancementOptionId: 
+  enhancementOptionId: crit_multi_basic
   enhancementScrollStats:
-    successChance: 0
+    successChance: 0.5
     targetStat: 10
-    modifierKind: 0
+    modifierKind: 1
     modifierValue: 0.04
     consumeSlotOnFailure: 1
     failureOutcome: 0

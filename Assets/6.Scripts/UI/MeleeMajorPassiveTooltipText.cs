@@ -876,6 +876,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("Maximum ");
         sb.Append(AbilityCombatPower.BloodbathMaxStacks);
         sb.AppendLine(" stacks.");
+        sb.Append("+");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathBleedChanceBonus * 100f));
+        sb.AppendLine("% bleed chance.");
         AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.BloodbathEnhancementParentSpineNodeId);
         body = sb.ToString();
         return true;
