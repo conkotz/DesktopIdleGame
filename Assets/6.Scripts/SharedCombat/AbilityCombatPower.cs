@@ -18,7 +18,7 @@ public static class AbilityCombatPower
     public const string EnvenomAbilityId = "envenom";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
-    public const float CrescentSlashReach = 8f;
+    public const float CrescentSlashReach = 12f;
     public const string GuardiansHammerAbilityId = "guardians_hammer";
     public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
