@@ -442,9 +442,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 18
-      title: Sustained Whirlwind
-      description: Whirlwind channel cost is reduced to 20 Energy / s. Move speed
-        is reduced by 12.5% while channelling.
+      title: Galeforce
+      description: Periodically release small twisters while channeling to damage
+        nearby enemies (these do 70% less damage). +5 energy cost per second.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -533,8 +533,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Protector's Resolve
-      description: Gain 4% max health Guard per enemy hit, up to 3 enemies. Stun
-        enemies on hit.
+      description: Gain 4% max health Guard per enemy hit, up to 3 enemies (5 seconds).
+        Stun enemies on hit.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -1277,6 +1277,36 @@ MonoBehaviour:
     - requiredLevel: 43
       title: Butchery
       description: Bloodbath also grants 3% bleed chance per stack.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 40
+    title: Opportunistic
+    description: Adapt your abilities to enemy health. Strike fresh foes with precision,
+      punish wounded targets with devastating abilities, and finish weakened enemies.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 43
+      title: Extended Opening
+      description: Widens the ability damage window to enemies between 80% and 30%
+        health.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 43
+      title: Finishing Blow
+      description: +15% critical damage multiplier against enemies below 30% health.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

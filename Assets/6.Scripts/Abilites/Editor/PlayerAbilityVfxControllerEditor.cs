@@ -99,6 +99,26 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "whirlingBladeMaxYOffset"
     };
 
+    private static readonly string[] GaleforceTwisterFieldNames =
+    {
+        "galeforceTwisterColor",
+        "galeforceTwisterDuration",
+        "galeforceTwisterSpinDegrees",
+        "galeforceTwisterLineWidthScale",
+        "galeforceTwisterCenterOffset",
+        "galeforceTwisterSlashCount",
+        "galeforceTwisterLaneBaseYOffsets",
+        "galeforceTwisterFifthLaneBaseYOffset",
+        "galeforceTwisterLaneOrbitHeights",
+        "galeforceTwisterFifthLaneOrbitHeight",
+        "galeforceTwisterSizeScale",
+        "galeforceTwisterLifetimeSeconds",
+        "galeforceTwisterLingerAfterChannelSeconds",
+        "galeforceTwisterDriftSpeed",
+        "galeforceTwisterMinDirectionSeconds",
+        "galeforceTwisterMaxDirectionSeconds"
+    };
+
     private static readonly string[] CrescentFieldNames =
     {
         "crescentSlashColor",
@@ -360,6 +380,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
         new(VfxSkillTab.Melee, "CrusaderStrikeVfx", 5, "Crusader Strike", CrusaderStrikeFieldNames),
         new(VfxSkillTab.Melee, "ParryVfx", 10, "Parry", ParryFieldNames),
         new(VfxSkillTab.Melee, "WhirlwindVfx", 15, "Whirlwind", WhirlwindFieldNames),
+        new(VfxSkillTab.Melee, "GaleforceTwisterVfx", 18, "Whirlwind — Galeforce Twisters", GaleforceTwisterFieldNames),
         new(VfxSkillTab.Melee, "CrescentSlashVfx", 15, "Crescent Slash", CrescentFieldNames),
         new(VfxSkillTab.Melee, "GuardiansHammerVfx", 15, "Guardian's Hammer", GuardiansHammerFieldNames),
         new(VfxSkillTab.Melee, "ShadowStrikeVfx", 25, "Shadow Strike", ShadowStrikeVfxFieldNames),

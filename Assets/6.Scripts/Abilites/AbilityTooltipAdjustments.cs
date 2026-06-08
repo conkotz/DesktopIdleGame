@@ -65,9 +65,9 @@ public static class AbilityTooltipAdjustments
                 selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 18, -1);
 
             resourceLabel = "Energy / s";
-            resourceCost = Mathf.Max(0f, def.energyCost);
-            if (selected == 0)
-                resourceCost = Mathf.Max(0f, resourceCost - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
+            resourceCost = AbilityCombatPower.GetWhirlwindBaseChannelEnergyPerSecond(
+                Mathf.Max(0f, def.energyCost),
+                selected);
             if (abilityController != null && resourceCost > 0f)
             {
                 float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();

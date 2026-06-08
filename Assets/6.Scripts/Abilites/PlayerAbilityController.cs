@@ -152,6 +152,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private const int WhirlwindChoiceSourceLevel = 15;
     private const int GuardiansHammerProtectorResolveChoiceIndex = 0;
+    private float _guardiansHammerProtectorResolveGuardExpiresAt;
     private const int GuardiansHammerBurningVerdictChoiceIndex = 1;
     private const string GuardiansHammerBurningVerdictOutgoingSourceLabel = "Burning Verdict";
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
@@ -177,6 +178,8 @@ public class PlayerAbilityController : MonoBehaviour
     private float _whirlwindLastTickAt;
     private float _whirlwindNextTickAt;
     private float _whirlwindNextVfxAt;
+    private float _whirlwindNextGaleforceTwisterAt;
+    private readonly List<GaleforceTwisterInstance> _galeforceTwisterDamageBuffer = new();
     private readonly Dictionary<int, float> _whirlwindLastHitTimeByEnemyId = new();
     private readonly HashSet<int> _whirlwindEnemiesInContactThisFrame = new();
     private readonly List<int> _whirlwindContactRemovalBuffer = new();
@@ -454,7 +457,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         EndBladestormInstanceState();
         ForceEndHammerTempestEarly(applyCooldown: false);
-        ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
+        ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false, lingerGaleforceTwisters: false);
         ForceEndCrusaderStrikeCombo(applyCooldown: false);
         ClearCrusaderStrikeFireBalanceBuff();
         ClearPendingMeleeApproachAbility();
@@ -481,6 +484,7 @@ public class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         TickPendingMeleeApproachAbility();
         TickWhirlwindChannel();
+        TickGaleforceTwisterDamage();
         SyncWhirlwindHudBuff();
         CleanupCrusaderStrikeIfExpired();
         SyncCrusaderStrikeHudBuff();
@@ -509,6 +513,7 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
         TickBattleEngineOverloadExpiry();
+        TickGuardiansHammerProtectorResolveGuardExpiry();
         if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
             ClearBattleEngineOverloadStacksIfAny();
         TickPhoenixSoulBurnRegen(Time.deltaTime);
@@ -3395,7 +3400,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool wasCrit = false;
         float critMult = 1f;
         SplitDamage preCritHit = new SplitDamage(physPart, magPart, corrPart);
-        if (preCritHit.CanCrit && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
+        if (preCritHit.CanCrit && UnityEngine.Random.value < GetEffectiveAbilityCritChance(target))
         {
             wasCrit = true;
             critMult = Mathf.Max(1f, stats.CritMultiplier);
@@ -3406,6 +3411,18 @@ public class PlayerAbilityController : MonoBehaviour
             Mathf.Max(0f, magPart * critMult),
             Mathf.Max(0f, corrPart * critMult));
         ApplyActiveDamageConversions(ref hit);
+
+        float cond = GetConditionalMeleeDamageMultiplier(target);
+        if (wasCrit && stats != null)
+        {
+            cond *= stats.GetPredatorsInstinctExecutionerCritDamageFactor(target, true);
+            cond *= stats.GetOpportunisticCritDamageFactor(target, true);
+        }
+
+        hit = new SplitDamage(
+            Mathf.Max(0f, hit.physical * cond),
+            Mathf.Max(0f, hit.magic * cond),
+            Mathf.Max(0f, hit.corruptionDamage * cond));
 
         int phys = Mathf.Max(0, Mathf.RoundToInt(hit.physical));
         int mag = Mathf.Max(0, Mathf.RoundToInt(hit.magic));
@@ -3441,7 +3458,12 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>Builds one independent ability hit roll (per target): attack roll + ability scaling + independent crit.</summary>
-    private void BuildWhirlwindAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit, out float lightningMagicNonCrit)
+    private void BuildWhirlwindAbilityScaledSplit(
+        AbilityDefinition def,
+        EnemyBaseController critTarget,
+        out SplitDamage nonCritBase,
+        out bool wasCrit,
+        out float lightningMagicNonCrit)
     {
         SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
@@ -3477,8 +3499,18 @@ public class PlayerAbilityController : MonoBehaviour
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
 
         wasCrit = false;
-        if (nonCritBase.CanCrit && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
+        if (nonCritBase.CanCrit && UnityEngine.Random.value < GetEffectiveAbilityCritChance(critTarget))
             wasCrit = true;
+    }
+
+    private float GetEffectiveAbilityCritChance(EnemyBaseController target)
+    {
+        if (stats == null)
+            return 0f;
+
+        float critChance = stats.CritChance;
+        critChance += stats.GetOpportunisticAbilityCritChanceBonus(target);
+        return Mathf.Clamp01(critChance);
     }
 
     private bool TryUseWhirlwind(AbilityDefinition def)
@@ -3525,12 +3557,79 @@ public class PlayerAbilityController : MonoBehaviour
         return true;
     }
 
-    private void ApplyWhirlwindHitToTarget(EnemyBaseController target, AbilityDefinition def, float damageMultiplier)
+    private void TrySpawnGaleforceTwister(AbilityDefinition def, float whirlwindRadius)
+    {
+        if (def == null || GetWhirlwindSelectedChoice() != 0)
+            return;
+
+        float twisterRadius = whirlwindRadius * AbilityCombatPower.WhirlwindGaleforceTwisterRadiusScale;
+        float damageMultiplier =
+            GetWhirlwindChannelDamageMultiplier(GetWhirlwindChannelElapsedSeconds())
+            * AbilityCombatPower.WhirlwindGaleforceTwisterDamageMultiplier;
+        float offsetX = UnityEngine.Random.Range(-whirlwindRadius * 0.45f, whirlwindRadius * 0.45f);
+
+        abilityVfx?.SpawnGaleforceTwisterNearPlayer(offsetX, twisterRadius, damageMultiplier);
+    }
+
+    private void TickGaleforceTwisterDamage()
+    {
+        if (abilityVfx == null)
+            abilityVfx = GetComponent<PlayerAbilityVfxController>();
+
+        abilityVfx?.CollectActiveGaleforceTwisters(_galeforceTwisterDamageBuffer);
+        if (_galeforceTwisterDamageBuffer.Count == 0)
+            return;
+
+        AbilityDefinition def = GetAbilityDefinition(WhirlwindId);
+        if (def == null || stats == null || !IsAbilityAllowedBySkillProgress(def))
+            return;
+
+        float hitInterval = GetWhirlwindChannelHitIntervalSeconds();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+
+        for (int t = 0; t < _galeforceTwisterDamageBuffer.Count; t++)
+        {
+            GaleforceTwisterInstance twister = _galeforceTwisterDamageBuffer[t];
+            if (twister == null)
+                continue;
+
+            float centerX = twister.transform.position.x;
+            float radius = twister.HitRadius;
+            float damageMultiplier = twister.DamageMultiplier;
+
+            for (int i = 0; i < allEnemies.Count; i++)
+            {
+                EnemyBaseController enemy = allEnemies[i];
+                if (enemy == null || enemy.IsDead)
+                    continue;
+
+                int enemyId = enemy.GetInstanceID();
+                if (!IsEnemyWithinWhirlRange(enemy, radius, centerX, 0f, out _))
+                    continue;
+
+                if (!twister.CanHitEnemy(enemyId, hitInterval))
+                    continue;
+
+                ApplyWhirlwindHitToTarget(
+                    enemy,
+                    def,
+                    damageMultiplier,
+                    AbilityCombatPower.WhirlwindTwistersOutgoingDamageSourceLabel);
+                twister.RecordHit(enemyId);
+            }
+        }
+    }
+
+    private void ApplyWhirlwindHitToTarget(
+        EnemyBaseController target,
+        AbilityDefinition def,
+        float damageMultiplier,
+        string outgoingDamageSourceLabel = null)
     {
         if (target == null || target.IsDead || def == null || stats == null)
             return;
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
         SplitDamage rolled = new SplitDamage(
             rolledNonCrit.physical * critMult,
@@ -3541,7 +3640,8 @@ public class PlayerAbilityController : MonoBehaviour
         float lightningAfterCrit = lightningMagNonCrit * critMult * damageMultiplier;
         float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
 
-        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, firstHit, wasCrit, firstFrac);
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(
+            target, def, firstHit, wasCrit, firstFrac, outgoingDamageSourceLabelOverride: outgoingDamageSourceLabel);
         ApplyOnHitEffects(target, dealt);
     }
 
@@ -3724,7 +3824,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+            BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage rolled = new SplitDamage(
                 rolledNonCrit.physical * critMult,
@@ -4083,7 +4183,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!target || target.IsDead || stats == null || def == null)
             return;
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float scale = weaponDamageMultiplier / Mathf.Max(0.0001f, def.GetWeaponHitScalingMultiplier());
         rolledNonCrit *= scale;
         lightningMagNonCrit *= scale;
@@ -4415,7 +4515,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!target || target.IsDead || stats == null || def == null)
             return;
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float scale = weaponDamageMultiplier / Mathf.Max(0.0001f, def.GetWeaponHitScalingMultiplier());
         rolledNonCrit *= scale;
         lightningMagNonCrit *= scale;
@@ -4512,7 +4612,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         ApplyShadowStrikeMark(target, def);
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
         SplitDamage rolled = new SplitDamage(
             rolledNonCrit.physical * critMult,
@@ -5012,7 +5112,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead || stats == null || def == null)
             return;
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
         SplitDamage hitForTarget = new SplitDamage(
             rolledNonCrit.physical * critMult,
@@ -5114,7 +5214,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead || stats == null || def == null)
             return;
 
-        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        BuildWhirlwindAbilityScaledSplit(def, target, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
         SplitDamage hit = new SplitDamage(
             rolledNonCrit.physical * critMult,
@@ -5193,7 +5293,23 @@ public class PlayerAbilityController : MonoBehaviour
         float guardAmount =
             stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardPerHitFractionMaxHealth;
         if (guardAmount > 0.0001f)
+        {
             stats.AddBonusGuard(guardAmount);
+            _guardiansHammerProtectorResolveGuardExpiresAt =
+                Time.time + AbilityCombatPower.GuardiansHammerProtectorResolveGuardDurationSeconds;
+        }
+    }
+
+    private void TickGuardiansHammerProtectorResolveGuardExpiry()
+    {
+        if (_guardiansHammerProtectorResolveGuardExpiresAt <= 0f)
+            return;
+
+        if (Time.time < _guardiansHammerProtectorResolveGuardExpiresAt)
+            return;
+
+        _guardiansHammerProtectorResolveGuardExpiresAt = 0f;
+        stats?.ClampGuardToNaturalCap();
     }
 
     private void FireGuardiansHammerImpact(AbilityDefinition def)
@@ -5221,6 +5337,9 @@ public class PlayerAbilityController : MonoBehaviour
         _whirlwindLastTickAt = Time.time;
         _whirlwindNextTickAt = Time.time + GetWhirlwindChannelHitIntervalSeconds();
         _whirlwindNextVfxAt = Time.time + AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
+        _whirlwindNextGaleforceTwisterAt = GetWhirlwindSelectedChoice() == 0
+            ? Time.time + AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds
+            : 0f;
         ApplyWhirlwindChannelMoveSpeedPenalty();
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
@@ -5280,6 +5399,12 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (_whirlwindAutoChanneling && !HasAnyLiveEnemyWithinAutoBattleWhirlwindStopDistance())
+        {
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+            return;
+        }
+
         ApplyWhirlwindChannelMoveSpeedPenalty();
         if (!DrainWhirlwindChannelEnergy(def, showInsufficientFeedback: false))
         {
@@ -5293,6 +5418,12 @@ public class PlayerAbilityController : MonoBehaviour
         {
             abilityVfx?.SpawnWhirlwind(currentRadius);
             _whirlwindNextVfxAt += AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
+        }
+
+        while (_whirlwindChanneling && GetWhirlwindSelectedChoice() == 0 && Time.time >= _whirlwindNextGaleforceTwisterAt)
+        {
+            TrySpawnGaleforceTwister(def, currentRadius);
+            _whirlwindNextGaleforceTwisterAt += AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds;
         }
 
         _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
@@ -5323,6 +5454,25 @@ public class PlayerAbilityController : MonoBehaviour
             if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
                 continue;
             if (IsEnemyRoughlyOnScreen(enemy))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasAnyLiveEnemyWithinAutoBattleWhirlwindStopDistance()
+    {
+        float stopDistance = AbilityCombatPower.WhirlwindAutoBattleStopIfNoEnemyWithinDistance;
+        float ownerX = transform.position.x;
+        float ownerHalf = GetOwnerHalfWidthX();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            if (IsEnemyWithinWhirlRange(enemy, stopDistance, ownerX, ownerHalf, out _))
                 return true;
         }
 
@@ -5556,11 +5706,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null)
             return 0f;
 
-        float baseCost = Mathf.Max(0f, def.energyCost);
-        if (GetWhirlwindSelectedChoice() == 0)
-            baseCost = Mathf.Max(0f, baseCost - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
-
-        return baseCost;
+        return AbilityCombatPower.GetWhirlwindBaseChannelEnergyPerSecond(
+            Mathf.Max(0f, def.energyCost),
+            GetWhirlwindSelectedChoice());
     }
 
     private float GetWhirlwindChannelEnergyPerSecond(AbilityDefinition def)
@@ -5591,9 +5739,6 @@ public class PlayerAbilityController : MonoBehaviour
     private float GetWhirlwindMoveSpeedMultiplier()
     {
         float penalty = AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction;
-        if (GetWhirlwindSelectedChoice() == 0)
-            penalty *= AbilityCombatPower.WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier;
-
         return Mathf.Clamp01(1f - Mathf.Max(0f, penalty));
     }
 
@@ -5623,7 +5768,10 @@ public class PlayerAbilityController : MonoBehaviour
         buffController.SetHudAbilityBuff(WhirlwindId, stacks, 0f, 0f, persistActiveOverlay: true);
     }
 
-    private void ForceEndWhirlwindChannel(bool clearHeldState, bool applyCooldown)
+    private void ForceEndWhirlwindChannel(
+        bool clearHeldState,
+        bool applyCooldown,
+        bool lingerGaleforceTwisters = true)
     {
         AbilityDefinition def = applyCooldown ? GetAbilityDefinition(WhirlwindId) : null;
         EnemyBaseController resumeTarget = _whirlwindSavedCombatTarget;
@@ -5634,7 +5782,20 @@ public class PlayerAbilityController : MonoBehaviour
         _whirlwindLastTickAt = 0f;
         _whirlwindNextTickAt = 0f;
         _whirlwindNextVfxAt = 0f;
+        _whirlwindNextGaleforceTwisterAt = 0f;
         _whirlwindUsedEnergyInfusionMana = false;
+        if (lingerGaleforceTwisters)
+        {
+            float lingerSeconds = abilityVfx != null
+                ? abilityVfx.GaleforceTwisterLingerAfterChannelSeconds
+                : AbilityCombatPower.WhirlwindGaleforceTwisterLingerAfterChannelSeconds;
+            abilityVfx?.LingerGaleforceTwistersAfterChannelEnd(lingerSeconds);
+        }
+        else
+        {
+            abilityVfx?.EndAllGaleforceTwisterVfx();
+        }
+
         _whirlwindLastHitTimeByEnemyId.Clear();
         _whirlwindEnemiesInContactThisFrame.Clear();
         _whirlwindContactRemovalBuffer.Clear();
@@ -5747,6 +5908,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (wasCrit && stats != null)
         {
             cond *= stats.GetPredatorsInstinctExecutionerCritDamageFactor(target, true);
+            cond *= stats.GetOpportunisticCritDamageFactor(target, true);
             stats.OnPlayerCritLanded();
         }
 
@@ -5815,7 +5977,8 @@ public class PlayerAbilityController : MonoBehaviour
         bool wasCrit,
         float meleeMagicLightningFraction = -1f,
         float armorRatingMultiplier = 1f,
-        float magicResistRatingMultiplier = 1f)
+        float magicResistRatingMultiplier = 1f,
+        string outgoingDamageSourceLabelOverride = null)
     {
         float overloadMult = GetBattleEngineOverloadDamageMultiplier();
         if (overloadMult > 1f)
@@ -5835,7 +5998,8 @@ public class PlayerAbilityController : MonoBehaviour
             meleeMagicLightningFraction,
             armorRatingMultiplier,
             magicResistRatingMultiplier,
-            def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null);
+            outgoingDamageSourceLabelOverride
+            ?? (def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null));
 
         TryGrantBattleEngineEnergyOnAbilityHit(def, dealt.Total > 0f);
         return dealt;
@@ -5865,6 +6029,8 @@ public class PlayerAbilityController : MonoBehaviour
             if (hp01 < stats.MeleeLowHpThreshold01)
                 bonus += stats.MeleeDamageVsLowHp;
         }
+
+        bonus += stats.GetOpportunisticAbilityDamageBonusFraction(target);
 
         return 1f + Mathf.Max(0f, bonus);
     }

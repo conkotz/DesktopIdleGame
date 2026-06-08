@@ -162,6 +162,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         yield return null;
         Canvas.ForceUpdateCanvases();
         RefreshColumnsLayout();
+        ApplyEnhancementButtonsContainerLayout(_spawnedEnhancementButtons.Count);
         _deferredColumnsLayoutCo = null;
     }
 
@@ -1683,9 +1684,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         gridLayout.startAxis = GridLayoutGroup.Axis.Horizontal;
         gridLayout.childAlignment = TextAnchor.UpperCenter;
 
-        float columnWidth = enhancementButtonsContainer.rect.width;
-        if (columnWidth <= 1f)
-            columnWidth = ComputeColumnWidth(RightColumnWidthRatio);
+        float columnWidth = ComputeColumnWidth(RightColumnWidthRatio);
 
         float cellWidth = (columnWidth - EnhancementButtonsGridSpacing * (columns - 1)) / columns;
         gridLayout.cellSize = new Vector2(Mathf.Max(76f, cellWidth), EnhancementCardHeight);

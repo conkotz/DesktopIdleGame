@@ -722,6 +722,28 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _lastCombatActivityTime = Time.time;
     }
 
+    public bool IsDpsTrackerRunning() =>
+        !_dpsTrackerPaused && _combatSessionStartTime >= 0f;
+
+    /// <summary>
+    /// Starts or resumes the damage-meter session. Used by the meter play button when elapsed is 0
+    /// or after the player unpauses a frozen session.
+    /// </summary>
+    public void StartDpsTrackerSession()
+    {
+        if (_dpsTrackerPaused)
+        {
+            UnpauseDpsTracker();
+            return;
+        }
+
+        if (_combatSessionStartTime < 0f)
+        {
+            _combatSessionStartTime = Time.time;
+            _pausedDpsSessionDuration = 0f;
+        }
+    }
+
     public void RecordIncomingHealingForDps(float healingAmount, string sourceName)
     {
         if (_dpsTrackerPaused || healingAmount <= 0f)

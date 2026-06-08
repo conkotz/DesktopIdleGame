@@ -176,6 +176,20 @@ public static class AbilityCombatPower
     public const float BloodbathButcheryBleedChancePerStack = 0.03f;
     public const string BloodbathHudBuffId = "bloodbath";
 
+    /// <summary>Melee Lv40 major passive — Opportunistic (skill tree slot 3 at level 40).</summary>
+    public const string OpportunisticEnhancementParentSpineNodeId = "Lv40_3";
+    public const int OpportunisticExtendedOpeningChoiceIndex = 0;
+    public const int OpportunisticFinishingBlowChoiceIndex = 1;
+    public const float OpportunisticFullHealthThreshold01 = 0.999f;
+    public const float OpportunisticFullHealthCritChanceBonus = 0.10f;
+    public const float OpportunisticAbilityDamageBonus = 0.15f;
+    public const float OpportunisticAbilityDamageHighHpThreshold01 = 0.70f;
+    public const float OpportunisticAbilityDamageLowHpThreshold01 = 0.40f;
+    public const float OpportunisticExtendedOpeningHighHpThreshold01 = 0.80f;
+    public const float OpportunisticExtendedOpeningLowHpThreshold01 = 0.30f;
+    public const float OpportunisticFinishingBlowLowHpThreshold01 = 0.30f;
+    public const float OpportunisticFinishingBlowCritMultiplierBonus = 0.15f;
+
     /// <summary>Melee capstone passive spine (slot 0 at level 50).</summary>
     public const string MeleeCapstoneSpineNodeId = "Lv50_0";
 
@@ -270,6 +284,7 @@ public static class AbilityCombatPower
     public const float GuardiansHammerProtectorResolveGuardPerHitFractionMaxHealth = 0.04f;
     public const int GuardiansHammerProtectorResolveMaxEnemyHits = 3;
     public const float GuardiansHammerProtectorResolveStunDurationSeconds = 3f;
+    public const float GuardiansHammerProtectorResolveGuardDurationSeconds = 5f;
     public const float GuardiansHammerBurningVerdictExplosionRadius = 3f;
     public const int GuardiansHammerBurningVerdictTicksWorth = 3;
 
@@ -344,12 +359,28 @@ public static class AbilityCombatPower
     public const float AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd = 0.10f;
 
     public const float WhirlwindChannelVfxIntervalSeconds = 0.2f;
-    public const float WhirlwindTwinCycloneChannelCostReductionPerSecond = 5f;
     public const float WhirlwindExpansiveRangePerStage = 0.1f;
     public const float WhirlwindExpansiveDamagePerSecond = 0.05f;
     public const float WhirlwindBaseMoveSpeedPenaltyFraction = 0.25f;
-    public const float WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier = 0.5f;
     public const float WhirlwindAutoBattleMinEnergyFraction = 0.5f;
+    public const float WhirlwindAutoBattleStopIfNoEnemyWithinDistance = 10f;
+    public const float WhirlwindGaleforceTwisterIntervalSeconds = 2f;
+    public const float WhirlwindGaleforceChannelEnergyCostPerSecond = 5f;
+    public const float WhirlwindGaleforceTwisterDamageMultiplier = 0.3f;
+    public const float WhirlwindGaleforceTwisterRadiusScale = 0.45f;
+    public const float WhirlwindGaleforceTwisterMoveSpeed = 1.5f;
+    public const float WhirlwindGaleforceTwisterMinDirectionSeconds = 2f;
+    public const float WhirlwindGaleforceTwisterMaxDirectionSeconds = 5f;
+    public const float WhirlwindGaleforceTwisterLingerAfterChannelSeconds = 5f;
+    public const string WhirlwindTwistersOutgoingDamageSourceLabel = "Twisters (Whirlwind)";
+
+    public static float GetWhirlwindBaseChannelEnergyPerSecond(float baseAbilityEnergyCost, int galeforceChoiceIndex)
+    {
+        float cost = Mathf.Max(0f, baseAbilityEnergyCost);
+        if (galeforceChoiceIndex == 0)
+            cost += WhirlwindGaleforceChannelEnergyCostPerSecond;
+        return cost;
+    }
     public const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
     public const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
     public const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;

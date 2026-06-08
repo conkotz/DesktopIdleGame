@@ -668,6 +668,15 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsWhirlwind(def))
+        {
+            scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
+            scaling.AppendLine(S("Attack speed determines hit frequency"));
+            AppendAbilityTooltipBonusScalerLines(
+                scaling, S, def, stats, weaponMult, def.GetEffectiveAllDamageMultiplier());
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsCleavingStrikes(def) || weaponMult <= scalingEpsilon)
             return string.Empty;
 
@@ -1200,9 +1209,23 @@ public static class AbilityTooltipDamagePreview
 
             int wwEnhance = includeEnhancementEffects ? GetMeleeLv15BranchChoice(skillsManager, 0) : -1;
             float movePenalty = AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction;
-            if (wwEnhance == 0)
-                movePenalty *= AbilityCombatPower.WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier;
             body.AppendLine(O($"Move speed is reduced by {movePenalty * 100f:0.#}% while channelling."));
+
+            if (includeEnhancementEffects && wwEnhance == 0)
+            {
+                ComputeAverageAbilityHitSplit(
+                    def,
+                    stats,
+                    weaponMult,
+                    allM,
+                    out float twPhys,
+                    out float twMag,
+                    out float twCorr,
+                    liveDamageMultiplier * AbilityCombatPower.WhirlwindGaleforceTwisterDamageMultiplier);
+                int twisterTotal = Mathf.RoundToInt(twPhys + twMag + twCorr);
+                body.AppendLine(O($"Twisters deal {twisterTotal} damage on hit"));
+            }
+
             body.AppendLine(O(
                 $"(During auto battle, whirlwind only starts when energy is above {AbilityCombatPower.WhirlwindAutoBattleMinEnergyFraction * 100f:0.#}%)"));
 
@@ -1230,7 +1253,7 @@ public static class AbilityTooltipDamagePreview
                     float perHitGuard = stats.MaxHP * perHitFraction;
                     int maxHits = AbilityCombatPower.GuardiansHammerProtectorResolveMaxEnemyHits;
                     body.AppendLine(O(
-                        $"Gain {Mathf.RoundToInt(perHitGuard)} Guard ({perHitFraction * 100f:0.#}% max health) per enemy hit, up to {maxHits}."));
+                        $"Gain {Mathf.RoundToInt(perHitGuard)} Guard ({perHitFraction * 100f:0.#}% max health) per enemy hit, up to {maxHits} ({AbilityCombatPower.GuardiansHammerProtectorResolveGuardDurationSeconds:0.#} seconds)."));
                     body.AppendLine(O(
                         $"Stun enemies on hit for {AbilityCombatPower.GuardiansHammerProtectorResolveStunDurationSeconds:0.#}s."));
                 }

@@ -30,8 +30,12 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private PlayerCombatController combat;
     [SerializeField] private Button resetButton;
+    [SerializeField] private Button pausePlayButton;
+    [SerializeField] private Image pausePlayButtonIcon;
     [SerializeField] private Button dpsOrDamageButton;
     [SerializeField] private TMP_Text dpsOrDamageButtonText;
+    [SerializeField] private Sprite dpsTrackerPauseSprite;
+    [SerializeField] private Sprite dpsTrackerPlaySprite;
 
     [Header("Outgoing")]
     [SerializeField] private TMP_Text outgoingTotalText;
@@ -65,6 +69,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private float _nextRefreshTime;
     private MetricMode _mode = MetricMode.Dps;
+    private bool _displayPaused;
     private Coroutine _lateWireRoutine;
     private bool _loggedScrollDiagnostics;
     private float _incomingPanelBasePreferredHeight = -1f;
@@ -213,6 +218,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             StopCoroutine(_lateWireRoutine);
         _lateWireRoutine = StartCoroutine(CoWireButtonsAfterInitializers());
         ApplyModeToTracker();
+        ApplyPlayPauseButtonVisual();
         Refresh();
     }
 
@@ -235,6 +241,11 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             return;
 
         _nextRefreshTime = Time.unscaledTime + refreshInterval;
+        ApplyPlayPauseButtonVisual();
+
+        if (_displayPaused)
+            return;
+
         MaybeLogScrollDiagnostics();
         Refresh();
     }
@@ -878,9 +889,25 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         }
 
         if (!resetButton)
-            resetButton = FindButtonByName("Reset", "ResetButton");
+            resetButton = FindButtonByObjectName("Reset", "ResetButton")
+                ?? FindButtonByLabelContaining("reset");
+        if (!pausePlayButton)
+            pausePlayButton = FindButtonByObjectName(
+                "PausePlayButton",
+                "PagePlaybutton",
+                "PagePlayButton",
+                "PausePlay");
+        if (pausePlayButton && !pausePlayButtonIcon)
+            pausePlayButtonIcon = ResolvePausePlayButtonIcon(pausePlayButton);
+        TryAssignDefaultPlayPauseSprites();
         if (!dpsOrDamageButton)
-            dpsOrDamageButton = FindButtonByName("DPSorDamageButton", "DpsOrDamageButton", "DmgButton", "DamageModeButton");
+            dpsOrDamageButton = FindButtonByObjectName(
+                    "DPSorDamageButton",
+                    "DpsOrDamageButton",
+                    "PerSecondOrTotalButton",
+                    "DmgButton",
+                    "DamageModeButton")
+                ?? FindButtonByDpsDamageLabel();
         if (dpsOrDamageButton)
             dpsOrDamageButtonText = ResolveModeButtonLabel(dpsOrDamageButton);
     }
@@ -901,6 +928,13 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             // Own this button behavior so legacy/template listeners do not close/toggle the window.
             dpsOrDamageButton.onClick.RemoveAllListeners();
             dpsOrDamageButton.onClick.AddListener(OnToggleMetricModeClicked);
+        }
+
+        if (pausePlayButton)
+        {
+            DisableConflictingButtonBehaviours(pausePlayButton.gameObject);
+            pausePlayButton.onClick.RemoveAllListeners();
+            pausePlayButton.onClick.AddListener(OnPausePlayButtonClicked);
         }
     }
 
@@ -941,8 +975,125 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     {
         if (!combat)
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+        _displayPaused = false;
         combat?.ResetDpsTrackerNow();
+        ApplyPlayPauseButtonVisual();
         Refresh();
+    }
+
+    private void OnPausePlayButtonClicked()
+    {
+        if (!combat)
+            combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+
+        if (_displayPaused)
+        {
+            _displayPaused = false;
+            if (combat != null && !combat.IsDpsTrackerRunning())
+                combat.StartDpsTrackerSession();
+        }
+        else
+        {
+            _displayPaused = true;
+        }
+
+        ApplyPlayPauseButtonVisual();
+        if (!_displayPaused)
+            Refresh();
+    }
+
+    private void ApplyPlayPauseButtonVisual()
+    {
+        if (!pausePlayButtonIcon)
+            return;
+
+        bool showPauseIcon = !_displayPaused && combat != null && combat.IsDpsTrackerRunning();
+        Sprite sprite = showPauseIcon ? dpsTrackerPauseSprite : dpsTrackerPlaySprite;
+        if (sprite != null)
+            pausePlayButtonIcon.sprite = sprite;
+    }
+
+    private static Image ResolvePausePlayButtonIcon(Button button)
+    {
+        if (!button)
+            return null;
+
+        Transform pausePlayChild = button.transform.Find("PausePlay");
+        if (pausePlayChild != null && pausePlayChild.TryGetComponent(out Image pausePlayImage))
+            return pausePlayImage;
+
+        Image[] images = button.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image image = images[i];
+            if (image == null)
+                continue;
+            if (image.name.IndexOf("PausePlay", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return image;
+        }
+
+        return button.GetComponent<Image>();
+    }
+
+    private void TryAssignDefaultPlayPauseSprites()
+    {
+#if UNITY_EDITOR
+        if (!dpsTrackerPauseSprite)
+        {
+            UnityEngine.Object[] pauseAssets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(
+                "Assets/5.Art/Sprites/UI/icons8-pause-50.png");
+            for (int i = 0; i < pauseAssets.Length; i++)
+            {
+                if (pauseAssets[i] is Sprite pauseSprite)
+                {
+                    dpsTrackerPauseSprite = pauseSprite;
+                    break;
+                }
+            }
+        }
+
+        if (!dpsTrackerPlaySprite)
+        {
+            UnityEngine.Object[] playAssets = UnityEditor.AssetDatabase.LoadAllAssetsAtPath(
+                "Assets/5.Art/Sprites/UI/icons8-play-50.png");
+            for (int i = 0; i < playAssets.Length; i++)
+            {
+                if (playAssets[i] is Sprite playSprite)
+                {
+                    dpsTrackerPlaySprite = playSprite;
+                    break;
+                }
+            }
+        }
+#endif
+
+        if (!dpsTrackerPauseSprite)
+            dpsTrackerPauseSprite = FindSpriteByName("icons8-pause-50_0", "icons8-pause-50");
+        if (!dpsTrackerPlaySprite)
+            dpsTrackerPlaySprite = FindSpriteByName("icons8-play-50_0", "icons8-play-50");
+    }
+
+    private static Sprite FindSpriteByName(params string[] candidates)
+    {
+        if (candidates == null || candidates.Length == 0)
+            return null;
+
+        Sprite[] sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        for (int c = 0; c < candidates.Length; c++)
+        {
+            string candidate = candidates[c];
+            if (string.IsNullOrWhiteSpace(candidate))
+                continue;
+
+            for (int i = 0; i < sprites.Length; i++)
+            {
+                Sprite sprite = sprites[i];
+                if (sprite != null && string.Equals(sprite.name, candidate, System.StringComparison.OrdinalIgnoreCase))
+                    return sprite;
+            }
+        }
+
+        return null;
     }
 
     private void OnToggleMetricModeClicked()
@@ -967,7 +1118,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             dpsOrDamageButtonText.text = dpsMode ? "Total" : "Per second";
     }
 
-    private Button FindButtonByName(params string[] nameCandidates)
+    private Button FindButtonByObjectName(params string[] nameCandidates)
     {
         if (nameCandidates == null || nameCandidates.Length == 0)
             return null;
@@ -976,21 +1127,57 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         for (int i = 0; i < buttons.Length; i++)
         {
             Button b = buttons[i];
-            if (!b) continue;
+            if (!b)
+                continue;
+
             for (int n = 0; n < nameCandidates.Length; n++)
             {
                 string candidate = nameCandidates[n];
                 if (!string.IsNullOrWhiteSpace(candidate) &&
                     b.name.IndexOf(candidate, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return b;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private Button FindButtonByLabelContaining(string labelPart)
+    {
+        if (string.IsNullOrWhiteSpace(labelPart))
+            return null;
+
+        Button[] buttons = GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button b = buttons[i];
+            if (!b || IsPausePlayButton(b))
+                continue;
+
+            TMP_Text[] labels = b.GetComponentsInChildren<TMP_Text>(true);
+            for (int j = 0; j < labels.Length; j++)
+            {
+                TMP_Text label = labels[j];
+                if (!label || string.IsNullOrWhiteSpace(label.text))
+                    continue;
+
+                if (label.text.IndexOf(labelPart, System.StringComparison.OrdinalIgnoreCase) >= 0)
                     return b;
             }
         }
 
-        // Fallback for scenes where button object names drift but visible labels stay stable.
+        return null;
+    }
+
+    private Button FindButtonByDpsDamageLabel()
+    {
+        Button[] buttons = GetComponentsInChildren<Button>(true);
         for (int i = 0; i < buttons.Length; i++)
         {
             Button b = buttons[i];
-            if (!b)
+            if (!b || IsPausePlayButton(b))
                 continue;
 
             TMP_Text[] labels = b.GetComponentsInChildren<TMP_Text>(true);
@@ -1006,15 +1193,20 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
                     body.IndexOf("damage", System.StringComparison.OrdinalIgnoreCase) >= 0;
                 if (looksLikeDpsDamageToggle)
                     return b;
-
-                bool looksLikeReset =
-                    body.IndexOf("reset", System.StringComparison.OrdinalIgnoreCase) >= 0;
-                if (looksLikeReset)
-                    return b;
             }
         }
 
         return null;
+    }
+
+    private static bool IsPausePlayButton(Button button)
+    {
+        if (!button)
+            return false;
+
+        string name = button.name ?? string.Empty;
+        return name.IndexOf("PausePlay", System.StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("PagePlay", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static TMP_Text FindText(TMP_Text[] texts, string sectionName, params string[] candidates)
@@ -1098,6 +1290,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     {
         if (!Application.isPlaying)
             ResolveReferences();
+        TryAssignDefaultPlayPauseSprites();
     }
 #endif
 }

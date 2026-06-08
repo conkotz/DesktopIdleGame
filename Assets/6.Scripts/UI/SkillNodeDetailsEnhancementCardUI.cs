@@ -82,7 +82,6 @@ public sealed class SkillNodeDetailsEnhancementCardUI : MonoBehaviour
         if (highlightFrame == null)
             return;
 
-        bool showHighlight = committedSelected || previewSelected;
         highlightFrame.color = committedSelected
             ? CommittedFrame
             : previewSelected
@@ -98,9 +97,9 @@ public sealed class SkillNodeDetailsEnhancementCardUI : MonoBehaviour
             : previewSelected
                 ? PreviewBorder
                 : NormalBorder;
-        outline.effectDistance = showHighlight ? new Vector2(2f, -2f) : new Vector2(1f, -1f);
+        outline.effectDistance = new Vector2(2f, -2f);
         outline.useGraphicAlpha = true;
-        outline.enabled = showHighlight;
+        outline.enabled = true;
     }
 
     private void HandleClick() => Clicked?.Invoke(this);

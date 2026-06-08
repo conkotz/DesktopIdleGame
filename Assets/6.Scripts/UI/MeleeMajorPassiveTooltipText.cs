@@ -336,6 +336,8 @@ public static class MeleeMajorPassiveTooltipText
         "Master deadly poisons that can critically strike your enemies.";
     public const string BloodbathFlavorDescription =
         "The scent of blood drives you into a relentless frenzy. Each wound inflicted fuels your thirst for battle, empowering your attacks as your enemies bleed.";
+    public const string OpportunisticFlavorDescription =
+        "Adapt your abilities to enemy health. Strike fresh foes with precision, punish wounded targets with devastating abilities, and finish weakened enemies.";
     public const string BloodbathTitle = "Bloodbath";
     public const string MeleeCapstoneFlavorDescription = "Enhance into a pure form";
     public const string MeleeCapstoneEffectDescription =
@@ -406,6 +408,12 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.OpportunisticEnhancementParentSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor = OpportunisticFlavorDescription;
+            return true;
+        }
+
         return false;
     }
 
@@ -441,6 +449,8 @@ public static class MeleeMajorPassiveTooltipText
                 return TryBuildMasterOfVenomsBody(selectedChoice, out body);
             case AbilityCombatPower.BloodbathEnhancementParentSpineNodeId:
                 return TryBuildBloodbathBody(selectedChoice, out body);
+            case AbilityCombatPower.OpportunisticEnhancementParentSpineNodeId:
+                return TryBuildOpportunisticBody(selectedChoice, out body);
             default:
                 return false;
         }
@@ -683,6 +693,7 @@ public static class MeleeMajorPassiveTooltipText
     {
         var sb = new StringBuilder();
         sb.AppendLine("Gain 5 Energy when abilities hit enemies (once per cast).");
+        sb.AppendLine("Only applies once for channeling abilities.");
         AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.BattleEngineEnhancementParentSpineNodeId);
         body = sb.ToString();
         return true;
@@ -884,6 +895,34 @@ public static class MeleeMajorPassiveTooltipText
         return true;
     }
 
+    private static bool TryBuildOpportunisticBody(int selectedChoice, out string body)
+    {
+        bool extendedOpening =
+            selectedChoice == AbilityCombatPower.OpportunisticExtendedOpeningChoiceIndex;
+        float highThreshold = extendedOpening
+            ? AbilityCombatPower.OpportunisticExtendedOpeningHighHpThreshold01
+            : AbilityCombatPower.OpportunisticAbilityDamageHighHpThreshold01;
+        float lowThreshold = extendedOpening
+            ? AbilityCombatPower.OpportunisticExtendedOpeningLowHpThreshold01
+            : AbilityCombatPower.OpportunisticAbilityDamageLowHpThreshold01;
+
+        var sb = new StringBuilder();
+        sb.Append("+");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.OpportunisticFullHealthCritChanceBonus * 100f));
+        sb.AppendLine("% crit chance against enemies at full health.");
+        sb.Append("+");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.OpportunisticAbilityDamageBonus * 100f));
+        sb.Append("% increased ability damage against enemies between ");
+        sb.Append(Mathf.RoundToInt(highThreshold * 100f));
+        sb.Append("% and ");
+        sb.Append(Mathf.RoundToInt(lowThreshold * 100f));
+        sb.AppendLine("% health.");
+        sb.AppendLine("Does not apply to auto attacks.");
+        AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.OpportunisticEnhancementParentSpineNodeId);
+        body = sb.ToString();
+        return true;
+    }
+
     public static string BuildBloodbathHudBody(int currentStacks, int enhancementPick = -1)
     {
         int physPct = Mathf.RoundToInt(currentStacks * AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f);
@@ -1030,6 +1069,17 @@ public static class MeleeMajorPassiveTooltipText
                     sb.Append("Bloodbath also grants ");
                     sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathButcheryBleedChancePerStack * 100f));
                     sb.AppendLine("% bleed chance per stack.");
+                }
+                break;
+
+            case AbilityCombatPower.OpportunisticEnhancementParentSpineNodeId:
+                if (selectedChoice == AbilityCombatPower.OpportunisticFinishingBlowChoiceIndex)
+                {
+                    sb.Append("+");
+                    sb.Append(Mathf.RoundToInt(AbilityCombatPower.OpportunisticFinishingBlowCritMultiplierBonus * 100f));
+                    sb.Append("% critical damage multiplier against enemies below ");
+                    sb.Append(Mathf.RoundToInt(AbilityCombatPower.OpportunisticFinishingBlowLowHpThreshold01 * 100f));
+                    sb.AppendLine("% health.");
                 }
                 break;
         }

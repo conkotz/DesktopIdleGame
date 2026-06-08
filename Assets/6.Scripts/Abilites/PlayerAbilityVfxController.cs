@@ -74,6 +74,24 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Tooltip("Maximum local Y offset from the whirlwind center that blade trails can reach.")]
     [SerializeField] private float whirlingBladeMaxYOffset = 0.75f;
 
+    [Header("Galeforce Twister (Whirlwind Lv18) VFX")]
+    [SerializeField] private Color galeforceTwisterColor = new Color(0.95f, 0.98f, 1f, 0.82f);
+    [SerializeField, Min(0.01f)] private float galeforceTwisterDuration = 0.22f;
+    [SerializeField, Min(90f)] private float galeforceTwisterSpinDegrees = 720f;
+    [SerializeField, Min(0.01f)] private float galeforceTwisterLineWidthScale = 0.62f;
+    [SerializeField] private Vector3 galeforceTwisterCenterOffset = new Vector3(0f, 0.65f, 0f);
+    [SerializeField, Range(2, 4)] private int galeforceTwisterSlashCount = 3;
+    [SerializeField] private Vector4 galeforceTwisterLaneBaseYOffsets = new Vector4(0.34f, 0.11f, -0.1f, -0.26f);
+    [SerializeField] private float galeforceTwisterFifthLaneBaseYOffset = -0.42f;
+    [SerializeField] private Vector4 galeforceTwisterLaneOrbitHeights = new Vector4(0.062f, 0.05f, 0.031f, 0.022f);
+    [SerializeField] private float galeforceTwisterFifthLaneOrbitHeight = 0.016f;
+    [SerializeField, Min(0.1f)] private float galeforceTwisterSizeScale = 0.62f;
+    [SerializeField, Min(0.05f)] private float galeforceTwisterLifetimeSeconds = 8f;
+    [SerializeField, Min(0f)] private float galeforceTwisterLingerAfterChannelSeconds = 5f;
+    [SerializeField, Min(0f)] private float galeforceTwisterDriftSpeed = 1.5f;
+    [SerializeField, Min(0.5f)] private float galeforceTwisterMinDirectionSeconds = 2f;
+    [SerializeField, Min(0.5f)] private float galeforceTwisterMaxDirectionSeconds = 5f;
+
     [Header("Crescent Slash (Melee) VFX")]
     [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
     [SerializeField, Min(0.05f)] private float crescentSlashVfxDuration = 0.18f;
@@ -321,6 +339,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private SpriteRenderer _ashenRebirthPhoenixRenderer;
     private Coroutine _ashenRebirthPhoenixRoutine;
     private readonly List<GameObject> _activeFlameChargeDashTrailRoots = new();
+    private readonly List<GameObject> _activeGaleforceTwisterRoots = new();
+
+    private sealed class GaleforceTwisterLifetime : MonoBehaviour
+    {
+        public float EndTime;
+
+        public void ExtendToAtLeast(float newEndTime) => EndTime = Mathf.Max(EndTime, newEndTime);
+    }
 
     private GameObject _executionersDescentAxeRoot;
     private SpriteRenderer _executionersDescentAxeRenderer;
@@ -464,12 +490,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
             laneHorizontalScale));
     }
 
-    private TrailRenderer CreateWhirlwindBladeTrail(GameObject owner, float widthScale, int sortingOrderOffsetFromPlayer)
+    private TrailRenderer CreateWhirlwindBladeTrail(
+        GameObject owner,
+        float widthScale,
+        int sortingOrderOffsetFromPlayer,
+        Color? bladeColorOverride = null,
+        float widthScaleMultiplier = 1f)
     {
+        Color bladeColor = bladeColorOverride ?? whirlingBladeColor;
         TrailRenderer trail = owner.AddComponent<TrailRenderer>();
         trail.time = Mathf.Max(0.06f, whirlingBladeDuration * 0.75f);
         trail.minVertexDistance = 0.003f;
-        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth * widthScale);
+        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth * widthScale * widthScaleMultiplier);
         trail.numCornerVertices = 4;
         trail.numCapVertices = 0;
         trail.alignment = LineAlignment.TransformZ;
@@ -492,18 +524,142 @@ public class PlayerAbilityVfxController : MonoBehaviour
         gradient.SetKeys(
             new[]
             {
-                new GradientColorKey(whirlingBladeColor, 0f),
-                new GradientColorKey(Color.Lerp(whirlingBladeColor, Color.white, 0.25f), 0.45f),
-                new GradientColorKey(whirlingBladeColor, 1f)
+                new GradientColorKey(bladeColor, 0f),
+                new GradientColorKey(Color.Lerp(bladeColor, Color.white, 0.45f), 0.45f),
+                new GradientColorKey(bladeColor, 1f)
             },
             new[]
             {
-                new GradientAlphaKey(whirlingBladeColor.a, 0f),
-                new GradientAlphaKey(Mathf.Clamp01(whirlingBladeColor.a * 0.85f), 0.4f),
+                new GradientAlphaKey(bladeColor.a, 0f),
+                new GradientAlphaKey(Mathf.Clamp01(bladeColor.a * 0.85f), 0.4f),
                 new GradientAlphaKey(0f, 1f)
             });
         trail.colorGradient = gradient;
         return trail;
+    }
+
+    public float GaleforceTwisterLingerAfterChannelSeconds => galeforceTwisterLingerAfterChannelSeconds;
+
+    public void SpawnGaleforceTwisterNearPlayer(
+        float horizontalOffsetFromPlayer,
+        float hitRadius,
+        float damageMultiplier)
+    {
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+
+        Vector3 worldCenter = center.position + galeforceTwisterCenterOffset + Vector3.right * horizontalOffsetFromPlayer;
+        SpawnGaleforceTwister(worldCenter, hitRadius, damageMultiplier);
+    }
+
+    public void CollectActiveGaleforceTwisters(List<GaleforceTwisterInstance> buffer)
+    {
+        if (buffer == null)
+            return;
+
+        buffer.Clear();
+        for (int i = _activeGaleforceTwisterRoots.Count - 1; i >= 0; i--)
+        {
+            GameObject root = _activeGaleforceTwisterRoots[i];
+            if (!root)
+            {
+                _activeGaleforceTwisterRoots.RemoveAt(i);
+                continue;
+            }
+
+            if (root.TryGetComponent(out GaleforceTwisterInstance instance))
+                buffer.Add(instance);
+        }
+    }
+
+    public void SpawnGaleforceTwister(Vector3 worldCenter, float hitRadius, float damageMultiplier)
+    {
+        int slashCount = Mathf.Clamp(galeforceTwisterSlashCount, 2, 4);
+        var emitters = new Transform[slashCount];
+        var trails = new TrailRenderer[slashCount];
+        var phases = new float[slashCount];
+        var laneBaseY = new float[slashCount];
+        var laneOrbitHeight = new float[slashCount];
+        var laneHorizontalScale = new float[slashCount];
+        float sizeScale = Mathf.Max(0.1f, galeforceTwisterSizeScale);
+        float lineWidthScale = Mathf.Max(0.01f, galeforceTwisterLineWidthScale);
+
+        GameObject root = new GameObject("GaleforceTwister");
+        root.transform.position = worldCenter;
+        _activeGaleforceTwisterRoots.Add(root);
+
+        var lifetime = root.AddComponent<GaleforceTwisterLifetime>();
+        float initialLifetime = Mathf.Max(
+            galeforceTwisterMinDirectionSeconds * 2f,
+            galeforceTwisterLifetimeSeconds);
+        lifetime.EndTime = Time.time + initialLifetime;
+
+        GaleforceTwisterInstance damageInstance = root.AddComponent<GaleforceTwisterInstance>();
+        damageInstance.Configure(hitRadius, damageMultiplier);
+
+        for (int i = 0; i < slashCount; i++)
+        {
+            phases[i] = i / (float)slashCount;
+            float widthScale = (0.82f + 0.18f * (1f - Mathf.Abs((i / (float)slashCount) - 0.5f) * 2f)) * lineWidthScale;
+            laneBaseY[i] = GetGaleforceTwisterBladeBaseY(i);
+            laneOrbitHeight[i] = GetGaleforceTwisterBladeOrbitHeight(i);
+            laneHorizontalScale[i] = ResolveWhirlwindBladeHorizontalScale(i) * sizeScale;
+
+            GameObject orbitGO = new GameObject($"GaleforceTwisterBlade_{i}");
+            orbitGO.transform.SetParent(root.transform, false);
+            emitters[i] = orbitGO.transform;
+            trails[i] = CreateWhirlwindBladeTrail(
+                orbitGO,
+                widthScale,
+                8 + i,
+                galeforceTwisterColor,
+                lineWidthScale);
+        }
+
+        StartCoroutine(AnimateGaleforceTwister(
+            root,
+            emitters,
+            trails,
+            hitRadius,
+            galeforceTwisterDriftSpeed,
+            phases,
+            laneBaseY,
+            laneOrbitHeight,
+            laneHorizontalScale,
+            lifetime));
+    }
+
+    public void LingerGaleforceTwistersAfterChannelEnd(float extraSeconds)
+    {
+        if (extraSeconds <= 0f)
+            return;
+
+        float minEnd = Time.time + extraSeconds;
+        for (int i = _activeGaleforceTwisterRoots.Count - 1; i >= 0; i--)
+        {
+            GameObject root = _activeGaleforceTwisterRoots[i];
+            if (!root)
+            {
+                _activeGaleforceTwisterRoots.RemoveAt(i);
+                continue;
+            }
+
+            if (root.TryGetComponent(out GaleforceTwisterLifetime lifetime))
+                lifetime.ExtendToAtLeast(minEnd);
+        }
+    }
+
+    public void EndAllGaleforceTwisterVfx()
+    {
+        for (int i = _activeGaleforceTwisterRoots.Count - 1; i >= 0; i--)
+        {
+            GameObject root = _activeGaleforceTwisterRoots[i];
+            if (root)
+                Destroy(root);
+        }
+
+        _activeGaleforceTwisterRoots.Clear();
     }
 
     public void SpawnCrescentSlash(float reach, float combatFacingSign)
@@ -996,6 +1152,103 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         if (root != null)
             Destroy(root, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
+    }
+
+    private IEnumerator AnimateGaleforceTwister(
+        GameObject root,
+        Transform[] emitters,
+        TrailRenderer[] trails,
+        float radius,
+        float driftSpeed,
+        float[] phases,
+        float[] laneBaseY,
+        float[] laneOrbitHeight,
+        float[] laneHorizontalScale,
+        GaleforceTwisterLifetime lifetime)
+    {
+        if (root == null || emitters == null || lifetime == null)
+            yield break;
+
+        float width = Mathf.Max(0.01f, whirlingBladeLineWidth * galeforceTwisterLineWidthScale);
+        float visualRadius = Mathf.Max(0.05f, radius * galeforceTwisterSizeScale - (width * 0.5f));
+        float spinCycles = Mathf.Max(1f, Mathf.Abs(galeforceTwisterSpinDegrees) / 360f);
+        float spinRate = spinCycles / Mathf.Max(0.06f, galeforceTwisterDuration);
+        int count = emitters.Length;
+        float spinElapsed = 0f;
+        float directionSign = UnityEngine.Random.value < 0.5f ? -1f : 1f;
+        float directionTimer = 0f;
+        float directionDuration = UnityEngine.Random.Range(
+            galeforceTwisterMinDirectionSeconds,
+            galeforceTwisterMaxDirectionSeconds);
+
+        while (root != null && Time.time < lifetime.EndTime)
+        {
+            spinElapsed += Time.deltaTime;
+            float t = Mathf.Repeat(spinElapsed * spinRate, 1f);
+            Vector3 basePos = root.transform.position;
+
+            for (int i = 0; i < count; i++)
+            {
+                Transform emitter = emitters[i];
+                if (emitter == null)
+                    continue;
+
+                EvaluateWhirlwindHorizontalSlashOrbit(
+                    t,
+                    visualRadius,
+                    phases[i],
+                    spinCycles,
+                    1f,
+                    laneBaseY != null && i < laneBaseY.Length ? laneBaseY[i] : 0f,
+                    laneOrbitHeight != null && i < laneOrbitHeight.Length ? laneOrbitHeight[i] : 0f,
+                    laneHorizontalScale != null && i < laneHorizontalScale.Length ? laneHorizontalScale[i] : 1f,
+                    out float x,
+                    out float y);
+                emitter.position = basePos + new Vector3(x, y, 0f);
+            }
+
+            directionTimer += Time.deltaTime;
+            if (directionTimer >= directionDuration)
+            {
+                directionSign *= -1f;
+                directionTimer = 0f;
+                directionDuration = UnityEngine.Random.Range(
+                    galeforceTwisterMinDirectionSeconds,
+                    galeforceTwisterMaxDirectionSeconds);
+            }
+
+            root.transform.position += Vector3.right * (directionSign * driftSpeed * Time.deltaTime);
+            yield return null;
+        }
+
+        if (trails != null)
+        {
+            for (int i = 0; i < trails.Length; i++)
+            {
+                if (trails[i] != null)
+                    trails[i].emitting = false;
+            }
+        }
+
+        if (root != null)
+        {
+            _activeGaleforceTwisterRoots.Remove(root);
+            Destroy(root, Mathf.Max(0.04f, galeforceTwisterDuration * 0.6f));
+        }
+    }
+
+    private float GetGaleforceTwisterBladeBaseY(int index)
+    {
+        if (index < 4)
+            return GetWhirlwindBladeLaneValue(galeforceTwisterLaneBaseYOffsets, index);
+        return galeforceTwisterFifthLaneBaseYOffset;
+    }
+
+    private float GetGaleforceTwisterBladeOrbitHeight(int index)
+    {
+        if (index < 4)
+            return GetWhirlwindBladeLaneValue(galeforceTwisterLaneOrbitHeights, index);
+        return galeforceTwisterFifthLaneOrbitHeight;
     }
 
     /// <summary>

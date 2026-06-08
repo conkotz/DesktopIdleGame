@@ -5720,6 +5720,22 @@ MonoBehaviour:
   whirlingBladeSpawnVerticalJitter: 0.01
   whirlingBladeMinYOffset: -0.8
   whirlingBladeMaxYOffset: 0.75
+  galeforceTwisterColor: {r: 0.95, g: 0.98, b: 1, a: 0.82}
+  galeforceTwisterDuration: 0.22
+  galeforceTwisterSpinDegrees: 720
+  galeforceTwisterLineWidthScale: 0.62
+  galeforceTwisterCenterOffset: {x: 0, y: 0.65, z: 0}
+  galeforceTwisterSlashCount: 4
+  galeforceTwisterLaneBaseYOffsets: {x: 0.34, y: 0.11, z: -0.1, w: -0.26}
+  galeforceTwisterFifthLaneBaseYOffset: -0.42
+  galeforceTwisterLaneOrbitHeights: {x: 0.062, y: 0.05, z: 0.031, w: 0.022}
+  galeforceTwisterFifthLaneOrbitHeight: 0.016
+  galeforceTwisterSizeScale: 0.62
+  galeforceTwisterLifetimeSeconds: 8
+  galeforceTwisterLingerAfterChannelSeconds: 5
+  galeforceTwisterDriftSpeed: 1.5
+  galeforceTwisterMinDirectionSeconds: 2
+  galeforceTwisterMaxDirectionSeconds: 5
   crescentSlashColor: {r: 0, g: 0.14033018, b: 0.3207547, a: 1}
   crescentSlashVfxDuration: 0.4
   crescentSlashLineWidth: 1
@@ -5755,7 +5771,6 @@ MonoBehaviour:
   executionersDescentSortingLayer: Foreground
   executionersDescentSortingOrder: 120
   executionersDescentShockwaveDuration: 0.45
-  executionersDescentShockwaveMaxRadius: 5.5
   executionersDescentShockwaveLineWidth: 0.22
   executionersDescentShockwaveGroundOffset: 0.15
   shadowStrikeBurstColor: {r: 0.35, g: 0.15, b: 0.55, a: 0.9}
@@ -6001,7 +6016,7 @@ MonoBehaviour:
   baseMoveSpeed: 2.5
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
-  baseEnergyRegenPercentPerSecond: 10
+  baseEnergyRegenFlatPerSecond: 10
   baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0

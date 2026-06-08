@@ -3431,7 +3431,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return -1;
 
         return SkillTreeRowPickRules.GetCommittedRowPick(
-            skillsManager, SkillType.Melee, PhoenixSoulMajorPassiveLevel, -1, maxOrdinalInclusive: 2);
+            skillsManager, SkillType.Melee, PhoenixSoulMajorPassiveLevel, -1, maxOrdinalInclusive: 3);
     }
 
     public bool IsPhoenixSoulUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 0;
@@ -3450,6 +3450,80 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public bool IsMasterOfVenomsUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 1;
 
     public bool IsBloodbathUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 2;
+
+    public bool IsOpportunisticUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 3;
+
+    public int GetOpportunisticEnhancementPick()
+    {
+        if (!IsOpportunisticUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.OpportunisticEnhancementParentSpineNodeId, -1)
+            : -1;
+    }
+
+    public float GetOpportunisticAbilityCritChanceBonus(EnemyBaseController target)
+    {
+        if (!AreMeleeMajorPassiveEffectsEnabled() || !IsOpportunisticUnlocked() || target == null)
+            return 0f;
+
+        int maxHp = target.MaxHP;
+        if (maxHp <= 0)
+            return 0f;
+
+        float hp01 = (float)target.HP / maxHp;
+        if (hp01 < AbilityCombatPower.OpportunisticFullHealthThreshold01)
+            return 0f;
+
+        return AbilityCombatPower.OpportunisticFullHealthCritChanceBonus;
+    }
+
+    public float GetOpportunisticAbilityDamageBonusFraction(EnemyBaseController target)
+    {
+        if (!AreMeleeMajorPassiveEffectsEnabled() || !IsOpportunisticUnlocked() || target == null)
+            return 0f;
+
+        int maxHp = target.MaxHP;
+        if (maxHp <= 0)
+            return 0f;
+
+        float hp01 = (float)target.HP / maxHp;
+        int enhancementPick = GetOpportunisticEnhancementPick();
+        float highThreshold = enhancementPick == AbilityCombatPower.OpportunisticExtendedOpeningChoiceIndex
+            ? AbilityCombatPower.OpportunisticExtendedOpeningHighHpThreshold01
+            : AbilityCombatPower.OpportunisticAbilityDamageHighHpThreshold01;
+        float lowThreshold = enhancementPick == AbilityCombatPower.OpportunisticExtendedOpeningChoiceIndex
+            ? AbilityCombatPower.OpportunisticExtendedOpeningLowHpThreshold01
+            : AbilityCombatPower.OpportunisticAbilityDamageLowHpThreshold01;
+
+        if (hp01 < highThreshold && hp01 > lowThreshold)
+            return AbilityCombatPower.OpportunisticAbilityDamageBonus;
+
+        return 0f;
+    }
+
+    /// <summary>Additive crit multiplier bonus vs low-life enemies when Finishing Blow is selected.</summary>
+    public float GetOpportunisticCritDamageFactor(EnemyBaseController target, bool wasCrit)
+    {
+        if (!wasCrit || !AreMeleeMajorPassiveEffectsEnabled() || !IsOpportunisticUnlocked() || target == null)
+            return 1f;
+
+        if (GetOpportunisticEnhancementPick() != AbilityCombatPower.OpportunisticFinishingBlowChoiceIndex)
+            return 1f;
+
+        int maxHp = target.MaxHP;
+        if (maxHp <= 0)
+            return 1f;
+
+        float hp01 = (float)target.HP / maxHp;
+        if (hp01 >= AbilityCombatPower.OpportunisticFinishingBlowLowHpThreshold01)
+            return 1f;
+
+        float critMult = Mathf.Max(1f, CritMultiplier);
+        return (critMult + AbilityCombatPower.OpportunisticFinishingBlowCritMultiplierBonus) / critMult;
+    }
 
     public int GetBloodbathEnhancementPick()
     {
