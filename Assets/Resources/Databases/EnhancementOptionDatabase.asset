@@ -141,6 +141,11 @@ MonoBehaviour:
     targetStat: 0
     modifierKind: 0
     modifierValue: 2
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 1.0
+      medium: 2.0
+      heavy: 3.0
     allowedGearTypes: 96
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -154,6 +159,11 @@ MonoBehaviour:
     targetStat: 0
     modifierKind: 0
     modifierValue: 4
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 2.0
+      medium: 4.0
+      heavy: 6.0
     allowedGearTypes: 96
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -167,6 +177,11 @@ MonoBehaviour:
     targetStat: 0
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 96
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -180,6 +195,11 @@ MonoBehaviour:
     targetStat: 20
     modifierKind: 0
     modifierValue: 2
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 1.0
+      medium: 2.0
+      heavy: 3.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -193,6 +213,11 @@ MonoBehaviour:
     targetStat: 20
     modifierKind: 0
     modifierValue: 4
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 2.0
+      medium: 4.0
+      heavy: 6.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -206,6 +231,11 @@ MonoBehaviour:
     targetStat: 20
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -219,6 +249,11 @@ MonoBehaviour:
     targetStat: 21
     modifierKind: 0
     modifierValue: 2
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 1.0
+      medium: 2.0
+      heavy: 3.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -232,6 +267,11 @@ MonoBehaviour:
     targetStat: 21
     modifierKind: 0
     modifierValue: 4
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 2.0
+      medium: 4.0
+      heavy: 6.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -245,6 +285,11 @@ MonoBehaviour:
     targetStat: 21
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -258,6 +303,11 @@ MonoBehaviour:
     targetStat: 22
     modifierKind: 0
     modifierValue: 2
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 1.0
+      medium: 2.0
+      heavy: 3.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -271,6 +321,11 @@ MonoBehaviour:
     targetStat: 22
     modifierKind: 0
     modifierValue: 4
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 2.0
+      medium: 4.0
+      heavy: 6.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -284,6 +339,11 @@ MonoBehaviour:
     targetStat: 22
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 128
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -297,6 +357,11 @@ MonoBehaviour:
     targetStat: 2
     modifierKind: 0
     modifierValue: 2
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 1.0
+      medium: 2.0
+      heavy: 3.0
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -310,6 +375,11 @@ MonoBehaviour:
     targetStat: 2
     modifierKind: 0
     modifierValue: 4
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 2.0
+      medium: 4.0
+      heavy: 6.0
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -323,6 +393,11 @@ MonoBehaviour:
     targetStat: 2
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -453,6 +528,11 @@ MonoBehaviour:
     targetStat: 18
     modifierKind: 1
     modifierValue: 0.05
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.04
+      medium: 0.05
+      heavy: 0.06
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -466,6 +546,11 @@ MonoBehaviour:
     targetStat: 18
     modifierKind: 1
     modifierValue: 0.07
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.060000000000000005
+      medium: 0.07
+      heavy: 0.08
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -479,6 +564,11 @@ MonoBehaviour:
     targetStat: 18
     modifierKind: 1
     modifierValue: 0.09
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.08
+      medium: 0.09
+      heavy: 0.09999999999999999
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -609,6 +699,11 @@ MonoBehaviour:
     targetStat: 26
     modifierKind: 1
     modifierValue: 0.05
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.04
+      medium: 0.05
+      heavy: 0.06
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -622,6 +717,11 @@ MonoBehaviour:
     targetStat: 26
     modifierKind: 1
     modifierValue: 0.07
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.060000000000000005
+      medium: 0.07
+      heavy: 0.08
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -635,6 +735,11 @@ MonoBehaviour:
     targetStat: 26
     modifierKind: 1
     modifierValue: 0.09
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 0.08
+      medium: 0.09
+      heavy: 0.09999999999999999
     allowedGearTypes: 1
     successChance: 0.5
     consumeSlotOnFailure: 1
@@ -765,6 +870,11 @@ MonoBehaviour:
     targetStat: 0
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 1
     successChance: 0.35
     consumeSlotOnFailure: 1
@@ -778,6 +888,11 @@ MonoBehaviour:
     targetStat: 20
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 128
     successChance: 0.35
     consumeSlotOnFailure: 1
@@ -791,6 +906,11 @@ MonoBehaviour:
     targetStat: 2
     modifierKind: 0
     modifierValue: 6
+    usesWeaponWeightScaling: 1
+    weightValues:
+      light: 3.0
+      medium: 6.0
+      heavy: 9.0
     allowedGearTypes: 1
     successChance: 0.35
     consumeSlotOnFailure: 1

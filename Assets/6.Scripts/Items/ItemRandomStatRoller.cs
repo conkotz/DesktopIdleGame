@@ -358,7 +358,10 @@ public static class ItemRandomStatRoller
                 item.bonusStats.abilityPower += primary;
                 break;
             case RandomItemStatType.AttackSpeedPercent:
-                item.bonusStats.attackSpeedPercent += primary;
+                if (item.IsWeapon)
+                    ApplyWeaponAttackSpeedRoll(item, primary, kind);
+                else
+                    item.bonusStats.attackSpeedPercent += primary;
                 break;
             case RandomItemStatType.AbilityCooldownReduction:
                 item.bonusStats.abilityCooldownReductionFraction = Mathf.Clamp01(
@@ -445,7 +448,7 @@ public static class ItemRandomStatRoller
                 break;
             }
             case RandomItemStatType.WeaponAttacksPerSecond:
-                item.weaponStats.attacksPerSecond = Mathf.Max(0.01f, item.weaponStats.attacksPerSecond + primary);
+                ApplyWeaponAttackSpeedRoll(item, primary, kind);
                 break;
             case RandomItemStatType.WeaponCritChance:
                 item.weaponStats.critChance = Mathf.Clamp01(item.weaponStats.critChance + primary);
@@ -513,6 +516,22 @@ public static class ItemRandomStatRoller
                     item.miscEffects.enemyRespawnTimeReductionSeconds + primary);
                 break;
         }
+    }
+
+    private static void ApplyWeaponAttackSpeedRoll(ItemDefinition item, float primary, RandomStatValueKind kind)
+    {
+        if (!item || !item.IsWeapon)
+            return;
+
+        if (kind == RandomStatValueKind.FlatFloat)
+        {
+            item.weaponStats.attacksPerSecond = Mathf.Max(0.01f, item.weaponStats.attacksPerSecond + primary);
+            return;
+        }
+
+        item.weaponStats.attacksPerSecond = Mathf.Max(
+            0.01f,
+            item.weaponStats.attacksPerSecond * (1f + primary));
     }
 
     private static float RollValue(float min, float max, RandomStatValueKind kind, RandomItemStatType stat)

@@ -30,11 +30,7 @@ public static class UpgradeScrollDisplay
         float magnitude = Mathf.Abs(stats.modifierValue);
 
         if (displayAsPercent)
-        {
-            float pct = magnitude * 100f;
-            string pctText = pct >= 1f ? $"{Mathf.RoundToInt(pct)}%" : $"{pct:0.#}%";
-            return $"{pctText} {statLabel}";
-        }
+            return $"{FormatPercentMagnitude(magnitude)} {statLabel}";
 
         if (Mathf.Approximately(magnitude, Mathf.Round(magnitude)))
             return $"{Mathf.RoundToInt(magnitude)} flat {statLabel}";
@@ -42,12 +38,53 @@ public static class UpgradeScrollDisplay
         return $"{magnitude:0.##} flat {statLabel}";
     }
 
+    public static string FormatWeightScaledRangeDescription(EnhancementOptionEntry option)
+    {
+        if (option == null)
+            return string.Empty;
+
+        if (option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+            return FormatStatsDescription(option.ToScrollStats());
+
+        EnhancementWeightValues weights = option.ResolveWeightValues();
+        string statLabel = GetStatShortLabel(option.targetStat);
+        bool displayAsPercent = option.modifierKind == EnhancementScrollModifierKind.Percent ||
+                                IsPercentDisplayedScrollStat(option.targetStat);
+
+        float lo = Mathf.Min(weights.light, weights.heavy);
+        float hi = Mathf.Max(weights.light, weights.heavy);
+
+        if (displayAsPercent)
+            return $"{FormatPercentRange(lo, hi)} {statLabel}";
+
+        int loInt = Mathf.RoundToInt(lo);
+        int hiInt = Mathf.RoundToInt(hi);
+        return loInt == hiInt
+            ? $"{loInt} flat {statLabel}"
+            : $"{loInt}-{hiInt} flat {statLabel}";
+    }
+
+    public static string FormatGenericScrollEffectLabel(EnhancementScrollTargetStat stat)
+    {
+        if (stat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+            return "- used upgrade slot";
+
+        return $"+ {GetStatShortLabel(stat)}";
+    }
+
     public static string FormatOptionValueDescription(ItemDefinition scroll)
     {
         if (scroll == null || !scroll.IsEnhancementScroll)
             return string.Empty;
 
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(scroll);
+        if (option != null && option.UsesWeightScalingEffective())
+            return FormatWeightScaledRangeDescription(option);
+
         EnhancementScrollStats stats = scroll.GetEffectiveEnhancementScrollStats();
+        if (EnhancementWeightScalingRules.IsWeightScaledStat(stats.targetStat))
+            return FormatGenericScrollEffectLabel(stats.targetStat);
+
         return FormatStatsDescription(stats);
     }
 
@@ -81,6 +118,9 @@ public static class UpgradeScrollDisplay
             EnhancementScrollTargetStat.ChillChance => "chill chance",
             EnhancementScrollTargetStat.ShockChance => "shock chance",
             EnhancementScrollTargetStat.BurnMultiplier => "burn multi",
+            EnhancementScrollTargetStat.EnergyEfficiency => "energy efficiency",
+            EnhancementScrollTargetStat.FlatGuard => "flat guard",
+            EnhancementScrollTargetStat.ManaRegen => "mana regen",
             EnhancementScrollTargetStat.UpgradeSlotReduction => "used slot",
             _ => stat.ToString().ToLowerInvariant()
         };
@@ -101,6 +141,22 @@ public static class UpgradeScrollDisplay
     private static bool IsPercentDisplayedScrollStat(EnhancementScrollTargetStat stat)
     {
         return stat is EnhancementScrollTargetStat.GatheringGrit
-            or EnhancementScrollTargetStat.StaminaEfficiency;
+            or EnhancementScrollTargetStat.StaminaEfficiency
+            or EnhancementScrollTargetStat.EnergyEfficiency;
+    }
+
+    private static string FormatPercentMagnitude(float magnitude01)
+    {
+        float pct = Mathf.Abs(magnitude01) * 100f;
+        return pct >= 1f ? $"{Mathf.RoundToInt(pct)}%" : $"{pct:0.#}%";
+    }
+
+    private static string FormatPercentRange(float lo01, float hi01)
+    {
+        float loPct = Mathf.Abs(lo01) * 100f;
+        float hiPct = Mathf.Abs(hi01) * 100f;
+        string loText = loPct >= 1f ? $"{Mathf.RoundToInt(loPct)}%" : $"{loPct:0.#}%";
+        string hiText = hiPct >= 1f ? $"{Mathf.RoundToInt(hiPct)}%" : $"{hiPct:0.#}%";
+        return loText == hiText ? loText : $"{loText}-{hiText}";
     }
 }

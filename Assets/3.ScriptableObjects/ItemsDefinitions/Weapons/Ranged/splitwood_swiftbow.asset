@@ -60,6 +60,7 @@ MonoBehaviour:
     requiresOffhandSupport: 1
     requiredSupportType: 1
     equipmentTier: 0
+    weaponWeight: 1
   combatSupportStats:
     supportType: 0
     bonusPhysicalDamage: 0

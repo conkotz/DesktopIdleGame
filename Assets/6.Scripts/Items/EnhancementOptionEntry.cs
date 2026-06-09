@@ -16,6 +16,13 @@ public sealed class EnhancementOptionEntry
     public EnhancementScrollTargetStat targetStat = EnhancementScrollTargetStat.Armor;
     public EnhancementScrollModifierKind modifierKind = EnhancementScrollModifierKind.Flat;
     public float modifierValue = 5f;
+
+    [Header("Weapon Weight Scaling")]
+    [Tooltip("When enabled, modifier value is resolved from weight values based on target gear weight.")]
+    public bool usesWeaponWeightScaling;
+
+    public EnhancementWeightValues weightValues;
+
     public EnhancementScrollGearMask allowedGearTypes = EnhancementScrollGearMask.Armor;
 
     [Range(0f, 1f)]
@@ -28,6 +35,47 @@ public sealed class EnhancementOptionEntry
     [Tooltip("Optional scroll item id. If the player owns this scroll, it can be spent instead of materials.")]
     public string linkedScrollItemId;
 
+    public bool UsesWeightScalingEffective() =>
+        usesWeaponWeightScaling || EnhancementWeightScalingRules.IsWeightScaledStat(targetStat);
+
+    public EnhancementWeightValues ResolveWeightValues()
+    {
+        if (Mathf.Abs(weightValues.medium) > 0.0001f ||
+            Mathf.Abs(weightValues.light) > 0.0001f ||
+            Mathf.Abs(weightValues.heavy) > 0.0001f)
+            return weightValues;
+
+        if (targetStat == EnhancementScrollTargetStat.AttackSpeed)
+        {
+            return tier switch
+            {
+                EnhancementTier.Intermediate => EnhancementWeightValues.Explicit(0.03f, 0.04f, 0.05f),
+                EnhancementTier.Advanced => EnhancementWeightValues.Explicit(0.04f, 0.05f, 0.06f),
+                _ => EnhancementWeightValues.Explicit(0.02f, 0.03f, 0.04f),
+            };
+        }
+
+        if (modifierKind == EnhancementScrollModifierKind.Percent)
+            return EnhancementWeightValues.PercentStep(modifierValue);
+
+        if (track == EnhancementTrack.Corruption)
+            return EnhancementWeightValues.ChaosFlatDamage(modifierValue);
+
+        return EnhancementWeightValues.FlatDamageForTier(tier, modifierValue);
+    }
+
+    public float ResolveModifierValue(ItemDefinition gear = null)
+    {
+        if (!UsesWeightScalingEffective())
+            return modifierValue;
+
+        WeaponWeight weight = gear != null
+            ? WeaponWeightRules.GetEffectiveWeight(gear)
+            : WeaponWeight.Medium;
+
+        return ResolveWeightValues().Resolve(weight);
+    }
+
     public EnhancementScrollStats ToScrollStats()
     {
         return new EnhancementScrollStats
@@ -35,7 +83,7 @@ public sealed class EnhancementOptionEntry
             successChance = successChance,
             targetStat = targetStat,
             modifierKind = modifierKind,
-            modifierValue = modifierValue,
+            modifierValue = ResolveModifierValue(),
             consumeSlotOnFailure = consumeSlotOnFailure,
             failureOutcome = failureOutcome,
             destroyChanceOnFailure = destroyChanceOnFailure,
@@ -47,6 +95,7 @@ public sealed class EnhancementOptionEntry
     public EnhancementScrollStats ToScrollStats(ItemDefinition gear)
     {
         EnhancementScrollStats stats = ToScrollStats();
+        stats.modifierValue = ResolveModifierValue(gear);
         stats.successChance = EnhancementSuccessChanceRules.GetSuccessChance(gear, this);
         return stats;
     }

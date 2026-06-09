@@ -370,6 +370,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
         SerializedProperty requiredSupportType = weaponStats.FindPropertyRelative("requiredSupportType");
         SerializedProperty weaponEquipmentTier = weaponStats.FindPropertyRelative("equipmentTier");
+        SerializedProperty weaponWeight = weaponStats.FindPropertyRelative("weaponWeight");
 
         EditorGUILayout.LabelField("Damage", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(minPhysicalDamage, new GUIContent("Min Physical Damage"));
@@ -428,6 +429,16 @@ public class ItemDefinitionEditor : Editor
                     "Tier 1–5 (display name is on the item). Gated by matching combat skill: L1 / L10 / L20 / L30 / L50."
                 )
             );
+        }
+
+        if (weaponWeight != null)
+        {
+            EditorGUILayout.PropertyField(
+                weaponWeight,
+                new GUIContent(
+                    "Weapon Weight",
+                    "Light: daggers, swiftbows, wands. Medium: swords, spears, maces. Heavy: polearms, longbows. " +
+                    "Enhancement flat damage and ailment multiplier scrolls scale by weight."));
         }
 
         if (attackSkill != null &&

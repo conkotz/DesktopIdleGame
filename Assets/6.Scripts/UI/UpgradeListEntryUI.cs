@@ -46,13 +46,13 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
         EnhancementOptionEntry option,
         bool canPay,
         bool selected,
-        bool unavailableForSelectedGear,
+        bool dimRow,
         Sprite hasScrollSprite,
         Sprite missingScrollSprite,
-        Action<EnhancementOptionEntry> onClicked)
+        Action<EnhancementOptionEntry> onClicked,
+        ItemDefinition selectedGear = null)
     {
         BoundScroll = null;
-        bool dimRow = unavailableForSelectedGear;
 
         if (nameText)
         {
@@ -62,7 +62,9 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
 
         if (upgradeValueText)
         {
-            upgradeValueText.text = option != null ? UpgradeOptionDisplay.FormatOptionValue(option) : string.Empty;
+            upgradeValueText.text = option != null
+                ? UpgradeOptionDisplay.FormatOptionValue(option, selectedGear)
+                : string.Empty;
             upgradeValueText.color = dimRow ? DimTextColor : NormalTextColor;
         }
 

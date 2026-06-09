@@ -103,6 +103,18 @@ public enum MainHandWeaponArchetype
     Other
 }
 
+/// <summary>
+/// Weapon heft used to scale enhancement flat damage and ailment multiplier scroll values.
+/// Light = fast weapons (daggers, swiftbows, wands); Heavy = slow weapons (polearms, longbows).
+/// </summary>
+public enum WeaponWeight
+{
+    NotApplicable,
+    Light,
+    Medium,
+    Heavy
+}
+
 [System.Serializable]
 public struct WeaponStats
 {
@@ -189,6 +201,10 @@ public struct WeaponStats
     [Header("Equipment Tier")]
     [Tooltip("Shown as Tier 1–5; gate uses Attack Skill (Melee/Ranged/Magic) at L1 / L10 / L20 / L30 / L50.")]
     public EquipmentTierRank equipmentTier;
+
+    [Header("Weapon Weight")]
+    [Tooltip("Enhancement flat damage and ailment multiplier scrolls scale by weight. NotApplicable for non-weapons.")]
+    public WeaponWeight weaponWeight;
 
 }
 
@@ -726,6 +742,9 @@ public enum EnhancementScrollTargetStat
     ChillChance,
     ShockChance,
     BurnMultiplier,
+    EnergyEfficiency,
+    FlatGuard,
+    ManaRegen,
 }
 
 public enum EnhancementScrollModifierKind
@@ -1338,6 +1357,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return "";
 
         EnhancementScrollStats scroll = scrollDef.GetEffectiveEnhancementScrollStats();
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(scrollDef);
+        if (option != null)
+            scroll = EnhancementOptionResolver.BuildStatsForApply(option, target);
+
         float value = scroll.modifierValue;
         bool percent = scroll.modifierKind == EnhancementScrollModifierKind.Percent;
         bool displayAsPercent = percent || IsPercentDisplayedScrollStat(scroll.targetStat);
@@ -1421,8 +1444,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (displayAsPercent)
             return $"{FormatSignedPercent01(value)} {statLabel}";
 
-        int amount = Mathf.RoundToInt(Mathf.Abs(value));
-        return $"+{amount} {statLabel}";
+        float magnitude = Mathf.Abs(value);
+        if (!Mathf.Approximately(magnitude, Mathf.Round(magnitude)))
+            return $"+{magnitude:0.#} {statLabel}";
+
+        return $"+{Mathf.RoundToInt(magnitude)} {statLabel}";
     }
 
     public void NormalizeEnhancementState()
@@ -1783,6 +1809,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                        Mathf.Abs(bonusStats.burnChance) > eps ||
                        ResolveWeaponBurnApplyChance() > eps ||
                        HasFireWeaponDamage;
+
+            case EnhancementScrollTargetStat.EnergyEfficiency:
+                return CombatEnergyEfficiency > eps;
+
+            case EnhancementScrollTargetStat.FlatGuard:
+                return ArmorFlatGuard > 0;
+
+            case EnhancementScrollTargetStat.ManaRegen:
+                return Mathf.Abs(bonusStats.manaRegen) > eps;
 
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 return true;
@@ -3356,6 +3391,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
         }
 
+        if (option.UsesWeightScalingEffective())
+            return UpgradeScrollDisplay.FormatGenericScrollEffectLabel(option.targetStat);
+
         bool displayAsPercent = option.modifierKind == EnhancementScrollModifierKind.Percent ||
             IsPercentDisplayedScrollStat(option.targetStat);
 
@@ -3400,6 +3438,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
         }
 
+        EnhancementOptionEntry option = EnhancementOptionResolver.GetOptionForScroll(this);
+        if (option != null && option.UsesWeightScalingEffective())
+            return UpgradeScrollDisplay.FormatGenericScrollEffectLabel(stats.targetStat);
+
+        if (EnhancementWeightScalingRules.IsWeightScaledStat(stats.targetStat))
+            return UpgradeScrollDisplay.FormatGenericScrollEffectLabel(stats.targetStat);
+
         bool displayAsPercent = stats.modifierKind == EnhancementScrollModifierKind.Percent ||
             IsPercentDisplayedScrollStat(stats.targetStat);
 
@@ -3416,6 +3461,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             case EnhancementScrollTargetStat.GatheringGrit:
             case EnhancementScrollTargetStat.StaminaEfficiency:
+            case EnhancementScrollTargetStat.EnergyEfficiency:
                 return true;
             default:
                 return false;
@@ -3453,6 +3499,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.ChillChance => "Chill Chance",
             EnhancementScrollTargetStat.ShockChance => "Shock Chance",
             EnhancementScrollTargetStat.BurnMultiplier => "Burn Multi",
+            EnhancementScrollTargetStat.EnergyEfficiency => "Energy Efficiency",
+            EnhancementScrollTargetStat.FlatGuard => "Flat Guard",
+            EnhancementScrollTargetStat.ManaRegen => "Mana Regen",
             _ => stat.ToString()
         };
     }

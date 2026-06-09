@@ -18,24 +18,29 @@ public static class UpgradeOptionDisplay
         return $"{stat} {EnhancementTierRules.GetTierDisplayName(option.tier)}";
     }
 
-    public static string FormatOptionValue(EnhancementOptionEntry option)
+    public static string FormatOptionValue(EnhancementOptionEntry option, ItemDefinition gear = null)
     {
         if (option == null)
             return string.Empty;
 
-        return UpgradeScrollDisplay.FormatStatsDescription(option.ToScrollStats());
+        if (option.UsesWeightScalingEffective() && gear == null)
+            return UpgradeScrollDisplay.FormatWeightScaledRangeDescription(option);
+
+        EnhancementScrollStats stats = gear != null ? option.ToScrollStats(gear) : option.ToScrollStats();
+        return UpgradeScrollDisplay.FormatStatsDescription(stats);
     }
 
     public static string FormatSelectedEnhancementLine(
         EnhancementOptionEntry option,
         EnhancementOptionPayment payment,
-        ItemDatabase itemDb)
+        ItemDatabase itemDb,
+        ItemDefinition gear = null)
     {
         if (option == null)
             return "Enhancement Selected: None";
 
         string type = FormatOptionType(option);
-        string value = FormatOptionValue(option);
+        string value = FormatOptionValue(option, gear);
         return $"Enhancement Selected: {type}: {value}";
     }
 
@@ -128,12 +133,12 @@ public static class UpgradeOptionDisplay
         return EnhancementSuccessChanceRules.FormatSuccessChanceLabel(option, gear);
     }
 
-    public static string FormatLabeledValue(EnhancementOptionEntry option)
+    public static string FormatLabeledValue(EnhancementOptionEntry option, ItemDefinition gear = null)
     {
         if (option == null)
             return string.Empty;
 
-        return $"Value: {FormatOptionValue(option)}";
+        return $"Value: {FormatOptionValue(option, gear)}";
     }
 
     public static string FormatLabeledEnhanceCost(

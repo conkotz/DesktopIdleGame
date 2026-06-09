@@ -237,7 +237,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        if (_upgradeViewActive && HasItemContext && !_upgradeViewCanSelect)
+        if (_upgradeViewActive && (!HasItemContext || !_upgradeViewCanSelect))
         {
             rarityOutline.enabled = false;
             return;
@@ -326,7 +326,7 @@ public class InventorySlotUI : MonoBehaviour,
     {
         EnsureUpgradeCanvasGroup();
 
-        bool dimItem = _upgradeViewActive && HasItemContext && !_upgradeViewCanSelect;
+        bool dimItem = _upgradeViewActive && (!HasItemContext || !_upgradeViewCanSelect);
         _upgradeCanvasGroup.alpha = dimItem ? 0.42f : 1f;
         _upgradeCanvasGroup.interactable = true;
         _upgradeCanvasGroup.blocksRaycasts = true;
@@ -707,8 +707,11 @@ public class InventorySlotUI : MonoBehaviour,
         if (background)
             background.color = hoverColor;
 
-        if (_upgradeViewActive && HasItemContext && !_upgradeViewCanSelect)
+        if (_upgradeViewActive && (!HasItemContext || !_upgradeViewCanSelect))
+        {
+            ApplySlotBackground();
             return;
+        }
 
         if (_tooltip == null || _def == null)
             return;

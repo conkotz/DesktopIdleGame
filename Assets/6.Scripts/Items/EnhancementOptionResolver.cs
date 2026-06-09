@@ -127,9 +127,7 @@ public static class EnhancementOptionResolver
         if (option == null)
             return default;
 
-        EnhancementScrollStats stats = option.ToScrollStats();
-        stats.successChance = EnhancementSuccessChanceRules.GetSuccessChance(gear, option);
-        return stats;
+        return option.ToScrollStats(gear);
     }
 
     public static void InvalidateCache()

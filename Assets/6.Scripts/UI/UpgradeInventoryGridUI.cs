@@ -188,9 +188,9 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
             if (i >= inventory.SlotCount)
             {
-                slotUi.ClearUpgradeView();
                 slotUi.Bind(null, 0, null, tooltip, inventory, -1, inventoryPanelRect, _rootCanvas);
                 slotUi.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
+                slotUi.ConfigureUpgradeView(true, canSelectGear: false, onSelect: null, _upgradeDropTarget);
                 slotUi.SetUpgradeSelected(false);
                 continue;
             }

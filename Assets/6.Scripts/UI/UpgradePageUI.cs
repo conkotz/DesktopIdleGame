@@ -751,7 +751,7 @@ public sealed class UpgradePageUI : MonoBehaviour
 
     private bool OptionIsVisible(EnhancementOptionEntry option)
     {
-        if (!OptionPassesFilter(option) || !OptionPassesSearchFilter(option))
+        if (option == null || !OptionPassesFilter(option) || !OptionPassesSearchFilter(option))
             return false;
 
         ItemDefinition gear = GetSelectedGearDefinition();
@@ -759,7 +759,7 @@ public sealed class UpgradePageUI : MonoBehaviour
             return true;
 
         SkillsManager skills = SkillsManager.Instance;
-        return option != null && !option.IsUnavailableForSelection(gear, skills);
+        return !option.IsUnavailableForSelection(gear, skills);
     }
 
     private bool OptionPassesSearchFilter(EnhancementOptionEntry option)
@@ -780,7 +780,8 @@ public sealed class UpgradePageUI : MonoBehaviour
             return string.Empty;
 
         string type = UpgradeOptionDisplay.FormatOptionType(option);
-        string value = UpgradeOptionDisplay.FormatOptionValue(option);
+        ItemDefinition gear = GetSelectedGearDefinition();
+        string value = UpgradeOptionDisplay.FormatOptionValue(option, gear);
         string scroll = UpgradeOptionDisplay.FormatOptionScrollName(option, itemDatabase);
         string optionId = option.optionId ?? string.Empty;
         string displayName = option.displayName ?? string.Empty;
@@ -1179,7 +1180,8 @@ public sealed class UpgradePageUI : MonoBehaviour
         enhancementSelectedText.text = UpgradeOptionDisplay.FormatSelectedEnhancementLine(
             _selectedOption,
             payment,
-            itemDatabase);
+            itemDatabase,
+            gear);
     }
 
     private void ClearSelectedOption()
@@ -1242,7 +1244,7 @@ public sealed class UpgradePageUI : MonoBehaviour
             optionCostText,
             UpgradeOptionDisplay.FormatLabeledEnhanceCost(_selectedOption, gear, itemDatabase, inv),
             richText: true);
-        SetOptionDetailText(optionValueText, UpgradeOptionDisplay.FormatLabeledValue(_selectedOption));
+        SetOptionDetailText(optionValueText, UpgradeOptionDisplay.FormatLabeledValue(_selectedOption, gear));
         SetOptionDetailText(optionAvailableItemsText, UpgradeOptionDisplay.FormatLabeledItemType(_selectedOption));
         SetOptionDetailText(optionChanceText, UpgradeOptionDisplay.FormatLabeledSuccessChance(_selectedOption, gear));
         SetOptionDetailText(optionAdditionalText, UpgradeOptionDisplay.FormatLabeledAdditionalInfo(_selectedOption));
@@ -1346,7 +1348,7 @@ public sealed class UpgradePageUI : MonoBehaviour
         if (!EnhancementTierRules.GearAllowsEnhancementTier(gear.GetEquipmentTierRank(), _selectedOption.tier))
             return "This item's tier is too low for that upgrade.";
 
-        EnhancementScrollStats stats = _selectedOption.ToScrollStats();
+        EnhancementScrollStats stats = _selectedOption.ToScrollStats(gear);
         if (stats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
         {
             if (gear.UsedUpgradeSlots <= 0)
@@ -1439,12 +1441,14 @@ public sealed class UpgradePageUI : MonoBehaviour
             row.transform.SetSiblingIndex(visibleChildIndex++);
 
             EnhancementOptionEntry option = displayRow.Option;
-            bool canPay = EnhancementOptionPayment.HasAnyPayment(inv, option, selectedGear);
-            bool dimForMissingPayment = selectedGear != null && !canPay;
+            bool canPay = selectedGear != null
+                ? EnhancementOptionPayment.HasAnyPayment(inv, option, selectedGear)
+                : EnhancementOptionPayment.HasScrollPayment(inv, option);
+            bool dimRow = !canPay;
             bool selected = _selectedOption != null &&
                             string.Equals(_selectedOption.optionId, option.optionId, StringComparison.OrdinalIgnoreCase);
-            row.BindOption(option, canPay, selected, dimForMissingPayment, hasScrollSprite, missingScrollSprite,
-                OnEnhancementOptionSelected);
+            row.BindOption(option, canPay, selected, dimRow, hasScrollSprite, missingScrollSprite,
+                OnEnhancementOptionSelected, selectedGear);
         }
 
         for (int i = optionIndex; i < _optionRows.Count; i++)

@@ -434,7 +434,9 @@ public static class EnhancementUpgradeService
                 break;
 
             case EnhancementScrollTargetStat.AttackSpeed:
-                if (target.IsWeapon)
+                if (percent)
+                    target.bonusStats.attackSpeedPercent = ApplyValue(target.bonusStats.attackSpeedPercent, value, percent);
+                else if (target.IsWeapon)
                     target.weaponStats.attacksPerSecond = ApplyValue(target.weaponStats.attacksPerSecond, value, percent);
                 else
                     target.bonusStats.attackSpeedPercent = ApplyValue(target.bonusStats.attackSpeedPercent, value, percent);
@@ -485,6 +487,24 @@ public static class EnhancementUpgradeService
 
             case EnhancementScrollTargetStat.BurnMultiplier:
                 target.bonusStats.burnExplosionMultiplierBonus = ApplyValue(target.bonusStats.burnExplosionMultiplierBonus, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.EnergyEfficiency:
+                if (target.IsArmor)
+                    target.armorStats.energyEfficiency = Mathf.Clamp01(
+                        ApplyValue(target.armorStats.energyEfficiency, value, percent));
+                else
+                    target.bonusStats.energyEfficiency = Mathf.Clamp01(
+                        ApplyValue(target.bonusStats.energyEfficiency, value, percent));
+                break;
+
+            case EnhancementScrollTargetStat.FlatGuard:
+                if (target.IsArmor)
+                    target.armorStats.flatGuard = ApplyIntValue(target.armorStats.flatGuard, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.ManaRegen:
+                target.bonusStats.manaRegen = ApplyValue(target.bonusStats.manaRegen, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
@@ -554,7 +574,7 @@ public static class EnhancementUpgradeService
 
     private static float ApplyValue(float current, float value, bool percent)
     {
-        return percent ? current * (1f + value) : current + value;
+        return current + value;
     }
 
     private static int ApplyIntValue(int current, float value, bool percent)

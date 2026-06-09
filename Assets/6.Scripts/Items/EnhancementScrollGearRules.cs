@@ -62,6 +62,9 @@ public static class EnhancementScrollGearRules
         if (gear.itemKind == ItemKind.CombatSupport && gear.equipSlot == EquipSlot.OffHand)
             return EnhancementScrollGearMask.OffHand;
 
+        if (gear.itemKind == ItemKind.Jewelry)
+            return EnhancementScrollGearMask.Jewelry;
+
         return gear.itemKind switch
         {
             ItemKind.Tool => EnhancementScrollGearMask.Tool,
