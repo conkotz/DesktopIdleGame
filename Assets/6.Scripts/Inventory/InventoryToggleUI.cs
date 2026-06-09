@@ -25,8 +25,7 @@ public class InventoryToggleUI : MonoBehaviour
             mainMenuWindowUI = MainMenuWindowUI.Resolve();
         if (!shopUI)
             shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
-        if (!merchantModeBanner)
-            merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
+        ResolveMerchantModeBanner();
 
         if (merchantModeBanner)
             merchantModeBanner.SetActive(false);
@@ -55,11 +54,11 @@ public class InventoryToggleUI : MonoBehaviour
     private void RefreshMerchantModeBanner()
     {
         if (!merchantModeBanner)
-            return;
-
-        MainMenuWindowUI menu = GetMenu();
-        if (!menu)
-            return;
+        {
+            ResolveMerchantModeBanner();
+            if (!merchantModeBanner)
+                return;
+        }
 
         if (!shopUI)
             shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
@@ -68,9 +67,41 @@ public class InventoryToggleUI : MonoBehaviour
             MerchantClick.ForceCloseMerchantMode();
 
         bool shopOpen = shopUI != null && shopUI.IsOpen;
-        bool shouldShow = MerchantClick.MerchantModeOpen && shopOpen && menu.IsOpen;
+        bool shouldShow = MerchantClick.MerchantModeOpen && shopOpen;
         if (merchantModeBanner.activeSelf != shouldShow)
             merchantModeBanner.SetActive(shouldShow);
+    }
+
+    private void ResolveMerchantModeBanner()
+    {
+        if (merchantModeBanner)
+            return;
+
+        if (!shopUI)
+            shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
+
+        if (shopUI != null)
+        {
+            GameObject shopWindow = shopUI.WindowRectTransform != null
+                ? shopUI.WindowRectTransform.gameObject
+                : shopUI.transform.parent != null ? shopUI.transform.parent.gameObject : null;
+
+            if (shopWindow != null)
+            {
+                Transform inv = shopWindow.transform.Find("InventoryWindowInsideShop");
+                if (inv != null)
+                {
+                    Transform banner = inv.Find("MerchantModeBanner");
+                    if (banner != null)
+                    {
+                        merchantModeBanner = banner.gameObject;
+                        return;
+                    }
+                }
+            }
+        }
+
+        merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
     }
 
     private static GameObject FindSceneObjectByName(string objectName)

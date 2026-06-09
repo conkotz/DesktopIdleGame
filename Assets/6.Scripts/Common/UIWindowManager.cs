@@ -82,6 +82,10 @@ public class UIWindowManager : MonoBehaviour
     {
         NPCDialogueBoxUI.DismissAllActive();
         QuickMenuPanelToggleUI.HideIfOpen();
+
+        if (MerchantClick.IsShopOpen)
+            MerchantClick.ForceCloseMerchantMode();
+
         MainMenuWindowUI.Resolve()?.Close();
 
         // Snapshot first — closing the menu (or any window) runs UIWindow.OnDisable → Unregister,

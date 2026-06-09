@@ -18,11 +18,9 @@ public class MerchantClick : MonoBehaviour
     [SerializeField] private Collider2D merchantCollider;
 
     [Header("Shop Positioning")]
-    [Tooltip("Pinned to the right edge of the main menu (Character) window; flips to the left if it would leave the canvas.")]
-    [SerializeField] private RectTransform shopRect;        // Shop window RectTransform
-    [SerializeField] private RectTransform canvasRect;      // Root canvas RectTransform
-    [SerializeField] private float pinGap = 8f;
-    [SerializeField] private float pinCanvasEdgeMargin = 4f;
+    [Tooltip("Combined shop window RectTransform; clamped to the canvas when opened.")]
+    [SerializeField] private RectTransform shopRect;
+    [SerializeField] private RectTransform canvasRect;
 
     public static bool MerchantModeOpen { get; private set; }
     public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
@@ -57,8 +55,7 @@ public class MerchantClick : MonoBehaviour
         if (!mainMenuWindowUI)
             mainMenuWindowUI = MainMenuWindowUI.Resolve();
 
-        if (!merchantModeBanner)
-            merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
+        ResolveMerchantModeBanner();
 
         if (!shopUI)
             shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
@@ -73,7 +70,7 @@ public class MerchantClick : MonoBehaviour
             merchantCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>(true);
 
         if (!shopRect && shopUI)
-            shopRect = shopUI.GetComponent<RectTransform>();
+            shopRect = shopUI.WindowRectTransform ?? shopUI.GetComponent<RectTransform>();
 
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
@@ -147,10 +144,7 @@ public class MerchantClick : MonoBehaviour
         }
 
         if (MerchantModeOpen && _active == this && shopUI.IsOpen)
-        {
-            PositionShopUI();
             return;
-        }
 
         CancelPendingOpen();
 
@@ -257,12 +251,9 @@ public class MerchantClick : MonoBehaviour
 
         StorageClick.ForceCloseStorageMode();
 
-        // Open the new Character page (inventory + equipment inside MainMenuWindow)
         MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
-        if (menu != null)
-            menu.OpenCharacter();
-        else
-            Debug.LogWarning("[MerchantClick] MainMenuWindowUI not assigned/found.", this);
+        if (menu != null && menu.IsOpen)
+            menu.CloseShellOnly();
 
         // Show banner
         if (merchantModeBanner)
@@ -270,10 +261,6 @@ public class MerchantClick : MonoBehaviour
             merchantModeBanner.SetActive(true);
             ApplyBannerInteractionState(true);
         }
-
-        // Ensure shop shows immediately on first click
-        if (!shopUI.gameObject.activeSelf)
-            shopUI.gameObject.SetActive(true);
 
         shopUI.Open(merchant);
         if (!shopUI.IsOpen)
@@ -294,23 +281,49 @@ public class MerchantClick : MonoBehaviour
         MerchantModeOpen = true;
         _active = this;
 
-        // Position shop after opening so layout has a valid size
-        PositionShopUI();
+        ClampShopWindowToCanvas();
     }
 
-    /// <summary>Re-pin the shop window next to the main menu (e.g. after returning from undo UI).</summary>
-    public void RepositionShopNextToMenu() => PositionShopUI();
+    /// <summary>Keep the combined shop window on-screen (e.g. after returning from undo UI).</summary>
+    public void RepositionShopNextToMenu() => ClampShopWindowToCanvas();
 
-    private void PositionShopUI()
+    private void ClampShopWindowToCanvas()
     {
+        CacheRefs();
+
         if (!shopRect || !canvasRect)
-        {
-            Debug.LogWarning("[MerchantClick] Missing shopRect or canvasRect for positioning.");
             return;
+
+        UIPinNextToMenuWindow.ClampToCanvas(shopRect, canvasRect);
+    }
+
+    private void ResolveMerchantModeBanner()
+    {
+        if (merchantModeBanner)
+            return;
+
+        if (shopUI != null)
+        {
+            GameObject shopWindow = shopUI.WindowRectTransform != null
+                ? shopUI.WindowRectTransform.gameObject
+                : shopUI.transform.parent != null ? shopUI.transform.parent.gameObject : null;
+
+            if (shopWindow != null)
+            {
+                Transform inv = shopWindow.transform.Find("InventoryWindowInsideShop");
+                if (inv != null)
+                {
+                    Transform banner = inv.Find("MerchantModeBanner");
+                    if (banner != null)
+                    {
+                        merchantModeBanner = banner.gameObject;
+                        return;
+                    }
+                }
+            }
         }
 
-        MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
-        UIPinNextToMenuWindow.PositionNextToMainMenu(shopRect, canvasRect, menu, pinGap, pinCanvasEdgeMargin);
+        merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
     }
 
     private void CloseOnlyMerchantMode()

@@ -136,14 +136,20 @@ public class UndoShopWindowUI : MonoBehaviour
             panelRoot.transform.SetAsLastSibling();
         }
 
-        PinNextToMainMenu();
+        PinNextToShopWindow();
         RebuildGrid();
         UpdateUndoButtonInteractable();
     }
 
-    private void PinNextToMainMenu()
+    private void PinNextToShopWindow()
     {
-        if (windowRect && canvasRect)
+        if (!windowRect || !canvasRect)
+            return;
+
+        RectTransform shopAnchor = shopUI != null ? shopUI.WindowRectTransform : null;
+        if (shopAnchor != null)
+            UIPinNextToMenuWindow.PositionBeside(windowRect, shopAnchor, canvasRect, pinGap, pinCanvasEdgeMargin);
+        else
             UIPinNextToMenuWindow.PositionNextToMainMenu(windowRect, canvasRect, mainMenuWindowUI, pinGap, pinCanvasEdgeMargin);
     }
 

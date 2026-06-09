@@ -8,6 +8,8 @@ using UnityEngine.UI;
 public class ShopUI : MonoBehaviour
 {
     [Header("UI")]
+    [Tooltip("Outer ShopWindow root (inventory + shop section). When empty, resolved from panelRoot's parent.")]
+    [SerializeField] private GameObject windowRoot;
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private Image panelRootImage;
     [SerializeField] private TMP_Text titleText;
@@ -52,6 +54,9 @@ public class ShopUI : MonoBehaviour
     [Tooltip("Optional. Full-area graphic behind shop item slots (earlier sibling = underneath). Left-click clears the selected item so Buy buttons grey out. Leave empty to only clear on shop close.")]
     [SerializeField] private Graphic clearSelectionWhenClicked;
 
+    [Header("Selection detail bar")]
+    [SerializeField] private ItemSelectionPanel itemSelectionPanel;
+
     [Header("Shop item grid")]
     [Tooltip("Fixed column count (items wrap to new rows). Cell size is computed from the SlotsGrid rect so the grid fits the panel.")]
     [SerializeField] private int shopGridColumns = 6;
@@ -72,9 +77,23 @@ public class ShopUI : MonoBehaviour
     private Merchant _currentMerchant;
     private string _selectedShopItemId;
     private QuestProgressManager _questProgressEventsTarget;
+    private GameObject _resolvedWindowRoot;
 
-    public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
-    /// <summary>Root <see cref="RectTransform"/> of the shop chrome (same as serialized panel root).</summary>
+    public bool IsOpen
+    {
+        get
+        {
+            GameObject root = ResolveWindowRoot();
+            return root != null && root.activeInHierarchy;
+        }
+    }
+
+    /// <summary>Outer combined shop window (inventory + merchant stock).</summary>
+    public RectTransform WindowRectTransform => ResolveWindowRoot() != null
+        ? ResolveWindowRoot().transform as RectTransform
+        : null;
+
+    /// <summary>Root <see cref="RectTransform"/> of the shop item section (ShopSection).</summary>
     public RectTransform PanelRectTransform => panelRoot != null ? panelRoot.transform as RectTransform : null;
 
     private void Awake()
@@ -138,17 +157,21 @@ public class ShopUI : MonoBehaviour
         WireClearSelectionBackdrop();
         UpdateBuyButtonsForSelectionState();
 
-        if (panelRoot)
-            panelRoot.SetActive(false);
+        GameObject root = ResolveWindowRoot();
+        if (root)
+            root.SetActive(false);
 
-        if (!shopWindowRect && panelRoot)
-            shopWindowRect = panelRoot.transform as RectTransform;
+        if (!shopWindowRect)
+            shopWindowRect = WindowRectTransform ?? PanelRectTransform;
 
         if (!shopTooltip)
             shopTooltip = FindShopTooltip();
 
         if (!undoShopWindow)
             undoShopWindow = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
+
+        if (!itemSelectionPanel)
+            itemSelectionPanel = GetComponentInChildren<ItemSelectionPanel>(true);
 
         if (contentRoot)
             _shopGrid = contentRoot.GetComponent<GridLayoutGroup>();
@@ -255,13 +278,18 @@ public class ShopUI : MonoBehaviour
         if (titleText)
             titleText.text = merchant.MerchantName;
 
-        if (panelRoot)
+        GameObject root = ResolveWindowRoot();
+        if (root)
         {
-            panelRoot.SetActive(true);
-            panelRoot.transform.SetAsLastSibling();
+            root.SetActive(true);
+            root.transform.SetAsLastSibling();
         }
 
+        if (panelRoot && panelRoot != root)
+            panelRoot.SetActive(true);
+
         Rebuild(merchant);
+        RefreshSelectionPanel();
         RefreshShopRaycastTargets();
         RefreshUndoSaleButtonState();
         RefreshRestockButtonState();
@@ -273,10 +301,36 @@ public class ShopUI : MonoBehaviour
         SetCurrentMerchant(null);
         shopTooltip?.Hide();
 
-        if (panelRoot)
-            panelRoot.SetActive(false);
+        GameObject root = ResolveWindowRoot();
+        if (root)
+            root.SetActive(false);
 
         RefreshRestockButtonState();
+    }
+
+    private GameObject ResolveWindowRoot()
+    {
+        if (_resolvedWindowRoot)
+            return _resolvedWindowRoot;
+
+        if (windowRoot)
+        {
+            _resolvedWindowRoot = windowRoot;
+            return _resolvedWindowRoot;
+        }
+
+        if (panelRoot && panelRoot.transform.parent != null)
+        {
+            Transform parent = panelRoot.transform.parent;
+            if (parent.name.Contains("ShopWindow", System.StringComparison.OrdinalIgnoreCase))
+            {
+                _resolvedWindowRoot = parent.gameObject;
+                return _resolvedWindowRoot;
+            }
+        }
+
+        _resolvedWindowRoot = panelRoot;
+        return _resolvedWindowRoot;
     }
 
     /// <summary>Called by <see cref="ShopSlotUI"/> when the player selects a purchasable item.</summary>
@@ -295,6 +349,7 @@ public class ShopUI : MonoBehaviour
         }
 
         UpdateBuyButtonsForSelectionState();
+        RefreshSelectionPanel();
     }
 
     /// <summary>Clears the current shop item selection (grey Buy buttons). Tooltip is hidden.</summary>
@@ -306,7 +361,30 @@ public class ShopUI : MonoBehaviour
             _spawned[i]?.SetSlotSelected(false);
 
         UpdateBuyButtonsForSelectionState();
+        RefreshSelectionPanel();
         shopTooltip?.Hide();
+    }
+
+    private void RefreshSelectionPanel()
+    {
+        if (!itemSelectionPanel)
+            return;
+
+        MerchantStock.Entry entry = FindSelectedEntry(_currentMerchant);
+        if (entry == null || inventory == null)
+        {
+            itemSelectionPanel.Hide();
+            return;
+        }
+
+        ItemDefinition def = inventory.GetItemDef(entry.itemId);
+        if (!def)
+        {
+            itemSelectionPanel.Hide();
+            return;
+        }
+
+        itemSelectionPanel.ShowSelection(_currentMerchant, entry, def);
     }
 
     private void Rebuild(Merchant merchant)
@@ -354,10 +432,11 @@ public class ShopUI : MonoBehaviour
 
     private void RefreshShopRaycastTargets()
     {
-        if (!panelRoot)
+        GameObject raycastRoot = ResolveWindowRoot();
+        if (!raycastRoot)
             return;
 
-        Graphic[] graphics = panelRoot.GetComponentsInChildren<Graphic>(true);
+        Graphic[] graphics = raycastRoot.GetComponentsInChildren<Graphic>(true);
         for (int i = 0; i < graphics.Length; i++)
         {
             Graphic g = graphics[i];
@@ -527,10 +606,11 @@ public class ShopUI : MonoBehaviour
         if (merchant == null || merchant != _currentMerchant)
             return;
 
-        if (!panelRoot || !panelRoot.activeInHierarchy)
+        if (!IsOpen)
             return;
 
         Rebuild(merchant);
+        RefreshSelectionPanel();
         RefreshRestockButtonState();
     }
 
@@ -570,6 +650,7 @@ public class ShopUI : MonoBehaviour
         if (string.IsNullOrEmpty(_selectedShopItemId) || merchant == null)
         {
             UpdateBuyButtonsForSelectionState();
+            RefreshSelectionPanel();
             return;
         }
 
@@ -577,6 +658,7 @@ public class ShopUI : MonoBehaviour
         {
             _selectedShopItemId = null;
             UpdateBuyButtonsForSelectionState();
+            RefreshSelectionPanel();
             return;
         }
 
@@ -588,6 +670,7 @@ public class ShopUI : MonoBehaviour
         }
 
         UpdateBuyButtonsForSelectionState();
+        RefreshSelectionPanel();
     }
 
     private static bool IsEntryStillSelectable(Merchant merchant, string itemId)

@@ -321,6 +321,19 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void Close()
     {
+        CloseInternal(closeMerchantAndStorage: true);
+    }
+
+    /// <summary>
+    /// Hides the menu shell without closing merchant/shop mode. Used when opening the combined shop window.
+    /// </summary>
+    public void CloseShellOnly()
+    {
+        CloseInternal(closeMerchantAndStorage: false);
+    }
+
+    private void CloseInternal(bool closeMerchantAndStorage)
+    {
         if (mainMenuWindow && UIWindowCloseButton.BlocksClose(mainMenuWindow))
             return;
 
@@ -339,8 +352,12 @@ public class MainMenuWindowUI : MonoBehaviour
         currentPage = null;
 
         MapCombatScalingPopupUI.CancelIfOpen();
-        MerchantClick.ForceCloseMerchantMode();
-        StorageClick.ForceCloseStorageMode();
+
+        if (closeMerchantAndStorage)
+        {
+            MerchantClick.ForceCloseMerchantMode();
+            StorageClick.ForceCloseStorageMode();
+        }
 
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
         RestoreToolbarKeyboardFocus();

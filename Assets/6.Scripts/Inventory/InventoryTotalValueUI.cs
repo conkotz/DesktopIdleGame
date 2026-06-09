@@ -33,7 +33,17 @@ public class InventoryTotalValueUI : MonoBehaviour
         if (!label) label = GetComponent<TMP_Text>();
         if (!label) label = GetComponentInChildren<TMP_Text>(true);
         if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!inventoryGrid) inventoryGrid = FindFirstObjectByType<InventoryGridUI>(FindObjectsInactive.Include);
+        if (!inventoryGrid)
+            inventoryGrid = GetComponentInParent<InventoryGridUI>();
+        if (!inventoryGrid)
+        {
+            Transform walk = transform;
+            while (walk != null && !inventoryGrid)
+            {
+                inventoryGrid = walk.GetComponentInChildren<InventoryGridUI>(true);
+                walk = walk.parent;
+            }
+        }
 
         _prefix = !string.IsNullOrEmpty(prefixOverride)
             ? prefixOverride

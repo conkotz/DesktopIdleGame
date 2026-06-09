@@ -132,7 +132,9 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
-        ShopUI shopUi = targetWindow.GetComponent<ShopUI>() ?? targetWindow.GetComponentInParent<ShopUI>(true);
+        ShopUI shopUi = targetWindow.GetComponent<ShopUI>()
+            ?? targetWindow.GetComponentInParent<ShopUI>(true)
+            ?? targetWindow.GetComponentInChildren<ShopUI>(true);
         if (shopUi != null)
         {
             MerchantClick.ForceCloseMerchantMode();

@@ -197,6 +197,12 @@ public class InventoryGridUI : MonoBehaviour
     {
         _pendingLateRebuild = false;
 
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        {
+            _dirty = true;
+            return;
+        }
+
         StopAllCoroutines();
         StartCoroutine(DeferredRefresh());
     }
