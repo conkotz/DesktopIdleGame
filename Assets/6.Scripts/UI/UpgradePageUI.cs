@@ -77,6 +77,7 @@ public sealed class UpgradePageUI : MonoBehaviour
     private TMP_Text _tierTooLowLabel;
 
     private Inventory _inventory;
+    private PlayerStorage _storage;
     private EquipmentManager _equipment;
     private ToolbeltManager _toolbelt;
     private int _selectedGearSlotIndex = -1;
@@ -304,8 +305,9 @@ public sealed class UpgradePageUI : MonoBehaviour
         ClearApplyError();
 
         Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
         ItemDefinition gear = GetSelectedGearDefinition();
-        EnhancementOptionPayment payment = EnhancementOptionPayment.Resolve(inv, _selectedOption, gear);
+        EnhancementOptionPayment payment = EnhancementOptionPayment.Resolve(inv, storage, _selectedOption, gear);
 
         bool success = false;
         bool attempted;
@@ -1174,8 +1176,9 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         ItemDefinition gear = GetSelectedGearDefinition();
         Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
         EnhancementOptionPayment payment = _selectedOption != null && gear != null
-            ? EnhancementOptionPayment.Resolve(inv, _selectedOption, gear)
+            ? EnhancementOptionPayment.Resolve(inv, storage, _selectedOption, gear)
             : EnhancementOptionPayment.None;
         enhancementSelectedText.text = UpgradeOptionDisplay.FormatSelectedEnhancementLine(
             _selectedOption,
@@ -1238,11 +1241,12 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         ItemDefinition gear = GetSelectedGearDefinition();
         Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
 
         SetOptionDetailText(optionNameText, UpgradeOptionDisplay.FormatOptionDetailName(_selectedOption));
         SetOptionDetailText(
             optionCostText,
-            UpgradeOptionDisplay.FormatLabeledEnhanceCost(_selectedOption, gear, itemDatabase, inv),
+            UpgradeOptionDisplay.FormatLabeledEnhanceCost(_selectedOption, gear, itemDatabase, inv, storage),
             richText: true);
         SetOptionDetailText(optionValueText, UpgradeOptionDisplay.FormatLabeledValue(_selectedOption, gear));
         SetOptionDetailText(optionAvailableItemsText, UpgradeOptionDisplay.FormatLabeledItemType(_selectedOption));
@@ -1330,6 +1334,7 @@ public sealed class UpgradePageUI : MonoBehaviour
             return "Select an item to upgrade.";
 
         Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
         ItemDefinition gear = GetSelectedGearDefinition();
         if (inv == null || gear == null)
             return "Select a valid item to upgrade.";
@@ -1366,7 +1371,7 @@ public sealed class UpgradePageUI : MonoBehaviour
                 return "This item does not have the required stat for that upgrade.";
         }
 
-        EnhancementOptionPayment payment = EnhancementOptionPayment.Resolve(inv, _selectedOption, gear);
+        EnhancementOptionPayment payment = EnhancementOptionPayment.Resolve(inv, storage, _selectedOption, gear);
         if (payment.Kind == EnhancementPaymentKind.None)
         {
             if (EnhancementOptionPayment.RequiresScrollOnlyPayment(_selectedOption))
@@ -1407,6 +1412,7 @@ public sealed class UpgradePageUI : MonoBehaviour
         EnsureOptionRowPool(optionNeeded);
 
         Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
         ItemDefinition selectedGear = GetSelectedGearDefinition();
 
         int optionIndex = 0;
@@ -1442,8 +1448,8 @@ public sealed class UpgradePageUI : MonoBehaviour
 
             EnhancementOptionEntry option = displayRow.Option;
             bool canPay = selectedGear != null
-                ? EnhancementOptionPayment.HasAnyPayment(inv, option, selectedGear)
-                : EnhancementOptionPayment.HasScrollPayment(inv, option);
+                ? EnhancementOptionPayment.HasAnyPayment(inv, storage, option, selectedGear)
+                : EnhancementOptionPayment.HasScrollPayment(inv, storage, option);
             bool dimRow = !canPay;
             bool selected = _selectedOption != null &&
                             string.Equals(_selectedOption.optionId, option.optionId, StringComparison.OrdinalIgnoreCase);
@@ -1570,6 +1576,19 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         _inventory ??= FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         return _inventory;
+    }
+
+    private PlayerStorage ResolveStorage()
+    {
+        if (_storage != null)
+            return _storage;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>();
+        if (player != null)
+            _storage = player.GetComponent<PlayerStorage>();
+
+        _storage ??= FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        return _storage;
     }
 
     private EquipmentManager ResolveEquipment()

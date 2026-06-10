@@ -6,12 +6,19 @@ using UnityEngine;
 /// </summary>
 public static class UIPinNextToMenuWindow
 {
+    public enum PinSide
+    {
+        Right,
+        Left
+    }
+
     public static void PositionNextToMainMenu(
         RectTransform secondary,
         RectTransform canvasRect,
         MainMenuWindowUI menu,
         float gap = 8f,
-        float canvasEdgeMargin = 4f)
+        float canvasEdgeMargin = 4f,
+        PinSide preferredSide = PinSide.Right)
     {
         if (!secondary || !canvasRect)
             return;
@@ -39,28 +46,32 @@ public static class UIPinNextToMenuWindow
         float secHalfW = (secC[2].x - secC[0].x) * 0.5f;
 
         float centerIfRight = mainRight + gap + secHalfW;
-        float rightEdge = centerIfRight + secHalfW;
+        float centerIfLeft = mainLeft - gap - secHalfW;
 
         float targetCenterX;
-        if (rightEdge <= canvasRight - canvasEdgeMargin)
+        if (preferredSide == PinSide.Left)
         {
-            targetCenterX = centerIfRight;
-        }
-        else
-        {
-            float centerIfLeft = mainLeft - gap - secHalfW;
             float leftEdge = centerIfLeft - secHalfW;
             if (leftEdge >= canvasLeft + canvasEdgeMargin)
                 targetCenterX = centerIfLeft;
             else
                 targetCenterX = centerIfRight;
         }
-
-        float targetCenterY = mainMidY;
+        else
+        {
+            float rightEdge = centerIfRight + secHalfW;
+            if (rightEdge <= canvasRight - canvasEdgeMargin)
+                targetCenterX = centerIfRight;
+            else
+            {
+                float leftEdge = centerIfLeft - secHalfW;
+                targetCenterX = leftEdge >= canvasLeft + canvasEdgeMargin ? centerIfLeft : centerIfRight;
+            }
+        }
 
         secondary.position += new Vector3(
             targetCenterX - secCenter.x,
-            targetCenterY - secCenter.y,
+            mainMidY - secCenter.y,
             0f);
 
         ClampToCanvas(secondary, canvasRect);

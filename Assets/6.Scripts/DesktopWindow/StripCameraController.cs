@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 
 [ExecuteAlways]
@@ -309,6 +310,9 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         bool scrollHandled;
         if (Mathf.Abs(scrollY) > 0.01f)
         {
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                return;
+
             scrollHandled = false;
             if (scrollY > 0f && zoomIn.IsMouseScrollUp)
             {

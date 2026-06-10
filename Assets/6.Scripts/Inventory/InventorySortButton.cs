@@ -31,11 +31,15 @@ public class InventorySortButton : MonoBehaviour
                 return;
             }
 
-            ps.SortByDatabaseOrder();
+            var grid = FindFirstObjectByType<StorageGridUI>(FindObjectsInactive.Include);
+            if (grid != null)
+                ps.SortTabByDatabaseOrder(grid.ActiveTab);
+            else
+                ps.SortByDatabaseOrder();
             return;
         }
 
-        var inv = inventory != null ? inventory : FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        var inv = inventory != null ? inventory : ResolvePlayerInventory();
         if (inv == null)
         {
             Debug.LogWarning("[InventorySortButton] Inventory not found in scene.");
@@ -43,6 +47,31 @@ public class InventorySortButton : MonoBehaviour
         }
 
         inv.SortByDatabaseOrder();
+        RefreshInventoryGrids();
+    }
+
+    private static void RefreshInventoryGrids()
+    {
+        InventoryGridUI[] grids = FindObjectsByType<InventoryGridUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < grids.Length; i++)
+        {
+            InventoryGridUI grid = grids[i];
+            if (grid != null && grid.isActiveAndEnabled)
+                grid.RefreshNow();
+        }
+    }
+
+    private static Inventory ResolvePlayerInventory()
+    {
+        var pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (pc != null)
+        {
+            var inv = pc.GetComponent<Inventory>();
+            if (inv != null)
+                return inv;
+        }
+
+        return FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
     }
 
     private static PlayerStorage ResolvePlayerStorage()

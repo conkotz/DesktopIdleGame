@@ -28,6 +28,7 @@ public class StorageBottomBarUI : MonoBehaviour
     [SerializeField] private string totalValueSuffix = "g";
 
     private Inventory _inventory;
+    private StorageTabBarUI _tabBar;
     private string _totalValuePrefix;
     private bool _labelsDirty;
 
@@ -98,6 +99,11 @@ public class StorageBottomBarUI : MonoBehaviour
         if (_inventory != null)
             _inventory.OnInventoryChanged += HandleStorageOrInventoryChanged;
 
+        if (_tabBar == null)
+            _tabBar = FindFirstObjectByType<StorageTabBarUI>(FindObjectsInactive.Include);
+        if (_tabBar != null)
+            _tabBar.OnTabSelected += HandleTabSelected;
+
         SetStoreAllButtonVisible(true);
         _labelsDirty = false;
         RefreshSpaceLabel();
@@ -119,6 +125,8 @@ public class StorageBottomBarUI : MonoBehaviour
             storage.OnStorageChanged -= HandleStorageOrInventoryChanged;
         if (_inventory != null)
             _inventory.OnInventoryChanged -= HandleStorageOrInventoryChanged;
+        if (_tabBar != null)
+            _tabBar.OnTabSelected -= HandleTabSelected;
 
         SetStoreAllButtonVisible(false);
         _labelsDirty = false;
@@ -135,6 +143,11 @@ public class StorageBottomBarUI : MonoBehaviour
     }
 
     private void HandleStorageOrInventoryChanged()
+    {
+        _labelsDirty = true;
+    }
+
+    private void HandleTabSelected(StorageTabKind _)
     {
         _labelsDirty = true;
     }
@@ -170,17 +183,17 @@ public class StorageBottomBarUI : MonoBehaviour
             return;
         }
 
-        int used = 0;
-        int n = storage.SlotCount;
-        for (int i = 0; i < n; i++)
-        {
-            if (!storage.GetSlot(i).IsEmpty) used++;
-        }
+        if (!gridUi)
+            gridUi = FindFirstObjectByType<StorageGridUI>(FindObjectsInactive.Include);
+
+        StorageTabKind tab = gridUi != null ? gridUi.ActiveTab : StorageTabKind.Main;
+        int used = storage.GetTabUsedSlotCount(tab);
+        int capacity = PlayerStorage.SlotsPerTab;
 
         string label = string.IsNullOrWhiteSpace(spaceCountPrefix) ? "Space:" : spaceCountPrefix.Trim();
         if (!label.EndsWith(":", System.StringComparison.Ordinal))
             label += ":";
-        spaceText.text = $"{label} {used}/{n}";
+        spaceText.text = $"{label} {used}/{capacity}";
     }
 
     /// <summary>Renders the prefix authored on the field plus the combined item value of every stored stack.</summary>

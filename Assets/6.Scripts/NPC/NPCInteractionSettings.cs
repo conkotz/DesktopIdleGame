@@ -430,6 +430,18 @@ public class NPCInteractionSettings : MonoBehaviour
         return merchant != null && merchant.IsShopEngagedWithPlayer();
     }
 
+    public bool CanInteractImmediately(PlayerController player)
+    {
+        if (!walkPlayerToNpcOnClick)
+            return true;
+
+        if (player == null || player.IsDead)
+            return true;
+
+        return IsPlayerWithinNpcArrivalRange(player) ||
+            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, ResolveInteractCollider2D());
+    }
+
     public void Interact()
     {
         if (!walkPlayerToNpcOnClick)
@@ -445,8 +457,7 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        if (IsPlayerWithinNpcArrivalRange(player) ||
-            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, ResolveInteractCollider2D()))
+        if (CanInteractImmediately(player))
         {
             InteractNow();
             return;
@@ -573,6 +584,7 @@ public class NPCInteractionSettings : MonoBehaviour
         // Player has arrived (or walk was disabled): drop any pending proximity-gated auto-reopen.
         _pendingProximityAutoReopen = false;
 
+        TryOpenColocatedMerchantShop();
         InvokeInteractionEffects();
 
         bool dialogueAlreadyOpenForThisNpc = NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform);
@@ -690,6 +702,15 @@ public class NPCInteractionSettings : MonoBehaviour
         box.ShowAt(transform, transform, Vector3.zero, text, showAccept, onAccept, autoClose);
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
         ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
+    }
+
+    private void TryOpenColocatedMerchantShop()
+    {
+        MerchantClick merchant = GetComponent<MerchantClick>();
+        if (!merchant)
+            merchant = GetComponentInChildren<MerchantClick>(true);
+        if (merchant != null)
+            merchant.Open();
     }
 
     private void InvokeInteractionEffects()

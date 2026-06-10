@@ -6,15 +6,18 @@ public readonly struct EnhancementOptionPayment
 {
     public EnhancementPaymentKind Kind { get; }
     public int ScrollSlotIndex { get; }
+    public bool ScrollFromStorage { get; }
     public IReadOnlyList<GearUpgradeMaterialRequirement> MaterialRequirements { get; }
 
     public EnhancementOptionPayment(
         EnhancementPaymentKind kind,
         int scrollSlotIndex = -1,
-        IReadOnlyList<GearUpgradeMaterialRequirement> materialRequirements = null)
+        IReadOnlyList<GearUpgradeMaterialRequirement> materialRequirements = null,
+        bool scrollFromStorage = false)
     {
         Kind = kind;
         ScrollSlotIndex = scrollSlotIndex;
+        ScrollFromStorage = scrollFromStorage;
         MaterialRequirements = materialRequirements ?? Array.Empty<GearUpgradeMaterialRequirement>();
     }
 
@@ -29,15 +32,30 @@ public readonly struct EnhancementOptionPayment
     public static EnhancementOptionPayment Resolve(
         Inventory inventory,
         EnhancementOptionEntry option,
+        ItemDefinition gear) =>
+        Resolve(inventory, null, option, gear);
+
+    public static EnhancementOptionPayment Resolve(
+        Inventory inventory,
+        PlayerStorage storage,
+        EnhancementOptionEntry option,
         ItemDefinition gear)
     {
-        if (inventory == null || option == null)
+        if (option == null)
             return None;
 
-        if (HasScrollPayment(inventory, option))
-            return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, FindItemSlot(inventory, option.linkedScrollItemId));
+        if (HasScrollPayment(inventory, storage, option))
+        {
+            int invSlot = FindItemSlot(inventory, option.linkedScrollItemId);
+            if (invSlot >= 0)
+                return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, invSlot);
 
-        if (RequiresScrollOnlyPayment(option) || gear == null)
+            int storageSlot = FindScrollInStorageEnhanceTab(storage, option.linkedScrollItemId);
+            if (storageSlot >= 0)
+                return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, storageSlot, scrollFromStorage: true);
+        }
+
+        if (inventory == null || RequiresScrollOnlyPayment(option) || gear == null)
             return None;
 
         IReadOnlyList<GearUpgradeMaterialRequirement> requirements =
@@ -48,12 +66,16 @@ public readonly struct EnhancementOptionPayment
         return None;
     }
 
-    public static bool HasScrollPayment(Inventory inventory, EnhancementOptionEntry option)
+    public static bool HasScrollPayment(Inventory inventory, EnhancementOptionEntry option) =>
+        HasScrollPayment(inventory, null, option);
+
+    public static bool HasScrollPayment(Inventory inventory, PlayerStorage storage, EnhancementOptionEntry option)
     {
-        if (inventory == null || option == null || string.IsNullOrWhiteSpace(option.linkedScrollItemId))
+        if (option == null || string.IsNullOrWhiteSpace(option.linkedScrollItemId))
             return false;
 
-        return FindItemSlot(inventory, option.linkedScrollItemId) >= 0;
+        return FindItemSlot(inventory, option.linkedScrollItemId) >= 0
+            || FindScrollInStorageEnhanceTab(storage, option.linkedScrollItemId) >= 0;
     }
 
     public static bool HasMaterialPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear)
@@ -67,7 +89,14 @@ public readonly struct EnhancementOptionPayment
     }
 
     public static bool HasAnyPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear) =>
-        HasScrollPayment(inventory, option) || HasMaterialPayment(inventory, option, gear);
+        HasAnyPayment(inventory, null, option, gear);
+
+    public static bool HasAnyPayment(
+        Inventory inventory,
+        PlayerStorage storage,
+        EnhancementOptionEntry option,
+        ItemDefinition gear) =>
+        HasScrollPayment(inventory, storage, option) || HasMaterialPayment(inventory, option, gear);
 
     public static string FormatCostLabel(EnhancementOptionPayment payment, ItemDatabase db)
     {
@@ -138,5 +167,13 @@ public readonly struct EnhancementOptionPayment
         }
 
         return -1;
+    }
+
+    private static int FindScrollInStorageEnhanceTab(PlayerStorage storage, string itemId)
+    {
+        if (storage == null || string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        return storage.FindFirstSlotWithItemInTab(itemId, StorageTabKind.Enhance);
     }
 }

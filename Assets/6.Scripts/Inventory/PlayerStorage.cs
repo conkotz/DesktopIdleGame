@@ -7,7 +7,10 @@ using UnityEngine;
 /// </summary>
 public class PlayerStorage : MonoBehaviour, ISaveable
 {
-    public const int DefaultSlotCount = 72;
+    public const int TabCount = 5;
+    public const int SlotsPerTab = 88;
+    public const int TotalSlotCount = TabCount * SlotsPerTab;
+    public const int DefaultSlotCount = TotalSlotCount;
 
     [SerializeField] private ItemDatabase itemDb;
     [SerializeField] private int defaultMaxStack = 99;
@@ -28,8 +31,12 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     }
 
     private readonly List<Slot> _slots = new List<Slot>(DefaultSlotCount);
+    private readonly int[] _tabDisplayOrder = { 0, 1, 2, 3, 4 };
+    private readonly bool[] _tabAffinityEnabled = { false, true, true, true, true };
 
     public event Action OnStorageChanged;
+    public event Action OnTabOrderChanged;
+    public event Action OnTabAffinityChanged;
 
     private int _batchChangeNotifyDepth;
     private bool _batchChangeNotifyPending;
@@ -105,9 +112,93 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
     public int SlotCount => _slots.Count;
 
+    public StorageTabKind GetTabForGlobalSlot(int globalIndex)
+    {
+        if (globalIndex < 0)
+            return StorageTabKind.Main;
+        return (StorageTabKind)(globalIndex / SlotsPerTab);
+    }
+
+    public int GetTabStartIndex(StorageTabKind tab) => (int)tab * SlotsPerTab;
+
+    public int GetTabEndIndexExclusive(StorageTabKind tab) => GetTabStartIndex(tab) + SlotsPerTab;
+
+    public bool SlotAcceptsItem(int globalSlot, ItemDefinition def)
+    {
+        if (def == null)
+            return false;
+        return StorageTabFilters.PassesTab(def, GetTabForGlobalSlot(globalSlot));
+    }
+
+    public int GetTabUsedSlotCount(StorageTabKind tab)
+    {
+        int used = 0;
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
+        for (int i = start; i < end && i < _slots.Count; i++)
+        {
+            if (!_slots[i].IsEmpty)
+                used++;
+        }
+
+        return used;
+    }
+
+    public IReadOnlyList<int> TabDisplayOrder => _tabDisplayOrder;
+
+    public void SetTabDisplayOrder(int[] order)
+    {
+        if (order == null || order.Length != TabCount)
+            return;
+
+        for (int i = 0; i < TabCount; i++)
+            _tabDisplayOrder[i] = Mathf.Clamp(order[i], 0, TabCount - 1);
+
+        OnTabOrderChanged?.Invoke();
+    }
+
+    /// <summary>When true, auto-deposits route matching items into this tab. Main always returns false.</summary>
+    public bool IsTabAffinityEnabled(StorageTabKind tab)
+    {
+        int i = (int)tab;
+        if (tab == StorageTabKind.Main || i < 0 || i >= TabCount)
+            return false;
+
+        return _tabAffinityEnabled[i];
+    }
+
+    public void SetTabAffinityEnabled(StorageTabKind tab, bool enabled)
+    {
+        if (tab == StorageTabKind.Main)
+            return;
+
+        int i = (int)tab;
+        if (i < 0 || i >= TabCount)
+            return;
+
+        if (_tabAffinityEnabled[i] == enabled)
+            return;
+
+        _tabAffinityEnabled[i] = enabled;
+        OnTabAffinityChanged?.Invoke();
+    }
+
+    /// <summary>Tab used for automatic deposits (inventory deposit, unequip-to-storage, etc.).</summary>
+    public StorageTabKind ResolveAutoDepositTab(ItemDefinition def)
+    {
+        StorageTabKind inferred = StorageTabFilters.InferTabForItem(def);
+        if (inferred == StorageTabKind.Main)
+            return StorageTabKind.Main;
+
+        return IsTabAffinityEnabled(inferred) ? inferred : StorageTabKind.Main;
+    }
+
     public void EnsureSlotCount(int count)
     {
         count = Mathf.Max(1, count);
+        if (_slots.Count >= TotalSlotCount && count < TotalSlotCount)
+            count = TotalSlotCount;
+
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
     }
@@ -129,6 +220,28 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         return total;
+    }
+
+    /// <summary>First global slot index in <paramref name="tab"/> holding <paramref name="itemId"/>, or -1.</summary>
+    public int FindFirstSlotWithItemInTab(string itemId, StorageTabKind tab)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        string target = itemId.Trim();
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
+        for (int i = start; i < end && i < _slots.Count; i++)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty)
+                continue;
+
+            if (string.Equals(s.itemId, target, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>Removes stacks from highest slot index first (same order as <see cref="Inventory.Remove"/>).</summary>
@@ -166,13 +279,30 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (slotA < 0 || slotB < 0) return false;
         if (slotA >= _slots.Count || slotB >= _slots.Count) return false;
 
-        (_slots[slotA], _slots[slotB]) = (_slots[slotB], _slots[slotA]);
+        var a = _slots[slotA];
+        var b = _slots[slotB];
+        if (!a.IsEmpty && !SlotAcceptsItem(slotB, GetItemDef(a.itemId)))
+            return false;
+        if (!b.IsEmpty && !SlotAcceptsItem(slotA, GetItemDef(b.itemId)))
+            return false;
+
+        (_slots[slotA], _slots[slotB]) = (b, a);
         NotifyStorageChanged();
         return true;
     }
 
-    /// <summary>Same rules as <see cref="Inventory.SortByDatabaseOrder"/>: merge stacks, then order by database index (larger stacks first per item).</summary>
     public void SortByDatabaseOrder()
+    {
+        for (int t = 0; t < TabCount; t++)
+            SortTabByDatabaseOrder((StorageTabKind)t);
+    }
+
+    public void SortTabByDatabaseOrder(StorageTabKind tab)
+    {
+        SortSlotRangeByDatabaseOrder(GetTabStartIndex(tab), SlotsPerTab);
+    }
+
+    private void SortSlotRangeByDatabaseOrder(int rangeStart, int rangeLength)
     {
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
@@ -183,9 +313,12 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return;
         }
 
-        var filled = new List<Slot>();
+        int rangeEnd = Mathf.Min(rangeStart + rangeLength, _slots.Count);
+        if (rangeStart < 0 || rangeStart >= _slots.Count)
+            return;
 
-        for (int i = 0; i < _slots.Count; i++)
+        var filled = new List<Slot>();
+        for (int i = rangeStart; i < rangeEnd; i++)
         {
             if (!_slots[i].IsEmpty)
                 filled.Add(_slots[i]);
@@ -227,19 +360,19 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
-        for (int i = 0; i < _slots.Count; i++)
+        for (int i = rangeStart; i < rangeEnd; i++)
         {
             var s = _slots[i];
             s.Clear();
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, _slots.Count);
+        int limit = Mathf.Min(merged.Count, rangeEnd - rangeStart);
         for (int i = 0; i < limit; i++)
-            _slots[i] = merged[i];
+            _slots[rangeStart + i] = merged[i];
 
-        if (merged.Count > _slots.Count)
-            Debug.LogError($"[PlayerStorage] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — overflow.");
+        if (merged.Count > rangeEnd - rangeStart)
+            Debug.LogWarning($"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {rangeEnd - rangeStart}.");
 
         NotifyStorageChanged();
     }
@@ -272,6 +405,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         var to = _slots[toSlot];
 
         if (from.IsEmpty) return 0;
+
+        ItemDefinition fromDef = GetItemDef(from.itemId);
+        if (!SlotAcceptsItem(toSlot, fromDef))
+            return 0;
 
         int move = Mathf.Min(amount, from.amount);
         if (move <= 0) return 0;
@@ -322,6 +459,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         amount = Mathf.Min(amount, from.amount);
         if (amount <= 0) return 0;
 
+        ItemDefinition def = GetItemDef(from.itemId);
+        if (!SlotAcceptsItem(toStorageSlot, def))
+            return 0;
+
         var to = _slots[toStorageSlot];
 
         if (to.IsEmpty)
@@ -349,6 +490,93 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         return 0;
+    }
+
+    public int TryMoveFromInventoryToTab(Inventory inv, int fromInvSlot, StorageTabKind tab, int amount)
+    {
+        if (inv == null || amount <= 0)
+            return 0;
+
+        var from = inv.GetSlot(fromInvSlot);
+        if (from.IsEmpty)
+            return 0;
+
+        ItemDefinition def = GetItemDef(from.itemId);
+        if (!StorageTabFilters.PassesTab(def, tab))
+            return 0;
+
+        int movedTotal = 0;
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
+
+        while (amount > 0)
+        {
+            bool progressed = false;
+            for (int i = start; i < end && amount > 0; i++)
+            {
+                int moved = TryMoveFromInventoryToStorage(inv, fromInvSlot, i, amount, null);
+                if (moved <= 0)
+                    continue;
+
+                movedTotal += moved;
+                amount -= moved;
+                progressed = true;
+                from = inv.GetSlot(fromInvSlot);
+                if (from.IsEmpty)
+                    break;
+                amount = from.amount;
+            }
+
+            if (!progressed)
+                break;
+        }
+
+        return movedTotal;
+    }
+
+    public int TryMoveFromStorageSlotToTab(int fromGlobalSlot, StorageTabKind tab, int amount)
+    {
+        if (fromGlobalSlot < 0 || fromGlobalSlot >= _slots.Count || amount <= 0)
+            return 0;
+
+        var from = _slots[fromGlobalSlot];
+        if (from.IsEmpty)
+            return 0;
+
+        ItemDefinition def = GetItemDef(from.itemId);
+        if (!StorageTabFilters.PassesTab(def, tab))
+            return 0;
+
+        int movedTotal = 0;
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
+
+        while (amount > 0)
+        {
+            bool progressed = false;
+            for (int i = start; i < end && amount > 0; i++)
+            {
+                if (i == fromGlobalSlot)
+                    continue;
+
+                int moved = MoveAmount(fromGlobalSlot, i, amount);
+                if (moved <= 0)
+                    continue;
+
+                movedTotal += moved;
+                amount -= moved;
+                progressed = true;
+                from = _slots[fromGlobalSlot];
+                if (from.IsEmpty)
+                    break;
+                amount = from.amount;
+            }
+
+            if (!progressed)
+                break;
+        }
+
+        return movedTotal;
     }
 
     /// <summary>Moves items from a storage slot into an inventory slot (stack merge rules).</summary>
@@ -399,6 +627,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         var a = inv.GetSlot(invSlot);
         var b = _slots[storageSlot];
 
+        if (!a.IsEmpty && !SlotAcceptsItem(storageSlot, GetItemDef(a.itemId)))
+            return false;
+
         inv.ReplaceSlot(invSlot, new Inventory.Slot
         {
             itemId = b.IsEmpty ? null : b.itemId,
@@ -422,21 +653,39 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
 
+        ItemDefinition def = GetItemDef(itemId);
+        StorageTabKind tab = ResolveAutoDepositTab(def);
+        return TryDepositAmountToTab(itemId, amount, tab, touchedSlotIndices);
+    }
+
+    public int TryDepositAmountToTab(string itemId, int amount, StorageTabKind tab, IList<int> touchedSlotIndices = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return 0;
+
+        ItemDefinition def = GetItemDef(itemId);
+        if (!StorageTabFilters.PassesTab(def, tab))
+            tab = StorageTabKind.Main;
+
         int movedTotal = 0;
         int remaining = amount;
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
 
         while (remaining > 0)
         {
             bool progressed = false;
 
-            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            for (int i = start; i < end && remaining > 0; i++)
             {
                 var s = _slots[i];
-                if (s.IsEmpty || s.itemId != itemId) continue;
+                if (s.IsEmpty || s.itemId != itemId)
+                    continue;
 
                 int maxStack = GetMaxStack(itemId);
                 int space = maxStack - s.amount;
-                if (space <= 0) continue;
+                if (space <= 0)
+                    continue;
 
                 int add = Mathf.Min(space, remaining);
                 s.amount += add;
@@ -447,11 +696,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 progressed = true;
             }
 
-            if (remaining <= 0) break;
+            if (remaining <= 0)
+                break;
 
-            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            for (int i = start; i < end && remaining > 0; i++)
             {
-                if (!_slots[i].IsEmpty) continue;
+                if (!_slots[i].IsEmpty)
+                    continue;
 
                 int maxStack = GetMaxStack(itemId);
                 int chunk = Mathf.Min(remaining, maxStack);
@@ -463,7 +714,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 break;
             }
 
-            if (!progressed) break;
+            if (!progressed)
+                break;
         }
 
         if (movedTotal > 0)
@@ -472,20 +724,35 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return movedTotal;
     }
 
-    /// <summary>How many of <paramref name="amount"/> could be deposited from external source (same rules as <see cref="TryDepositAmountFromExternal"/>).</summary>
     public int GetReceivableAmountFromExternal(string itemId, int amount)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return 0;
 
+        ItemDefinition def = GetItemDef(itemId);
+        StorageTabKind tab = ResolveAutoDepositTab(def);
+        return GetReceivableAmountInTab(itemId, amount, tab);
+    }
+
+    public int GetReceivableAmountInTab(string itemId, int amount, StorageTabKind tab)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return 0;
+
+        ItemDefinition def = GetItemDef(itemId);
+        if (!StorageTabFilters.PassesTab(def, tab))
+            return 0;
+
         int remaining = amount;
         int total = 0;
+        int start = GetTabStartIndex(tab);
+        int end = GetTabEndIndexExclusive(tab);
 
         while (remaining > 0)
         {
             bool progressed = false;
 
-            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            for (int i = start; i < end && remaining > 0; i++)
             {
                 var s = _slots[i];
                 if (s.IsEmpty || s.itemId != itemId)
@@ -505,7 +772,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             if (remaining <= 0)
                 break;
 
-            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            for (int i = start; i < end && remaining > 0; i++)
             {
                 if (!_slots[i].IsEmpty)
                     continue;
@@ -590,18 +857,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         BeginBatchChanges();
         try
         {
-            int movedTotal = 0;
+            var from = inv.GetSlot(invSlot);
+            if (from.IsEmpty)
+                return 0;
 
-            for (int i = 0; i < _slots.Count; i++)
-            {
-                var from = inv.GetSlot(invSlot);
-                if (from.IsEmpty) break;
-
-                int moved = TryMoveFromInventoryToStorage(inv, invSlot, i, from.amount, null);
-                movedTotal += moved;
-            }
-
-            return movedTotal;
+            ItemDefinition def = GetItemDef(from.itemId);
+            StorageTabKind tab = ResolveAutoDepositTab(def);
+            return TryMoveFromInventoryToTab(inv, invSlot, tab, from.amount);
         }
         finally
         {
@@ -645,6 +907,20 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (data == null) return;
 
         data.storageSlotCount = _slots.Count;
+        if (data.storageTabOrder == null)
+            data.storageTabOrder = new List<int>(TabCount);
+        else
+            data.storageTabOrder.Clear();
+        for (int i = 0; i < TabCount; i++)
+            data.storageTabOrder.Add(_tabDisplayOrder[i]);
+
+        if (data.storageTabAffinity == null)
+            data.storageTabAffinity = new List<bool>(TabCount);
+        else
+            data.storageTabAffinity.Clear();
+        for (int i = 0; i < TabCount; i++)
+            data.storageTabAffinity.Add(_tabAffinityEnabled[i]);
+
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
         else
@@ -682,9 +958,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             }
         }
 
-        int count = data.storageSlotCount > 0 ? data.storageSlotCount : DefaultSlotCount;
-        count = Mathf.Max(1, count);
-        EnsureSlotCount(count);
+        int savedCount = data.storageSlotCount > 0 ? data.storageSlotCount : DefaultSlotCount;
+        savedCount = Mathf.Max(1, savedCount);
+        EnsureSlotCount(Mathf.Max(savedCount, TotalSlotCount));
 
         for (int i = 0; i < _slots.Count; i++)
         {
@@ -722,6 +998,50 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             }
         }
 
+        if (data.storageTabOrder != null && data.storageTabOrder.Count == TabCount)
+        {
+            for (int i = 0; i < TabCount; i++)
+                _tabDisplayOrder[i] = Mathf.Clamp(data.storageTabOrder[i], 0, TabCount - 1);
+        }
+
+        if (data.storageTabAffinity != null && data.storageTabAffinity.Count == TabCount)
+        {
+            for (int i = 0; i < TabCount; i++)
+                _tabAffinityEnabled[i] = data.storageTabAffinity[i];
+        }
+        else
+        {
+            _tabAffinityEnabled[0] = false;
+            for (int i = 1; i < TabCount; i++)
+                _tabAffinityEnabled[i] = true;
+        }
+
+        if (savedCount < TotalSlotCount)
+            MigrateLegacyFlatStorage(savedCount);
+
         NotifyStorageChanged();
+    }
+
+    private void MigrateLegacyFlatStorage(int previousCount)
+    {
+        if (previousCount <= SlotsPerTab)
+            return;
+
+        var overflow = new List<Slot>();
+        for (int i = SlotsPerTab; i < previousCount && i < _slots.Count; i++)
+        {
+            if (!_slots[i].IsEmpty)
+                overflow.Add(_slots[i]);
+            _slots[i].Clear();
+        }
+
+        foreach (var stack in overflow)
+        {
+            ItemDefinition def = GetItemDef(stack.itemId);
+            StorageTabKind tab = ResolveAutoDepositTab(def);
+            int placed = TryDepositAmountToTab(stack.itemId, stack.amount, tab);
+            if (placed < stack.amount)
+                TryDepositAmountToTab(stack.itemId, stack.amount - placed, StorageTabKind.Main);
+        }
     }
 }

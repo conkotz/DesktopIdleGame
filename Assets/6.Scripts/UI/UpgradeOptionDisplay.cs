@@ -145,12 +145,13 @@ public static class UpgradeOptionDisplay
         EnhancementOptionEntry option,
         ItemDefinition gear,
         ItemDatabase itemDb,
-        Inventory inventory)
+        Inventory inventory,
+        PlayerStorage storage = null)
     {
         if (option == null)
             return string.Empty;
 
-        bool hasScroll = EnhancementOptionPayment.HasScrollPayment(inventory, option);
+        bool hasScroll = EnhancementOptionPayment.HasScrollPayment(inventory, storage, option);
         string scrollCost = !string.IsNullOrWhiteSpace(option.linkedScrollItemId)
             ? FormatLinkedScrollName(option, itemDb)
             : null;

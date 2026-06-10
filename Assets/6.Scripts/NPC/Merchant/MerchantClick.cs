@@ -150,8 +150,7 @@ public class MerchantClick : MonoBehaviour
 
         if (player != null)
         {
-            if (IsPlayerWithinMerchantArrivalRange() ||
-                WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, merchantCollider))
+            if (ShouldOpenShopImmediately(player))
             {
                 OpenNow();
                 return;
@@ -210,6 +209,21 @@ public class MerchantClick : MonoBehaviour
         // proximity check still failed and the shop never opened.
         float playerHalfWidth = ResolvePlayerColliderHalfWidth(p);
         return edgeX + sign * playerHalfWidth;
+    }
+
+    private bool ShouldOpenShopImmediately(PlayerController player)
+    {
+        if (player == null)
+            return false;
+
+        if (IsPlayerWithinMerchantArrivalRange() ||
+            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, merchantCollider))
+            return true;
+
+        NPCInteractionSettings npc = GetComponent<NPCInteractionSettings>()
+            ?? GetComponentInParent<NPCInteractionSettings>()
+            ?? GetComponentInChildren<NPCInteractionSettings>(true);
+        return npc != null && npc.CanInteractImmediately(player);
     }
 
     private bool IsPlayerWithinMerchantArrivalRange()
@@ -341,11 +355,7 @@ public class MerchantClick : MonoBehaviour
         }
 
         if (shopUI)
-        {
-            var close = shopUI.GetType().GetMethod("Close");
-            if (close != null) close.Invoke(shopUI, null);
-            else shopUI.gameObject.SetActive(false);
-        }
+            shopUI.Close();
     }
 
     /// <summary>
@@ -363,7 +373,12 @@ public class MerchantClick : MonoBehaviour
         {
             _active.CloseOnlyMerchantMode();
             _active = null;
+            return;
         }
+
+        ShopUI shop = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
+        if (shop != null && shop.IsOpen)
+            shop.Close();
     }
 
     public static bool TryGetActiveMerchant(out Merchant merchant)

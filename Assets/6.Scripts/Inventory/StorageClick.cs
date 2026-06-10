@@ -13,7 +13,7 @@ public class StorageClick : MonoBehaviour
     [SerializeField] private StorageUI storageUI;
 
     [Header("Window positioning")]
-    [Tooltip("Pinned to the right edge of the main menu (Character) window; flips to the left if it would leave the canvas.")]
+    [Tooltip("Pinned to the left edge of the main menu (Character) window; flips to the right if it would leave the canvas.")]
     [SerializeField] private RectTransform storageRect;
     [SerializeField] private RectTransform canvasRect;
     [SerializeField] private float pinGap = 8f;
@@ -99,7 +99,8 @@ public class StorageClick : MonoBehaviour
         }
 
         MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
-        UIPinNextToMenuWindow.PositionNextToMainMenu(storageRect, canvasRect, menu, pinGap, pinCanvasEdgeMargin);
+        UIPinNextToMenuWindow.PositionNextToMainMenu(
+            storageRect, canvasRect, menu, pinGap, pinCanvasEdgeMargin, UIPinNextToMenuWindow.PinSide.Left);
     }
 
     private void CloseStorageMode()

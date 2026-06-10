@@ -97,6 +97,8 @@ public class SaveData
     [Tooltip("Serialized default for JSON only; new games align to PlayerStorage.SlotCount before first save.")]
     public int storageSlotCount = 28;
     public List<InventorySlotData> storageSlots = new();
+    public List<int> storageTabOrder = new();
+    public List<bool> storageTabAffinity = new();
 
     [Serializable]
     public struct InventorySlotData

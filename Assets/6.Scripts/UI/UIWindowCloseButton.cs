@@ -138,6 +138,9 @@ public class UIWindowCloseButton : MonoBehaviour
         if (shopUi != null)
         {
             MerchantClick.ForceCloseMerchantMode();
+            shopUi.Close();
+            if (targetWindow.activeSelf)
+                targetWindow.SetActive(false);
             return;
         }
 

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Binds <see cref="PlayerStorage"/> to a fixed grid (default 7×4 in code; scene often overrides).
+/// Binds <see cref="PlayerStorage"/> to a fixed per-tab grid (default 8×11 = 88 visible slots).
 /// </summary>
 public class StorageGridUI : MonoBehaviour
 {
@@ -22,24 +22,28 @@ public class StorageGridUI : MonoBehaviour
 
     [SerializeField] private RectTransform storagePanelRect;
 
+    [Header("Tabs")]
+    [SerializeField] private StorageTabBarUI tabBar;
+
     [Header("Hard Grid Size")]
-    [SerializeField] private int columns = 7;
-    [SerializeField] private int rows = 4;
+    [SerializeField] private int columns = 8;
+    [SerializeField] private int rows = 11;
 
     [Header("Layout Fit")]
     [SerializeField] private bool squareCells = true;
     [SerializeField] private float minCellSize = 32f;
     [SerializeField] private int layoutRetryFrames = 3;
 
-    private readonly List<StorageSlotUI> _slotPool = new List<StorageSlotUI>(64);
+    private readonly List<StorageSlotUI> _slotPool = new List<StorageSlotUI>(96);
     private GridLayoutGroup _grid;
     private bool _dirty;
     private Canvas _rootCanvas;
+    private StorageTabKind _activeTab = StorageTabKind.Main;
 
     private int TotalSlots => Mathf.Max(1, columns) * Mathf.Max(1, rows);
 
-    /// <summary>Same <see cref="PlayerStorage"/> bound to this grid (use instead of <c>FindFirstObjectByType</c>).</summary>
     public PlayerStorage PlayerStorage => storage;
+    public StorageTabKind ActiveTab => _activeTab;
 
     private void Awake()
     {
@@ -56,14 +60,23 @@ public class StorageGridUI : MonoBehaviour
 
         if (!tooltip)
             tooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+
+        EnsureTabBar();
     }
 
     private void OnEnable()
     {
         ResolveStorageRef();
+        EnsureTabBar();
 
         if (storage != null)
             storage.OnStorageChanged += MarkDirty;
+
+        if (tabBar != null)
+        {
+            tabBar.OnTabSelected += HandleTabSelected;
+            _activeTab = tabBar.ActiveTab;
+        }
 
         StartCoroutine(DeferredRefresh());
     }
@@ -72,23 +85,47 @@ public class StorageGridUI : MonoBehaviour
     {
         if (storage != null)
             storage.OnStorageChanged -= MarkDirty;
+
+        if (tabBar != null)
+            tabBar.OnTabSelected -= HandleTabSelected;
+    }
+
+    private void EnsureTabBar()
+    {
+        if (!tabBar)
+            tabBar = GetComponentInParent<StorageUI>(true)?.GetComponentInChildren<StorageTabBarUI>(true);
+        if (!tabBar)
+            tabBar = StorageTabBarUI.EnsureOnStorageWindow(this);
+    }
+
+    private void HandleTabSelected(StorageTabKind tab)
+    {
+        _activeTab = tab;
+        _dirty = true;
+
+        ScrollRect scroll = slotsGrid != null ? slotsGrid.GetComponentInParent<ScrollRect>(true) : null;
+        if (scroll != null)
+            scroll.verticalNormalizedPosition = 1f;
     }
 
     private void MarkDirty() => _dirty = true;
 
     public void RefreshNow()
     {
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        {
+            _dirty = true;
+            return;
+        }
+
         StopAllCoroutines();
         StartCoroutine(DeferredRefresh());
     }
 
-    /// <summary>
-    /// Immediate bind pass after the panel becomes active (pairs with <see cref="RefreshNow"/> layout coroutine).
-    /// Ensures we read from the same <see cref="PlayerStorage"/> as the player, not a stale inspector reference.
-    /// </summary>
     public void SyncRefreshDisplay()
     {
         ResolveStorageRef();
+        EnsureTabBar();
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
@@ -149,7 +186,8 @@ public class StorageGridUI : MonoBehaviour
         if (!slotsGrid || !slotPrefab) return;
 
         int needed = TotalSlots;
-        if (storage) storage.EnsureSlotCount(needed);
+        if (storage)
+            storage.EnsureSlotCount(PlayerStorage.TotalSlotCount);
 
         while (_slotPool.Count < needed)
         {
@@ -213,37 +251,43 @@ public class StorageGridUI : MonoBehaviour
     public void Rebuild()
     {
         ResolveStorageRef();
+        EnsureTabBar();
         if (!storage || !slotsGrid || !slotPrefab) return;
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
+        if (tabBar != null)
+            _activeTab = tabBar.ActiveTab;
+
         EnsurePoolSize();
 
         int totalSlots = TotalSlots;
-        storage.EnsureSlotCount(totalSlots);
+        storage.EnsureSlotCount(PlayerStorage.TotalSlotCount);
+        int globalOffset = storage.GetTabStartIndex(_activeTab);
 
         for (int i = 0; i < totalSlots; i++)
         {
             var slotUI = _slotPool[i];
             if (!slotUI) continue;
 
-            // GridLayoutGroup order follows transform sibling order; keep it aligned with storage slot index.
+            int globalIndex = globalOffset + i;
+
             if (slotsGrid && slotUI.transform.parent == slotsGrid)
                 slotUI.transform.SetSiblingIndex(i);
 
-            var s = storage.GetSlot(i);
+            var s = storage.GetSlot(globalIndex);
 
             if (!s.IsEmpty)
             {
                 ItemDefinition def = storage.GetItemDef(s.itemId);
                 if (!def && itemDb) def = itemDb.Get(s.itemId);
 
-                slotUI.Bind(def, s.amount, s.itemId, tooltip, storage, i, storagePanelRect, _rootCanvas);
+                slotUI.Bind(def, s.amount, s.itemId, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
                 slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
             }
             else
             {
-                slotUI.Bind(null, 0, null, tooltip, storage, i, storagePanelRect, _rootCanvas);
+                slotUI.Bind(null, 0, null, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
                 slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
             }
         }

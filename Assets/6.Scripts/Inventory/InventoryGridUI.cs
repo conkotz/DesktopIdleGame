@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class InventoryGridUI : MonoBehaviour
@@ -11,8 +12,8 @@ public class InventoryGridUI : MonoBehaviour
         All,
         Resources,
         Equips,
-        Jewelry,
-        Consumables
+        Consumables,
+        Enhance
     }
 
     [Header("Refs")]
@@ -63,8 +64,9 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private Button allFilterButton;
     [SerializeField] private Button resourceFilterButton;
     [SerializeField] private Button equipsFilterButton;
-    [Tooltip("Jewelry filter button (named ResourcesFilterButton in hierarchy is fine).")]
-    [SerializeField] private Button jewelryFilterButton;
+    [Tooltip("Enhancement items filter (scrolls + map enhancements).")]
+    [FormerlySerializedAs("jewelryFilterButton")]
+    [SerializeField] private Button enhanceFilterButton;
     [SerializeField] private Button consumablesFilterButton;
 
     private InventoryViewFilter _activeFilter = InventoryViewFilter.All;
@@ -519,7 +521,7 @@ public class InventoryGridUI : MonoBehaviour
     public void SetFilterAll() => SetFilter(InventoryViewFilter.All);
     public void SetFilterResources() => SetFilter(InventoryViewFilter.Resources);
     public void SetFilterEquips() => SetFilter(InventoryViewFilter.Equips);
-    public void SetFilterJewelry() => SetFilter(InventoryViewFilter.Jewelry);
+    public void SetFilterEnhance() => SetFilter(InventoryViewFilter.Enhance);
     public void SetFilterConsumables() => SetFilter(InventoryViewFilter.Consumables);
 
     private void SetFilter(InventoryViewFilter filter, bool rebuildNow = true)
@@ -578,7 +580,7 @@ public class InventoryGridUI : MonoBehaviour
         if (allFilterButton) allFilterButton.onClick.AddListener(SetFilterAll);
         if (resourceFilterButton) resourceFilterButton.onClick.AddListener(SetFilterResources);
         if (equipsFilterButton) equipsFilterButton.onClick.AddListener(SetFilterEquips);
-        if (jewelryFilterButton) jewelryFilterButton.onClick.AddListener(SetFilterJewelry);
+        if (enhanceFilterButton) enhanceFilterButton.onClick.AddListener(SetFilterEnhance);
         if (consumablesFilterButton) consumablesFilterButton.onClick.AddListener(SetFilterConsumables);
     }
 
@@ -587,7 +589,7 @@ public class InventoryGridUI : MonoBehaviour
         if (allFilterButton) allFilterButton.onClick.RemoveListener(SetFilterAll);
         if (resourceFilterButton) resourceFilterButton.onClick.RemoveListener(SetFilterResources);
         if (equipsFilterButton) equipsFilterButton.onClick.RemoveListener(SetFilterEquips);
-        if (jewelryFilterButton) jewelryFilterButton.onClick.RemoveListener(SetFilterJewelry);
+        if (enhanceFilterButton) enhanceFilterButton.onClick.RemoveListener(SetFilterEnhance);
         if (consumablesFilterButton) consumablesFilterButton.onClick.RemoveListener(SetFilterConsumables);
     }
 
@@ -623,10 +625,10 @@ public class InventoryGridUI : MonoBehaviour
             InventoryViewFilter.Equips => def.itemKind == ItemKind.Weapon ||
                                           def.itemKind == ItemKind.Armor ||
                                           def.itemKind == ItemKind.CombatSupport ||
-                                          def.itemKind == ItemKind.Tool,
-            InventoryViewFilter.Jewelry => def.itemKind == ItemKind.Jewelry,
-            InventoryViewFilter.Consumables => def.itemKind == ItemKind.Consumable ||
-                                               def.itemKind == ItemKind.EnhancementScroll,
+                                          def.itemKind == ItemKind.Tool ||
+                                          def.itemKind == ItemKind.Jewelry,
+            InventoryViewFilter.Consumables => def.itemKind == ItemKind.Consumable && !def.IsMapEnhancement,
+            InventoryViewFilter.Enhance => def.IsEnhancementScroll || def.IsMapEnhancement,
             _ => true
         };
     }
@@ -636,7 +638,7 @@ public class InventoryGridUI : MonoBehaviour
         SetFilterButtonVisual(allFilterButton, _activeFilter == InventoryViewFilter.All);
         SetFilterButtonVisual(resourceFilterButton, _activeFilter == InventoryViewFilter.Resources);
         SetFilterButtonVisual(equipsFilterButton, _activeFilter == InventoryViewFilter.Equips);
-        SetFilterButtonVisual(jewelryFilterButton, _activeFilter == InventoryViewFilter.Jewelry);
+        SetFilterButtonVisual(enhanceFilterButton, _activeFilter == InventoryViewFilter.Enhance);
         SetFilterButtonVisual(consumablesFilterButton, _activeFilter == InventoryViewFilter.Consumables);
     }
 

@@ -223,19 +223,25 @@ public static class EnhancementUpgradeService
 
     private static bool TryConsumePayment(Inventory inventory, EnhancementOptionPayment payment)
     {
-        if (inventory == null)
-            return false;
-
         switch (payment.Kind)
         {
             case EnhancementPaymentKind.Scroll:
-                return inventory.RemoveAmountAtSlot(payment.ScrollSlotIndex, 1) == 1;
+                if (payment.ScrollFromStorage)
+                {
+                    PlayerStorage storage = FindPlayerStorage();
+                    return storage != null && storage.RemoveAmountAtSlot(payment.ScrollSlotIndex, 1) == 1;
+                }
+
+                return inventory != null && inventory.RemoveAmountAtSlot(payment.ScrollSlotIndex, 1) == 1;
             case EnhancementPaymentKind.Materials:
-                return inventory.TryConsumeItems(payment.MaterialRequirements);
+                return inventory != null && inventory.TryConsumeItems(payment.MaterialRequirements);
             default:
                 return false;
         }
     }
+
+    private static PlayerStorage FindPlayerStorage() =>
+        UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
 
     private static bool TryApplyEnhancementStats(
         Inventory inventory,

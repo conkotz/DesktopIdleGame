@@ -10,12 +10,14 @@ public readonly struct ContextMenuEntry
     public readonly string Label;
     public readonly Action Callback;
     public readonly bool Disabled;
+    public readonly Sprite TrailingIcon;
 
-    public ContextMenuEntry(string label, Action callback, bool disabled = false)
+    public ContextMenuEntry(string label, Action callback, bool disabled = false, Sprite trailingIcon = null)
     {
         Label = label;
         Callback = callback;
         Disabled = disabled;
+        TrailingIcon = trailingIcon;
     }
 }
 
@@ -49,6 +51,11 @@ public class ContextMenuUI : MonoBehaviour
     [SerializeField] private float buttonHeight = 30f;
     [SerializeField] private float headerHeight = 28f;
     [SerializeField] private int topSortingOrder = DefaultTopSortingOrder;
+    [SerializeField] private float trailingIconSize = 18f;
+    [SerializeField] private float trailingIconRightPadding = 8f;
+
+    [Header("Icons")]
+    [SerializeField] private Sprite checkmarkIcon;
 
     private readonly List<Button> _spawnedButtons = new List<Button>(8);
     private bool _isOpen;
@@ -79,6 +86,16 @@ public class ContextMenuUI : MonoBehaviour
     }
 
     public bool IsOpen => _isOpen;
+
+    /// <summary>Green checkmark used for toggle-style menu rows (e.g. storage tab affinity).</summary>
+    public static Sprite GetCheckmarkIcon()
+    {
+        ContextMenuUI menu = Instance;
+        if (menu != null && menu.checkmarkIcon)
+            return menu.checkmarkIcon;
+
+        return ResolveCheckmarkIcon();
+    }
 
     private void Awake()
     {
@@ -436,6 +453,55 @@ public class ContextMenuUI : MonoBehaviour
             headerText.text = show ? title.Trim() : string.Empty;
     }
 
+    private void AddTrailingIcon(Button button, Sprite icon)
+    {
+        if (!button || !icon)
+            return;
+
+        var iconGo = new GameObject("TrailingIcon", typeof(RectTransform), typeof(Image));
+        iconGo.transform.SetParent(button.transform, false);
+
+        var iconRt = iconGo.GetComponent<RectTransform>();
+        iconRt.anchorMin = new Vector2(1f, 0.5f);
+        iconRt.anchorMax = new Vector2(1f, 0.5f);
+        iconRt.pivot = new Vector2(1f, 0.5f);
+        iconRt.anchoredPosition = new Vector2(-trailingIconRightPadding, 0f);
+        iconRt.sizeDelta = new Vector2(trailingIconSize, trailingIconSize);
+
+        var iconImage = iconGo.GetComponent<Image>();
+        iconImage.sprite = icon;
+        iconImage.preserveAspect = true;
+        iconImage.raycastTarget = false;
+    }
+
+    private static Sprite _resolvedCheckmarkIcon;
+
+    private static Sprite ResolveCheckmarkIcon()
+    {
+        if (_resolvedCheckmarkIcon)
+            return _resolvedCheckmarkIcon;
+
+        Sprite[] sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            Sprite sprite = sprites[i];
+            if (sprite == null)
+                continue;
+
+            if (sprite.name.StartsWith("icons8-tick", System.StringComparison.OrdinalIgnoreCase))
+            {
+                _resolvedCheckmarkIcon = sprite;
+                return _resolvedCheckmarkIcon;
+            }
+        }
+
+#if UNITY_EDITOR
+        _resolvedCheckmarkIcon = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>(
+            "Assets/5.Art/Sprites/UI/icons8-tick-48.png");
+#endif
+        return _resolvedCheckmarkIcon;
+    }
+
     private void RemoveNestedPanelCanvas()
     {
         if (!panelRoot)
@@ -476,7 +542,13 @@ public class ContextMenuUI : MonoBehaviour
                 label.richText = true;
                 label.text = entry.Label;
                 label.color = entry.Disabled ? MenuButtonDisabledTextColor : MenuButtonTextColor;
+                label.margin = entry.TrailingIcon != null
+                    ? new Vector4(10f, 0f, trailingIconSize + trailingIconRightPadding + 4f, 0f)
+                    : new Vector4(10f, 0f, 10f, 0f);
             }
+
+            if (entry.TrailingIcon != null)
+                AddTrailingIcon(button, entry.TrailingIcon);
 
             Image buttonBg = button.GetComponent<Image>();
             if (buttonBg)

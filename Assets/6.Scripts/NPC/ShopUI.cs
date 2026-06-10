@@ -306,6 +306,23 @@ public class ShopUI : MonoBehaviour
         ResolveShopDragHandle();
         if (shopDragHandle)
             shopDragHandle.SetAsLastSibling();
+
+        BringCloseButtonsAboveDragHandle();
+    }
+
+    private void BringCloseButtonsAboveDragHandle()
+    {
+        GameObject root = ResolveWindowRoot();
+        if (!root)
+            return;
+
+        UIWindowCloseButton[] closers = root.GetComponentsInChildren<UIWindowCloseButton>(true);
+        for (int i = 0; i < closers.Length; i++)
+        {
+            UIWindowCloseButton closer = closers[i];
+            if (closer != null)
+                closer.transform.SetAsLastSibling();
+        }
     }
 
     public void Close()
