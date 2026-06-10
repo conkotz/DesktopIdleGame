@@ -8,7 +8,8 @@ public class StorageSlotUI : MonoBehaviour,
     IPointerEnterHandler, IPointerExitHandler,
     IPointerClickHandler,
     IBeginDragHandler, IDragHandler, IEndDragHandler,
-    IDropHandler
+    IDropHandler,
+    IItemTooltipHoverSource
 {
     private const float BorderThicknessMul = 0.65f;
 
@@ -254,6 +255,7 @@ public class StorageSlotUI : MonoBehaviour,
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
+        ItemTooltipHoverRegistry.SetHovered(this, true);
 
         AutoBattleLootHighlight.ClearStorageSlot(_slotIndex);
 
@@ -431,6 +433,7 @@ public class StorageSlotUI : MonoBehaviour,
     public void OnPointerExit(PointerEventData eventData)
     {
         _isPointerOver = false;
+        ItemTooltipHoverRegistry.SetHovered(this, false);
 
         ApplySlotBackground();
         _tooltip?.Hide();

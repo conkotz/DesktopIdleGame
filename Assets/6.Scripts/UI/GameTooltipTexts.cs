@@ -118,37 +118,50 @@ public static class GameTooltipTexts
 
             case "AbilityPowerText":
                 title = "Ability Power";
-                description = "Increases ability damage by the listed percentage (+25 = +25% ability damage). Does not apply to minions.";
+                description =
+                    "Percentage bonus to ability damage only.\n\n" +
+                    "Each point adds the same percent to ability hits (+25% ability power = +25% ability damage). " +
+                    "Does not affect basic attacks or minions.";
                 return true;
 
+            case "CooldownReductionText":
+                title = "Cooldown reduction";
+                description =
+                    "Reduces ability cooldowns by the listed percentage.\n\n" +
+                    "Stacks additively from gear and passives.";
+                return true;
+
+            case "ConditionalMinionDmgText":
             case "MinionDamageText":
                 title = "Minion damage";
                 description =
-                    "Bonus damage to your minions and summons (additive %).\n\n" +
-                    "Applies on the owner no matter whether a minion inherits your hit damage or uses pure minion source damage. " +
-                    "Does not affect your hero DPS until summon combat is implemented.";
+                    "Percentage bonus damage for your minions and summons.\n\n" +
+                    "Applies whether a minion inherits your weapon hit damage or uses its own base damage. " +
+                    "Does not change your hero's personal damage.";
                 return true;
 
+            case "ConditionalMinionAtkSpeedText":
             case "MinionAttackSpeedText":
                 title = "Minion attack speed";
                 description =
-                    "Bonus attack speed for your minions (additive %).\n\n" +
-                    "Aggregate is floored so minion APS never goes below 10% of base in future combat code. " +
-                    "Does not change your hero attack speed.";
+                    "Percentage bonus attack speed for your minions.\n\n" +
+                    "Total minion attack speed cannot fall below 10% of base. Does not change your hero attack speed.";
                 return true;
 
+            case "ConditionalMinionCritRateText":
             case "MinionCritChanceText":
                 title = "Minion critical chance";
                 description =
-                    "Additive crit chance for minion hits (same 0–1 scale as hero crit).\n\n" +
-                    "Minion critical strikes always deal ×1.5 total damage (+50% bonus); that multiplier is not scalable.";
+                    "Additive critical strike chance for minion hits.\n\n" +
+                    "Minion crits always deal ×1.5 total damage (+50% bonus); that multiplier is fixed.";
                 return true;
 
+            case "ConditionalMinionMaxLifeText":
             case "MinionMaxLifeText":
                 title = "Minion max life";
                 description =
-                    "Bonus maximum life for your minions and summons (additive %).\n\n" +
-                    "Applies when minion HP is implemented. Inherited weapon-hit minions gain half as much from this stat as pure minion-source summons.";
+                    "Percentage bonus to minion and summon maximum life.\n\n" +
+                    "Minions that inherit your weapon hits gain half as much from this stat as pure minion-source summons.";
                 return true;
 
             case "PhysicalBonusText":

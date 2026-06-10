@@ -187,11 +187,22 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     [SerializeField, Range(0f, 5f)]
     private float xpPerDamage = 0.1f;
 
+    [SerializeField, Range(0f, 1f)]
+    [Tooltip("Fraction of dealt-damage combat XP also awarded to Endurance (same xp/damage rate as the active combat skill).")]
+    private float enduranceXpFromDamageDealtFraction = 1f / 3f;
+
     [SerializeField]
     private string combatXpSource = "Combat";
 
+    [SerializeField]
+    private string enduranceOffenceXpSource = "Offence";
+
     /// <summary>Combat XP awarded per point of damage dealt (Melee / Ranged / Magic).</summary>
     public float XpPerDamage => Mathf.Max(0f, xpPerDamage);
+
+    /// <summary>Endurance XP per damage dealt when offence sharing is enabled (combat rate × fraction).</summary>
+    public float EnduranceXpPerDamageDealt =>
+        XpPerDamage * Mathf.Clamp01(enduranceXpFromDamageDealtFraction);
 
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
@@ -3009,8 +3020,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
 
         float xpRate = xpPerDamage * Mathf.Max(1f, mapScalingXpRateMultiplier);
+        float xpAmount = damageDealt * xpRate;
         SkillType skill = sm.GetCombatSkillFromCurrentWeapon(player, stats);
-        sm.AddXpFloat(skill, damageDealt * xpRate, combatXpSource);
+        sm.AddXpFloat(skill, xpAmount, combatXpSource);
+
+        float enduranceShare = Mathf.Clamp01(enduranceXpFromDamageDealtFraction);
+        if (enduranceShare > 0f)
+            sm.AddXpFloat(SkillType.Endurance, xpAmount * enduranceShare, enduranceOffenceXpSource);
     }
 
     public const string IncomingDotDamageDealerFallback = "Ailment/World";

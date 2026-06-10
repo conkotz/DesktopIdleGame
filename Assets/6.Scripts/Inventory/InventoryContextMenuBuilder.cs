@@ -18,7 +18,6 @@ public static class InventoryContextMenuBuilder
         {
             bool canSell = slot.CanSellToActiveMerchant(out string sellLabel);
             entries.Add(new ContextMenuEntry(sellLabel, slot.PerformSellAction, disabled: !canSell));
-            AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
             AddDropEntry(entries, slot.PerformDropAction);
             return entries;
         }
@@ -41,7 +40,6 @@ public static class InventoryContextMenuBuilder
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));
 
-        AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;
     }
@@ -65,7 +63,6 @@ public static class InventoryContextMenuBuilder
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));
 
-        AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;
     }
@@ -81,22 +78,8 @@ public static class InventoryContextMenuBuilder
         if (CanUpgradeFromEquipment(slot))
             entries.Add(new ContextMenuEntry("Enhance", slot.PerformUpgradeAction));
 
-        AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;
-    }
-
-    private static void AddAdditionalStatsEntry(
-        List<ContextMenuEntry> entries,
-        string itemId,
-        System.Action toggleHighlight)
-    {
-        if (!CanShowAdditionalStats(itemId))
-            return;
-
-        bool enabled = ItemTooltipHighlightState.IsEnabled(itemId);
-        string label = enabled ? "Hide Advanced Stats" : "Advanced Stats";
-        entries.Add(new ContextMenuEntry(label, toggleHighlight));
     }
 
     private static void AddDropEntry(List<ContextMenuEntry> entries, System.Action dropAction) =>
@@ -140,16 +123,4 @@ public static class InventoryContextMenuBuilder
         return def.IsWeapon || def.IsArmor || def.IsTool;
     }
 
-    private static bool CanShowAdditionalStats(string itemId)
-    {
-        if (string.IsNullOrWhiteSpace(itemId))
-            return false;
-
-        Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!inventory)
-            return false;
-
-        ItemDefinition baseline = ItemTooltipStatHighlight.ResolveBaseline(inventory.GetItemDatabase(), itemId);
-        return baseline != null;
-    }
 }

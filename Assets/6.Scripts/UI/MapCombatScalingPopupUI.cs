@@ -47,6 +47,8 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private int _maxSelectableSlider;
     private int _currentSliderValue;
     private int _builtUiVersion;
+    private int _hoveredEnhancementSlotIndex = -1;
+    private Transform _hoveredEnhancementAnchor;
 
     public static void Show(MapNodeDefinition node, WorldMapProgressManager progress, Action onClosed = null)
     {
@@ -100,10 +102,12 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         if (_panelRoot == null)
             BuildUi();
         HideImmediate();
+        MapEnhancementTooltipHover.RegisterRefresh(RefreshHoveredEnhancementSlotTooltip);
     }
 
     private void OnDestroy()
     {
+        MapEnhancementTooltipHover.UnregisterRefresh(RefreshHoveredEnhancementSlotTooltip);
         if (_instance == this)
             _instance = null;
     }
@@ -610,7 +614,10 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(itemId))
             return;
 
-        string body = MapEnhancementService.BuildSlotTooltipBody(itemId);
+        _hoveredEnhancementSlotIndex = slotIndex;
+        _hoveredEnhancementAnchor = anchor;
+
+        string body = MapEnhancementService.BuildSlotTooltipBody(itemId, ItemTooltipAdvancedInput.IsHeld);
         if (string.IsNullOrWhiteSpace(body))
             return;
 
@@ -641,7 +648,17 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
     internal void HideEnhancementSlotTooltip()
     {
+        _hoveredEnhancementSlotIndex = -1;
+        _hoveredEnhancementAnchor = null;
         _sharedTooltip?.Hide();
+    }
+
+    private void RefreshHoveredEnhancementSlotTooltip()
+    {
+        if (_hoveredEnhancementSlotIndex < 0 || _hoveredEnhancementAnchor == null)
+            return;
+
+        ShowEnhancementSlotTooltip(_hoveredEnhancementSlotIndex, _hoveredEnhancementAnchor);
     }
 
     internal void TryRemoveEnhancementSlot(int slotIndex)

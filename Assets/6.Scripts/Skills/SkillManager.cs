@@ -128,11 +128,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return Mathf.Max(0, req - p.xp);
     }
 
-    public int XpToNextLevel(int currentLevel)
-    {
-        currentLevel = Mathf.Max(1, currentLevel);
-        return Mathf.RoundToInt(50f + (currentLevel - 1) * 30f + Mathf.Pow(currentLevel - 1, 1.35f) * 12f);
-    }
+    public int XpToNextLevel(int currentLevel) => SkillCurves.XpToNextLevel(currentLevel);
 
     public float GetProgress01(SkillType type)
     {

@@ -13,7 +13,34 @@ public static class ItemTooltipStatHighlight
         if (string.IsNullOrWhiteSpace(text))
             return text;
 
-        return $"<color={HighlightColorHex}><b>{text}</b></color>";
+        return $"<color={HighlightColorHex}>{text}</color>";
+    }
+
+    private static bool TrySplitStatLabel(string line, out string label, out string value)
+    {
+        label = null;
+        value = null;
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        int colon = line.IndexOf(':');
+        if (colon < 0)
+            return false;
+
+        label = line.Substring(0, colon + 1);
+        value = line.Substring(colon + 1).TrimStart();
+        return true;
+    }
+
+    /// <summary>Colors only the value portion after the label colon; label keeps the default stat-line colour.</summary>
+    public static string WrapHighlightedStatLine(string line) => HighlightValuePortion(line);
+
+    private static string HighlightValuePortion(string line)
+    {
+        if (!TrySplitStatLabel(line, out string label, out string value))
+            return WrapHighlighted(line);
+
+        return $"{label} {WrapHighlighted(value)}";
     }
     public static ItemDefinition ResolveBaseline(ItemDatabase db, string itemId)
     {
@@ -320,7 +347,7 @@ public static class ItemTooltipStatHighlight
     private static string BoldWithNote(string line, IReadOnlyList<string> notes)
     {
         if (notes == null || notes.Count == 0)
-            return WrapHighlighted(line);
+            return HighlightValuePortion(line);
 
         var noteText = new StringBuilder();
         for (int i = 0; i < notes.Count; i++)
@@ -330,7 +357,10 @@ public static class ItemTooltipStatHighlight
             noteText.Append(notes[i]);
         }
 
-        return WrapHighlighted($"{line} ({noteText})");
+        if (!TrySplitStatLabel(line, out string label, out string value))
+            return WrapHighlighted($"{line} ({noteText})");
+
+        return $"{label} {WrapHighlighted($"{value} ({noteText})")}";
     }
 
     private static bool HasSignificantPercentPoints(float percentPoints) =>

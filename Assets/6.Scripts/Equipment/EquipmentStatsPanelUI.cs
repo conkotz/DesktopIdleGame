@@ -279,6 +279,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         EnsureGuardStatTextRefs();
         EnsureParryStatTextRefs();
         EnsureStunChanceTextRef();
+        EnsureOffenceStatTextRefs();
         EnsureOffenceBonusLineTooltips();
         BindAilmentLineTooltips();
         EnsureParryStatTooltips();
@@ -741,6 +742,30 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
     }
 
+    private void EnsureOffenceStatTextRefs()
+    {
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string key = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (!abilityPowerText && key.Equals("AbilityPowerText", StringComparison.OrdinalIgnoreCase))
+                abilityPowerText = tmp;
+            else if (!cooldownReductionText && key.Equals("CooldownReductionText", StringComparison.OrdinalIgnoreCase))
+                cooldownReductionText = tmp;
+            else if (!minionDamageText && (key.Equals("MinionDamageText", StringComparison.OrdinalIgnoreCase) ||
+                                           key.Equals("ConditionalMinionDmgText", StringComparison.OrdinalIgnoreCase)))
+                minionDamageText = tmp;
+            else if (!minionAttackSpeedText && (key.Equals("MinionAttackSpeedText", StringComparison.OrdinalIgnoreCase) ||
+                                                key.Equals("ConditionalMinionAtkSpeedText", StringComparison.OrdinalIgnoreCase)))
+                minionAttackSpeedText = tmp;
+            else if (!minionCritChanceText && (key.Equals("MinionCritChanceText", StringComparison.OrdinalIgnoreCase) ||
+                                               key.Equals("ConditionalMinionCritRateText", StringComparison.OrdinalIgnoreCase)))
+                minionCritChanceText = tmp;
+            else if (!minionMaxLifeText && (key.Equals("MinionMaxLifeText", StringComparison.OrdinalIgnoreCase) ||
+                                            key.Equals("ConditionalMinionMaxLifeText", StringComparison.OrdinalIgnoreCase)))
+                minionMaxLifeText = tmp;
+        }
+    }
+
     private void EnsureParryStatTextRefs()
     {
         if (parryText && parryMitigationText)
@@ -828,6 +853,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(globalLightningBonusText);
         Wire(meleeDamageBonusText);
         Wire(rangedDamageBonusText);
+        Wire(abilityPowerText);
+        Wire(cooldownReductionText);
         Wire(minionDamageText);
         Wire(minionAttackSpeedText);
         Wire(minionCritChanceText);
@@ -851,8 +878,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 continue;
             }
 
-            switch (tmp.gameObject.name)
+            switch (rowName)
             {
+                case "AbilityPowerText":
+                case "CooldownReductionText":
                 case "PhysicalBonusText":
                 case "GlobalPhysicalBonusText":
                 case "MagBonusText":
@@ -869,9 +898,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 case "RangedDamageBonusText":
                 case "ConditionalRangedPhysBonusText":
                 case "MinionDamageText":
+                case "ConditionalMinionDmgText":
                 case "MinionAttackSpeedText":
+                case "ConditionalMinionAtkSpeedText":
                 case "MinionCritChanceText":
+                case "ConditionalMinionCritRateText":
                 case "MinionMaxLifeText":
+                case "ConditionalMinionMaxLifeText":
                     Wire(tmp);
                     break;
             }

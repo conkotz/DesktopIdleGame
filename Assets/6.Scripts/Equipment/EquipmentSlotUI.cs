@@ -9,7 +9,8 @@ public class EquipmentSlotUI : MonoBehaviour,
     IPointerEnterHandler, IPointerExitHandler,
     IPointerClickHandler,
     IDropHandler,
-    IBeginDragHandler, IDragHandler, IEndDragHandler
+    IBeginDragHandler, IDragHandler, IEndDragHandler,
+    IItemTooltipHoverSource
 {
     // Shared equipment slot colors (not per-slot serialized overrides).
     private static readonly Color SlotIdleColor = new Color32(37, 40, 47, 255);      // #25282F
@@ -466,6 +467,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
+        ItemTooltipHoverRegistry.SetHovered(this, true);
         if (background) background.color = SlotHoverColor;
         ShowTooltip();
     }
@@ -504,8 +506,17 @@ public class EquipmentSlotUI : MonoBehaviour,
     public void OnPointerExit(PointerEventData eventData)
     {
         _isPointerOver = false;
+        ItemTooltipHoverRegistry.SetHovered(this, false);
         if (background) background.color = SlotIdleColor;
         tooltip?.Hide();
+    }
+
+    public void RefreshTooltipIfHovered()
+    {
+        if (!_isPointerOver)
+            return;
+
+        ShowTooltip();
     }
 
     public void OnPointerClick(PointerEventData eventData)

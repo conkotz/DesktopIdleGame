@@ -19,7 +19,8 @@ public class InventorySlotUI : MonoBehaviour,
     IPointerEnterHandler, IPointerExitHandler,
     IPointerClickHandler,
     IBeginDragHandler, IDragHandler, IEndDragHandler,
-    IDropHandler
+    IDropHandler,
+    IItemTooltipHoverSource
 {
     private const float InventoryBorderThicknessMul = 0.65f;
 
@@ -701,6 +702,7 @@ public class InventorySlotUI : MonoBehaviour,
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
+        ItemTooltipHoverRegistry.SetHovered(this, true);
 
         AutoBattleLootHighlight.ClearInventorySlot(_slotIndex);
 
@@ -943,6 +945,7 @@ public class InventorySlotUI : MonoBehaviour,
     public void OnPointerExit(PointerEventData eventData)
     {
         _isPointerOver = false;
+        ItemTooltipHoverRegistry.SetHovered(this, false);
 
         ApplySlotBackground();
         _tooltip?.Hide();

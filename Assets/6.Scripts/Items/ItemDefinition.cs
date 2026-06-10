@@ -1924,54 +1924,101 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public string GetRarityLabel() => rarity.ToString();
 
-    /// <summary>Tier, requirements, tool/weapon type labels — shown in the misc stats TMP.</summary>
-    public string BuildTooltipMiscStatsText(bool includeEnhancementHistory = false)
+    /// <summary>Normal: combined tier requirement. Alt-held: upgrade slots (below rarity), tier, type, hands.</summary>
+    public string BuildTooltipMiscStatsText(bool showAdvancedDetails = false)
+    {
+        if (!showAdvancedDetails)
+            return BuildTooltipMiscStatsNormalText();
+
+        string advanced = BuildTooltipMiscStatsAdvancedText(showAdvancedDetails);
+        return string.IsNullOrWhiteSpace(advanced) ? BuildTooltipMiscStatsNormalText() : advanced;
+    }
+
+    private string BuildTooltipMiscStatsNormalText()
     {
         if (IsWeapon)
-        {
-            string hands = FormatHandednessLabel(weaponStats.handedness);
-            string type = weaponStats.attackSkill == AttackSkill.Magic
-                ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
-                : weaponStats.attackSkill.ToString();
-            return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                   FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
-                   FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
-                   FormatTooltipMetaLine("Type", type) + "\n" +
-                   FormatTooltipMetaLine("Hands", hands);
-        }
+            return BuildWeaponTooltipProfileMetaLines();
 
-        if (IsCombatSupport)
-            return $"Support Type: {SupportType}";
+        if (IsArmor)
+            return FormatTooltipTierRequirementLine();
 
         if (IsTool)
         {
             string type = toolStats.toolType.ToString();
-            string s = "";
             if (UsesEquipmentTierGating)
-            {
-                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
-                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
-            }
-            else if (HasUpgradeSlots)
-                s += FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n";
+                return FormatTooltipTierRequirementLine() + "\n" + FormatTooltipMetaLine("Tool", type);
 
-            s += FormatTooltipMetaLine("Tool", type);
-            return s;
+            return FormatTooltipMetaLine("Tool", type);
+        }
+
+        return string.Empty;
+    }
+
+    private string FormatTooltipTierRequirementLine()
+    {
+        if (!UsesEquipmentTierGating && !IsArmor)
+            return string.Empty;
+
+        string skill = GetEquipmentTierGateSkill().ToString().ToLowerInvariant();
+        int req = EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank());
+        return FormatTooltipMetaLine("Tier", $"{GetEquipmentTierNumberLabel()} (Requires {skill} lv {req})");
+    }
+
+    private string BuildWeaponTooltipProfileMetaLines()
+    {
+        string type = weaponStats.attackSkill == AttackSkill.Magic
+            ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
+            : weaponStats.attackSkill.ToString();
+        string hands = FormatHandednessLabel(weaponStats.handedness);
+
+        return FormatTooltipTierRequirementLine() + "\n" +
+               FormatTooltipMetaLine("Type", type) + "\n" +
+               FormatTooltipMetaLine("Hands", hands);
+    }
+
+    private string BuildTooltipMiscStatsAdvancedText(bool includeEnhancementHistory)
+    {
+        if (IsWeapon)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (HasUpgradeSlots)
+                sb.Append(FormatUpgradeSlotsMetaBlock(includeEnhancementHistory)).Append('\n');
+            sb.Append(BuildWeaponTooltipProfileMetaLines());
+            return sb.ToString().TrimEnd('\n');
+        }
+
+        if (IsCombatSupport)
+            return FormatTooltipMetaLine("Type", $"Support ({SupportType})");
+
+        if (IsMapEnhancement)
+        {
+            return FormatTooltipMetaLine("Tier", ((int)MapEnhancementTier).ToString()) + "\n" +
+                   FormatTooltipMetaLine("Type", "Map Enhancement");
+        }
+
+        if (IsTool)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (HasUpgradeSlots)
+                sb.Append(FormatUpgradeSlotsMetaBlock(includeEnhancementHistory)).Append('\n');
+            if (UsesEquipmentTierGating)
+                sb.Append(FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel())).Append('\n');
+
+            sb.Append(FormatTooltipMetaLine("Tool", toolStats.toolType.ToString()));
+            return sb.ToString().TrimEnd('\n');
         }
 
         if (IsArmor)
         {
-            return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                   FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
-                   FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}");
+            var sb = new System.Text.StringBuilder();
+            if (HasUpgradeSlots)
+                sb.Append(FormatUpgradeSlotsMetaBlock(includeEnhancementHistory)).Append('\n');
+            sb.Append(FormatTooltipTierRequirementLine());
+            return sb.ToString().TrimEnd('\n');
         }
 
         if (IsJewelry && HasUpgradeSlots)
-        {
-            string slots = FormatUpgradeSlotsMetaBlock(includeEnhancementHistory);
-            return string.IsNullOrWhiteSpace(slots) ? "" : slots;
-        }
+            return FormatUpgradeSlotsMetaBlock(includeEnhancementHistory);
 
         return string.Empty;
     }
@@ -2433,7 +2480,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (hasDelta)
                 sb.Append(ItemTooltipStatHighlight.HighlightWithAddedNote(baselineLine, deltaNote));
             else if (highlightAllLines)
-                sb.Append(ItemTooltipStatHighlight.WrapHighlighted(line));
+                sb.Append(ItemTooltipStatHighlight.WrapHighlightedStatLine(line));
             else
                 sb.Append(line);
         }

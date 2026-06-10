@@ -241,7 +241,8 @@ public class SharedTooltipUI : MonoBehaviour
         int each = Mathf.Max(0, valueOverride ?? def.value);
         string valueLabel = string.IsNullOrWhiteSpace(valueLabelOverride) ? "Value" : valueLabelOverride;
 
-        string itemDescription = string.IsNullOrWhiteSpace(def.description) ? "" : def.description.Trim();
+        bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
+        string itemDescription = ResolveItemDescription(def, itemIdForHighlights, showAdvancedDetails);
         string customBlock = string.IsNullOrWhiteSpace(customValueOverride) ? "" : customValueOverride.Trim();
         bool hasShopBlock = !string.IsNullOrWhiteSpace(customBlock);
 
@@ -861,8 +862,11 @@ public class SharedTooltipUI : MonoBehaviour
         if (miscStatsText)
         {
             miscStatsText.text = misc;
-            miscStatsText.margin = _marginBaseMisc;
-            miscStatsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(misc));
+            bool hasMisc = !string.IsNullOrWhiteSpace(misc);
+            miscStatsText.margin = hasMisc
+                ? WithExtraBottomMargin(_marginBaseMisc, spacingAfterMainStatsPixels)
+                : _marginBaseMisc;
+            miscStatsText.gameObject.SetActive(hasMisc);
         }
 
         bool hasMain = !string.IsNullOrWhiteSpace(main);
@@ -1013,11 +1017,32 @@ public class SharedTooltipUI : MonoBehaviour
     }
 
     private static bool IsAdvancedDetailsEnabled(string itemIdForHighlights) =>
-        !string.IsNullOrWhiteSpace(itemIdForHighlights) && ItemTooltipHighlightState.IsEnabled(itemIdForHighlights);
+        ItemTooltipAdvancedInput.IsHeld;
+
+    private static string ResolveItemDescription(ItemDefinition def, string itemIdForHighlights, bool showAdvancedDetails)
+    {
+        if (!def)
+            return string.Empty;
+
+        if (MapEnhancementService.IsRolledMapEnhancement(itemIdForHighlights))
+        {
+            string rolled = MapEnhancementService.BuildInventoryEffectText(itemIdForHighlights, showAdvancedDetails);
+            if (!string.IsNullOrWhiteSpace(rolled))
+                return rolled.Trim();
+        }
+        else if (def.IsMapEnhancement && showAdvancedDetails)
+        {
+            string ranges = MapEnhancementService.BuildTemplateRollRangesText(def);
+            if (!string.IsNullOrWhiteSpace(ranges))
+                return ranges.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(def.description) ? "" : def.description.Trim();
+    }
 
     private static ItemDefinition ResolveHighlightBaseline(string itemIdForHighlights)
     {
-        if (!IsAdvancedDetailsEnabled(itemIdForHighlights))
+        if (!ItemTooltipAdvancedInput.IsHeld)
             return null;
 
         Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
