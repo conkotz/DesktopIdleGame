@@ -630,6 +630,10 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (!InventoryDragState.HasDrag) return;
         if (inventory == null || equipment == null) return;
 
+        if (MerchantClick.MerchantModeOpen &&
+            InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
+            return;
+
         string draggedId = InventoryDragState.ItemId;
         if (string.IsNullOrWhiteSpace(draggedId)) return;
 

@@ -1,6 +1,7 @@
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Shop detail bar shown when the player selects a purchasable stock entry.
@@ -12,6 +13,7 @@ public class ItemSelectionPanel : MonoBehaviour
     [SerializeField] private GameObject panelRoot;
 
     [Header("Fields")]
+    [SerializeField] private Image itemIconImage;
     [SerializeField] private TMP_Text itemNameText;
     [SerializeField] private TMP_Text stockText;
     [SerializeField] private TMP_Text goldCostText;
@@ -22,6 +24,8 @@ public class ItemSelectionPanel : MonoBehaviour
     [Header("Affordability")]
     [SerializeField] private Color canAffordColor = new Color(0.31f, 0.78f, 0.47f, 1f);
     [SerializeField] private Color cannotAffordColor = new Color(1f, 0.42f, 0.42f, 1f);
+    [SerializeField] private Color defaultStockColor = Color.white;
+    [SerializeField] private Color soldOutStockColor = new Color(1f, 0.42f, 0.42f, 1f);
 
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
@@ -37,7 +41,28 @@ public class ItemSelectionPanel : MonoBehaviour
         if (!panelRoot)
             panelRoot = gameObject;
 
+        if (itemIconImage)
+            ConfigureItemIconLayout();
+
         Hide();
+    }
+
+    private void ConfigureItemIconLayout()
+    {
+        RectTransform iconRect = itemIconImage.rectTransform;
+
+        Vector2 size = iconRect.sizeDelta;
+        if (size.x <= 0f || size.y <= 0f)
+            size = new Vector2(120f, 120f);
+
+        iconRect.anchorMin = new Vector2(0f, 0.5f);
+        iconRect.anchorMax = new Vector2(0f, 0.5f);
+        iconRect.pivot = new Vector2(0.5f, 0.5f);
+        iconRect.sizeDelta = size;
+        iconRect.anchoredPosition = new Vector2(size.x * 0.5f, 0f);
+
+        itemIconImage.preserveAspect = true;
+        itemIconImage.raycastTarget = false;
     }
 
     public void ShowSelection(Merchant merchant, MerchantStock.Entry entry, ItemDefinition def)
@@ -51,8 +76,20 @@ public class ItemSelectionPanel : MonoBehaviour
         if (itemNameText)
             itemNameText.text = def.displayName;
 
+        if (itemIconImage)
+        {
+            itemIconImage.sprite = def.icon;
+            itemIconImage.enabled = def.icon != null;
+            itemIconImage.preserveAspect = true;
+            ConfigureItemIconLayout();
+        }
+
         if (stockText)
+        {
+            int qty = merchant != null ? merchant.GetQuantity(entry) : entry.defaultQuantity;
             stockText.text = FormatStock(merchant, entry);
+            stockText.color = qty == 0 ? soldOutStockColor : defaultStockColor;
+        }
 
         ResolveCosts(entry, out int goldAmount, out bool hasGoldCost, out string resourceCostLine);
 
@@ -80,6 +117,12 @@ public class ItemSelectionPanel : MonoBehaviour
 
     public void Hide()
     {
+        if (itemIconImage)
+        {
+            itemIconImage.sprite = null;
+            itemIconImage.enabled = false;
+        }
+
         if (panelRoot)
             panelRoot.SetActive(false);
     }
@@ -93,7 +136,7 @@ public class ItemSelectionPanel : MonoBehaviour
         if (qty < 0)
             return "Stock: ∞";
         if (qty == 0)
-            return "Stock: Sold Out";
+            return "Stock: SOLD OUT";
         return $"Stock: x{qty}";
     }
 

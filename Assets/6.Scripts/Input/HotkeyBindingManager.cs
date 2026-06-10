@@ -82,8 +82,8 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.OpenLevelSelect => HotkeyChord.FromKeyCode(KeyCode.L),
             HotkeyBindId.OpenQuestPage => HotkeyChord.FromKeyCode(KeyCode.T),
             HotkeyBindId.SwapWeaponSet => HotkeyChord.FromKeyCode(KeyCode.Tab),
-            HotkeyBindId.ZoomIn => HotkeyChord.FromKeyCode(KeyCode.UpArrow),
-            HotkeyBindId.ZoomOut => HotkeyChord.FromKeyCode(KeyCode.DownArrow),
+            HotkeyBindId.ZoomIn => HotkeyChord.FromMouseScrollUp(),
+            HotkeyBindId.ZoomOut => HotkeyChord.FromMouseScrollDown(),
             HotkeyBindId.ReturnToTown => HotkeyChord.FromKeyCode(KeyCode.None),
             HotkeyBindId.Sprint => HotkeyChord.FromKeyCode(KeyCode.Space),
             HotkeyBindId.MoveLeft => HotkeyChord.FromKeyCode(KeyCode.A),
@@ -209,6 +209,11 @@ public sealed class HotkeyBindingManager : MonoBehaviour
     {
         if (chord.IsEmpty)
             return string.Empty;
+
+        if (chord.IsMouseScrollUp)
+            return "Scroll Wheel Up";
+        if (chord.IsMouseScrollDown)
+            return "Scroll Wheel Down";
 
         var sb = new StringBuilder(24);
         if (chord.Modifiers.HasFlag(HotkeyModifier.Shift))

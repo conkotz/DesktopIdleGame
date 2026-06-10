@@ -43,6 +43,10 @@ public class SaleUndoManager : MonoBehaviour
     [Header("Behaviour")]
     [Tooltip("Cap on stored undo rows (all merchants combined). 0 = unlimited. No time-based expiry.")]
     [SerializeField] private int maxEntriesKept = 0;
+    [Tooltip("Max undo rows kept per merchant. Oldest entries for that merchant are removed when exceeded.")]
+    [SerializeField] private int maxEntriesPerMerchant = 30;
+
+    public int MaxEntriesPerMerchant => Mathf.Max(1, maxEntriesPerMerchant);
 
     private readonly List<SaleEntry> _entries = new();
     private int _nextId = 1;
@@ -107,10 +111,17 @@ public class SaleUndoManager : MonoBehaviour
 
         _entries.Insert(0, entry);
 
+        TrimOldestEntriesForMerchant(merchant.MerchantId, MaxEntriesPerMerchant);
+
         if (maxEntriesKept > 0 && _entries.Count > maxEntriesKept)
             _entries.RemoveRange(maxEntriesKept, _entries.Count - maxEntriesKept);
 
         NotifyChanged();
+    }
+
+    public int GetRemainingCapacityForMerchant(string merchantId)
+    {
+        return Mathf.Max(0, MaxEntriesPerMerchant - GetUndoCountForMerchant(merchantId));
     }
 
     public int GetUndoCountForMerchant(string merchantId)
@@ -195,6 +206,33 @@ public class SaleUndoManager : MonoBehaviour
         _entries.RemoveAt(idx);
         NotifyChanged();
         return true;
+    }
+
+    private void TrimOldestEntriesForMerchant(string merchantId, int maxPerMerchant)
+    {
+        if (string.IsNullOrWhiteSpace(merchantId) || maxPerMerchant <= 0)
+            return;
+
+        string mid = merchantId.Trim();
+        int count = GetUndoCountForMerchant(mid);
+        while (count > maxPerMerchant)
+        {
+            int removeIdx = -1;
+            for (int i = _entries.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(_entries[i].merchantId, mid, StringComparison.Ordinal))
+                {
+                    removeIdx = i;
+                    break;
+                }
+            }
+
+            if (removeIdx < 0)
+                break;
+
+            _entries.RemoveAt(removeIdx);
+            count--;
+        }
     }
 
     private void NotifyChanged()

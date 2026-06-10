@@ -40,11 +40,14 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     [SerializeField, FormerlySerializedAs("maxOrthoSize")] private float maxOrthoSizeFallback = 9f;
 
     [Header("Keyboard zoom")]
-    [Tooltip("Uses Settings ▸ Hotkeys ▸ Zoom In / Zoom Out (↑ / ↓ by default). Hold to repeat — speed × Δt each frame.")]
+    [Tooltip("Uses Settings ▸ Hotkeys ▸ Zoom In / Zoom Out (scroll wheel by default). Keys repeat while held; scroll wheel steps once per tick.")]
     [SerializeField] private bool enableKeyboardZoom = true;
 
-    [Tooltip("Ortho half-height change per second while Up/Down is held (world units/s).")]
+    [Tooltip("Ortho half-height change per second while a zoom key is held (world units/s).")]
     [SerializeField] private float orthoZoomSpeed = 3f;
+
+    [Tooltip("Ortho half-height change per scroll-wheel tick.")]
+    [SerializeField] private float orthoScrollStep = 0.35f;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;
@@ -280,7 +283,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Hold configured keys (defaults: Up = zoom in / smaller ortho, Down = zoom out / larger ortho) — editable in Settings ▸ Hotkeys.
+    /// Zoom via Settings ▸ Hotkeys (scroll wheel up/down by default). Keys repeat while held; scroll wheel steps once per tick.
     /// </summary>
     private void ApplyKeyboardOrthoZoom()
     {
@@ -295,18 +298,42 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (HotkeySettingsRowUI.IsRebinding)
             return;
 
-        KeyCode zoomIn = HotkeyBindingManager.Instance != null
-            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.ZoomIn)
-            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.ZoomIn);
-        KeyCode zoomOut = HotkeyBindingManager.Instance != null
-            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.ZoomOut)
-            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.ZoomOut);
+        HotkeyChord zoomIn = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetChord(HotkeyBindId.ZoomIn)
+            : HotkeyBindingManager.GetDefaultChord(HotkeyBindId.ZoomIn);
+        HotkeyChord zoomOut = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetChord(HotkeyBindId.ZoomOut)
+            : HotkeyBindingManager.GetDefaultChord(HotkeyBindId.ZoomOut);
+
+        float scrollY = Input.mouseScrollDelta.y;
+        bool scrollHandled;
+        if (Mathf.Abs(scrollY) > 0.01f)
+        {
+            scrollHandled = false;
+            if (scrollY > 0f && zoomIn.IsMouseScrollUp)
+            {
+                baseOrthoSize -= orthoScrollStep;
+                scrollHandled = true;
+            }
+            else if (scrollY < 0f && zoomOut.IsMouseScrollDown)
+            {
+                baseOrthoSize += orthoScrollStep;
+                scrollHandled = true;
+            }
+
+            if (scrollHandled)
+            {
+                ClampInspectorValues();
+                Apply(force: true);
+                return;
+            }
+        }
 
         float change = orthoZoomSpeed * Time.deltaTime;
         int zoomInput = 0;
-        if (zoomOut != KeyCode.None && Input.GetKey(zoomOut))
+        if (!zoomOut.IsMouseScroll && !zoomOut.IsEmpty && HotkeyChord.IsHeld(zoomOut))
             zoomInput++;
-        if (zoomIn != KeyCode.None && Input.GetKey(zoomIn))
+        if (!zoomIn.IsMouseScroll && !zoomIn.IsEmpty && HotkeyChord.IsHeld(zoomIn))
             zoomInput--;
         if (zoomInput == 0)
             return;

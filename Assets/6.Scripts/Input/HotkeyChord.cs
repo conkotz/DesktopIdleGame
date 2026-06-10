@@ -8,6 +8,8 @@ public enum HotkeyModifier
     Shift = 1 << 0,
     Ctrl = 1 << 1,
     Alt = 1 << 2,
+    MouseScrollUp = 1 << 3,
+    MouseScrollDown = 1 << 4,
 }
 
 /// <summary>
@@ -19,10 +21,19 @@ public struct HotkeyChord
     public KeyCode Key;
     public HotkeyModifier Modifiers;
 
-    public bool IsEmpty => Key == KeyCode.None;
+    public bool IsMouseScrollUp => Modifiers.HasFlag(HotkeyModifier.MouseScrollUp);
+    public bool IsMouseScrollDown => Modifiers.HasFlag(HotkeyModifier.MouseScrollDown);
+    public bool IsMouseScroll => IsMouseScrollUp || IsMouseScrollDown;
+    public bool IsEmpty => Key == KeyCode.None && !IsMouseScroll;
 
     public static HotkeyChord FromKeyCode(KeyCode key, HotkeyModifier modifiers = HotkeyModifier.None) =>
         new() { Key = key, Modifiers = modifiers };
+
+    public static HotkeyChord FromMouseScrollUp() =>
+        new() { Key = KeyCode.None, Modifiers = HotkeyModifier.MouseScrollUp };
+
+    public static HotkeyChord FromMouseScrollDown() =>
+        new() { Key = KeyCode.None, Modifiers = HotkeyModifier.MouseScrollDown };
 
     public static bool MatchesModifiers(HotkeyModifier required)
     {

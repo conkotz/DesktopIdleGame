@@ -14,11 +14,17 @@ public static class InventoryContextMenuBuilder
         if (!def)
             return entries;
 
+        if (MerchantClick.MerchantModeOpen)
+        {
+            bool canSell = slot.CanSellToActiveMerchant(out string sellLabel);
+            entries.Add(new ContextMenuEntry(sellLabel, slot.PerformSellAction, disabled: !canSell));
+            AddAdditionalStatsEntry(entries, slot.ContextItemId, slot.ToggleAdditionalStatsHighlight);
+            AddDropEntry(entries, slot.PerformDropAction);
+            return entries;
+        }
+
         if (StorageUI.IsOpen)
             entries.Add(new ContextMenuEntry("Store", slot.PerformStoreAction));
-
-        if (MerchantClick.MerchantModeOpen)
-            entries.Add(new ContextMenuEntry("Sell", slot.PerformSellAction));
 
         if (CanEquipFromInventory(slot, def))
             entries.Add(new ContextMenuEntry("Equip", slot.PerformEquipAction));

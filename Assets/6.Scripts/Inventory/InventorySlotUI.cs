@@ -383,7 +383,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        if (doubleClick)
+        if (doubleClick && !MerchantClick.MerchantModeOpen)
         {
             TryDoubleClickEquipFromThisSlot();
             eventData.Use();
@@ -771,6 +771,47 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void PerformStoreAction() => TryDoubleClickDepositToStorage();
 
+    public string GetMerchantSellContextMenuLabel()
+    {
+        if (!HasItemContext || _inventory == null)
+            return "Sell";
+
+        int valuePerItem = _inventory.GetItemValue(_itemId);
+        if (valuePerItem <= 0)
+            return "Sell";
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        int totalGold = valuePerItem * slot.amount;
+        string goldText = totalGold >= 1000
+            ? $"{(totalGold / 1000f):0.#}k g"
+            : $"{totalGold:N0}g";
+
+        return $"Sell (<size=75%>{goldText}</size>)";
+    }
+
+    public bool CanSellToActiveMerchant(out string sellLabel)
+    {
+        sellLabel = "Sell";
+
+        if (!HasItemContext || _inventory == null)
+            return false;
+
+        if (!MerchantClick.TryGetActiveMerchant(out Merchant merchant) || merchant == null)
+            return false;
+
+        int valuePerItem = _inventory.GetItemValue(_itemId);
+        if (valuePerItem <= 0 || !merchant.CanBuyItemFromPlayer(_itemId))
+        {
+            sellLabel = "Can't sell here";
+            return false;
+        }
+
+        sellLabel = MerchantClick.IsShopOpen
+            ? GetMerchantSellContextMenuLabel()
+            : "Sell";
+        return true;
+    }
+
     public void PerformSellAction()
     {
         if (_inventory == null || wallet == null || _slotIndex < 0)
@@ -802,18 +843,14 @@ public class InventorySlotUI : MonoBehaviour,
         wallet.AddGold(goldGained);
 
         Merchant saleMerchant = null;
-        int stockAdded = 0;
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
-        {
             saleMerchant = activeMerchant;
-            activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
-        }
 
         var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
         if (spawner)
             spawner.ShowGoldGained(goldGained);
 
-        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAdded);
+        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAddedAmount: 0);
         GameLog.SoldItem(soldItemName, removed, goldGained);
         _tooltip?.Hide();
     }

@@ -335,6 +335,7 @@ public class ContextMenuUI : MonoBehaviour
         tmp.alignment = TextAlignmentOptions.MidlineLeft;
         tmp.margin = new Vector4(10f, 0f, 10f, 0f);
         tmp.color = Color.white;
+        tmp.richText = true;
         tmp.text = "Action";
         tmp.raycastTarget = false;
 
@@ -472,6 +473,7 @@ public class ContextMenuUI : MonoBehaviour
             TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
             if (label)
             {
+                label.richText = true;
                 label.text = entry.Label;
                 label.color = entry.Disabled ? MenuButtonDisabledTextColor : MenuButtonTextColor;
             }

@@ -233,6 +233,13 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (!_listening)
             return;
 
+        float scrollY = Input.mouseScrollDelta.y;
+        if (Mathf.Abs(scrollY) > 0.01f)
+        {
+            TryApply(scrollY > 0f ? HotkeyChord.FromMouseScrollUp() : HotkeyChord.FromMouseScrollDown());
+            return;
+        }
+
         KeyCode[] order = KeyScanOrder;
         for (int i = 0; i < order.Length; i++)
         {
@@ -458,7 +465,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
                 continue;
 
             chord = HotkeyChord.FromKeyCode(row.serializedDefaultKey, row.serializedDefaultModifiers);
-            return !chord.IsEmpty || row.serializedDefaultKey == KeyCode.None;
+            return !chord.IsEmpty;
         }
 
         chord = default;

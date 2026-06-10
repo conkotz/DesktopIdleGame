@@ -57,6 +57,38 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     public ItemDefinition Definition => _def;
     public MerchantStock.Entry Entry => _entry;
+    public bool IsInStock =>
+        _merchant != null && _entry != null && _merchant.GetQuantity(_entry) != 0;
+
+    public void PerformBuy1Action()
+    {
+        if (_shop == null || _merchant == null || _entry == null || !IsInStock)
+            return;
+
+        _shop.NotifySlotSelected(this);
+        _shop.TryBuy(_merchant, _entry, 1);
+    }
+
+    public void PerformBuy50Action()
+    {
+        if (_shop == null || _merchant == null || _entry == null || !IsInStock)
+            return;
+
+        _shop.NotifySlotSelected(this);
+        _shop.TryBuy(_merchant, _entry, 50);
+    }
+
+    private void OpenContextMenu(PointerEventData eventData)
+    {
+        if (_def == null)
+            return;
+
+        tooltip?.Hide();
+        ContextMenuUI.EnsureInstance().ShowAtScreen(
+            ShopContextMenuBuilder.BuildForShopSlot(this),
+            eventData != null ? eventData.position : (Vector2?)null,
+            _def.displayName);
+    }
 
     private void Awake()
     {
@@ -148,8 +180,8 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         if (button)
         {
-            bool inStock = _entry != null && qtyForVisual != 0;
-            button.interactable = def != null && inStock;
+            // Sold-out entries stay clickable so the selection panel can show details.
+            button.interactable = def != null;
 
             button.onClick.RemoveAllListeners();
 
@@ -203,18 +235,31 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (_def == null || _shop == null || _merchant == null || _entry == null)
+            return;
+
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            OpenContextMenu(eventData);
+            eventData.Use();
+            return;
+        }
+
         if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
-        if (!button || !button.interactable || _shop == null || _merchant == null || _entry == null)
+        if (!button)
             return;
+
+        int qty = _merchant.GetQuantity(_entry);
+        bool inStock = qty != 0;
 
         bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
         if (ctrlHeld)
         {
-            // Quick-buy shortcut: Ctrl+click buys 1x immediately from this slot.
             _shop.NotifySlotSelected(this);
-            _shop.TryBuy(_merchant, _entry, 1);
+            if (inStock)
+                _shop.TryBuy(_merchant, _entry, 1);
             return;
         }
 

@@ -26,15 +26,12 @@ public class ShopUI : MonoBehaviour
     [Tooltip("Allows using an UndoShopWindow GameObject that starts disabled in hierarchy. Enabled automatically when opening Undo.")]
     [SerializeField] private bool enableDisabledUndoWindowOnUse = true;
     [Header("Buy button visuals")]
-    [SerializeField] private bool enableButtonTint = false;
     [SerializeField] private Image buy1xButtonImage;
     [SerializeField] private Image buy50xButtonImage;
     [SerializeField] private TMP_Text buy1xButtonText;
     [SerializeField] private TMP_Text buy50xButtonText;
-    [SerializeField] private Color buyUnselectedColor = Color.white;
-    [SerializeField] private Color buyButtonsNoSelectionImageTint = new Color(0.55f, 0.55f, 0.55f, 0.5f);
-    [SerializeField] private Color unselectedTextColor = new Color(0.15f, 0.15f, 0.15f, 1f);
-    [SerializeField] private Color buyButtonsDisabledTextColor = new Color(0.45f, 0.45f, 0.45f, 0.65f);
+    [SerializeField] private Color unselectedTextColor = new Color32(174, 162, 148, 255);
+    [SerializeField] private Color buyButtonsDisabledTextColor = new Color32(174, 162, 148, 115);
     [SerializeField] private Vector3 unselectedScale = Vector3.one;
 
     [Header("Refs")]
@@ -47,6 +44,8 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Left;
 
     [Header("Pointer blocking")]
+    [Tooltip("Top drag strip on ShopWindow. When empty, resolved from windowRoot/HeaderDragWindow.")]
+    [SerializeField] private RectTransform shopDragHandle;
     [Tooltip("When set, these graphics always receive raycasts while the shop is open (blocks clicks to the game). Panel Root Image is included automatically. Use for extra backdrop/underlay Images.")]
     [SerializeField] private Graphic[] additionalPointerBlockingGraphics;
 
@@ -78,6 +77,7 @@ public class ShopUI : MonoBehaviour
     private string _selectedShopItemId;
     private QuestProgressManager _questProgressEventsTarget;
     private GameObject _resolvedWindowRoot;
+    private HashSet<Graphic> _pointerBlockingGraphics;
 
     public bool IsOpen
     {
@@ -155,6 +155,7 @@ public class ShopUI : MonoBehaviour
             buy50xButtonText = buy50xButton.GetComponentInChildren<TMP_Text>(true);
 
         WireClearSelectionBackdrop();
+        ApplyBuyButtonVisualStyles();
         UpdateBuyButtonsForSelectionState();
 
         GameObject root = ResolveWindowRoot();
@@ -176,7 +177,10 @@ public class ShopUI : MonoBehaviour
         if (contentRoot)
             _shopGrid = contentRoot.GetComponent<GridLayoutGroup>();
 
+        ResolveShopDragHandle();
+        CachePointerBlockingGraphics();
         RefreshShopRaycastTargets();
+        EnsureShopDragHandleOnTop();
     }
 
     private void OnEnable()
@@ -291,8 +295,17 @@ public class ShopUI : MonoBehaviour
         Rebuild(merchant);
         RefreshSelectionPanel();
         RefreshShopRaycastTargets();
+        EnsureShopDragHandleOnTop();
         RefreshUndoSaleButtonState();
         RefreshRestockButtonState();
+    }
+
+    /// <summary>Keep the shop drag strip above panel siblings so raycasts reach <see cref="UIDragWindow"/>.</summary>
+    public void EnsureShopDragHandleOnTop()
+    {
+        ResolveShopDragHandle();
+        if (shopDragHandle)
+            shopDragHandle.SetAsLastSibling();
     }
 
     public void Close()
@@ -300,6 +313,9 @@ public class ShopUI : MonoBehaviour
         ClearSlotSelection();
         SetCurrentMerchant(null);
         shopTooltip?.Hide();
+
+        if (undoShopWindow && undoShopWindow.IsOpen)
+            undoShopWindow.CloseWindow();
 
         GameObject root = ResolveWindowRoot();
         if (root)
@@ -430,7 +446,7 @@ public class ShopUI : MonoBehaviour
         RefreshShopRaycastTargets();
     }
 
-    private void RefreshShopRaycastTargets()
+    public void RefreshShopRaycastTargets()
     {
         GameObject raycastRoot = ResolveWindowRoot();
         if (!raycastRoot)
@@ -445,29 +461,116 @@ public class ShopUI : MonoBehaviour
 
             // Interactive controls (buttons, slots) + explicit backdrop blockers must receive raycasts.
             bool isInteractive = g.GetComponentInParent<Selectable>(true) != null;
+            bool isInventorySlot = g.GetComponent<InventorySlotUI>() != null;
             // UIDragWindow lives on a header Image that is NOT a Selectable; without this, raycastTarget
             // stays false and the bar is click-through — drag never starts (see RefreshShopRaycastTargets).
             bool isDragHandle = g.GetComponentInParent<UIDragWindow>(true) != null;
             bool isResizeHandle = g.GetComponentInParent<UIWindowResizeHandle>(true) != null;
-            g.raycastTarget = isInteractive || isDragHandle || isResizeHandle || IsPointerBlockingGraphic(g);
+            g.raycastTarget = isInteractive || isInventorySlot || isDragHandle || isResizeHandle || IsPointerBlockingGraphic(g);
+        }
+
+        EnsureShopDragHandleOnTop();
+    }
+
+    private void ResolveShopDragHandle()
+    {
+        if (shopDragHandle)
+            return;
+
+        GameObject root = ResolveWindowRoot();
+        if (!root)
+            return;
+
+        Transform handle = root.transform.Find("HeaderDragWindow");
+        if (handle)
+            shopDragHandle = handle as RectTransform;
+    }
+
+    private void CachePointerBlockingGraphics()
+    {
+        _pointerBlockingGraphics = new HashSet<Graphic>();
+
+        if (panelRootImage)
+            _pointerBlockingGraphics.Add(panelRootImage);
+
+        GameObject root = ResolveWindowRoot();
+        if (root)
+        {
+            Transform inventoryRoot = root.transform.Find("InventoryWindowInsideShop");
+            if (inventoryRoot && inventoryRoot.TryGetComponent(out Image inventoryPanelImage))
+                _pointerBlockingGraphics.Add(inventoryPanelImage);
+
+            if (inventoryRoot)
+            {
+                Transform inventoryBottomBar = inventoryRoot.Find("BottomBarOfInvent");
+                if (inventoryBottomBar && inventoryBottomBar.TryGetComponent(out Image inventoryBottomBarImage))
+                    _pointerBlockingGraphics.Add(inventoryBottomBarImage);
+            }
+
+            ScrollRect[] scrollRects = root.GetComponentsInChildren<ScrollRect>(true);
+            for (int i = 0; i < scrollRects.Length; i++)
+            {
+                ScrollRect scroll = scrollRects[i];
+                if (scroll != null && scroll.viewport != null &&
+                    scroll.viewport.TryGetComponent(out Image viewportImage))
+                {
+                    _pointerBlockingGraphics.Add(viewportImage);
+                }
+            }
+
+            Transform undoRoot = root.transform.Find("UndoShopWindow");
+            if (undoRoot)
+            {
+                Transform undoHeader = undoRoot.Find("Header");
+                if (undoHeader && undoHeader.TryGetComponent(out Image undoHeaderImage))
+                    _pointerBlockingGraphics.Add(undoHeaderImage);
+
+                Transform undoBottomBar = undoRoot.Find("BottomBarOfShop");
+                if (undoBottomBar && undoBottomBar.TryGetComponent(out Image undoBottomBarImage))
+                    _pointerBlockingGraphics.Add(undoBottomBarImage);
+            }
+        }
+
+        GameObject window = ResolveWindowRoot();
+        if (window)
+        {
+            Transform shopHeader = window.transform.Find("HeaderDragWindow");
+            if (shopHeader && shopHeader.TryGetComponent(out Image shopHeaderImage))
+                _pointerBlockingGraphics.Add(shopHeaderImage);
+        }
+
+        if (panelRoot)
+        {
+            Transform panelTransform = panelRoot.transform;
+
+            Transform shopBottomBar = panelTransform.Find("BottomBarOfShop");
+            if (shopBottomBar && shopBottomBar.TryGetComponent(out Image shopBottomBarImage))
+                _pointerBlockingGraphics.Add(shopBottomBarImage);
+
+            if (contentRoot != null && contentRoot.parent != null &&
+                contentRoot.parent.TryGetComponent(out Image shopContentBackdropImage))
+            {
+                _pointerBlockingGraphics.Add(shopContentBackdropImage);
+            }
+        }
+
+        if (itemSelectionPanel && itemSelectionPanel.TryGetComponent(out Image selectionPanelImage))
+            _pointerBlockingGraphics.Add(selectionPanelImage);
+
+        if (additionalPointerBlockingGraphics == null)
+            return;
+
+        for (int i = 0; i < additionalPointerBlockingGraphics.Length; i++)
+        {
+            Graphic graphic = additionalPointerBlockingGraphics[i];
+            if (graphic)
+                _pointerBlockingGraphics.Add(graphic);
         }
     }
 
     private bool IsPointerBlockingGraphic(Graphic g)
     {
-        if (panelRootImage && g == panelRootImage)
-            return true;
-
-        if (additionalPointerBlockingGraphics == null)
-            return false;
-
-        for (int i = 0; i < additionalPointerBlockingGraphics.Length; i++)
-        {
-            if (additionalPointerBlockingGraphics[i] == g)
-                return true;
-        }
-
-        return false;
+        return _pointerBlockingGraphics != null && _pointerBlockingGraphics.Contains(g);
     }
 
     private void ForceLayoutRefresh()
@@ -654,7 +757,7 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        if (!IsEntryStillSelectable(merchant, _selectedShopItemId))
+        if (FindSelectedEntry(merchant) == null)
         {
             _selectedShopItemId = null;
             UpdateBuyButtonsForSelectionState();
@@ -673,7 +776,7 @@ public class ShopUI : MonoBehaviour
         RefreshSelectionPanel();
     }
 
-    private static bool IsEntryStillSelectable(Merchant merchant, string itemId)
+    private static bool IsEntryPurchasable(Merchant merchant, string itemId)
     {
         if (merchant?.Stock == null)
             return false;
@@ -686,32 +789,75 @@ public class ShopUI : MonoBehaviour
         return qty != 0;
     }
 
-    private bool IsSelectionValid()
+    private bool HasSelectedEntry()
     {
         return !string.IsNullOrEmpty(_selectedShopItemId)
                && _currentMerchant != null
-               && IsEntryStillSelectable(_currentMerchant, _selectedShopItemId);
+               && FindSelectedEntry(_currentMerchant) != null;
+    }
+
+    private bool CanPurchaseSelection()
+    {
+        return HasSelectedEntry()
+               && IsEntryPurchasable(_currentMerchant, _selectedShopItemId);
     }
 
     private void UpdateBuyButtonsForSelectionState()
     {
-        bool has = IsSelectionValid();
+        bool canBuy = CanPurchaseSelection();
 
-        if (buy1xButton) buy1xButton.interactable = has;
-        if (buy50xButton) buy50xButton.interactable = has;
+        if (buy1xButton) buy1xButton.interactable = canBuy;
+        if (buy50xButton) buy50xButton.interactable = canBuy;
 
         if (buy1xButton) buy1xButton.transform.localScale = unselectedScale;
         if (buy50xButton) buy50xButton.transform.localScale = unselectedScale;
 
-        if (enableButtonTint && buy1xButtonImage)
-            buy1xButtonImage.color = has ? buyUnselectedColor : buyButtonsNoSelectionImageTint;
+        ApplyBuyButtonLabelColors();
+    }
 
-        if (enableButtonTint && buy50xButtonImage)
-            buy50xButtonImage.color = has ? buyUnselectedColor : buyButtonsNoSelectionImageTint;
-
-        Color textColor = has ? unselectedTextColor : buyButtonsDisabledTextColor;
+    private void ApplyBuyButtonLabelColors()
+    {
+        bool canBuy = CanPurchaseSelection();
+        Color textColor = canBuy ? unselectedTextColor : buyButtonsDisabledTextColor;
         if (buy1xButtonText) buy1xButtonText.color = textColor;
         if (buy50xButtonText) buy50xButtonText.color = textColor;
+    }
+
+    private void ApplyBuyButtonVisualStyles()
+    {
+        ApplyBuyButtonVisualStyle(buy1xButton, buy1xButtonImage);
+        ApplyBuyButtonVisualStyle(buy50xButton, buy50xButtonImage);
+        ApplyBuyButtonLabelColors();
+    }
+
+    private void ApplyBuyButtonVisualStyle(Button button, Image image)
+    {
+        if (!button)
+            return;
+
+        if (!image)
+            image = button.targetGraphic as Image;
+
+        Color normal = UITabBarButtonVisuals.NormalImageColor;
+        Color hover = Color.Lerp(
+            UITabBarButtonVisuals.NormalImageColor,
+            new Color(0.58f, 0.44f, 0.24f, 1f),
+            0.72f);
+        Color pressed = UITabBarButtonVisuals.SelectedImageColor;
+        Color disabled = new Color(0.12f, 0.10f, 0.09f, 0.55f);
+
+        if (image != null)
+            image.color = Color.white;
+
+        ColorBlock colors = button.colors;
+        colors.normalColor = normal;
+        colors.highlightedColor = hover;
+        colors.pressedColor = pressed;
+        colors.selectedColor = hover;
+        colors.disabledColor = disabled;
+        colors.colorMultiplier = 1f;
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
     }
 
     private void ToggleBuybackPanel()
@@ -722,16 +868,18 @@ public class ShopUI : MonoBehaviour
         if (!undoShopWindow || !_currentMerchant)
             return;
 
+        if (undoShopWindow.IsOpen)
+        {
+            undoShopWindow.CloseWindow();
+            EnsureShopDragHandleOnTop();
+            return;
+        }
+
         if (enableDisabledUndoWindowOnUse)
             undoShopWindow.EnsureWindowEnabledForUse();
 
-        if (SaleUndoManager.Instance == null ||
-            SaleUndoManager.Instance.GetUndoCountForMerchant(_currentMerchant.MerchantId) <= 0)
-            return;
-
-        Merchant m = _currentMerchant;
-        undoShopWindow.OpenForMerchant(m);
-        Close();
+        undoShopWindow.OpenForMerchant(_currentMerchant);
+        EnsureShopDragHandleOnTop();
     }
 
     private void OnRestockClicked()
@@ -812,7 +960,7 @@ public class ShopUI : MonoBehaviour
             restockButtonLabel.text = inProgress ? "Restock: In Progress" : "Restock";
     }
 
-    /// <summary>Updates Undo control visibility/interaction for the current merchant.</summary>
+    /// <summary>Updates Undo control visibility for the current merchant (always clickable to open/close undo).</summary>
     public void RefreshUndoSaleButtonState()
     {
         if (!buybackToggleButton)
@@ -823,10 +971,7 @@ public class ShopUI : MonoBehaviour
         if (!hasMerchant)
             return;
 
-        int n = SaleUndoManager.Instance != null
-            ? SaleUndoManager.Instance.GetUndoCountForMerchant(_currentMerchant.MerchantId)
-            : 0;
-        buybackToggleButton.interactable = n > 0;
+        buybackToggleButton.interactable = true;
     }
 
     /// <summary>Left-click target behind item slots to clear selection.</summary>
