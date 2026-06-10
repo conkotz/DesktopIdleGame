@@ -549,6 +549,9 @@ public class TrackerWindowUI : MonoBehaviour
         if (entry == null)
             return "0xp";
 
+        if (entry.lastSkill == SkillType.Endurance)
+            return BuildEnduranceXpRatesBracket();
+
         if (SessionTrackerData.IsCombatStyleSkill(entry.lastSkill))
         {
             float perDamage = ResolveCombatXpPerDamage(entry.lastSkill);
@@ -559,17 +562,38 @@ public class TrackerWindowUI : MonoBehaviour
         return $"{entry.lastGainAmount}xp";
     }
 
+    private static string FormatXpPerDamageRate(float rate) => $"{rate.ToString("0.##")}xp";
+
+    private string BuildEnduranceXpRatesBracket()
+    {
+        EnsureTrackerCombatRefs();
+
+        float perDamageTaken = _cachedPlayer ? _cachedPlayer.EnduranceXpPerDamage : 0f;
+        float perDamageDealt = _cachedCombat ? _cachedCombat.EnduranceXpPerDamageDealt : 0f;
+
+        if (perDamageDealt <= 0.0001f)
+            return $"{FormatXpPerDamageRate(perDamageTaken)} per damage taken";
+
+        return $"{FormatXpPerDamageRate(perDamageTaken)} per dmg taken + {perDamageDealt.ToString("0.##")} per dmg dealt";
+    }
+
+    private void EnsureTrackerCombatRefs()
+    {
+        if (!_cachedPlayer)
+            _cachedPlayer = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (!_cachedCombat)
+            _cachedCombat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+    }
+
     private float ResolveCombatXpPerDamage(SkillType skill)
     {
         if (skill == SkillType.Endurance)
         {
-            if (!_cachedPlayer)
-                _cachedPlayer = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            EnsureTrackerCombatRefs();
             return _cachedPlayer ? _cachedPlayer.EnduranceXpPerDamage : 0f;
         }
 
-        if (!_cachedCombat)
-            _cachedCombat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+        EnsureTrackerCombatRefs();
         return _cachedCombat ? _cachedCombat.XpPerDamage : 0f;
     }
 

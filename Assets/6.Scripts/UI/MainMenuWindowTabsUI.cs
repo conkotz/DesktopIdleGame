@@ -42,6 +42,8 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     [SerializeField] private Button worldMapTabButton;
     [Tooltip("Assign the top Upgrade tab button here to wire it explicitly.")]
     [SerializeField] private Button upgradeTabButton;
+    [Tooltip("Assign the top Database tab button here to wire it explicitly.")]
+    [SerializeField] private Button databaseTabButton;
 
     private MainMenuTabId _lastVisualTab = MainMenuTabId.None;
 
@@ -181,6 +183,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         TryAddTabButtonVisual(MainMenuTabId.Quest, questTabButton);
         TryAddTabButtonVisual(MainMenuTabId.WorldMap, worldMapTabButton);
         TryAddTabButtonVisual(MainMenuTabId.Upgrade, upgradeTabButton);
+        TryAddTabButtonVisual(MainMenuTabId.Database, databaseTabButton);
     }
 
     private void WireExplicitButtons()
@@ -191,6 +194,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         WireExplicitButton(questTabButton, MainMenuTabId.Quest);
         WireExplicitButton(upgradeTabButton, MainMenuTabId.Upgrade);
         WireExplicitButton(worldMapTabButton, MainMenuTabId.WorldMap);
+        WireExplicitButton(databaseTabButton, MainMenuTabId.Database);
     }
 
     private void WireExplicitButton(Button button, MainMenuTabId tabId)

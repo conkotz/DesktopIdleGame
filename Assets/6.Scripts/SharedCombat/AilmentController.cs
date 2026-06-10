@@ -1348,7 +1348,8 @@ public class AilmentController : MonoBehaviour
             if (combat != null && finalDamage > 0)
                 combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), source, dealerLabelForDps);
 
-            if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
+            if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null
+                && ToggleSettingsStore.Get(ToggleSettingId.ShowIncomingDamageNumbers))
             {
                 PlayerController pc = GetComponent<PlayerController>();
                 if (pc == null)

@@ -102,6 +102,12 @@ public static class MainMenuTabButtonAutoWire
             return true;
         }
 
+        if (IsName(objectName, "DatabaseButton", "DatabaseTabButton", "UIButton_Database"))
+        {
+            tabId = MainMenuTabId.Database;
+            return true;
+        }
+
         return false;
     }
 

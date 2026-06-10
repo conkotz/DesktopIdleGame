@@ -7,4 +7,5 @@ public enum MainMenuTabId
     Quest = 2,
     Upgrade = 3,
     WorldMap = 4,
+    Database = 5,
 }

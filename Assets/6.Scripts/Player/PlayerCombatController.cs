@@ -1,6 +1,6 @@
-using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 [DisallowMultipleComponent]
 public partial class PlayerCombatController : MonoBehaviour, ISaveable
@@ -1875,16 +1875,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (!stats.TryConsumeSecondarySpecialistDualWieldDoubleHit())
             return;
 
-        RecordOutgoingSourceUse(AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel);
-
         float followUpFraction = AbilityCombatPower.TacticianSecondarySpecialistDualWieldFollowUpDamageFraction;
         SplitDamage followUpHit = rolled * followUpFraction;
 
         var doubleHitAttribution = new SwingOutgoingAttribution(
             AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
-            swingAttribution.bonusSource,
-            swingAttribution.bonusFraction,
-            swingAttribution.bonusBucket);
+            null,
+            0f);
         DamageResult doubleDealt = ApplySplitDamageToTarget(
             targetToHit,
             followUpHit,
@@ -1893,7 +1890,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             doubleHitAttribution);
 
         if (doubleDealt.Total > 0f)
+        {
+            RecordOutgoingSourceUse(AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel);
             player.ApplyLifeSteal(doubleDealt.Total);
+        }
 
         if (!suppressOnHitAilments && stats != null && stats.CanApplyOutgoingAilmentsOnHit())
         {
@@ -2703,9 +2703,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             stats.OnPlayerCritLanded();
         }
 
+        bool isProcFollowUp = IsOutgoingProcFollowUpLabel(outgoingDamageSourceLabel);
         bool isPlayerWeaponSwing = string.IsNullOrWhiteSpace(outgoingDamageSourceLabel);
-        bool deferSwingOutgoing = isPlayerWeaponSwing &&
-            (swingAttribution.HasBonus || HasAilmentConditionalDamageBonusOnTarget(target));
+        bool deferSwingOutgoing = (isPlayerWeaponSwing &&
+            (swingAttribution.HasBonus || HasAilmentConditionalDamageBonusOnTarget(target)))
+            || isProcFollowUp;
         string sourceLabel = deferSwingOutgoing
             ? DeferredSwingOutgoingDpsLabel
             : ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, swingAttribution);
@@ -2759,7 +2761,12 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         if (deferSwingOutgoing)
-            RecordWeaponSwingOutgoingDamage(result.Total, target, swingAttribution);
+        {
+            if (isProcFollowUp)
+                RecordProcFollowUpOutgoingDamage(result.Total, outgoingDamageSourceLabel);
+            else
+                RecordWeaponSwingOutgoingDamage(result.Total, target, swingAttribution);
+        }
 
         if (target.IsDead)
             NotifyBladeDancerKillCritBuff();
@@ -3145,6 +3152,25 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         string sourceLabel = ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, default, effectiveBucket);
         AddOutgoingSourceDamage(sourceLabel, damageAmount);
+    }
+
+    /// <summary>Melee proc follow-ups (Blade Dancer bonus strike, Secondary Specialist double hit) — never mixed into Auto Attack.</summary>
+    private static bool IsOutgoingProcFollowUpLabel(string outgoingDamageSourceLabel)
+    {
+        if (string.IsNullOrWhiteSpace(outgoingDamageSourceLabel))
+            return false;
+
+        string label = outgoingDamageSourceLabel.Trim();
+        return string.Equals(label, AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(label, AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RecordProcFollowUpOutgoingDamage(float totalDealt, string procSourceLabel)
+    {
+        if (totalDealt <= 0f || _dpsTrackerPaused || string.IsNullOrWhiteSpace(procSourceLabel))
+            return;
+
+        RecordDamageForDps(totalDealt, DpsDamageBucket.Physical, procSourceLabel.Trim());
     }
 
     private void RecordWeaponSwingOutgoingDamage(

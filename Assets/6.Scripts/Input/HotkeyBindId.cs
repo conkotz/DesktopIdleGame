@@ -32,4 +32,6 @@ public enum HotkeyBindId
     ActionBarAbility8 = 22,
     ActionBarAbility9 = 23,
     ActionBarAbility10 = 24,
+
+    OpenEnhancePage = 25,
 }

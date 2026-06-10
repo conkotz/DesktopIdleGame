@@ -54,6 +54,8 @@ public class UIWindowManager : MonoBehaviour
             menu.SelectTab(MainMenuTabId.WorldMap);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenQuestPage))
             menu.SelectTab(MainMenuTabId.Quest);
+        else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenEnhancePage))
+            menu.SelectTab(MainMenuTabId.Upgrade);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.ReturnToTown))
             PlayerController.TryReturnToTownViaHotkey();
     }

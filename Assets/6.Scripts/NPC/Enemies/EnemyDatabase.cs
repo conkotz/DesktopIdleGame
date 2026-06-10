@@ -46,4 +46,25 @@ public class EnemyDatabase : ScriptableObject
         string key = enemyId.Trim();
         return _map.TryGetValue(key, out EnemyDefinition d) ? d : null;
     }
+
+    /// <summary>All authored enemies, sorted by display name.</summary>
+    public List<EnemyDefinition> GetAllSortedByDisplayName()
+    {
+        var result = new List<EnemyDefinition>(enemies != null ? enemies.Count : 0);
+        if (enemies == null)
+            return result;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyDefinition enemy = enemies[i];
+            if (enemy != null)
+                result.Add(enemy);
+        }
+
+        result.Sort((a, b) => string.Compare(
+            a != null ? a.displayName : string.Empty,
+            b != null ? b.displayName : string.Empty,
+            StringComparison.OrdinalIgnoreCase));
+        return result;
+    }
 }

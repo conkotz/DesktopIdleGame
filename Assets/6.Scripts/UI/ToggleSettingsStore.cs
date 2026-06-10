@@ -23,6 +23,8 @@ public static class ToggleSettingsStore
     private const string ShowFpsKey = "Settings.ShowFps";
     private const string MinimiseHudDisplayInTownKey = "Settings.MinimiseHudDisplayInTown";
     private const string ShowOffscreenMarkersKey = "Settings.ShowOffscreenMarkers";
+    private const string ShowIncomingDamageNumbersKey = "Settings.ShowIncomingDamageNumbers";
+    private const string ShowOutgoingDamageNumbersKey = "Settings.ShowOutgoingDamageNumbers";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -57,6 +59,10 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(MinimiseHudDisplayInTownKey, 0) != 0,
             ToggleSettingId.ShowOffscreenMarkers =>
                 PlayerPrefs.GetInt(ShowOffscreenMarkersKey, 1) != 0,
+            ToggleSettingId.ShowIncomingDamageNumbers =>
+                PlayerPrefs.GetInt(ShowIncomingDamageNumbersKey, 1) != 0,
+            ToggleSettingId.ShowOutgoingDamageNumbers =>
+                PlayerPrefs.GetInt(ShowOutgoingDamageNumbersKey, 1) != 0,
             _ => false
         };
     }
@@ -147,6 +153,12 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowOffscreenMarkers:
                 PlayerPrefs.SetInt(ShowOffscreenMarkersKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.ShowIncomingDamageNumbers:
+                PlayerPrefs.SetInt(ShowIncomingDamageNumbersKey, value ? 1 : 0);
+                break;
+            case ToggleSettingId.ShowOutgoingDamageNumbers:
+                PlayerPrefs.SetInt(ShowOutgoingDamageNumbersKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -186,6 +198,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(ShowFpsKey);
         PlayerPrefs.DeleteKey(MinimiseHudDisplayInTownKey);
         PlayerPrefs.DeleteKey(ShowOffscreenMarkersKey);
+        PlayerPrefs.DeleteKey(ShowIncomingDamageNumbersKey);
+        PlayerPrefs.DeleteKey(ShowOutgoingDamageNumbersKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
@@ -222,6 +236,10 @@ public static class ToggleSettingsStore
                 "Minimise HUD Display in town",
             ToggleSettingId.ShowOffscreenMarkers =>
                 "Show Offscreen Markers",
+            ToggleSettingId.ShowIncomingDamageNumbers =>
+                "Show incoming damage numbers",
+            ToggleSettingId.ShowOutgoingDamageNumbers =>
+                "Show outgoing damage numbers",
             _ => setting.ToString()
         };
     }

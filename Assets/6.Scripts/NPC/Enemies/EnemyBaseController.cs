@@ -868,7 +868,7 @@ public class EnemyBaseController : MonoBehaviour
         AwardCombatXpToSource(attacker, finalDamage, DpsDamageBucket.Physical, outgoingDpsSourceLabel);
         OnDamaged?.Invoke(finalDamage, false);
 
-        if (DamagePopupSystem.Instance != null)
+        if (DamagePopupSystem.Instance != null && ToggleSettingsStore.Get(ToggleSettingId.ShowOutgoingDamageNumbers))
         {
             GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
             DamagePopupSystem.Instance.Spawn(
@@ -1168,7 +1168,7 @@ public class EnemyBaseController : MonoBehaviour
 
         OnDamaged?.Invoke(finalDamage, wasCrit);
 
-        if (DamagePopupSystem.Instance != null)
+        if (DamagePopupSystem.Instance != null && ToggleSettingsStore.Get(ToggleSettingId.ShowOutgoingDamageNumbers))
         {
             Vector3 pos;
             Vector3 dir;
@@ -1239,7 +1239,8 @@ public class EnemyBaseController : MonoBehaviour
 
         OnDamaged?.Invoke(dealt, false);
 
-        if (showPopup && DamagePopupSystem.Instance != null)
+        if (showPopup && DamagePopupSystem.Instance != null
+            && ToggleSettingsStore.Get(ToggleSettingId.ShowOutgoingDamageNumbers))
         {
             GetDamagePopupSpawnForDealer(source, dotDealerWorldPositionFallback, out Vector3 pos, out Vector3 dir);
 

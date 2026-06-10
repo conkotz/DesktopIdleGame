@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: enemy_dev_testing_enemy_knight
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: dev_testing_enemy_knight
-  displayName: Knight
+  displayName: Dev Knight
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
@@ -26,6 +27,7 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
+  physBlockMitigation: 0.7
   flatGuard: 0
   maxGuardPercent: 0
   minPhysicalDamage: 1

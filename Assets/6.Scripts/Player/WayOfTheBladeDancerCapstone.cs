@@ -131,14 +131,11 @@ public partial class PlayerCombatController
         if (!stats.TryConsumeBladeDancerTripleHitFollowUp())
             return;
 
-        RecordOutgoingSourceUse(AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel);
-
         SplitDamage followUpHit = rolled * AbilityCombatPower.WayOfTheBladeDancerTripleHitDamageFraction;
         var followUpAttribution = new SwingOutgoingAttribution(
             AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel,
-            swingAttribution.bonusSource,
-            swingAttribution.bonusFraction,
-            swingAttribution.bonusBucket);
+            null,
+            0f);
 
         DamageResult doubleDealt = ApplySplitDamageToTarget(
             targetToHit,
@@ -148,7 +145,10 @@ public partial class PlayerCombatController
             followUpAttribution);
 
         if (doubleDealt.Total > 0f)
+        {
+            RecordOutgoingSourceUse(AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel);
             player.ApplyLifeSteal(doubleDealt.Total);
+        }
 
         if (targetToHit.IsDead)
             NotifyBladeDancerKillCritBuff();

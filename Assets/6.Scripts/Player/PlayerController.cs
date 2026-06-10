@@ -3989,7 +3989,7 @@ public class PlayerController : MonoBehaviour
         if (blocked)
             wasCrit = false;
 
-        if (DamagePopupSystem.Instance != null)
+        if (DamagePopupSystem.Instance != null && ToggleSettingsStore.Get(ToggleSettingId.ShowIncomingDamageNumbers))
         {
             var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
             Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;

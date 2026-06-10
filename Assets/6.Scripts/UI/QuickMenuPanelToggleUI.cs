@@ -7,6 +7,10 @@ using UnityEngine.UI;
 [RequireComponent(typeof(Button))]
 public class QuickMenuPanelToggleUI : MonoBehaviour
 {
+    private const string FullWindowCanvasName = "FullWindowCanvas";
+    private const int OverlaySortOrderAboveWindowsFallback = 10050;
+    private const int OverlaySortOrderAboveWindowsPadding = 50;
+
     [SerializeField] private GameObject quickMenuPanel;
     [SerializeField] private string quickMenuPanelName = "QuickMenuPanel";
 
@@ -27,8 +31,11 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
     public static void HideIfOpen()
     {
         GameObject panel = ResolvePanelStatic();
-        if (panel != null && panel.activeSelf)
-            panel.SetActive(false);
+        if (panel == null || !panel.activeSelf)
+            return;
+
+        panel.SetActive(false);
+        RestoreOverlaySortOrder(panel);
     }
 
     private void Awake()
@@ -63,9 +70,48 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
             return;
         }
 
-        panel.SetActive(!panel.activeSelf);
-        if (panel.activeSelf)
-            panel.transform.SetAsLastSibling();
+        bool opening = !panel.activeSelf;
+        panel.SetActive(opening);
+        if (opening)
+            BringToFront(panel);
+        else
+            RestoreOverlaySortOrder(panel);
+    }
+
+    /// <summary>
+    /// Quick menu lives under <see cref="GameplayScreenOverlayLayout.StripUiCanvasObjectName"/> while draggable
+    /// windows draw on FullWindowCanvas — boost nested canvas sort order so the panel renders above windows.
+    /// </summary>
+    private static void BringToFront(GameObject panel)
+    {
+        if (!panel)
+            return;
+
+        GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(panel, ResolveOverlaySortOrderAboveWindows());
+        if (!panel.TryGetComponent(out GraphicRaycaster _))
+            panel.AddComponent<GraphicRaycaster>();
+
+        Transform t = panel.transform;
+        if (t.parent != null)
+            t.SetAsLastSibling();
+    }
+
+    private static void RestoreOverlaySortOrder(GameObject panel)
+    {
+        if (!panel || !panel.TryGetComponent(out Canvas canvas))
+            return;
+
+        canvas.overrideSorting = false;
+        canvas.sortingOrder = 0;
+    }
+
+    private static int ResolveOverlaySortOrderAboveWindows()
+    {
+        GameObject fullWindowCanvas = GameplayScreenOverlayLayout.FindSceneObjectByName(FullWindowCanvasName);
+        if (fullWindowCanvas != null && fullWindowCanvas.TryGetComponent(out Canvas canvas))
+            return canvas.sortingOrder + OverlaySortOrderAboveWindowsPadding;
+
+        return OverlaySortOrderAboveWindowsFallback;
     }
 
     private GameObject ResolvePanel()

@@ -14,6 +14,7 @@ public class MainMenuWindowUI : MonoBehaviour
         WorldMap,
         Quest,
         Upgrade,
+        Database,
         Settings
     }
 
@@ -90,6 +91,7 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private GameObject fullMapPage;
     [SerializeField] private GameObject questPage;
     [SerializeField] private GameObject upgradePage;
+    [SerializeField] private GameObject databasePage;
     [SerializeField] private GameObject settingsPage;
 
     private GameObject currentPage;
@@ -150,6 +152,8 @@ public class MainMenuWindowUI : MonoBehaviour
             return MainMenuTabId.Upgrade;
         if (fullMapPage && currentPage == fullMapPage)
             return MainMenuTabId.WorldMap;
+        if (databasePage && currentPage == databasePage)
+            return MainMenuTabId.Database;
 
         return MainMenuTabId.None;
     }
@@ -184,6 +188,9 @@ public class MainMenuWindowUI : MonoBehaviour
             case MainMenuTabId.WorldMap:
                 OpenWorldMapShow();
                 break;
+            case MainMenuTabId.Database:
+                OpenDatabaseShow();
+                break;
         }
     }
 
@@ -205,6 +212,7 @@ public class MainMenuWindowUI : MonoBehaviour
         SanitizePageReferences();
         ResolveSkillsAbilitiesPageReference();
         ResolveUpgradePageReference();
+        ResolveDatabasePageReference();
 
         if (!mainMenuWindow)
             return;
@@ -270,6 +278,20 @@ public class MainMenuWindowUI : MonoBehaviour
     public void OpenQuest() => SelectTab(MainMenuTabId.Quest);
 
     public void OpenUpgrade() => SelectTab(MainMenuTabId.Upgrade);
+
+    public void ToggleDatabase() => SelectTab(MainMenuTabId.Database);
+
+    public void OpenDatabase() => SelectTab(MainMenuTabId.Database);
+
+    public void OpenDatabaseShow()
+    {
+        ResolveDatabasePageReference();
+        if (!databasePage)
+            return;
+        if (IsOpen && currentPage == databasePage)
+            return;
+        OpenPage(databasePage);
+    }
 
     public void OpenQuestShow()
     {
@@ -557,6 +579,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (fullMapPage) fullMapPage.SetActive(false);
         if (questPage) questPage.SetActive(false);
         if (upgradePage) upgradePage.SetActive(false);
+        if (databasePage) databasePage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
         HideLegacyMenuPages();
     }
@@ -692,6 +715,8 @@ public class MainMenuWindowUI : MonoBehaviour
             return PersistedPage.Quest;
         if (upgradePage && page == upgradePage)
             return PersistedPage.Upgrade;
+        if (databasePage && page == databasePage)
+            return PersistedPage.Database;
         if (page == settingsPage)
             return PersistedPage.Settings;
         return PersistedPage.None;
@@ -706,6 +731,7 @@ public class MainMenuWindowUI : MonoBehaviour
             PersistedPage.WorldMap => fullMapPage,
             PersistedPage.Quest => questPage,
             PersistedPage.Upgrade => upgradePage,
+            PersistedPage.Database => databasePage,
             PersistedPage.Settings => settingsPage,
             _ => null
         };
@@ -730,6 +756,26 @@ public class MainMenuWindowUI : MonoBehaviour
                 upgradePage = page.gameObject;
         }
 
+    }
+
+    private void ResolveDatabasePageReference()
+    {
+        if (databasePage != null)
+            return;
+
+        DatabasePageUI pageUi = FindFirstObjectByType<DatabasePageUI>(FindObjectsInactive.Include);
+        if (pageUi != null && !IsUnderOldUnused(pageUi.transform))
+        {
+            databasePage = pageUi.gameObject;
+            return;
+        }
+
+        if (mainMenuWindow != null)
+        {
+            Transform page = mainMenuWindow.transform.Find("DatabasePage");
+            if (page != null)
+                databasePage = page.gameObject;
+        }
     }
 
     private static void RestoreAnyLoadedMenu()

@@ -38,4 +38,10 @@ public enum ToggleSettingId
 
     /// <summary>When true (default), offscreen direction markers are shown.</summary>
     ShowOffscreenMarkers = 13,
+
+    /// <summary>When true (default), floating damage numbers appear on the player when taking damage.</summary>
+    ShowIncomingDamageNumbers = 14,
+
+    /// <summary>When true (default), floating damage numbers appear on enemies when the player deals damage.</summary>
+    ShowOutgoingDamageNumbers = 15,
 }
