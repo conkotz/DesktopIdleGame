@@ -58,6 +58,11 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
         if (_tooltip == null || _item == null)
             return;
 
-        _tooltip.ShowAt(transform, _item, 1, compact: false);
+        _tooltip.ShowAt(
+            transform,
+            _item,
+            1,
+            compact: false,
+            maskUnrolledRandomStats: _item.HasRandomStatPool);
     }
 }

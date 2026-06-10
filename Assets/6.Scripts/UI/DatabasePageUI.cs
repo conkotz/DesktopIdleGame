@@ -49,6 +49,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     private void Awake()
     {
         ResolveReferences();
+        EnsureContentScrollConfigured();
         CacheEnemyRowTemplate();
         EnsureDatabases();
         WireFilterButtons();
@@ -211,9 +212,6 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         sharedTooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
 
-        if (contentRoot.TryGetComponent(out VerticalLayoutGroup layoutGroup))
-            layoutGroup.enabled = true;
-
         HashSet<string> allowedEnemyIds = null;
         if (_selectedRegion != null)
             allowedEnemyIds = DatabaseRegionEnemyCatalog.CollectEnemyIds(_selectedRegion);
@@ -240,7 +238,8 @@ public sealed class DatabasePageUI : MonoBehaviour
             row.Bind(enemy, sharedTooltip);
         }
 
-        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        if (contentRoot)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
     }
 
     private void CacheEnemyRowTemplate()
@@ -281,7 +280,67 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (!contentScrollRect)
             return;
 
+        Canvas.ForceUpdateCanvases();
         contentScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    private void EnsureContentScrollConfigured()
+    {
+        if (!contentScrollRect)
+            return;
+
+        contentScrollRect.horizontal = false;
+        contentScrollRect.vertical = true;
+        contentScrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+        if (contentRoot != null)
+            contentScrollRect.content = contentRoot;
+
+        RectTransform viewport = contentScrollRect.viewport;
+        if (viewport)
+        {
+            if (!viewport.TryGetComponent(out RectMask2D _))
+                viewport.gameObject.AddComponent<RectMask2D>();
+
+            Graphic viewportGraphic = viewport.GetComponent<Graphic>();
+            if (viewportGraphic == null)
+            {
+                var image = viewport.gameObject.AddComponent<Image>();
+                image.color = new Color(1f, 1f, 1f, 0f);
+                image.raycastTarget = true;
+            }
+            else
+            {
+                viewportGraphic.raycastTarget = true;
+            }
+        }
+
+        if (!contentRoot)
+            return;
+
+        contentRoot.anchorMin = new Vector2(0f, 1f);
+        contentRoot.anchorMax = new Vector2(1f, 1f);
+        contentRoot.pivot = new Vector2(0f, 1f);
+        contentRoot.anchoredPosition = Vector2.zero;
+        contentRoot.sizeDelta = new Vector2(0f, contentRoot.sizeDelta.y);
+
+        VerticalLayoutGroup layout = contentRoot.GetComponent<VerticalLayoutGroup>();
+        if (!layout)
+            layout = contentRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.enabled = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.spacing = 8f;
+        layout.padding = new RectOffset(6, 6, 6, 6);
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+
+        ContentSizeFitter fitter = contentRoot.GetComponent<ContentSizeFitter>();
+        if (!fitter)
+            fitter = contentRoot.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
     private void EnsureDatabases()
