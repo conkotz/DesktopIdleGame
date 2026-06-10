@@ -300,28 +300,44 @@ public class ShopUI : MonoBehaviour
         RefreshRestockButtonState();
     }
 
-    /// <summary>Keep the shop drag strip above panel siblings so raycasts reach <see cref="UIDragWindow"/>.</summary>
+    /// <summary>
+    /// Wires the header drag strip so empty header space drags the window while buttons underneath stay clickable.
+    /// </summary>
     public void EnsureShopDragHandleOnTop()
     {
         ResolveShopDragHandle();
-        if (shopDragHandle)
-            shopDragHandle.SetAsLastSibling();
-
-        BringCloseButtonsAboveDragHandle();
-    }
-
-    private void BringCloseButtonsAboveDragHandle()
-    {
-        GameObject root = ResolveWindowRoot();
-        if (!root)
+        if (!shopDragHandle)
             return;
 
-        UIWindowCloseButton[] closers = root.GetComponentsInChildren<UIWindowCloseButton>(true);
+        RectTransform window = ResolveWindowRoot() != null
+            ? ResolveWindowRoot().transform as RectTransform
+            : null;
+
+        UIDragWindowRaycastFilter filter = UIDragWindowRaycastFilter.EnsureOn(shopDragHandle.gameObject, window);
+        filter?.RebuildInteractiveRects();
+
+        // Keep drag strip above panel backgrounds but let the raycast filter pass clicks to header controls.
+        shopDragHandle.SetAsLastSibling();
+        BringHeaderControlsAboveDragHandle(window);
+    }
+
+    private void BringHeaderControlsAboveDragHandle(RectTransform window)
+    {
+        if (!window || !shopDragHandle)
+            return;
+
+        UIWindowCloseButton[] closers = window.GetComponentsInChildren<UIWindowCloseButton>(true);
         for (int i = 0; i < closers.Length; i++)
         {
-            UIWindowCloseButton closer = closers[i];
-            if (closer != null)
-                closer.transform.SetAsLastSibling();
+            if (closers[i] != null)
+                closers[i].transform.SetAsLastSibling();
+        }
+
+        InventorySortButton[] sortButtons = window.GetComponentsInChildren<InventorySortButton>(true);
+        for (int i = 0; i < sortButtons.Length; i++)
+        {
+            if (sortButtons[i] != null)
+                sortButtons[i].transform.SetAsLastSibling();
         }
     }
 

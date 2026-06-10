@@ -45,10 +45,16 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     [SerializeField] private bool enableKeyboardZoom = true;
 
     [Tooltip("Ortho half-height change per second while a zoom key is held (world units/s).")]
-    [SerializeField] private float orthoZoomSpeed = 3f;
+    [SerializeField] private float orthoZoomSpeed = 1.25f;
 
-    [Tooltip("Ortho half-height change per scroll-wheel tick.")]
-    [SerializeField] private float orthoScrollStep = 0.35f;
+    [Tooltip("Ortho half-height change per scroll-wheel unit (applied to zoom target, then smoothed).")]
+    [SerializeField] private float scrollZoomSensitivity = 0.07f;
+
+    [Tooltip("Max ortho target change from one scroll-wheel frame (prevents harsh multi-notch jumps).")]
+    [SerializeField] private float maxScrollOrthoDeltaPerFrame = 0.12f;
+
+    [Tooltip("Seconds to ease the camera toward the scroll/key zoom target.")]
+    [SerializeField] private float orthoZoomSmoothTime = 0.16f;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;
@@ -110,6 +116,8 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     }
 
     private float _prefabOrthoAtAwake;
+    private float _targetOrthoSize;
+    private float _orthoZoomVelocity;
     private float _prefabStripHeightPercent;
     private float _prefabBottomNormalized;
     private float _prefabLeftNormalized;
@@ -137,6 +145,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private void Awake()
     {
         CapturePrefabBaselineSnapshotFromSerializedFields();
+        SyncTargetOrthoFromBase();
     }
 
     private void OnEnable()
@@ -150,6 +159,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             // Requirement: on game load, zoom always starts at default (prefab baseline).
             // After the player has a session zoom (keyboard / slider), keep it across level changes.
             baseOrthoSize = _sessionOrthoActive ? _sessionBaseOrthoSize : DefaultOrthoBaseline;
+            SyncTargetOrthoFromBase();
         }
 
         Apply(force: true);
@@ -210,6 +220,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         else
             baseOrthoSize = DefaultOrthoBaseline;
 
+        SyncTargetOrthoFromBase();
         Apply(force: true);
     }
 
@@ -225,6 +236,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             return;
 
         baseOrthoSize = baseline * data.stripCameraZoomMultiplier;
+        SyncTargetOrthoFromBase();
         Apply(force: true);
     }
 
@@ -307,29 +319,20 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             : HotkeyBindingManager.GetDefaultChord(HotkeyBindId.ZoomOut);
 
         float scrollY = Input.mouseScrollDelta.y;
-        bool scrollHandled;
         if (Mathf.Abs(scrollY) > 0.01f)
         {
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
-                return;
-
-            scrollHandled = false;
-            if (scrollY > 0f && zoomIn.IsMouseScrollUp)
+            if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
             {
-                baseOrthoSize -= orthoScrollStep;
-                scrollHandled = true;
-            }
-            else if (scrollY < 0f && zoomOut.IsMouseScrollDown)
-            {
-                baseOrthoSize += orthoScrollStep;
-                scrollHandled = true;
-            }
-
-            if (scrollHandled)
-            {
-                ClampInspectorValues();
-                Apply(force: true);
-                return;
+                if (scrollY > 0f && zoomIn.IsMouseScrollUp)
+                {
+                    float delta = Mathf.Clamp(scrollY * scrollZoomSensitivity, 0f, maxScrollOrthoDeltaPerFrame);
+                    _targetOrthoSize -= delta;
+                }
+                else if (scrollY < 0f && zoomOut.IsMouseScrollDown)
+                {
+                    float delta = Mathf.Clamp(-scrollY * scrollZoomSensitivity, 0f, maxScrollOrthoDeltaPerFrame);
+                    _targetOrthoSize += delta;
+                }
             }
         }
 
@@ -339,14 +342,40 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             zoomInput++;
         if (!zoomIn.IsMouseScroll && !zoomIn.IsEmpty && HotkeyChord.IsHeld(zoomIn))
             zoomInput--;
-        if (zoomInput == 0)
+        if (zoomInput != 0)
+            _targetOrthoSize += change * zoomInput;
+
+        ApplySmoothedOrthoZoom();
+    }
+
+    private void ApplySmoothedOrthoZoom()
+    {
+        ClampOrthoZoomTargets();
+
+        if (Mathf.Approximately(baseOrthoSize, _targetOrthoSize))
             return;
 
-        baseOrthoSize += change * zoomInput;
+        baseOrthoSize = Mathf.SmoothDamp(
+            baseOrthoSize,
+            _targetOrthoSize,
+            ref _orthoZoomVelocity,
+            Mathf.Max(0.01f, orthoZoomSmoothTime));
 
         ClampInspectorValues();
-
         Apply(force: true);
+    }
+
+    private void SyncTargetOrthoFromBase()
+    {
+        _targetOrthoSize = baseOrthoSize;
+        _orthoZoomVelocity = 0f;
+    }
+
+    private void ClampOrthoZoomTargets()
+    {
+        float hi = GetEffectiveMaxOrthoSize();
+        float lo = Mathf.Max(0.01f, minOrthoSize);
+        _targetOrthoSize = Mathf.Clamp(_targetOrthoSize, lo, hi);
     }
 
     /// <summary>
@@ -586,6 +615,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     {
         ApplyPrefabLayoutRectSnapshot();
         baseOrthoSize = _prefabOrthoAtAwake;
+        SyncTargetOrthoFromBase();
     }
 
     private void ApplyPrefabLayoutRectSnapshot()
@@ -777,6 +807,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         float hi = GetEffectiveMaxOrthoSize();
 
         baseOrthoSize = Mathf.Clamp(Mathf.Max(0.01f, baseOrthoSize), minOrthoSize, hi);
+        _targetOrthoSize = Mathf.Clamp(_targetOrthoSize, minOrthoSize, hi);
     }
 
     /// <summary>
@@ -848,6 +879,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         {
             _ignoreSavedZoomOnceOnGameplayEntry = false;
             baseOrthoSize = DefaultOrthoBaseline;
+            SyncTargetOrthoFromBase();
             Apply(force: true);
             return;
         }
@@ -860,6 +892,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             return;
 
         baseOrthoSize = baseline * data.stripCameraZoomMultiplier;
+        SyncTargetOrthoFromBase();
         Apply(force: true);
     }
 }

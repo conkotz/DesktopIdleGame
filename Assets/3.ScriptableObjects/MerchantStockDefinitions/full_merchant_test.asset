@@ -21,7 +21,7 @@ MonoBehaviour:
     - type: 1
       amount: 5
       itemId: raw_fish
-    defaultQuantity: 1
+    defaultQuantity: -1
   - itemId: stone_axe
     costs:
     - type: 0
@@ -30,7 +30,7 @@ MonoBehaviour:
     - type: 1
       amount: 30
       itemId: splitwood_log
-    defaultQuantity: 1
+    defaultQuantity: -1
   - itemId: stone_pickaxe
     costs:
     - type: 0
@@ -39,7 +39,7 @@ MonoBehaviour:
     - type: 1
       amount: 5
       itemId: stone_chunk
-    defaultQuantity: 1
+    defaultQuantity: -1
   - itemId: iron_axe
     costs:
     - type: 0
