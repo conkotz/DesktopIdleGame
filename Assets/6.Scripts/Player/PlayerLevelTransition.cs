@@ -33,12 +33,13 @@ public class PlayerLevelTransition : MonoBehaviour
     private Animator[] _animators;
     private bool[] _animatorWasEnabled;
 
-    public static void LoadSceneWithEffectOrImmediate(string sceneName)
+    /// <returns>False when a transition is already running or the scene name is invalid.</returns>
+    public static bool LoadSceneWithEffectOrImmediate(string sceneName)
     {
         if (string.IsNullOrWhiteSpace(sceneName))
         {
             Debug.LogError("[PlayerLevelTransition] Scene name is empty.");
-            return;
+            return false;
         }
 
         PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
@@ -48,17 +49,18 @@ public class PlayerLevelTransition : MonoBehaviour
         if (t != null)
         {
             if (t.IsTransitionRunning)
-                return;
+                return false;
 
             t.BeginShrinkThenLoad(sceneName);
+            return true;
         }
-        else
-        {
-            MapTravelSession.ApplyPendingSpawnDispositionBeforeSceneLoad();
-            SaveManager.Instance?.SaveBeforeSceneTransition();
-            SceneManager.LoadScene(sceneName);
-            PlayerController.NotifyReturnToTownTravelFinished();
-        }
+
+        PlayerController.NotifyGameplayMapSpawnStarted();
+        MapTravelSession.ApplyPendingSpawnDispositionBeforeSceneLoad();
+        SaveManager.Instance?.SaveBeforeSceneTransition();
+        SceneManager.LoadScene(sceneName);
+        PlayerController.NotifyReturnToTownTravelFinished();
+        return true;
     }
 
     /// <summary>Called from <see cref="PlayerSpawnController"/> after a DDOL scene change.</summary>
@@ -89,6 +91,8 @@ public class PlayerLevelTransition : MonoBehaviour
 
     private IEnumerator ShrinkThenLoadRoutine(string sceneName)
     {
+        PlayerController.NotifyGameplayMapSpawnStarted();
+
         _savedRootScale = transform.localScale;
         _pendingRestore = true;
 

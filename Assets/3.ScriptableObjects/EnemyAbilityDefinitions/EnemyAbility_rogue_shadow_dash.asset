@@ -14,9 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAbilityDefinition
   abilityId: rogue_shadow_dash
   displayName: Rogue Shadow Dash
-  description: Teleports behind the player with shadow smoke. First dash at 5s, then every 10s.
+  description: Teleports behind the player with shadow smoke. First dash between 3-6s, then every 10s.
   kind: 0
-  shadowDashFirstDelaySeconds: 5
+  shadowDashFirstDelayMinSeconds: 3
+  shadowDashFirstDelayMaxSeconds: 6
   shadowDashRepeatIntervalSeconds: 10
   shadowDashBehindDistance: 2
   disengageDistance: 5

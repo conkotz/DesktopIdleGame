@@ -3529,12 +3529,124 @@ public class PlayerAbilityVfxController : MonoBehaviour
             _executionersDescentMarkRenderer.enabled = false;
     }
 
-    public void SpawnExecutionersDescentImpactShockwave(Vector3 targetWorld)
+    public void SpawnExecutionersDescentImpactShockwave(Vector3 targetWorld) =>
+        SpawnEnemyAbilityImpactShockwave(targetWorld, AbilityCombatPower.ExecutionersDescentShockwaveRadius);
+
+    public GameObject SpawnEnemyPounceTelegraph(
+        Vector3 worldPosition,
+        float shockwaveRadius,
+        float directHitRadius)
+    {
+        shockwaveRadius = Mathf.Max(0.1f, shockwaveRadius);
+        directHitRadius = Mathf.Clamp(Mathf.Max(0.1f, directHitRadius), 0.1f, shockwaveRadius);
+        Vector3 groundCenter = new Vector3(
+            worldPosition.x,
+            worldPosition.y + executionersDescentShockwaveGroundOffset,
+            worldPosition.z);
+
+        var root = new GameObject("EnemyPounceTelegraph");
+        root.transform.position = groundCenter;
+
+        const float groundEllipseYSquash = 0.07f;
+        Color outerFillColor = new Color(1f, 0.18f, 0.1f, 0.3f);
+        Color outerRingColor = new Color(1f, 0.22f, 0.12f, 0.5f);
+        Color innerFillColor = new Color(1f, 0.1f, 0.06f, 0.92f);
+        Color innerRingColor = new Color(1f, 0.14f, 0.08f, 0.95f);
+
+        Sprite areaSprite = executionersDescentShockwaveSprite != null
+            ? executionersDescentShockwaveSprite
+            : executionersDescentMarkSprite;
+        if (areaSprite != null)
+        {
+            var outerFill = new GameObject("OuterRadiusFill");
+            outerFill.transform.SetParent(root.transform, false);
+            var outerSr = outerFill.AddComponent<SpriteRenderer>();
+            outerSr.sprite = areaSprite;
+            outerSr.color = outerFillColor;
+            ApplyExecutionersDescentSorting(outerSr);
+            outerSr.sortingOrder = executionersDescentSortingOrder - 2;
+            float outerScale = shockwaveRadius * 0.72f;
+            outerFill.transform.localScale = new Vector3(outerScale, outerScale * groundEllipseYSquash, 1f);
+        }
+
+        CreateEnemyPounceTelegraphRing(
+            root.transform,
+            shockwaveRadius,
+            outerRingColor,
+            executionersDescentShockwaveLineWidth,
+            groundEllipseYSquash,
+            "OuterRadiusRing");
+
+        float innerLandingRadius = directHitRadius;
+        if (executionersDescentMarkSprite != null)
+        {
+            var innerFill = new GameObject("InnerLandingFill");
+            innerFill.transform.SetParent(root.transform, false);
+            var innerSr = innerFill.AddComponent<SpriteRenderer>();
+            innerSr.sprite = executionersDescentMarkSprite;
+            innerSr.color = innerFillColor;
+            ApplyExecutionersDescentSorting(innerSr);
+            innerSr.sortingOrder = executionersDescentSortingOrder - 1;
+            float innerScale = Mathf.Max(0.2f, executionersDescentMarkWorldScale * 0.82f);
+            innerFill.transform.localScale = new Vector3(innerScale, innerScale * 0.55f, 1f);
+        }
+
+        CreateEnemyPounceTelegraphRing(
+            root.transform,
+            innerLandingRadius,
+            innerRingColor,
+            executionersDescentShockwaveLineWidth * 0.9f,
+            groundEllipseYSquash,
+            "InnerLandingRing");
+
+        return root;
+    }
+
+    private void CreateEnemyPounceTelegraphRing(
+        Transform parent,
+        float radiusWorld,
+        Color color,
+        float lineWidth,
+        float ySquash,
+        string objectName)
+    {
+        var ringGo = new GameObject(objectName);
+        ringGo.transform.SetParent(parent, false);
+        var lr = ringGo.AddComponent<LineRenderer>();
+        lr.useWorldSpace = false;
+        lr.loop = true;
+        lr.alignment = LineAlignment.View;
+        lr.startWidth = lineWidth;
+        lr.endWidth = lineWidth;
+        lr.startColor = color;
+        lr.endColor = color;
+        ApplyExecutionersDescentSorting(lr);
+        lr.sortingOrder = executionersDescentSortingOrder - 1;
+
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            lr.material = new Material(spritesDefault);
+
+        const int segments = 48;
+        lr.positionCount = segments;
+        float radius = Mathf.Max(0.05f, radiusWorld);
+        float step = (Mathf.PI * 2f) / segments;
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = step * i;
+            lr.SetPosition(i, new Vector3(
+                Mathf.Cos(angle) * radius,
+                Mathf.Sin(angle) * radius * ySquash,
+                0f));
+        }
+    }
+
+    public void SpawnEnemyAbilityImpactShockwave(Vector3 targetWorld, float maxRadius)
     {
         if (_executionersDescentShockwaveRoutine != null)
             StopCoroutine(_executionersDescentShockwaveRoutine);
 
-        _executionersDescentShockwaveRoutine = StartCoroutine(CoExecutionersDescentImpactShockwave(targetWorld));
+        _executionersDescentShockwaveRoutine = StartCoroutine(CoExecutionersDescentImpactShockwave(targetWorld, maxRadius));
     }
 
     public void StopExecutionersDescentVfx()
@@ -3625,7 +3737,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    private IEnumerator CoExecutionersDescentImpactShockwave(Vector3 targetWorld)
+    private IEnumerator CoExecutionersDescentImpactShockwave(Vector3 targetWorld, float maxRadius)
     {
         Vector3 groundCenter = new Vector3(
             targetWorld.x,
@@ -3650,7 +3762,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         float duration = Mathf.Max(0.05f, executionersDescentShockwaveDuration);
-        float maxRadius = AbilityCombatPower.ExecutionersDescentShockwaveRadius;
+        maxRadius = Mathf.Max(0.1f, maxRadius);
         float elapsed = 0f;
 
         while (elapsed < duration)

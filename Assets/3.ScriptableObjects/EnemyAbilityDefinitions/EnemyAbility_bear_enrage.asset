@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9bef18f6760b47ecad12ad62004ee85c, type: 3}
-  m_Name: EnemyAbility_archer_disengage
+  m_Name: EnemyAbility_bear_enrage
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAbilityDefinition
-  abilityId: archer_disengage
-  displayName: Archer Disengage
-  description: On the first melee hit within 3 units, 65% chance to hop backward 10 units at speed 5.
-  kind: 1
+  abilityId: bear_enrage
+  displayName: Enrage
+  description: When dropping below 30% health, enrages causing 50% increased movespeed and 50% increased damage.
+  kind: 3
   shadowDashFirstDelayMinSeconds: 3
   shadowDashFirstDelayMaxSeconds: 6
   shadowDashRepeatIntervalSeconds: 10
@@ -25,7 +25,16 @@ MonoBehaviour:
   disengageMeleeRange: 3
   disengageMoveSpeed: 14
   disengageAirHeight: 0.5
-  disengageLandDurationSeconds: 0.12
-  useCustomAbilitySmokeColor: 1
+  pounceTriggerRange: 5
+  pounceCooldownSeconds: 5
+  pounceTelegraphSeconds: 2
+  pounceMoveSpeed: 14
+  pounceAirHeight: 0.5
+  pounceShockwaveRadius: 8
+  enrageHealthThreshold: 0.3
+  enrageScaleMultiplier: 1.5
+  enrageAttackSpeedMultiplier: 1.5
+  enrageMoveSpeedMultiplier: 1.5
+  useCustomAbilitySmokeColor: 0
   abilitySmokeCoreColor: {r: 0.35, g: 0.82, b: 0.4, a: 0.9}
   abilitySmokeEdgeColor: {r: 0.2, g: 0.58, b: 0.28, a: 0.85}

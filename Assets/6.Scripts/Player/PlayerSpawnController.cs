@@ -160,6 +160,12 @@ public class PlayerSpawnController : MonoBehaviour
     {
         var playerController = GetComponent<PlayerController>();
         bool isBootstrap = IsBootstrapScene(loadedScene);
+        bool isGameplayScene = !isBootstrap &&
+            loadedScene.IsValid() &&
+            loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase);
+
+        if (isGameplayScene)
+            PlayerController.NotifyGameplayMapSpawnStarted();
         bool useScreenFade = !isBootstrap &&
             loadedScene.IsValid() &&
             loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase) &&
@@ -394,6 +400,9 @@ public class PlayerSpawnController : MonoBehaviour
 
             if (loadFader != null)
                 loadFader.alpha = 0f;
+
+            if (isGameplayScene)
+                PlayerController.NotifyGameplayMapSpawnFinished();
 
             _running = null;
         }

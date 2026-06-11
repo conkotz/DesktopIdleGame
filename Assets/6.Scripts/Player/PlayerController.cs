@@ -4249,16 +4249,35 @@ public class PlayerController : MonoBehaviour
         return map.FindNodeById(map.startingNodeId);
     }
 
-    private const float ReturnToTownCooldownSeconds = 5f;
+    private const float ReturnToTownInputCooldownSeconds = 5f;
+    private const float ReturnToTownAfterMapEntryGraceSeconds = 3f;
     private static float _nextReturnToTownAllowedUnscaledTime;
+    private static float _returnToTownAllowedAfterMapEntryUnscaledTime;
     private static bool _returnToTownTravelInProgress;
+    private static bool _gameplayMapSpawnSettled;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetReturnToTownTravelGate()
     {
         _nextReturnToTownAllowedUnscaledTime = 0f;
+        _returnToTownAllowedAfterMapEntryUnscaledTime = 0f;
         _returnToTownTravelInProgress = false;
+        _gameplayMapSpawnSettled = false;
     }
+
+    /// <summary>Gameplay spawn / fade is in progress — block map exit position staging and return-to-town.</summary>
+    public static void NotifyGameplayMapSpawnStarted() => _gameplayMapSpawnSettled = false;
+
+    /// <summary>Called when <see cref="PlayerSpawnController"/> finishes placing the player on a gameplay map.</summary>
+    public static void NotifyGameplayMapSpawnFinished()
+    {
+        _gameplayMapSpawnSettled = true;
+        _returnToTownAllowedAfterMapEntryUnscaledTime =
+            Time.unscaledTime + ReturnToTownAfterMapEntryGraceSeconds;
+    }
+
+    public static bool IsGameplayMapSpawnSettledForTravel() =>
+        _gameplayMapSpawnSettled && IsGameplayTravelEnvironmentReady();
 
     /// <summary>Called when a return-to-town teleport finishes or is aborted before scene load.</summary>
     public static void NotifyReturnToTownTravelFinished()
@@ -4270,41 +4289,100 @@ public class PlayerController : MonoBehaviour
 
     /// <summary>
     /// Hotkey / UI action: travel to the town node for the region the player is currently in.
-    /// Returns false when blocked by cooldown, an in-progress teleport, or no valid destination.
+    /// Returns false when blocked by cooldown, grace period, an in-progress teleport, or no valid destination.
     /// </summary>
     public static bool TryReturnToTownViaHotkey()
     {
+        if (!CanReturnToTownNow(out MapNodeDefinition destination))
+            return false;
+
+        _returnToTownTravelInProgress = true;
+        _nextReturnToTownAllowedUnscaledTime = Time.unscaledTime + ReturnToTownInputCooldownSeconds;
+
+        string townName = !string.IsNullOrWhiteSpace(destination.displayName)
+            ? destination.displayName.Trim()
+            : destination.nodeId;
+        if (!string.IsNullOrWhiteSpace(townName))
+            GameLog.Add($"Returning to town: {townName}");
+        else
+            GameLog.Add("Returning to town");
+
+        MapNodeDefinition restoreContext = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+
+        MapTravelSession.BeginTravel(destination, MapTravelSession.EntryMethod.MapTeleport, logPendingLevel: false);
+        if (!PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName))
+        {
+            if (restoreContext != null)
+                ActiveLevelContext.SetPendingLevel(restoreContext, logToConsole: false);
+            MapTravelSession.ClearPendingEntryMethod();
+            NotifyReturnToTownTravelFinished();
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool CanReturnToTownNow(out MapNodeDefinition destination)
+    {
+        destination = null;
+
         if (_returnToTownTravelInProgress)
             return false;
 
         if (Time.unscaledTime < _nextReturnToTownAllowedUnscaledTime)
             return false;
 
-        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (player != null && player.IsDead)
+        if (!_gameplayMapSpawnSettled)
             return false;
 
-        MapNodeDefinition destination = ResolveRegionTownRespawnNode();
+        if (Time.unscaledTime < _returnToTownAllowedAfterMapEntryUnscaledTime)
+            return false;
+
+        if (!IsGameplayTravelEnvironmentReady())
+            return false;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            if (player.IsDead)
+                return false;
+
+            PlayerLevelTransition transition = player.GetComponent<PlayerLevelTransition>();
+            if (transition != null && (transition.IsTransitionRunning || transition.PendingScaleRestore))
+                return false;
+        }
+
+        destination = ResolveRegionTownRespawnNode();
         if (destination == null)
             return false;
 
         string destinationId = string.IsNullOrWhiteSpace(destination.nodeId) ? "" : destination.nodeId.Trim();
-        if (ActiveLevelContext.Current != null &&
+        MapNodeDefinition current = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+        if (current != null &&
             !string.IsNullOrEmpty(destinationId) &&
-            string.Equals(ActiveLevelContext.Current.nodeId, destinationId, StringComparison.OrdinalIgnoreCase))
+            string.Equals(current.nodeId, destinationId, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        _returnToTownTravelInProgress = true;
-        _nextReturnToTownAllowedUnscaledTime = Time.unscaledTime + ReturnToTownCooldownSeconds;
+        return true;
+    }
 
-        string townName = !string.IsNullOrWhiteSpace(destination.displayName) ? destination.displayName.Trim() : destination.nodeId;
-        if (!string.IsNullOrWhiteSpace(townName))
-            GameLog.Add($"Returning to town: {townName}");
-        else
-            GameLog.Add("Returning to town");
+    private static bool IsGameplayTravelEnvironmentReady()
+    {
+        Scene active = SceneManager.GetActiveScene();
+        if (!active.IsValid() || !active.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase))
+            return false;
 
-        MapTravelSession.BeginTravel(destination, MapTravelSession.EntryMethod.MapTeleport, logPendingLevel: false);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        if (SaveManager.Instance != null && !SaveManager.Instance.IsGameFullyLoaded)
+            return false;
+
+        if (GameplayLevelBootstrapper.Instance == null ||
+            GameplayLevelBootstrapper.Instance.ActiveDefinition == null)
+            return false;
+
         return true;
     }
 

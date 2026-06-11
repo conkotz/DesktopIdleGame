@@ -98,7 +98,7 @@ public static class ItemTooltipStatHighlight
 
         if (current.HasPhysicalWeaponDamage)
         {
-            s.Append(FormatIntRangeLine("Damage", current.weaponStats.minPhysicalDamage, current.weaponStats.maxPhysicalDamage,
+            s.Append(FormatIntRangeLine("Physical Damage", current.weaponStats.minPhysicalDamage, current.weaponStats.maxPhysicalDamage,
                 baseline.weaponStats.minPhysicalDamage, baseline.weaponStats.maxPhysicalDamage));
             s.Append('\n');
         }
@@ -152,13 +152,13 @@ public static class ItemTooltipStatHighlight
 
         string extras = current.BuildBonusLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(extras))
-            s.Append('\n').Append(ItemDefinition.StripDuplicateTooltipStatLines(extras));
+            s.Append('\n').Append(ItemDefinition.StripDuplicateWeaponProcLines(extras));
 
         string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
             s.Append('\n').Append(misc);
 
-        return ItemDefinition.StripDuplicateTooltipStatLines(s.ToString().TrimEnd('\n'));
+        return s.ToString().TrimEnd('\n');
     }
 
     private static string BuildArmorJewelryMainStats(ItemDefinition current, ItemDefinition baseline)

@@ -100,4 +100,7 @@ MonoBehaviour:
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5
   eliteLoot: []
+  abilities:
+  - {fileID: 11400000, guid: 7c8a9f2e1d4b46a3b5c6d7e8f9012345, type: 2}
+  - {fileID: 11400000, guid: 3e5f7a9c2b8d41e6a1f2030405060708, type: 2}
   designerNotes: 

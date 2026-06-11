@@ -99,7 +99,8 @@ public static class GameTooltipTexts
             case "CritDMGText":
                 title = "Critical damage";
                 description =
-                    "How much extra damage your critical hits deal. This also applies to abilities.";
+                    "How much extra damage your critical hits deal. This also applies to abilities.\n\n" +
+                    "Base crit damage is +50%.";
                 return true;
 
             case "LifeStealText":

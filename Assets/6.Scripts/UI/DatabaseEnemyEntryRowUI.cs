@@ -10,19 +10,23 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
     private const float NameBandHeight = 50f;
     private const float LootBandHeight = 50f;
     private const float LocationsBandHeight = 50f;
-    private const float RowHeight = NameBandHeight + LootBandHeight + LocationsBandHeight;
+    private const float AbilityBandHeight = 50f;
+    private const float RowHeightWithoutAbilities = NameBandHeight + LootBandHeight + LocationsBandHeight;
 
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private Transform lootRow;
     [SerializeField] private Transform locationsRow;
     [SerializeField] private TMP_Text locationsText;
+    [SerializeField] private Transform abilityRow;
     [Tooltip("Optional. Auto-finds LootRow/LootTableBackground — cloned once per loot item.")]
     [SerializeField] private GameObject lootEntryBackgroundTemplate;
+    [Tooltip("Optional. Auto-finds AbilityRow/AbilityBackground — cloned once per enemy ability.")]
+    [SerializeField] private GameObject abilityEntryBackgroundTemplate;
 
     private void Awake()
     {
         ResolveReferences();
-        EnsureRowLayout();
+        EnsureRowLayout(showAbilityRow: false);
     }
 
     public void Bind(
@@ -32,7 +36,10 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         RegionDefinition regionFilter = null)
     {
         ResolveReferences();
-        EnsureRowLayout();
+
+        List<EnemyAbilityDefinition> abilities = CollectAbilityDefinitions(enemy);
+        bool showAbilityRow = abilities.Count > 0;
+        EnsureRowLayout(showAbilityRow);
 
         if (nameText)
             nameText.text = enemy != null ? enemy.displayName : string.Empty;
@@ -48,6 +55,8 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         }
 
         ClearSpawnedLootEntries();
+        ClearSpawnedAbilityEntries();
+        SpawnAbilityEntries(abilities, tooltip, showAbilityRow);
 
         if (enemy == null || lootRow == null || lootEntryBackgroundTemplate == null)
             return;
@@ -81,15 +90,17 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         lootEntryBackgroundTemplate.transform.SetAsLastSibling();
     }
 
-    private void EnsureRowLayout()
+    private void EnsureRowLayout(bool showAbilityRow)
     {
+        float rowHeight = RowHeightWithoutAbilities + (showAbilityRow ? AbilityBandHeight : 0f);
+
         RectTransform row = transform as RectTransform;
         if (row)
         {
             row.anchorMin = new Vector2(0f, 1f);
             row.anchorMax = new Vector2(1f, 1f);
             row.pivot = new Vector2(0.5f, 1f);
-            row.sizeDelta = new Vector2(0f, RowHeight);
+            row.sizeDelta = new Vector2(0f, rowHeight);
         }
 
         if (TryGetComponent(out VerticalLayoutGroup rowLayout))
@@ -98,13 +109,32 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         LayoutElement rowElement = GetComponent<LayoutElement>();
         if (!rowElement)
             rowElement = gameObject.AddComponent<LayoutElement>();
-        rowElement.minHeight = RowHeight;
-        rowElement.preferredHeight = RowHeight;
+        rowElement.minHeight = rowHeight;
+        rowElement.preferredHeight = rowHeight;
         rowElement.flexibleWidth = 1f;
 
         ConfigureTopBand(nameText ? nameText.rectTransform : null, 0f, NameBandHeight);
         ConfigureTopBand(lootRow as RectTransform, NameBandHeight, LootBandHeight);
         ConfigureTopBand(locationsRow as RectTransform, NameBandHeight + LootBandHeight, LocationsBandHeight);
+
+        if (abilityRow)
+        {
+            abilityRow.gameObject.SetActive(showAbilityRow);
+            if (showAbilityRow)
+                ConfigureTopBand(abilityRow as RectTransform, RowHeightWithoutAbilities, AbilityBandHeight);
+        }
+    }
+
+    private static void ConfigureAbilityBackground(RectTransform background)
+    {
+        if (!background)
+            return;
+
+        background.anchorMin = new Vector2(0f, 0.5f);
+        background.anchorMax = new Vector2(0f, 0.5f);
+        background.pivot = new Vector2(0.5f, 0.5f);
+        background.anchoredPosition = Vector2.zero;
+        background.sizeDelta = new Vector2(50f, 50f);
     }
 
     private static void ConfigureLootBackground(RectTransform background)
@@ -143,6 +173,10 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             locationsText = transform.Find("LocationsRow/LocationsText")?.GetComponent<TMP_Text>();
         if (!lootEntryBackgroundTemplate && lootRow != null)
             lootEntryBackgroundTemplate = lootRow.Find("LootTableBackground")?.gameObject;
+        if (!abilityRow)
+            abilityRow = transform.Find("AbilityRow");
+        if (!abilityEntryBackgroundTemplate && abilityRow != null)
+            abilityEntryBackgroundTemplate = abilityRow.Find("AbilityBackground")?.gameObject;
     }
 
     private void SpawnGoldLootEntry(EnemyDefinition enemy, SharedTooltipUI tooltip)
@@ -214,6 +248,87 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         }
 
         lootEntryBackgroundTemplate.SetActive(false);
+    }
+
+    private void SpawnAbilityEntries(
+        List<EnemyAbilityDefinition> abilities,
+        SharedTooltipUI tooltip,
+        bool showAbilityRow)
+    {
+        if (!showAbilityRow || abilityRow == null || abilityEntryBackgroundTemplate == null || tooltip == null)
+            return;
+
+        for (int i = 0; i < abilities.Count; i++)
+        {
+            EnemyAbilityDefinition ability = abilities[i];
+            if (ability == null)
+                continue;
+
+            string abilityKey = string.IsNullOrWhiteSpace(ability.abilityId)
+                ? ability.name
+                : ability.abilityId.Trim();
+
+            if (!TrySpawnAbilityEntryBackground($"AbilityBackground_{abilityKey}_{i}", out GameObject backgroundGo))
+                continue;
+
+            if (!backgroundGo.TryGetComponent(out DatabaseEnemyAbilityEntryUI entryUi))
+                entryUi = backgroundGo.AddComponent<DatabaseEnemyAbilityEntryUI>();
+
+            entryUi.Bind(ability, tooltip);
+        }
+
+        abilityEntryBackgroundTemplate.transform.SetAsLastSibling();
+    }
+
+    private bool TrySpawnAbilityEntryBackground(string backgroundName, out GameObject backgroundGo)
+    {
+        backgroundGo = null;
+        if (!abilityRow || !abilityEntryBackgroundTemplate)
+            return false;
+
+        backgroundGo = Instantiate(abilityEntryBackgroundTemplate, abilityRow);
+        backgroundGo.SetActive(true);
+        backgroundGo.name = backgroundName;
+        ConfigureAbilityBackground(backgroundGo.transform as RectTransform);
+        return true;
+    }
+
+    private void ClearSpawnedAbilityEntries()
+    {
+        if (!abilityRow || !abilityEntryBackgroundTemplate)
+            return;
+
+        Transform label = abilityRow.Find("LootTableLabel");
+        Transform template = abilityEntryBackgroundTemplate.transform;
+
+        for (int i = abilityRow.childCount - 1; i >= 0; i--)
+        {
+            Transform child = abilityRow.GetChild(i);
+            if (child == null || child == label || child == template)
+                continue;
+
+            Destroy(child.gameObject);
+        }
+
+        abilityEntryBackgroundTemplate.SetActive(false);
+    }
+
+    private static List<EnemyAbilityDefinition> CollectAbilityDefinitions(EnemyDefinition enemy)
+    {
+        var abilities = new List<EnemyAbilityDefinition>();
+        if (enemy?.abilities == null)
+            return abilities;
+
+        for (int i = 0; i < enemy.abilities.Count; i++)
+        {
+            EnemyAbilityDefinition ability = enemy.abilities[i];
+            if (ability == null)
+                continue;
+
+            abilities.Add(ability);
+        }
+
+        return abilities;
     }
 
     private readonly struct LootDisplayEntry

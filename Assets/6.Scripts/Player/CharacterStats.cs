@@ -4707,6 +4707,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         RaiseGuardChanged();
     }
 
+    /// <summary>Enemy ability enrage — multiplies unarmed APS after definition stats are applied.</summary>
+    public void MultiplyEnemyUnarmedAttacksPerSecond(float multiplier)
+    {
+        if (_ownerEnemy == null)
+            return;
+
+        unarmedAttacksPerSecond = Mathf.Max(0.01f, unarmedAttacksPerSecond * Mathf.Max(1f, multiplier));
+        OnStatsChanged?.Invoke();
+    }
+
     /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales enemy HP for combat map scaling (base HP × multiplier).
     /// </summary>

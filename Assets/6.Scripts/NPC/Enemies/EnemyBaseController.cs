@@ -140,6 +140,7 @@ public class EnemyBaseController : MonoBehaviour
     private AilmentController _ailments;
     private EnemyAbilityController _abilityController;
     private bool _abilityCombatActive;
+    private bool _abilityEnrageApplied;
 
     public bool IsDead => state == EnemyState.Dead;
     public bool IsStunned => Time.time < _stunnedUntil;
@@ -222,6 +223,7 @@ public class EnemyBaseController : MonoBehaviour
 
         definition = def;
         _isElite = spawnAsElite;
+        _abilityEnrageApplied = false;
 
         if (!stats)
             stats = GetComponent<CharacterStats>();
@@ -524,6 +526,16 @@ public class EnemyBaseController : MonoBehaviour
         if (HandleStunnedCombatLockout())
             return;
 
+        if (IsAbilityMovementLocked())
+        {
+            _hitQueued = false;
+            _queuedHitCommitted = false;
+            SetMoving(false);
+            if (_rb)
+                StopHorizontal();
+            return;
+        }
+
         // Same vitals regen as the player (life/energy/mana); base stats apply to enemies too.
         if (stats)
             stats.TickRegen(Time.deltaTime);
@@ -601,6 +613,13 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         if (IsStunned)
+        {
+            StopHorizontal();
+            EnforceWorldBoundsX();
+            return;
+        }
+
+        if (IsAbilityMovementLocked())
         {
             StopHorizontal();
             EnforceWorldBoundsX();
@@ -959,18 +978,26 @@ public class EnemyBaseController : MonoBehaviour
         SetMoving(false);
     }
 
-    private void ApplyEnemyHitToPlayer()
+    private void ApplyEnemyHitToPlayer(float damageMultiplier = 1f)
     {
         if (_playerController == null || stats == null)
             return;
 
         SplitDamage hit = stats.RollSplitAttackDamage(out bool wasCrit);
+        bool forcePoison = false;
+        EnsureAbilityController();
+        _abilityController?.TryRollToxicFangsOnAttack(ref hit, out forcePoison);
+
+        float totalMult = Mathf.Max(0f, damageMultiplier);
         float neurotoxinMult = _ailments != null ? _ailments.GetOutgoingDamageMultiplier() : 1f;
         if (neurotoxinMult < 0.999f)
+            totalMult *= neurotoxinMult;
+
+        if (totalMult < 0.999f || totalMult > 1.001f)
         {
-            hit.physical *= neurotoxinMult;
-            hit.magic *= neurotoxinMult;
-            hit.corruptionDamage *= neurotoxinMult;
+            hit.physical *= totalMult;
+            hit.magic *= totalMult;
+            hit.corruptionDamage *= totalMult;
         }
 
         if (_playerController != null)
@@ -1010,10 +1037,10 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         if (dealtAnyDamage)
-            ApplyAilmentsToPlayer(hit);
+            ApplyAilmentsToPlayer(hit, forcePoison);
     }
 
-    private void ApplyAilmentsToPlayer(SplitDamage hit)
+    private void ApplyAilmentsToPlayer(SplitDamage hit, bool forcePoison = false)
     {
         if (player == null || stats == null)
             return;
@@ -1055,9 +1082,9 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         // Poison
-        if (stats.PoisonChance > 0f && stats.PoisonPerStackTotalDamage > 0f)
+        if (stats.PoisonPerStackTotalDamage > 0f && (forcePoison || stats.PoisonChance > 0f))
         {
-            if (UnityEngine.Random.value < stats.PoisonChance)
+            if (forcePoison || UnityEngine.Random.value < stats.PoisonChance)
             {
                 PoisonPayload poison = new PoisonPayload
                 {
@@ -1507,6 +1534,66 @@ public class EnemyBaseController : MonoBehaviour
     }
 
     public void FaceTargetWorldX(float targetX) => FaceTargetX(targetX);
+
+    public Transform GetVisualsRootTransform() => visualsRoot != null ? visualsRoot : transform;
+
+    public void ApplyAbilityEnrage(float scaleMultiplier, float attackSpeedMultiplier, float moveSpeedMultiplier)
+    {
+        if (_abilityEnrageApplied || state == EnemyState.Dead)
+            return;
+
+        _abilityEnrageApplied = true;
+
+        float scale = Mathf.Max(1f, scaleMultiplier);
+        if (visualsRoot != null)
+            visualsRoot.localScale *= scale;
+        else
+            transform.localScale *= scale;
+
+        moveSpeed = Mathf.Max(0f, moveSpeed * Mathf.Max(1f, moveSpeedMultiplier));
+        stats?.MultiplyEnemyUnarmedAttacksPerSecond(Mathf.Max(1f, attackSpeedMultiplier));
+        TrySpawnEnrageStatusPopup();
+    }
+
+    private void TrySpawnEnrageStatusPopup()
+    {
+        if (DamagePopupSystem.Instance == null)
+            return;
+
+        DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 pos = anchor != null ? anchor.WorldPos : transform.position;
+        Color color = new Color32(255, 72, 48, 255);
+        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
+        if (prefab != null)
+            color = prefab.BurnPresentationColor;
+
+        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "ENRAGED", color, transform);
+    }
+
+    public void TryApplyAbilityShockwaveDamageToPlayer(
+        Vector3 impactWorld,
+        float radius,
+        float directHitRadius = 0f,
+        float directHitDamageMultiplier = 1f)
+    {
+        if (_playerController == null || stats == null || state == EnemyState.Dead)
+            return;
+
+        float shockwaveRadius = Mathf.Max(0.1f, radius);
+        float dx = Mathf.Abs(_playerController.transform.position.x - impactWorld.x);
+        if (dx > shockwaveRadius)
+            return;
+
+        float damageMultiplier = 1f;
+        float directRadius = Mathf.Max(0f, directHitRadius);
+        if (directRadius > 0f && dx <= directRadius)
+            damageMultiplier = Mathf.Max(1f, directHitDamageMultiplier);
+
+        ApplyEnemyHitToPlayer(damageMultiplier);
+    }
+
+    private bool IsAbilityMovementLocked() =>
+        _abilityController != null && _abilityController.IsMovementLocked;
 
     private void BeginAbilityCombatIfNeeded()
     {

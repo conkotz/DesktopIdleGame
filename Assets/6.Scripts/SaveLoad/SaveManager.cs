@@ -1337,6 +1337,9 @@ public class SaveManager : MonoBehaviour
         if (_lastLoadedData == null)
             return;
 
+        if (!PlayerController.IsGameplayMapSpawnSettledForTravel())
+            return;
+
         TryRecordGameplayMapExitPosition(_lastLoadedData);
     }
 
