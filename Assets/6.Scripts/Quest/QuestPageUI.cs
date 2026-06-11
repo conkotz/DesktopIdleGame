@@ -1621,6 +1621,17 @@ public class QuestPageUI : MonoBehaviour
             parts.Add("Unlocks Auto Battle");
         if (q.grantAdditionalInventorySlotsOnRewardClaim > 0)
             parts.Add($"+{q.grantAdditionalInventorySlotsOnRewardClaim} Inventory Slots");
+        if (q.grantAdditionalMainStorageSlotsOnRewardClaim > 0)
+            parts.Add($"+{q.grantAdditionalMainStorageSlotsOnRewardClaim} Main Storage Slots");
+        if (q.grantAdditionalNonMainStorageSlotsOnRewardClaim > 0)
+            parts.Add($"+{q.grantAdditionalNonMainStorageSlotsOnRewardClaim} Storage Slots (non-Main)");
+        if (q.grantCombatXpToAllCombatSkillsOnRewardClaim > 0)
+            parts.Add($"{q.grantCombatXpToAllCombatSkillsOnRewardClaim} XP (all combat skills)");
+        if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim))
+        {
+            string mapName = ResolveMapNodeDisplayNameStatic(q.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim());
+            parts.Add($"Random {mapName} Map Enhancement");
+        }
 
         return parts.Count > 0 ? string.Join(" / ", parts) : "—";
     }
@@ -1658,6 +1669,20 @@ public class QuestPageUI : MonoBehaviour
             }
         }
 
+        if (q.combatSkillGateMode != CombatSkillGateMode.None && q.combatRequiredLevel > 0)
+        {
+            parts.Add(q.combatSkillGateMode switch
+            {
+                CombatSkillGateMode.SingleCombatSkill =>
+                    $"Requires {q.combatRequiredLevel} {FormatSkillName(q.combatSingleSkill)}",
+                CombatSkillGateMode.AnyOfMeleeRangedMagic =>
+                    $"Requires any of Melee, Ranged, or Magic level {q.combatRequiredLevel}",
+                CombatSkillGateMode.AnyCombatSkill =>
+                    $"Requires any combat skill level {q.combatRequiredLevel}",
+                _ => ""
+            });
+        }
+
         return parts.Count > 0 ? string.Join("\n", parts) : "";
     }
 
@@ -1681,11 +1706,19 @@ public class QuestPageUI : MonoBehaviour
 
     private string ResolveMapNodeDisplayName(string nodeId)
     {
+        ResolveWorldMap();
+        return ResolveMapNodeDisplayNameStatic(nodeId, worldMap);
+    }
+
+    private static string ResolveMapNodeDisplayNameStatic(string nodeId, WorldMapDefinition map = null)
+    {
         if (string.IsNullOrWhiteSpace(nodeId))
             return "";
 
-        ResolveWorldMap();
-        MapNodeDefinition node = worldMap ? worldMap.FindNodeById(nodeId.Trim()) : null;
+        if (!map)
+            map = Resources.Load<WorldMapDefinition>("Databases/WorldMap_Main");
+
+        MapNodeDefinition node = map ? map.FindNodeById(nodeId.Trim()) : null;
         if (node && !string.IsNullOrWhiteSpace(node.displayName))
             return node.displayName;
 

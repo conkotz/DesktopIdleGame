@@ -108,4 +108,6 @@ MonoBehaviour:
     amountMin: 0
     amountMax: 0
     dropChance: 0.2
+  abilities:
+  - {fileID: 11400000, guid: 4d135dab01954656a7d22a75ffb24ec0, type: 2}
   designerNotes: 

@@ -43,7 +43,6 @@ public class DeathRespawnPopupUI : MonoBehaviour
 
     private static Sprite s_uiWhiteSprite;
 
-    private bool _layoutBuilt;
     private bool _respawnHere;
     private bool _dimVisible;
     private CanvasGroup _canvasGroup;
@@ -193,8 +192,6 @@ public class DeathRespawnPopupUI : MonoBehaviour
         StyleSubtitle(_subtitle);
         StyleButton(_respawnButton, _respawnButtonLabel);
         EnsureContentDrawOrder();
-
-        _layoutBuilt = true;
     }
 
     private void ApplyPanelMetrics()
@@ -406,7 +403,7 @@ public class DeathRespawnPopupUI : MonoBehaviour
         title.fontStyle = FontStyles.Bold;
         title.fontSize = titleFontSize;
         title.color = titleColor;
-        title.enableWordWrapping = false;
+        title.textWrappingMode = TextWrappingModes.NoWrap;
         title.overflowMode = TextOverflowModes.Overflow;
         title.raycastTarget = false;
     }
@@ -443,7 +440,7 @@ public class DeathRespawnPopupUI : MonoBehaviour
         subtitle.alignment = TextAlignmentOptions.Center;
         subtitle.fontSize = subtitleFontSize;
         subtitle.color = subtitleColor;
-        subtitle.enableWordWrapping = true;
+        subtitle.textWrappingMode = TextWrappingModes.Normal;
         subtitle.overflowMode = TextOverflowModes.Ellipsis;
     }
 

@@ -344,7 +344,9 @@ public enum CombatSkillGateMode
     [Tooltip("Exactly one combat skill must meet the level (e.g. Magic 60 only).")]
     SingleCombatSkill,
     [Tooltip("At least one of Melee, Ranged, or Magic must meet the level (OR).")]
-    AnyOfMeleeRangedMagic
+    AnyOfMeleeRangedMagic,
+    [Tooltip("At least one of Melee, Ranged, Magic, or Endurance must meet the level (OR).")]
+    AnyCombatSkill
 }
 
 /// <summary>
@@ -678,6 +680,15 @@ public class MapNodeDefinition : ScriptableObject
                     skills.IsLevelUnlocked(SkillType.Magic, combatRequiredLevel))
                     break;
                 return false;
+            case CombatSkillGateMode.AnyCombatSkill:
+                if (combatRequiredLevel <= 0)
+                    break;
+                if (skills.IsLevelUnlocked(SkillType.Melee, combatRequiredLevel) ||
+                    skills.IsLevelUnlocked(SkillType.Ranged, combatRequiredLevel) ||
+                    skills.IsLevelUnlocked(SkillType.Magic, combatRequiredLevel) ||
+                    skills.IsLevelUnlocked(SkillType.Endurance, combatRequiredLevel))
+                    break;
+                return false;
         }
 
         return true;
@@ -970,6 +981,10 @@ public class MapNodeDefinition : ScriptableObject
             case CombatSkillGateMode.AnyOfMeleeRangedMagic:
                 if (combatRequiredLevel > 0)
                     sb.AppendLine($"Any of Melee, Ranged, or Magic: level {combatRequiredLevel}");
+                break;
+            case CombatSkillGateMode.AnyCombatSkill:
+                if (combatRequiredLevel > 0)
+                    sb.AppendLine($"Any combat skill: level {combatRequiredLevel}");
                 break;
         }
 

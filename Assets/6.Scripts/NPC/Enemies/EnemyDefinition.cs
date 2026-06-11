@@ -352,6 +352,10 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Used when handling is Elite Table Only (elite only) or Scaled Base + Extra (elite only).")]
     public List<EnemyLootEntry> eliteLoot = new();
 
+    [Header("Combat abilities")]
+    [Tooltip("Optional scripted combat abilities (dash, disengage, etc.) run by EnemyAbilityController.")]
+    public List<EnemyAbilityDefinition> abilities = new();
+
     [Header("Notes")]
     [TextArea(2, 8)]
     [Tooltip("Internal notes for designers; not shown in gameplay.")]

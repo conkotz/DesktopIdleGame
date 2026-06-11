@@ -99,6 +99,7 @@ public class SaveData
     public List<InventorySlotData> storageSlots = new();
     public List<int> storageTabOrder = new();
     public List<bool> storageTabAffinity = new();
+    public List<int> storageTabBonusSlots = new();
 
     [Serializable]
     public struct InventorySlotData

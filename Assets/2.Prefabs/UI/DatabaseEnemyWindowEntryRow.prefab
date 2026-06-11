@@ -450,7 +450,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 206, y: 0}
-  m_SizeDelta: {x: 94.18, y: 50}
+  m_SizeDelta: {x: 0, y: 50}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &8235175816629605190
 CanvasRenderer:
@@ -779,6 +779,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DatabaseEnemyEntryRowUI
   nameText: {fileID: 2447137264847001457}
   lootRow: {fileID: 4111997297026391949}
+  locationsRow: {fileID: 0}
+  locationsText: {fileID: 0}
   lootEntryBackgroundTemplate: {fileID: 255790343932740842}
 --- !u!1 &6503111535036635880
 GameObject:

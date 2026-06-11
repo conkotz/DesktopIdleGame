@@ -1753,6 +1753,14 @@ public class NPCInteractionSettings : MonoBehaviour
             parts.Add("Unlocks Auto Battle");
         if (quest.grantAdditionalInventorySlotsOnRewardClaim > 0)
             parts.Add($"+{quest.grantAdditionalInventorySlotsOnRewardClaim} Inventory Slots");
+        if (quest.grantAdditionalMainStorageSlotsOnRewardClaim > 0)
+            parts.Add($"+{quest.grantAdditionalMainStorageSlotsOnRewardClaim} Main Storage Slots");
+        if (quest.grantAdditionalNonMainStorageSlotsOnRewardClaim > 0)
+            parts.Add($"+{quest.grantAdditionalNonMainStorageSlotsOnRewardClaim} Storage Slots (non-Main)");
+        if (quest.grantCombatXpToAllCombatSkillsOnRewardClaim > 0)
+            parts.Add($"{quest.grantCombatXpToAllCombatSkillsOnRewardClaim} XP (all combat skills)");
+        if (!string.IsNullOrWhiteSpace(quest.grantRandomMapEnhancementForNodeIdOnRewardClaim))
+            parts.Add($"Random map enhancement ({quest.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim()})");
 
         return parts.Count > 0 ? string.Join(" / ", parts) : "-";
     }

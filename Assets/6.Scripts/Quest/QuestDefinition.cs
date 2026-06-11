@@ -82,6 +82,22 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Additional inventory slots granted when this quest reward is claimed (e.g. 1, 4, 8).")]
     public int grantAdditionalInventorySlotsOnRewardClaim;
 
+    [Min(0)]
+    [Tooltip("Additional Main storage tab slots granted when this quest reward is claimed.")]
+    public int grantAdditionalMainStorageSlotsOnRewardClaim;
+
+    [Min(0)]
+    [Tooltip("Additional slots granted to every non-Main storage tab when this quest reward is claimed.")]
+    public int grantAdditionalNonMainStorageSlotsOnRewardClaim;
+
+    [Min(0)]
+    [Tooltip("Flat combat XP granted to Melee, Ranged, Magic, and Endurance when this quest reward is claimed.")]
+    public int grantCombatXpToAllCombatSkillsOnRewardClaim;
+
+    [Tooltip(
+        "When set, grants one rolled map enhancement item for this MapNodeDefinition.nodeId (e.g. spider_lair).")]
+    public string grantRandomMapEnhancementForNodeIdOnRewardClaim = "";
+
     [Tooltip("When true, claiming this quest reward resets one merchant stock back to default quantities.")]
     public bool restockMerchantStockOnRewardClaim;
     [Tooltip("MerchantStock save key (usually the MerchantStock asset name, e.g. blacksmith_merchant).")]
@@ -160,6 +176,24 @@ public class QuestDefinition : ScriptableObject
 
     [Tooltip("All listed skills must meet their levels before this quest can be completed.")]
     public List<SkillLevelRequirement> requiredSkillLevels = new();
+
+    [Header("Combat skill gate")]
+    [Tooltip("Optional OR gate on combat skills (e.g. any combat skill level 5).")]
+    public CombatSkillGateMode combatSkillGateMode = CombatSkillGateMode.None;
+
+    [Min(1)]
+    [Tooltip("Level required when Combat Skill Gate Mode is not None.")]
+    public int combatRequiredLevel = 1;
+
+    [Tooltip("Used when Combat Skill Gate Mode is Single Combat Skill.")]
+    public SkillType combatSingleSkill = SkillType.Melee;
+
+    [Header("Kill quest filters")]
+    [Min(0)]
+    [Tooltip(
+        "KillCount only: when > 0, kills only count while the active map's combat scaling slider is at least this level. " +
+        "0 = no scaling requirement.")]
+    public int requiredMinMapScalingLevel;
 
     [Tooltip(
         "KillCount only: when set, only kills of this EnemyDefinition.enemyId count. " +

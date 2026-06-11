@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_greenlands_baby_bear_cull
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: greenlands_baby_bear_cull
+  regionId: greenlands
+  displayName: Baby Bear Cull
+  description: Thin the baby bear population in the Hunting Grounds.
+  details: 
+  listCategoryLabel: Combat
+  listStatusOverride: 
+  objectiveKind: 1
+  targetCount: 100
+  objectiveId: enemy_baby_bear
+  specialObjectiveListText: 
+  rewardGold: 0
+  rewardItem: {fileID: 0}
+  rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards: []
+  rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  grantAdditionalMainStorageSlotsOnRewardClaim: 0
+  grantAdditionalNonMainStorageSlotsOnRewardClaim: 0
+  grantCombatXpToAllCombatSkillsOnRewardClaim: 300
+  grantRandomMapEnhancementForNodeIdOnRewardClaim: 
+  repeatable: 0
+  autoCompleteQuest: 0
+  abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
+  obtainLocationId: noticeboard
+  obtainLocationDisplayName: The Notice Board
+  progressMapNodeId: hunting_grounds
+  killProgressOnlyOnProgressMap: 1
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 11400000, guid: 7bebcc01fca5f7f4fa2fd18775067a26, type: 2}
+  requiredSkillLevels: []
+  combatSkillGateMode: 3
+  combatRequiredLevel: 5
+  combatSingleSkill: 3
+  requiredMinMapScalingLevel: 0
+  killEnemyIdFilter: enemy_baby_bear
+  hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 0
+  sortOrder: 12

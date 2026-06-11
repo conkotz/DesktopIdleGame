@@ -1339,24 +1339,33 @@ public class PlayerAbilityVfxController : MonoBehaviour
     }
 
     /// <summary>Smoke puff at the player's departure point; lingers after teleport.</summary>
-    public void SpawnShadowStrikeDepartSmoke(Vector3 departureWorldPosition)
+    public void SpawnShadowStrikeDepartSmoke(
+        Vector3 departureWorldPosition,
+        Color? coreColorOverride = null,
+        Color? edgeColorOverride = null)
     {
-        StartCoroutine(CoShadowStrikeDepartSmoke(departureWorldPosition + shadowStrikeDepartSmokeOffset));
+        StartCoroutine(CoShadowStrikeDepartSmoke(
+            departureWorldPosition + shadowStrikeDepartSmokeOffset,
+            coreColorOverride,
+            edgeColorOverride));
     }
 
-    public void SpawnShadowStrikeBurst(Vector3 targetWorldPosition)
+    public void SpawnShadowStrikeBurst(Vector3 targetWorldPosition, Color? burstColorOverride = null)
     {
         Vector3 center = targetWorldPosition + shadowStrikeBurstOffset;
-        StartCoroutine(CoShadowStrikeBurst(center));
+        StartCoroutine(CoShadowStrikeBurst(center, burstColorOverride));
     }
 
-    private IEnumerator CoShadowStrikeDepartSmoke(Vector3 center)
+    private IEnumerator CoShadowStrikeDepartSmoke(
+        Vector3 center,
+        Color? coreColorOverride = null,
+        Color? edgeColorOverride = null)
     {
         GameObject root = new GameObject("ShadowStrikeDepartSmoke");
         root.transform.position = center;
 
-        ParticleSystem puff = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: false);
-        ParticleSystem wisps = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: true);
+        ParticleSystem puff = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: false, coreColorOverride, edgeColorOverride);
+        ParticleSystem wisps = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: true, coreColorOverride, edgeColorOverride);
 
         int burst = Mathf.Max(1, shadowStrikeDepartSmokeBurstCount);
         puff.Emit(burst);
@@ -1390,7 +1399,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Destroy(root);
     }
 
-    private ParticleSystem CreateShadowStrikeDepartSmokeParticleSystem(Transform parent, bool wispy)
+    private ParticleSystem CreateShadowStrikeDepartSmokeParticleSystem(
+        Transform parent,
+        bool wispy,
+        Color? coreColorOverride = null,
+        Color? edgeColorOverride = null)
     {
         string childName = wispy ? "ShadowStrikeDepartWisps" : "ShadowStrikeDepartPuff";
         GameObject emitterGO = new GameObject(childName);
@@ -1421,8 +1434,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
             main.startSize = new ParticleSystem.MinMaxCurve(0.28f, 0.58f);
         }
 
-        Color core = shadowStrikeDepartSmokeColor;
-        Color edge = Color.Lerp(core, new Color(0.62f, 0.28f, 0.88f, core.a), 0.35f);
+        Color core = coreColorOverride ?? shadowStrikeDepartSmokeColor;
+        Color edge = edgeColorOverride ?? Color.Lerp(core, new Color(0.62f, 0.28f, 0.88f, core.a), 0.35f);
         main.startColor = new ParticleSystem.MinMaxGradient(core, edge);
 
         var emission = ps.emission;
@@ -1483,8 +1496,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
         return ps;
     }
 
-    private IEnumerator CoShadowStrikeBurst(Vector3 center)
+    private IEnumerator CoShadowStrikeBurst(Vector3 center, Color? burstColorOverride = null)
     {
+        Color burstColor = burstColorOverride ?? shadowStrikeBurstColor;
+
         GameObject root = new GameObject("ShadowStrikeBurst");
         LineRenderer ring = root.AddComponent<LineRenderer>();
         ring.useWorldSpace = true;
@@ -1492,8 +1507,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ring.positionCount = 24;
         ring.widthMultiplier = shadowStrikeBurstLineWidth;
         ring.material = new Material(Shader.Find("Sprites/Default"));
-        ring.startColor = shadowStrikeBurstColor;
-        ring.endColor = shadowStrikeBurstColor;
+        ring.startColor = burstColor;
+        ring.endColor = burstColor;
         if (!TryApplyPlayerSpriteSortingToRenderer(ring, 12))
             ring.sortingOrder = 24;
 
@@ -1505,8 +1520,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float radius = maxRadius * t;
-            float alpha = shadowStrikeBurstColor.a * (1f - t);
-            Color c = shadowStrikeBurstColor;
+            float alpha = burstColor.a * (1f - t);
+            Color c = burstColor;
             c.a = alpha;
             ring.startColor = c;
             ring.endColor = c;

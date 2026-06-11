@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bef18f6760b47ecad12ad62004ee85c, type: 3}
+  m_Name: EnemyAbility_rogue_shadow_dash
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAbilityDefinition
+  abilityId: rogue_shadow_dash
+  displayName: Rogue Shadow Dash
+  description: Teleports behind the player with shadow smoke. First dash at 5s, then every 10s.
+  kind: 0
+  shadowDashFirstDelaySeconds: 5
+  shadowDashRepeatIntervalSeconds: 10
+  shadowDashBehindDistance: 2
+  disengageDistance: 5
+  disengageFirstHitChance: 0.5
+  disengageMeleeRange: 1.75

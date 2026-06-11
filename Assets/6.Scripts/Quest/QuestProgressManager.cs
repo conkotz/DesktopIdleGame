@@ -820,24 +820,52 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool AreSkillRequirementsSatisfied(QuestDefinition q)
     {
-        if (q == null || q.requiredSkillLevels == null || q.requiredSkillLevels.Count == 0)
+        if (q == null)
             return true;
 
         SkillsManager skills = SkillsManager.Instance ??
             FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
         if (skills == null)
-            return false;
-
-        for (int i = 0; i < q.requiredSkillLevels.Count; i++)
         {
-            SkillLevelRequirement req = q.requiredSkillLevels[i];
-            if (req == null || req.requiredLevel <= 0)
-                continue;
-            if (!skills.IsLevelUnlocked(req.skill, req.requiredLevel))
-                return false;
+            return q.combatSkillGateMode == CombatSkillGateMode.None &&
+                   (q.requiredSkillLevels == null || q.requiredSkillLevels.Count == 0);
         }
 
-        return true;
+        if (q.requiredSkillLevels != null)
+        {
+            for (int i = 0; i < q.requiredSkillLevels.Count; i++)
+            {
+                SkillLevelRequirement req = q.requiredSkillLevels[i];
+                if (req == null || req.requiredLevel <= 0)
+                    continue;
+                if (!skills.IsLevelUnlocked(req.skill, req.requiredLevel))
+                    return false;
+            }
+        }
+
+        switch (q.combatSkillGateMode)
+        {
+            case CombatSkillGateMode.None:
+                return true;
+            case CombatSkillGateMode.SingleCombatSkill:
+                return q.combatRequiredLevel <= 0 ||
+                       skills.IsLevelUnlocked(q.combatSingleSkill, q.combatRequiredLevel);
+            case CombatSkillGateMode.AnyOfMeleeRangedMagic:
+                if (q.combatRequiredLevel <= 0)
+                    return true;
+                return skills.IsLevelUnlocked(SkillType.Melee, q.combatRequiredLevel) ||
+                       skills.IsLevelUnlocked(SkillType.Ranged, q.combatRequiredLevel) ||
+                       skills.IsLevelUnlocked(SkillType.Magic, q.combatRequiredLevel);
+            case CombatSkillGateMode.AnyCombatSkill:
+                if (q.combatRequiredLevel <= 0)
+                    return true;
+                return skills.IsLevelUnlocked(SkillType.Melee, q.combatRequiredLevel) ||
+                       skills.IsLevelUnlocked(SkillType.Ranged, q.combatRequiredLevel) ||
+                       skills.IsLevelUnlocked(SkillType.Magic, q.combatRequiredLevel) ||
+                       skills.IsLevelUnlocked(SkillType.Endurance, q.combatRequiredLevel);
+            default:
+                return true;
+        }
     }
 
     public bool TryClaimQuestReward(QuestDefinition q)
@@ -1332,6 +1360,54 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         _rewardClaimed.Add(questId.Trim());
     }
 
+    private void TryGrantRandomMapEnhancementReward(string nodeId, Inventory inv, PlayerStorage storage)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || inv == null)
+            return;
+
+        ItemDatabase itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (!itemDb)
+            itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (!itemDb)
+            return;
+
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        WorldMapDefinition worldMap = wmp ? wmp.WorldMap : null;
+        if (!worldMap)
+            worldMap = Resources.Load<WorldMapDefinition>("Databases/WorldMap_Main");
+        MapNodeDefinition mapNode = worldMap != null ? worldMap.FindNodeById(nodeId) : null;
+        if (mapNode == null)
+            return;
+
+        ItemDefinition template = itemDb.Get(MapCombatScalingSpecialDropDefaults.MapEnhancementTier1ItemId);
+        if (template == null || !template.IsMapEnhancement)
+            return;
+
+        string rolledId = MapEnhancementService.CreateRolledDropItemId(template, mapNode, itemDb);
+        if (string.IsNullOrWhiteSpace(rolledId))
+            return;
+
+        var invTouched = new List<int>(4);
+        int toInv = inv.AddPartial(rolledId, 1, null, notifyItemGainPopup: true, invTouched);
+        for (int i = 0; i < invTouched.Count; i++)
+            AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
+
+        if (toInv >= 1 || storage == null)
+            return;
+
+        var stTouched = new List<int>(4);
+        int toSt = storage.TryDepositAmountFromExternal(rolledId, 1, stTouched);
+        for (int i = 0; i < stTouched.Count; i++)
+            AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
+
+        if (toSt > 0)
+        {
+            string label = ResolveItemDisplayName(rolledId);
+            GameLog.Add($"Inventory was full — sent {label} to storage.", questRewardToStorageLogColor);
+        }
+    }
+
     private void GrantRewards(QuestDefinition q)
     {
         Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
@@ -1339,6 +1415,41 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         int slotsToGrant = Mathf.Max(0, q.grantAdditionalInventorySlotsOnRewardClaim);
         if (slotsToGrant > 0 && inv)
             inv.UnlockAdditionalSlots(slotsToGrant);
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        int mainStorageSlots = Mathf.Max(0, q.grantAdditionalMainStorageSlotsOnRewardClaim);
+        if (mainStorageSlots > 0 && storage)
+            storage.UnlockAdditionalTabSlots(StorageTabKind.Main, mainStorageSlots);
+
+        int nonMainStorageSlots = Mathf.Max(0, q.grantAdditionalNonMainStorageSlotsOnRewardClaim);
+        if (nonMainStorageSlots > 0 && storage)
+        {
+            for (int t = 1; t < PlayerStorage.TabCount; t++)
+                storage.UnlockAdditionalTabSlots((StorageTabKind)t, nonMainStorageSlots);
+        }
+
+        int combatXp = Mathf.Max(0, q.grantCombatXpToAllCombatSkillsOnRewardClaim);
+        if (combatXp > 0)
+        {
+            SkillsManager skills = SkillsManager.Instance ??
+                FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+            if (skills != null)
+            {
+                string source = string.IsNullOrWhiteSpace(q.displayName) ? "Quest reward" : $"Quest: {q.displayName}";
+                skills.AddXp(SkillType.Melee, combatXp, source);
+                skills.AddXp(SkillType.Ranged, combatXp, source);
+                skills.AddXp(SkillType.Magic, combatXp, source);
+                skills.AddXp(SkillType.Endurance, combatXp, source);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim) && inv)
+        {
+            TryGrantRandomMapEnhancementReward(
+                q.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim(),
+                inv,
+                storage);
+        }
 
         if (q.rewardGold > 0)
         {
@@ -1356,7 +1467,6 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (stacks.Count == 0)
             return;
 
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (!inv)
             return;
 
@@ -1375,12 +1485,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (toInv >= qty)
                 continue;
 
-            if (!st)
+            if (!storage)
                 continue;
 
             int remainder = qty - toInv;
             var stTouched = new List<int>(8);
-            int toSt = st.TryDepositAmountFromExternal(itemId, remainder, stTouched);
+            int toSt = storage.TryDepositAmountFromExternal(itemId, remainder, stTouched);
             for (int i = 0; i < stTouched.Count; i++)
                 AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
 
@@ -1559,6 +1669,20 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 if (string.IsNullOrEmpty(wantNode))
                     continue;
                 if (!string.Equals(wantNode, nodeId, StringComparison.Ordinal))
+                    continue;
+            }
+
+            if (q.requiredMinMapScalingLevel > 0)
+            {
+                MapNodeDefinition activeNode = GameplayLevelBootstrapper.Instance != null
+                    ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+                    : null;
+                WorldMapProgressManager mapProgress = WorldMapProgressManager.Instance ??
+                    FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+                int scalingLevel = activeNode != null && mapProgress != null
+                    ? activeNode.GetCombatScalingLevel(mapProgress)
+                    : 0;
+                if (scalingLevel < q.requiredMinMapScalingLevel)
                     continue;
             }
 

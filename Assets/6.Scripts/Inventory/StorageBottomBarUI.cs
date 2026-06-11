@@ -190,7 +190,7 @@ public class StorageBottomBarUI : MonoBehaviour
 
         StorageTabKind tab = gridUi != null ? gridUi.ActiveTab : StorageTabKind.Main;
         int used = storage.GetTabUsedSlotCount(tab);
-        int capacity = PlayerStorage.SlotsPerTab;
+        int capacity = storage.GetSlotsForTab(tab);
 
         string suffix = string.IsNullOrWhiteSpace(spaceCountSuffix) ? "Space" : spaceCountSuffix.Trim().TrimEnd(':');
         string label = $"{StorageTabFilters.GetDisplayName(tab)} {suffix}:";

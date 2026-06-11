@@ -1,4 +1,4 @@
-/// <summary>Logical storage pages — each holds <see cref="PlayerStorage.SlotsPerTab"/> slots.</summary>
+/// <summary>Logical storage pages — Main holds <see cref="PlayerStorage.MainSlotsPerTab"/>; others hold <see cref="PlayerStorage.NonMainSlotsPerTab"/>.</summary>
 public enum StorageTabKind
 {
     Main = 0,

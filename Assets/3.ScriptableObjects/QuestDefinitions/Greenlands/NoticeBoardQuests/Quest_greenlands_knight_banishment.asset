@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_greenlands_knight_banishment
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: greenlands_knight_banishment
+  regionId: greenlands
+  displayName: Knight Banishment
+  description: Drive the knights from the Greenlands.
+  details: 
+  listCategoryLabel: Combat
+  listStatusOverride: 
+  objectiveKind: 1
+  targetCount: 80
+  objectiveId: enemy_knight
+  specialObjectiveListText: 
+  rewardGold: 5000
+  rewardItem: {fileID: 11400000, guid: 6c03eb97d12298f4586bf53d54b712c8, type: 2}
+  rewardItemId: knights_polearm
+  rewardItemQuantity: 1
+  additionalItemRewards: []
+  rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  grantAdditionalMainStorageSlotsOnRewardClaim: 0
+  grantAdditionalNonMainStorageSlotsOnRewardClaim: 0
+  grantCombatXpToAllCombatSkillsOnRewardClaim: 0
+  grantRandomMapEnhancementForNodeIdOnRewardClaim: 
+  repeatable: 0
+  autoCompleteQuest: 0
+  abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
+  obtainLocationId: noticeboard
+  obtainLocationDisplayName: The Notice Board
+  progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
+  prerequisiteRewardClaimedQuestIds:
+  - greenlands_hunting_grounds_patrol
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 0}
+  requiredSkillLevels: []
+  combatSkillGateMode: 0
+  combatRequiredLevel: 1
+  combatSingleSkill: 3
+  requiredMinMapScalingLevel: 0
+  killEnemyIdFilter: enemy_knight
+  hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 0
+  sortOrder: 17

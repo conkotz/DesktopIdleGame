@@ -40,7 +40,15 @@ public class StorageGridUI : MonoBehaviour
     private Canvas _rootCanvas;
     private StorageTabKind _activeTab = StorageTabKind.Main;
 
-    private int TotalSlots => Mathf.Max(1, columns) * Mathf.Max(1, rows);
+    private int TotalSlots
+    {
+        get
+        {
+            if (storage != null)
+                return Mathf.Max(1, storage.GetSlotsForTab(_activeTab));
+            return Mathf.Max(1, columns) * Mathf.Max(1, rows);
+        }
+    }
 
     public PlayerStorage PlayerStorage => storage;
     public StorageTabKind ActiveTab => _activeTab;
@@ -187,7 +195,7 @@ public class StorageGridUI : MonoBehaviour
 
         int needed = TotalSlots;
         if (storage)
-            storage.EnsureSlotCount(PlayerStorage.TotalSlotCount);
+            storage.EnsureSlotCount(storage.ComputeTotalSlotCount());
 
         while (_slotPool.Count < needed)
         {
@@ -262,7 +270,7 @@ public class StorageGridUI : MonoBehaviour
         EnsurePoolSize();
 
         int totalSlots = TotalSlots;
-        storage.EnsureSlotCount(PlayerStorage.TotalSlotCount);
+        storage.EnsureSlotCount(storage.ComputeTotalSlotCount());
         int globalOffset = storage.GetTabStartIndex(_activeTab);
 
         for (int i = 0; i < totalSlots; i++)

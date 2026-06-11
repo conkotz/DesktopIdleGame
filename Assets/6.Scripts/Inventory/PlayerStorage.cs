@@ -8,9 +8,13 @@ using UnityEngine;
 public class PlayerStorage : MonoBehaviour, ISaveable
 {
     public const int TabCount = 5;
-    public const int SlotsPerTab = 88;
-    public const int TotalSlotCount = TabCount * SlotsPerTab;
-    public const int DefaultSlotCount = TotalSlotCount;
+    public const int MainSlotsPerTab = 88;
+    public const int NonMainSlotsPerTab = 40;
+    /// <summary>Legacy uniform tab size (pre per-tab capacity split).</summary>
+    public const int LegacyUniformSlotsPerTab = 88;
+    public const int LegacyTotalSlotCount = TabCount * LegacyUniformSlotsPerTab;
+    /// <summary>Main tab capacity; non-Main tabs use <see cref="NonMainSlotsPerTab"/>.</summary>
+    public const int SlotsPerTab = MainSlotsPerTab;
 
     [SerializeField] private ItemDatabase itemDb;
     [SerializeField] private int defaultMaxStack = 99;
@@ -30,9 +34,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
     }
 
-    private readonly List<Slot> _slots = new List<Slot>(DefaultSlotCount);
+    private readonly List<Slot> _slots = new List<Slot>(LegacyTotalSlotCount);
     private readonly int[] _tabDisplayOrder = { 0, 1, 2, 3, 4 };
     private readonly bool[] _tabAffinityEnabled = { false, true, true, true, true };
+    private readonly int[] _tabBonusSlots = new int[TabCount];
 
     public event Action OnStorageChanged;
     public event Action OnTabOrderChanged;
@@ -79,7 +84,43 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
-        EnsureSlotCount(DefaultSlotCount);
+        EnsureSlotCount(ComputeTotalSlotCount());
+    }
+
+    public static int GetBaseSlotsForTab(StorageTabKind tab) =>
+        tab == StorageTabKind.Main ? MainSlotsPerTab : NonMainSlotsPerTab;
+
+    public int GetBonusSlotsForTab(StorageTabKind tab)
+    {
+        int i = (int)tab;
+        if (i < 0 || i >= TabCount)
+            return 0;
+        return Mathf.Max(0, _tabBonusSlots[i]);
+    }
+
+    public int GetSlotsForTab(StorageTabKind tab) =>
+        GetBaseSlotsForTab(tab) + GetBonusSlotsForTab(tab);
+
+    public int ComputeTotalSlotCount()
+    {
+        int total = 0;
+        for (int i = 0; i < TabCount; i++)
+            total += GetSlotsForTab((StorageTabKind)i);
+        return total;
+    }
+
+    public void UnlockAdditionalTabSlots(StorageTabKind tab, int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        int i = (int)tab;
+        if (i < 0 || i >= TabCount)
+            return;
+
+        _tabBonusSlots[i] += amount;
+        EnsureSlotCount(ComputeTotalSlotCount());
+        NotifyStorageChanged();
     }
 
     private int GetMaxStack(string itemId, int? maxStackOverride = null)
@@ -116,12 +157,30 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (globalIndex < 0)
             return StorageTabKind.Main;
-        return (StorageTabKind)(globalIndex / SlotsPerTab);
+
+        int cursor = 0;
+        for (int i = 0; i < TabCount; i++)
+        {
+            int count = GetSlotsForTab((StorageTabKind)i);
+            if (globalIndex < cursor + count)
+                return (StorageTabKind)i;
+            cursor += count;
+        }
+
+        return StorageTabKind.Main;
     }
 
-    public int GetTabStartIndex(StorageTabKind tab) => (int)tab * SlotsPerTab;
+    public int GetTabStartIndex(StorageTabKind tab)
+    {
+        int start = 0;
+        int target = (int)tab;
+        for (int i = 0; i < target && i < TabCount; i++)
+            start += GetSlotsForTab((StorageTabKind)i);
+        return start;
+    }
 
-    public int GetTabEndIndexExclusive(StorageTabKind tab) => GetTabStartIndex(tab) + SlotsPerTab;
+    public int GetTabEndIndexExclusive(StorageTabKind tab) =>
+        GetTabStartIndex(tab) + GetSlotsForTab(tab);
 
     public bool SlotAcceptsItem(int globalSlot, ItemDefinition def)
     {
@@ -195,9 +254,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
     public void EnsureSlotCount(int count)
     {
-        count = Mathf.Max(1, count);
-        if (_slots.Count >= TotalSlotCount && count < TotalSlotCount)
-            count = TotalSlotCount;
+        int minimum = ComputeTotalSlotCount();
+        count = Mathf.Max(minimum, Mathf.Max(1, count));
 
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
@@ -299,7 +357,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
     public void SortTabByDatabaseOrder(StorageTabKind tab)
     {
-        SortSlotRangeByDatabaseOrder(GetTabStartIndex(tab), SlotsPerTab);
+        SortSlotRangeByDatabaseOrder(GetTabStartIndex(tab), GetSlotsForTab(tab));
     }
 
     private void SortSlotRangeByDatabaseOrder(int rangeStart, int rangeLength)
@@ -921,6 +979,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         for (int i = 0; i < TabCount; i++)
             data.storageTabAffinity.Add(_tabAffinityEnabled[i]);
 
+        if (data.storageTabBonusSlots == null)
+            data.storageTabBonusSlots = new List<int>(TabCount);
+        else
+            data.storageTabBonusSlots.Clear();
+        for (int i = 0; i < TabCount; i++)
+            data.storageTabBonusSlots.Add(_tabBonusSlots[i]);
+
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
         else
@@ -958,9 +1023,19 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             }
         }
 
-        int savedCount = data.storageSlotCount > 0 ? data.storageSlotCount : DefaultSlotCount;
+        for (int i = 0; i < TabCount; i++)
+            _tabBonusSlots[i] = 0;
+
+        if (data.storageTabBonusSlots != null && data.storageTabBonusSlots.Count == TabCount)
+        {
+            for (int i = 0; i < TabCount; i++)
+                _tabBonusSlots[i] = Mathf.Max(0, data.storageTabBonusSlots[i]);
+        }
+
+        int savedCount = data.storageSlotCount > 0 ? data.storageSlotCount : ComputeTotalSlotCount();
         savedCount = Mathf.Max(1, savedCount);
-        EnsureSlotCount(Mathf.Max(savedCount, TotalSlotCount));
+        bool legacyUniformLayout = savedCount >= LegacyTotalSlotCount;
+        EnsureSlotCount(Mathf.Max(savedCount, ComputeTotalSlotCount()));
 
         for (int i = 0; i < _slots.Count; i++)
         {
@@ -1016,7 +1091,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 _tabAffinityEnabled[i] = true;
         }
 
-        if (savedCount < TotalSlotCount)
+        if (legacyUniformLayout)
+            MigrateLegacyUniformTabStorage();
+        else if (savedCount < ComputeTotalSlotCount())
             MigrateLegacyFlatStorage(savedCount);
 
         NotifyStorageChanged();
@@ -1024,19 +1101,68 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
     private void MigrateLegacyFlatStorage(int previousCount)
     {
-        if (previousCount <= SlotsPerTab)
+        if (previousCount <= MainSlotsPerTab)
             return;
 
         var overflow = new List<Slot>();
-        for (int i = SlotsPerTab; i < previousCount && i < _slots.Count; i++)
+        for (int i = MainSlotsPerTab; i < previousCount && i < _slots.Count; i++)
         {
             if (!_slots[i].IsEmpty)
                 overflow.Add(_slots[i]);
             _slots[i].Clear();
         }
 
+        RedepositOverflowStacks(overflow);
+    }
+
+    private void MigrateLegacyUniformTabStorage()
+    {
+        var preserved = new List<(int globalIndex, Slot slot)>();
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (!_slots[i].IsEmpty)
+                preserved.Add((i, _slots[i]));
+            _slots[i].Clear();
+        }
+
+        int targetCount = ComputeTotalSlotCount();
+        if (_slots.Count != targetCount)
+        {
+            _slots.Clear();
+            while (_slots.Count < targetCount)
+                _slots.Add(new Slot());
+        }
+
+        var overflow = new List<Slot>();
+        for (int p = 0; p < preserved.Count; p++)
+        {
+            (int globalIndex, Slot slot) = preserved[p];
+            StorageTabKind oldTab = (StorageTabKind)(globalIndex / LegacyUniformSlotsPerTab);
+            int oldTabOffset = globalIndex % LegacyUniformSlotsPerTab;
+            if (oldTabOffset < GetSlotsForTab(oldTab))
+            {
+                int newIndex = GetTabStartIndex(oldTab) + oldTabOffset;
+                if (newIndex >= 0 && newIndex < _slots.Count && _slots[newIndex].IsEmpty)
+                    _slots[newIndex] = slot;
+                else
+                    overflow.Add(slot);
+            }
+            else
+            {
+                overflow.Add(slot);
+            }
+        }
+
+        RedepositOverflowStacks(overflow);
+    }
+
+    private void RedepositOverflowStacks(List<Slot> overflow)
+    {
         foreach (var stack in overflow)
         {
+            if (stack.IsEmpty)
+                continue;
+
             ItemDefinition def = GetItemDef(stack.itemId);
             StorageTabKind tab = ResolveAutoDepositTab(def);
             int placed = TryDepositAmountToTab(stack.itemId, stack.amount, tab);

@@ -138,6 +138,8 @@ public class EnemyBaseController : MonoBehaviour
     private CurrencyWallet _wallet;
     private GoldPopupSpawner _goldPopupSpawner;
     private AilmentController _ailments;
+    private EnemyAbilityController _abilityController;
+    private bool _abilityCombatActive;
 
     public bool IsDead => state == EnemyState.Dead;
     public bool IsStunned => Time.time < _stunnedUntil;
@@ -264,6 +266,19 @@ public class EnemyBaseController : MonoBehaviour
 
         stats.RefreshVitalsFromStats(fillIfEmpty: true);
         OnHealthChanged?.Invoke(HP, MaxHP);
+
+        EnsureAbilityController();
+        _abilityController?.Bind(def, this);
+    }
+
+    private void EnsureAbilityController()
+    {
+        if (_abilityController)
+            return;
+
+        _abilityController = GetComponent<EnemyAbilityController>();
+        if (!_abilityController)
+            _abilityController = gameObject.AddComponent<EnemyAbilityController>();
     }
 
     private void ApplyActiveMapCombatScaling()
@@ -385,6 +400,8 @@ public class EnemyBaseController : MonoBehaviour
 
         if (definition != null)
             InitializeFromDefinition(definition);
+        else
+            EnsureAbilityController();
 
         _spawnOriginX = transform.position.x;
     }
@@ -429,6 +446,7 @@ public class EnemyBaseController : MonoBehaviour
 
         _provoked = false;
         _mapAggroTriggeredForSession = false;
+        EndAbilityCombat();
         ClearEngagement();
     }
 
@@ -514,6 +532,7 @@ public class EnemyBaseController : MonoBehaviour
         {
             _hitQueued = false;
             _provoked = false;
+            EndAbilityCombat();
             ClearEngagement();
             state = EnemyState.Idle;
             SetMoving(false);
@@ -527,12 +546,16 @@ public class EnemyBaseController : MonoBehaviour
         {
             _hitQueued = false;
             _queuedHitCommitted = false;
+            EndAbilityCombat();
             ClearEngagement();
             state = EnemyState.Idle;
             TickIdleWanderPhaseIfNeeded();
             SetMoving(ShouldShowIdleWanderMoving());
             return;
         }
+
+        BeginAbilityCombatIfNeeded();
+        _abilityController?.Tick();
 
         // Special close-range pulses should only happen after the enemy is actively aggroed.
         TryApplyDeadlyCloseRangeEffect();
@@ -788,6 +811,9 @@ public class EnemyBaseController : MonoBehaviour
         if (!player) return float.MaxValue;
         return Mathf.Abs(player.position.x - transform.position.x);
     }
+
+    /// <summary>Center-to-center X distance used for disengage and other melee-threat checks.</summary>
+    public float GetPlayerMeleeThreatDistanceX() => DistanceToPlayerX();
 
     public bool TryApplyStun(float durationSeconds, float chance01, Transform source = null)
     {
@@ -1187,6 +1213,10 @@ public class EnemyBaseController : MonoBehaviour
 
         OnDamaged?.Invoke(finalDamage, wasCrit);
 
+        ResolvePlayer();
+        BeginAbilityCombatIfNeeded();
+        _abilityController?.NotifyDamaged(attackSkillSource, GetPlayerMeleeThreatDistanceX());
+
         if (DamagePopupSystem.Instance != null && ToggleSettingsStore.Get(ToggleSettingId.ShowOutgoingDamageNumbers))
         {
             Vector3 pos;
@@ -1474,6 +1504,30 @@ public class EnemyBaseController : MonoBehaviour
 
         if (_playerCombatState)
             _playerCombatState.SetEngaged(this, false);
+    }
+
+    public void FaceTargetWorldX(float targetX) => FaceTargetX(targetX);
+
+    private void BeginAbilityCombatIfNeeded()
+    {
+        if (_abilityCombatActive)
+            return;
+
+        EnsureAbilityController();
+        if (!_abilityController)
+            return;
+
+        _abilityCombatActive = true;
+        _abilityController.NotifyCombatActive(player, _playerController, _rb);
+    }
+
+    private void EndAbilityCombat()
+    {
+        if (!_abilityCombatActive)
+            return;
+
+        _abilityCombatActive = false;
+        _abilityController?.NotifyCombatEnded();
     }
 
     private void FaceTargetX(float targetX)
