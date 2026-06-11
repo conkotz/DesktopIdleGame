@@ -11,7 +11,7 @@ using UnityEngine.UI;
 /// <see cref="SprintExhaustionRecoveryMaxEnergyFraction"/> of max (sprint key can stay held).
 /// </summary>
 [DisallowMultipleComponent]
-[DefaultExecutionOrder(50)]
+[DefaultExecutionOrder(100)]
 public class PlayerSprintInput : MonoBehaviour
 {
     public const string SprintHudBuffId = "player_sprint";
@@ -175,7 +175,7 @@ public class PlayerSprintInput : MonoBehaviour
         if (!playerController)
             playerController = GetComponent<PlayerController>();
 
-        if (playerController == null || playerController.IsDead || playerController.MovementLocked)
+        if (playerController == null || playerController.IsDead)
             return;
 
         if (!characterStats)
@@ -194,9 +194,10 @@ public class PlayerSprintInput : MonoBehaviour
             directionSign = 1f;
 
         float startX = transform.position.x;
-        float targetX = playerController.ClampWorldX(startX + directionSign * SprintDashDistance);
-        if (Mathf.Abs(targetX - startX) < 0.001f)
+        if (!TryResolveDashTargetX(startX, directionSign, out float targetX, out float usedDirectionSign))
             return;
+
+        directionSign = usedDirectionSign;
 
         if (!characterStats.SpendEnergy(dashCost))
             return;
@@ -223,12 +224,38 @@ public class PlayerSprintInput : MonoBehaviour
 
     private void LateUpdate()
     {
+        TickSprintDashInternal();
+
         _lastHorizontalSpeed = GetCurrentHorizontalSpeed();
         CapturePositionForNextFrame();
 
         bool sprintActive = EvaluateSprintGameplayActive();
         SetSprintActive(sprintActive);
         RefreshSprintHudBuffGrace(sprintActive);
+    }
+
+    /// <summary>
+    /// Picks a dash destination inside world bounds; tries the facing direction first, then the opposite.
+    /// </summary>
+    private bool TryResolveDashTargetX(
+        float startX,
+        float directionSign,
+        out float targetX,
+        out float usedDirectionSign)
+    {
+        usedDirectionSign = directionSign >= 0f ? 1f : -1f;
+
+        if (TryClampDashTarget(startX, usedDirectionSign, out targetX))
+            return true;
+
+        usedDirectionSign = -usedDirectionSign;
+        return TryClampDashTarget(startX, usedDirectionSign, out targetX);
+    }
+
+    private bool TryClampDashTarget(float startX, float directionSign, out float targetX)
+    {
+        targetX = playerController.ClampWorldX(startX + directionSign * SprintDashDistance);
+        return Mathf.Abs(targetX - startX) >= 0.001f;
     }
 
     private bool EvaluateSprintGameplayActive()

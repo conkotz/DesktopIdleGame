@@ -31,7 +31,7 @@ MonoBehaviour:
   priority: 6
   showCloseButton: 1
   darkenScreenAndLockGameplay: 1
-  dismissModes: 4
+  dismissModes: 12
   whitelistInteractEntries:
   - interactionId: FoodSlot
     clearGlowOnPointerEnter: 1

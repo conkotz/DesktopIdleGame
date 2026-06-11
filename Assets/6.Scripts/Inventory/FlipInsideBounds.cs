@@ -24,6 +24,8 @@ public class FlipInsideBounds : MonoBehaviour
 
     [Header("Layout")]
     [SerializeField] private float gap = 10f;
+    [Tooltip("Keeps the tooltip inside boundsRect on the top/bottom edges (canvas pixels).")]
+    [SerializeField] private float boundsEdgePadding = 4f;
 
     [Header("Fixed fallback width (when MeasureRect is not used for width)")]
     [Tooltip("When MeasureRect is null: if > 0, used as fixed width. If 0, width comes from panel.rect after layout rebuild.")]
@@ -69,7 +71,13 @@ public class FlipInsideBounds : MonoBehaviour
         if (visibilityGroup && visibilityGroup.alpha < 0.01f)
             return;
 
-        if (!panel || !boundsRect) return;
+        if (!panel)
+            return;
+
+        if (!boundsRect)
+            boundsRect = ResolveDefaultTooltipBoundsRect();
+        if (!boundsRect)
+            return;
 
         var parent = ParentRect;
         if (!parent) return;
@@ -138,6 +146,72 @@ public class FlipInsideBounds : MonoBehaviour
             DockLeft(yMin, yMax, measuredWidth, measuredHeight, useExplicitContentSize);
 
         ApplyRarityBorderToInnerEdge(dockRight);
+        ClampPanelVerticalInsideBounds();
+    }
+
+    private static RectTransform ResolveDefaultTooltipBoundsRect() =>
+        HelperPopupWindow.ResolveWindowsArea();
+
+    private void ClampPanelVerticalInsideBounds()
+    {
+        if (!panel || !boundsRect)
+            return;
+
+        RectTransform parent = ParentRect;
+        if (!parent)
+            return;
+
+        Rect panelLocal = GetRectInLocalSpace(panel, parent);
+        Rect boundsLocal = GetRectInLocalSpace(boundsRect, parent);
+
+        float pad = Mathf.Max(0f, boundsEdgePadding);
+        float minY = boundsLocal.yMin + pad;
+        float maxY = boundsLocal.yMax - pad;
+        float panelHeight = panelLocal.height;
+        float available = maxY - minY;
+
+        if (available <= 0f)
+            return;
+
+        float shift = 0f;
+        if (panelHeight >= available)
+        {
+            shift = maxY - panelLocal.yMax;
+        }
+        else
+        {
+            if (panelLocal.yMax > maxY)
+                shift = maxY - panelLocal.yMax;
+            if (panelLocal.yMin + shift < minY)
+                shift = minY - panelLocal.yMin;
+        }
+
+        if (Mathf.Abs(shift) < 0.5f)
+            return;
+
+        panel.anchoredPosition += new Vector2(0f, shift);
+    }
+
+    private static Rect GetRectInLocalSpace(RectTransform rt, RectTransform relativeTo)
+    {
+        Vector3[] corners = new Vector3[4];
+        rt.GetWorldCorners(corners);
+
+        float xMin = float.PositiveInfinity;
+        float xMax = float.NegativeInfinity;
+        float yMin = float.PositiveInfinity;
+        float yMax = float.NegativeInfinity;
+
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 local = relativeTo.InverseTransformPoint(corners[i]);
+            xMin = Mathf.Min(xMin, local.x);
+            xMax = Mathf.Max(xMax, local.x);
+            yMin = Mathf.Min(yMin, local.y);
+            yMax = Mathf.Max(yMax, local.y);
+        }
+
+        return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
     }
 
     /// <summary>

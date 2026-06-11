@@ -27,6 +27,7 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
+  physBlockMitigation: 0.7
   flatGuard: 0
   maxGuardPercent: 0
   minPhysicalDamage: 14
@@ -85,17 +86,17 @@ MonoBehaviour:
   eliteGoldMultiplier: 2
   loot:
   - item: {fileID: 11400000, guid: 48ca8504b7d8aa143a62f7b3d8b2f519, type: 2}
-    amountMin: 0
-    amountMax: 0
-    dropChance: 0.01
-  - item: {fileID: 11400000, guid: 0642be359adbe8c4093d2d7379da6ca8, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.2
+    dropChance: 0.01
   - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
     amountMin: 4
     amountMax: 40
     dropChance: 0.1
+  - item: {fileID: 11400000, guid: 0642be359adbe8c4093d2d7379da6ca8, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.2
   - item: {fileID: 11400000, guid: 0e319f910bce1bd488d1c89a6bff9ab5, type: 2}
     amountMin: 1
     amountMax: 1

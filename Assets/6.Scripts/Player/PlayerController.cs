@@ -89,6 +89,7 @@ public class PlayerController : MonoBehaviour
     private Coroutine _deathPoseRoutine;
     private Coroutine _deathRespawnRoutine;
     private MapNodeDefinition _pendingDeathRespawnNode;
+    private bool _deathRespawnHere;
 
     [Header("Death Respawn Popup (optional; auto-resolved by name if empty)")]
     [SerializeField] private GameObject deathPopupWindow;
@@ -569,7 +570,6 @@ public class PlayerController : MonoBehaviour
             return;
 
         PlayerSprintInput.PollSprintKey();
-        PlayerSprintInput.TickSprintDash();
 
         if (_attackLocked && Time.time >= _attackUnlockTime)
         {
@@ -676,12 +676,11 @@ public class PlayerController : MonoBehaviour
             combat.CurrentTarget != null &&
             !combat.CurrentTarget.IsDead;
 
-        // Only show Fighting when we're actually in combat presentation,
-        // not while still walking toward the target.
+        // Fighting only after combat has started (swing / soft-combat), not merely because a target is selected.
         bool shouldShowFighting =
             !isMoving &&
             !isGathering &&
-            (_attackLocked || InCombat || hasLiveCombatTarget);
+            (_attackLocked || InCombat);
 
         if (shouldShowFighting)
         {
@@ -1692,17 +1691,14 @@ public class PlayerController : MonoBehaviour
         MerchantClick.CancelPendingOpen();
     }
 
-    /// <summary>Interrupts gather/pickup paths when the player starts a sprint dash; click-to-move keeps its destination.</summary>
+    /// <summary>Interrupts gather/pickup paths when the player starts a sprint dash; click-to-move and combat chase keep their destination.</summary>
     public void InterruptForSprintDash()
     {
         if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
         {
             NotifyPlayerInitiatedMovement();
             InterruptWorkIfNeeded();
-            return;
         }
-
-        NotifyPlayerInitiatedMovement();
     }
 
     /// <summary>Keyboard left/right if held, otherwise walk target or current facing.</summary>
@@ -1718,6 +1714,13 @@ public class PlayerController : MonoBehaviour
         if (state == State.MoveToPoint)
         {
             float dx = moveTargetX - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f)
+                return dx > 0f ? 1f : -1f;
+        }
+
+        if (combat != null && combat.CurrentTarget != null && !combat.CurrentTarget.IsDead)
+        {
+            float dx = combat.CurrentTarget.transform.position.x - transform.position.x;
             if (Mathf.Abs(dx) > 0.01f)
                 return dx > 0f ? 1f : -1f;
         }
@@ -4150,6 +4153,7 @@ public class PlayerController : MonoBehaviour
         TriggerDieAnim();
 
         _pendingDeathRespawnNode = ResolveDeathRespawnNode();
+        _deathRespawnHere = IsRespawnHereDeathTarget(_pendingDeathRespawnNode);
 
         string diedOnNodeId = NpcPostDeathRespawnDialogueStore.ResolveCurrentGameplayMapNodeId();
         if (string.IsNullOrEmpty(diedOnNodeId) && SaveManager.Instance != null)
@@ -4187,14 +4191,28 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private static MapNodeDefinition ResolveDeathRespawnNode()
     {
-        MapNodeDefinition current = ActiveLevelContext.Current;
-        if (current == null && GameplayLevelBootstrapper.Instance != null)
-            current = GameplayLevelBootstrapper.Instance.ActiveDefinition;
-
+        MapNodeDefinition current = ResolveCurrentGameplayMapNode();
         if (current != null && current.respawnHereIfDied)
             return current;
 
         return ResolveRegionTownRespawnNode();
+    }
+
+    private static MapNodeDefinition ResolveCurrentGameplayMapNode()
+    {
+        MapNodeDefinition current = ActiveLevelContext.Current;
+        if (current == null && GameplayLevelBootstrapper.Instance != null)
+            current = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        return current;
+    }
+
+    private static bool IsRespawnHereDeathTarget(MapNodeDefinition respawnTarget)
+    {
+        MapNodeDefinition current = ResolveCurrentGameplayMapNode();
+        if (current == null || respawnTarget == null || !current.respawnHereIfDied)
+            return false;
+
+        return string.Equals(current.nodeId, respawnTarget.nodeId, System.StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -4311,10 +4329,14 @@ public class PlayerController : MonoBehaviour
         if (!deathPopupWindow)
             return;
 
+        DeathRespawnPopupUI styledPopup = deathPopupWindow.GetComponent<DeathRespawnPopupUI>();
+        if (styledPopup == null)
+            styledPopup = deathPopupWindow.AddComponent<DeathRespawnPopupUI>();
+
         if (deathPopupNotificationText)
-            deathPopupNotificationText.text = "You have died";
+            deathPopupNotificationText.text = "You Have Died";
         if (deathPopupButtonLabel)
-            deathPopupButtonLabel.text = "Respawn";
+            deathPopupButtonLabel.text = _deathRespawnHere ? "Respawn Here" : "Respawn in Town";
 
         if (deathPopupButton)
         {
@@ -4324,6 +4346,7 @@ public class PlayerController : MonoBehaviour
         }
 
         deathPopupWindow.SetActive(true);
+        styledPopup.PrepareForShow(_deathRespawnHere);
         ForceDeathPopupOnTop();
     }
 
@@ -4340,7 +4363,7 @@ public class PlayerController : MonoBehaviour
             popupCanvas = deathPopupWindow.AddComponent<Canvas>();
 
         int topLayerId = GetHighestSortingLayerId();
-        const int topOrder = 32760;
+        const int topOrder = short.MaxValue;
 
         popupCanvas.overrideSorting = true;
         popupCanvas.sortingLayerID = topLayerId;
@@ -4470,15 +4493,30 @@ public class PlayerController : MonoBehaviour
         _pendingDeathRespawnNode = null;
     }
 
+    private static bool IsDeathRespawnPopupWindowName(string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName))
+            return false;
+
+        return objectName == "PopupWindow" ||
+               objectName.StartsWith("RespawnPopupWindow", System.StringComparison.Ordinal);
+    }
+
     private void ResolveDeathPopupRefs()
     {
+        if (deathPopupWindow != null && !IsDeathRespawnPopupWindowName(deathPopupWindow.name))
+            deathPopupWindow = null;
+
         if (!deathPopupWindow)
         {
             Transform[] all = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             for (int i = 0; i < all.Length; i++)
             {
                 Transform t = all[i];
-                if (t != null && t.gameObject != null && t.gameObject.name == "PopupWindow")
+                if (t == null || t.gameObject == null)
+                    continue;
+
+                if (IsDeathRespawnPopupWindowName(t.gameObject.name))
                 {
                     deathPopupWindow = t.gameObject;
                     break;

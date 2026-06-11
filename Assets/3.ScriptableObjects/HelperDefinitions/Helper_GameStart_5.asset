@@ -20,10 +20,12 @@ MonoBehaviour:
     make them more difficult to defeat. Combat Power (or CP) shows how tough these
     emeies are and is a combination of their offence, defence and sustain. \n\nYou
     can still defeat enemies without anything equipped, but you will be much weaker.\n\n\n"
-  activationTrigger: 1
+  activationTrigger: 7
   requiredMapNodeId: tutorial_2
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
+  worldDropTriggerItem: {fileID: 0}
+  worldDropTriggerItemId: 
   questGatherTriggerQuestId: 
   questRewardClaimedTriggerQuestId: 
   questAcceptedTriggerQuestId: tutorial_basic_combat

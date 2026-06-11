@@ -41,6 +41,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public event Action ProgressChanged;
 
+    /// <summary>Fired after a quest is newly accepted (NPC offer, auto-accept, etc.).</summary>
+    public event Action<QuestDefinition> QuestAccepted;
+
     public bool IsIdleCombatUnlocked => _idleCombatUnlocked;
 
     public QuestDatabase QuestDatabase
@@ -436,6 +439,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         _acceptedQuestIds.Add(q.questId.Trim());
         GameLog.Add($"Quest accepted: {q.displayName}");
+        QuestAccepted?.Invoke(q);
         ProgressChanged?.Invoke();
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
@@ -527,6 +531,97 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         into.Sort(CompareQuestGiverOfferOrder);
+    }
+
+    /// <summary>
+    /// True when turning in <paramref name="questBeingClaimed"/> at this giver would unlock at least one new quest offer here.
+    /// Used so turn-in and follow-up offer can be split across two NPC clicks.
+    /// </summary>
+    public bool HasAcceptableQuestAtLocationAfterRewardClaim(string giverLocationId, QuestDefinition questBeingClaimed)
+    {
+        if (string.IsNullOrWhiteSpace(giverLocationId) || questBeingClaimed == null ||
+            string.IsNullOrWhiteSpace(questBeingClaimed.questId))
+            return false;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return false;
+
+        string location = giverLocationId.Trim();
+        string claimedId = questBeingClaimed.questId.Trim();
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition followUp = all[i];
+            if (!followUp || string.IsNullOrWhiteSpace(followUp.obtainLocationId))
+                continue;
+            if (!string.Equals(followUp.obtainLocationId.Trim(), location, StringComparison.Ordinal))
+                continue;
+            if (IsQuestAccepted(followUp) || IsPermanentlyComplete(followUp))
+                continue;
+            if (!WouldQuestUnlockWhenRewardClaimed(followUp, claimedId))
+                continue;
+            if (!AreSkillRequirementsSatisfied(followUp))
+                continue;
+
+            WorldMapProgressManager mapProgress = WorldMapProgressManager.Instance ??
+                FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+            if (!followUp.IsShownInQuestList(mapProgress))
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool WouldQuestUnlockWhenRewardClaimed(QuestDefinition quest, string newlyClaimedRewardId)
+    {
+        if (quest == null || string.IsNullOrWhiteSpace(newlyClaimedRewardId))
+            return false;
+        if (IsRewardClaimed(newlyClaimedRewardId))
+            return false;
+
+        if (quest.prerequisiteRewardClaimedQuestIds == null || quest.prerequisiteRewardClaimedQuestIds.Count == 0)
+            return false;
+
+        bool requiresNewClaim = false;
+        for (int i = 0; i < quest.prerequisiteRewardClaimedQuestIds.Count; i++)
+        {
+            string id = quest.prerequisiteRewardClaimedQuestIds[i];
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            id = id.Trim();
+            if (string.Equals(id, newlyClaimedRewardId, StringComparison.Ordinal))
+            {
+                requiresNewClaim = true;
+                continue;
+            }
+
+            if (quest.requireAllPrerequisiteQuests && !IsRewardClaimed(id))
+                return false;
+        }
+
+        if (!requiresNewClaim)
+            return false;
+
+        if (!quest.requireAllPrerequisiteQuests)
+        {
+            for (int i = 0; i < quest.prerequisiteRewardClaimedQuestIds.Count; i++)
+            {
+                string id = quest.prerequisiteRewardClaimedQuestIds[i];
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                if (IsRewardClaimed(id.Trim()))
+                    return true;
+            }
+
+            return requiresNewClaim;
+        }
+
+        return true;
     }
 
     private static int CompareQuestGiverOfferOrder(QuestDefinition a, QuestDefinition b)

@@ -27,6 +27,7 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0.1
+  physBlockMitigation: 0.7
   flatGuard: 10
   maxGuardPercent: 0
   minPhysicalDamage: 12
@@ -104,10 +105,6 @@ MonoBehaviour:
     amountMin: 1
     amountMax: 1
     dropChance: 0.05
-  - item: {fileID: 11400000, guid: f2d3e4a5b6c748d9a0e1f2b3c4d5e6f7, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.03
   - item: {fileID: 11400000, guid: 9536ae07a3934b44d87ba09eaf2037d5, type: 2}
     amountMin: 1
     amountMax: 1
@@ -119,5 +116,5 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 6c03eb97d12298f4586bf53d54b712c8, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.1
+    dropChance: 0.05
   designerNotes: 

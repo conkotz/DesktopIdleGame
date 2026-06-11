@@ -14,29 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
   helperId: early_game_helper
   title: Welcome
-  bodyText: 'Welcome {playerName}, let''s start going through the basics. Firstly,
+  bodyText: "Welcome {playerName}, let's start going through the basics. Firstly,
     seeing a yellow exclamation mark signifies a quest is available. Details about
-    what needs to be done are shown within the quest log.
-
-
-    Interacting with
-    an object such as this Splitewood tree will allow you to gather logs from it.
-    You can gather items without any tools but it will be slow. Gathering and using
-    abilities will use energy, while combat will benefit from having more energy,
-    gathering will require you too increase your stamina efficiency.
-
-
-    Movement
-    can be done using the mouse or by using the left and right arrow keys and the
-    F key to interact.
-
-
-    The game world can be zoomed in or out by using the
-    scroll wheel.
-
-
-    These help popups can be disabled and more can be adjusted
-    in the settings.'
+    what needs to be done are shown within the quest log.\n\nInteracting with an
+    object such as this Splitewood tree will allow you to gather logs from it. You
+    can gather items without any tools but it will be slow. Gathering and using abilities
+    will use energy, while combat will benefit from having more energy, gathering
+    will require you too increase your stamina efficiency.\n\nMovement can be done
+    using the mouse or by using the left and right arrow keys and the F key to interact.
+    Holding spacebar will allow you to sprint and dash at the cost of energy. \n\nThe
+    game world can be zoomed in or out by using the scroll wheel and all windows
+    can be reiszed from the bottom corners (enable the resize handles for visualisation).\n\nThese
+    help popups can be disabled and more can be adjusted in the settings."
   activationTrigger: 1
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 

@@ -58,6 +58,7 @@ public static class NpcPostDeathRespawnDialogueStore
     {
         _pending = true;
         _deathOccurredOnMapNodeId = string.IsNullOrWhiteSpace(diedOnMapNodeId) ? "" : diedOnMapNodeId.Trim();
+        NpcOneWayDialogueQueueStore.PrepareOneWayQueuesForPlayerDeath(_deathOccurredOnMapNodeId);
         SaveManager.Instance?.Save();
         // Full Save() returns early while save data is being applied; still persist these flags to disk.
         SaveManager.Instance?.FlushNpcPostDeathDialogueToDisk();

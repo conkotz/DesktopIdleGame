@@ -186,10 +186,19 @@ public class HUDPresenter : MonoBehaviour
                 resourceName = player.CurrentTarget.name;
         }
 
+        if (a == PlayerController.PlayerAction.Fighting)
+            return string.IsNullOrWhiteSpace(enemyName) ? "Fighting" : $"Fighting {enemyName}";
+
+        if (!string.IsNullOrWhiteSpace(enemyName) &&
+            a != PlayerController.PlayerAction.Mining &&
+            a != PlayerController.PlayerAction.Woodcutting &&
+            a != PlayerController.PlayerAction.Fishing &&
+            a != PlayerController.PlayerAction.Fatigued)
+            return $"Engaging {enemyName}";
+
         return a switch
         {
             PlayerController.PlayerAction.Idle => "Idle",
-            PlayerController.PlayerAction.Walking when !string.IsNullOrWhiteSpace(enemyName) => $"Engaging {enemyName}",
             PlayerController.PlayerAction.Walking when !string.IsNullOrWhiteSpace(resourceName) => $"Walking to {resourceName}",
             PlayerController.PlayerAction.Walking => "Walking",
             PlayerController.PlayerAction.Mining when !string.IsNullOrWhiteSpace(resourceName) => $"Mining {resourceName}",
@@ -198,8 +207,6 @@ public class HUDPresenter : MonoBehaviour
             PlayerController.PlayerAction.Mining => "Mining",
             PlayerController.PlayerAction.Woodcutting => "Woodcutting",
             PlayerController.PlayerAction.Fishing => "Fishing",
-            PlayerController.PlayerAction.Fighting when !string.IsNullOrWhiteSpace(enemyName) => $"Fighting {enemyName}",
-            PlayerController.PlayerAction.Fighting => "Fighting",
             PlayerController.PlayerAction.Fatigued => "Fatigued",
             _ => a.ToString()
         };

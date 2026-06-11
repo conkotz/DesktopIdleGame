@@ -87,6 +87,11 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("Canvas pixels above the root top for the runtime anchor (only when Target Marker Anchor is auto-created).")]
     [SerializeField] private float targetMarkerAnchorPaddingPx = 8f;
     [SerializeField] private Vector2 targetMarkerImageSize = new Vector2(44f, 44f);
+    [Tooltip("Alpha range for the combat target marker breathe cycle.")]
+    [SerializeField, Range(0f, 1f)] private float targetMarkerPulseMinAlpha = 0.05f;
+    [SerializeField, Range(0f, 1f)] private float targetMarkerPulseMaxAlpha = 1f;
+    [SerializeField, Min(0.05f)] private float targetMarkerFadeSeconds = 0.75f;
+    [SerializeField, Min(0f)] private float targetMarkerHoldAtPeakSeconds = 1.5f;
 
     [Header("Overlap stack (enemy overhead only)")]
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
@@ -99,9 +104,8 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private float stackAllowedOverlapBeforeStackPx = 20f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
     [Tooltip(
-        "Extra canvas pixels added above the player overhead before the first enemy stack row, " +
-        "so enemy HP bars do not cover debuff icons on the row below.")]
-    [SerializeField] private float stackExtraSpacingAbovePlayerPx = 36f;
+        "Extra canvas pixels added only to the first enemy row stacked above the player (not other enemies or higher rows).")]
+    [SerializeField] private float stackFirstEnemyAbovePlayerExtraPx = 18f;
     [Tooltip(
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
         "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
@@ -166,6 +170,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private Vector3 _targetMarkerWorldTop;
     private bool _targetMarkerWorldTopValid;
+    private Color _targetMarkerBaseColor = Color.white;
 
     private static UnitOverheadUI s_activeCombatTargetMarkerUi;
 
@@ -217,6 +222,7 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyStackedPosition();
 
         EnsurePlayerOverheadDrawsAboveEnemyOverheads();
+        TickTargetMarkerPulse();
     }
 
     public void Bind(
@@ -439,7 +445,7 @@ public class UnitOverheadUI : MonoBehaviour
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
-        float playerExtraSpacing = Mathf.Max(0f, candidates[0].stackExtraSpacingAbovePlayerPx);
+        float firstAbovePlayerExtra = Mathf.Max(0f, candidates[0].stackFirstEnemyAbovePlayerExtraPx);
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
 
@@ -456,18 +462,19 @@ public class UnitOverheadUI : MonoBehaviour
         for (int i = 0; i < spans.Count; i++)
             s_lastSortRankByUiId[spans[i].ui.GetInstanceID()] = i;
 
+        float playerSpanMinX = float.PositiveInfinity;
+        float playerSpanMaxX = float.NegativeInfinity;
         bool hasPlayerBaseline = false;
         for (int i = 0; i < spans.Count; i++)
         {
-            if (IsFixedPlayerBaseline(spans[i].ui))
-            {
-                hasPlayerBaseline = true;
-                spans[i].ui._stackYOffset = 0f;
-            }
-        }
+            if (!IsFixedPlayerBaseline(spans[i].ui))
+                continue;
 
-        // Player HP stays on the bottom row; enemy bars stack above it (and among themselves).
-        int enemyLaneBase = hasPlayerBaseline ? 1 : 0;
+            hasPlayerBaseline = true;
+            spans[i].ui._stackYOffset = 0f;
+            playerSpanMinX = Mathf.Min(playerSpanMinX, spans[i].minX);
+            playerSpanMaxX = Mathf.Max(playerSpanMaxX, spans[i].maxX);
+        }
 
         // Assign each enemy bar to the lowest available "lane" that does not horizontally overlap
         // any other enemy bar. This avoids transitive chaining (A overlaps B, B overlaps C) from
@@ -522,8 +529,18 @@ public class UnitOverheadUI : MonoBehaviour
                 padding,
                 allowedOverlap);
 
-            float playerClearance = hasPlayerBaseline ? playerExtraSpacing : 0f;
-            ui._stackYOffset = playerClearance + (enemyLaneBase + committedLane) * spacing;
+            bool overlapsPlayer = hasPlayerBaseline &&
+                HorizontalSpansOverlap(minX, maxX, playerSpanMinX, playerSpanMaxX, padding, allowedOverlap);
+
+            int displayLane = committedLane;
+            if (overlapsPlayer)
+                displayLane = committedLane + 1;
+
+            float yOffset = displayLane * spacing;
+            if (overlapsPlayer && committedLane == 0 && firstAbovePlayerExtra > 0f)
+                yOffset += firstAbovePlayerExtra;
+
+            ui._stackYOffset = yOffset;
             s_lastAssignedStackLaneByUiId[uiId] = committedLane;
 
             if (committedLane >= laneLastMaxX.Count)
@@ -658,6 +675,18 @@ public class UnitOverheadUI : MonoBehaviour
     private static bool IsFixedPlayerBaseline(UnitOverheadUI ui)
     {
         return ui != null && ui._hpBarOnlyLayout && ui.enemy == null;
+    }
+
+    private static bool HorizontalSpansOverlap(
+        float minX,
+        float maxX,
+        float otherMinX,
+        float otherMaxX,
+        float padding,
+        float allowedOverlap)
+    {
+        return minX <= otherMaxX + padding - allowedOverlap &&
+               otherMinX <= maxX + padding - allowedOverlap;
     }
 
     /// <summary>
@@ -1017,8 +1046,64 @@ public class UnitOverheadUI : MonoBehaviour
         bool show = visible && targetMarkerImage.sprite != null;
         targetMarkerImage.enabled = show;
 
-        if (show && targetMarkerAnchor != null)
-            targetMarkerAnchor.SetAsLastSibling();
+        if (show)
+        {
+            _targetMarkerBaseColor = targetMarkerImage.color;
+            _targetMarkerBaseColor.a = 1f;
+            if (targetMarkerAnchor != null)
+                targetMarkerAnchor.SetAsLastSibling();
+        }
+        else
+        {
+            Color c = targetMarkerImage.color;
+            c.a = 1f;
+            targetMarkerImage.color = c;
+        }
+    }
+
+    private void TickTargetMarkerPulse()
+    {
+        if (targetMarkerImage == null || !targetMarkerImage.enabled)
+            return;
+
+        float alpha = EvaluateTargetMarkerBreatheAlpha(
+            Time.time,
+            targetMarkerPulseMinAlpha,
+            targetMarkerPulseMaxAlpha,
+            targetMarkerFadeSeconds,
+            targetMarkerHoldAtPeakSeconds);
+
+        Color c = _targetMarkerBaseColor;
+        c.a = alpha;
+        targetMarkerImage.color = c;
+    }
+
+    private static float EvaluateTargetMarkerBreatheAlpha(
+        float time,
+        float minAlpha,
+        float maxAlpha,
+        float fadeSeconds,
+        float holdAtPeakSeconds)
+    {
+        float minA = Mathf.Clamp01(minAlpha);
+        float maxA = Mathf.Clamp01(maxAlpha);
+        if (maxA < minA)
+            (minA, maxA) = (maxA, minA);
+
+        float fade = Mathf.Max(0.05f, fadeSeconds);
+        float hold = Mathf.Max(0f, holdAtPeakSeconds);
+        float cycle = fade + hold + fade;
+        float t = cycle > 0f ? time % cycle : 0f;
+
+        if (t < fade)
+            return Mathf.Lerp(minA, maxA, t / fade);
+
+        t -= fade;
+        if (t < hold)
+            return maxA;
+
+        t -= hold;
+        return Mathf.Lerp(maxA, minA, t / fade);
     }
 
     /// <summary>

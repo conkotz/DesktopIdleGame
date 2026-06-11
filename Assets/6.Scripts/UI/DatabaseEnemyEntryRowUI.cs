@@ -35,30 +35,32 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         if (enemy == null || lootRow == null || lootEntryBackgroundTemplate == null)
             return;
 
-        List<ItemDefinition> lootItems = CollectUniqueLootItems(enemy);
-        for (int i = 0; i < lootItems.Count; i++)
+        SpawnGoldLootEntry(enemy, tooltip);
+
+        List<LootDisplayEntry> lootEntries = CollectLootDisplayEntries(enemy);
+        for (int i = 0; i < lootEntries.Count; i++)
         {
-            ItemDefinition item = lootItems[i];
+            LootDisplayEntry lootEntry = lootEntries[i];
+            ItemDefinition item = lootEntry.item;
             if (item == null)
                 continue;
 
-            GameObject backgroundGo = Instantiate(lootEntryBackgroundTemplate, lootRow);
-            backgroundGo.SetActive(true);
-            backgroundGo.name = $"LootTableBackground_{item.itemId}";
-            ConfigureLootBackground(backgroundGo.transform as RectTransform);
-
-            Transform iconTransform = backgroundGo.transform.Find("LootTableEntryItem");
-            if (!iconTransform)
+            if (!TrySpawnLootEntryBackground($"LootTableBackground_{item.itemId}_{i}", out Transform iconTransform))
                 continue;
-
-            iconTransform.gameObject.SetActive(true);
 
             if (!iconTransform.TryGetComponent(out DatabaseLootTableEntryUI entryUi))
                 entryUi = iconTransform.gameObject.AddComponent<DatabaseLootTableEntryUI>();
 
-            entryUi.Bind(item, tooltip);
+            entryUi.Bind(
+                item,
+                tooltip,
+                lootEntry.dropChance,
+                lootEntry.isEliteDrop,
+                lootEntry.amountMin,
+                lootEntry.amountMax);
         }
 
+        EnsureGoldLootEntryIsFirst();
         lootEntryBackgroundTemplate.transform.SetAsLastSibling();
     }
 
@@ -121,6 +123,57 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             lootEntryBackgroundTemplate = lootRow.Find("LootTableBackground")?.gameObject;
     }
 
+    private void SpawnGoldLootEntry(EnemyDefinition enemy, SharedTooltipUI tooltip)
+    {
+        if (!TrySpawnLootEntryBackground("LootTableBackground_Gold", out Transform iconTransform))
+            return;
+
+        if (!iconTransform.TryGetComponent(out DatabaseLootTableEntryUI entryUi))
+            entryUi = iconTransform.gameObject.AddComponent<DatabaseLootTableEntryUI>();
+
+        entryUi.BindGold(
+            DatabaseLootTableEntryUI.ResolveGoldIconSprite(),
+            tooltip,
+            enemy.goldMin,
+            enemy.goldMax);
+
+        EnsureGoldLootEntryIsFirst();
+    }
+
+    private void EnsureGoldLootEntryIsFirst()
+    {
+        if (!lootRow)
+            return;
+
+        Transform goldBackground = lootRow.Find("LootTableBackground_Gold");
+        if (!goldBackground)
+            return;
+
+        Transform label = lootRow.Find("LootTableLabel");
+        int targetIndex = label != null ? label.GetSiblingIndex() + 1 : 0;
+        if (goldBackground.GetSiblingIndex() != targetIndex)
+            goldBackground.SetSiblingIndex(targetIndex);
+    }
+
+    private bool TrySpawnLootEntryBackground(string backgroundName, out Transform iconTransform)
+    {
+        iconTransform = null;
+        if (!lootRow || !lootEntryBackgroundTemplate)
+            return false;
+
+        GameObject backgroundGo = Instantiate(lootEntryBackgroundTemplate, lootRow);
+        backgroundGo.SetActive(true);
+        backgroundGo.name = backgroundName;
+        ConfigureLootBackground(backgroundGo.transform as RectTransform);
+
+        iconTransform = backgroundGo.transform.Find("LootTableEntryItem");
+        if (!iconTransform)
+            return false;
+
+        iconTransform.gameObject.SetActive(true);
+        return true;
+    }
+
     private void ClearSpawnedLootEntries()
     {
         if (!lootRow || !lootEntryBackgroundTemplate)
@@ -141,36 +194,57 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         lootEntryBackgroundTemplate.SetActive(false);
     }
 
-    private static List<ItemDefinition> CollectUniqueLootItems(EnemyDefinition enemy)
+    private readonly struct LootDisplayEntry
     {
-        var unique = new List<ItemDefinition>();
-        var seenIds = new HashSet<string>();
+        public readonly ItemDefinition item;
+        public readonly float dropChance;
+        public readonly bool isEliteDrop;
+        public readonly int amountMin;
+        public readonly int amountMax;
 
-        AppendLootItems(enemy.loot, unique, seenIds);
-        AppendLootItems(enemy.eliteLoot, unique, seenIds);
-        return unique;
+        public LootDisplayEntry(
+            ItemDefinition item,
+            float dropChance,
+            bool isEliteDrop,
+            int amountMin,
+            int amountMax)
+        {
+            this.item = item;
+            this.dropChance = dropChance;
+            this.isEliteDrop = isEliteDrop;
+            this.amountMin = amountMin;
+            this.amountMax = amountMax;
+        }
     }
 
-    private static void AppendLootItems(
-        List<EnemyLootEntry> entries,
-        List<ItemDefinition> unique,
-        HashSet<string> seenIds)
+    private static List<LootDisplayEntry> CollectLootDisplayEntries(EnemyDefinition enemy)
     {
-        if (entries == null)
+        var entries = new List<LootDisplayEntry>();
+
+        AppendLootEntries(enemy.loot, entries, isEliteTable: false);
+        AppendLootEntries(enemy.eliteLoot, entries, isEliteTable: true);
+        return entries;
+    }
+
+    private static void AppendLootEntries(
+        List<EnemyLootEntry> lootTable,
+        List<LootDisplayEntry> entries,
+        bool isEliteTable)
+    {
+        if (lootTable == null)
             return;
 
-        for (int i = 0; i < entries.Count; i++)
+        for (int i = 0; i < lootTable.Count; i++)
         {
-            EnemyLootEntry entry = entries[i];
+            EnemyLootEntry entry = lootTable[i];
             ItemDefinition item = entry != null ? entry.item : null;
             if (item == null || string.IsNullOrWhiteSpace(item.itemId))
                 continue;
 
-            string itemId = item.itemId.Trim();
-            if (!seenIds.Add(itemId))
-                continue;
-
-            unique.Add(item);
+            float chance = entry != null ? Mathf.Clamp01(entry.dropChance) : 0f;
+            int amountMin = entry != null ? Mathf.Max(1, entry.amountMin) : 1;
+            int amountMax = entry != null ? Mathf.Max(amountMin, entry.amountMax) : amountMin;
+            entries.Add(new LootDisplayEntry(item, chance, isEliteTable, amountMin, amountMax));
         }
     }
 }

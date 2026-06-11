@@ -22,6 +22,8 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  mapCombatScalingEnabled: 0
+  mapCombatScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 5
   eliteSpawnChance: 0
@@ -129,17 +131,6 @@ MonoBehaviour:
       spawnPointName: SpawnPoint11
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint27
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: 310e684af90247d68b5f681c8c39a402, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0

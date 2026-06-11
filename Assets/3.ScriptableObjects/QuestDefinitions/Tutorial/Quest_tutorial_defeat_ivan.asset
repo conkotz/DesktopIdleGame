@@ -16,7 +16,8 @@ MonoBehaviour:
   regionId: tutorial
   displayName: Defeat Ivan
   description: Actually defeat Ivan.
-  details: 
+  details: Make sure to use a magic weapon so you can stay out of melee range since
+    Ivan is very dangerous in close combat.
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
@@ -30,6 +31,9 @@ MonoBehaviour:
   additionalItemRewards: []
   rewardNotes: Unlocks Greenlands region
   grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  restockMerchantStockOnRewardClaim: 0
+  restockMerchantStockSaveKey: 
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 0
@@ -38,19 +42,20 @@ MonoBehaviour:
   obtainLocationDisplayName: Merlin in Tutorial 3
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  respawnEnemyOnQuestAccepted: 1
+  respawnEnemyOnQuestAcceptedDefinition: {fileID: 11400000, guid: a4d17577548723844bf438bc259b4c29, type: 2}
+  respawnEnemyOnQuestAcceptedMapNodeId: tutorial_3
+  respawnEnemyOnQuestAcceptedSpawnPointName: SpawnPoint35
+  respawnEnemyOnQuestAcceptedSpawnGroupId: AllSpawns
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds:
   - tutorial_aid_merlin
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 0}
   requiredSkillLevels: []
   killEnemyIdFilter: enemy_tutorial_ivan
   hideUntilMapNodeUnlockedId: tutorial_3
   hideFromQuestJournalUnlessAccepted: 0
-  respawnEnemyOnQuestAccepted: 1
-  respawnEnemyOnQuestAcceptedDefinition: {fileID: 11400000, guid: a4d17577548723844bf438bc259b4c29, type: 2}
-  respawnEnemyOnQuestAcceptedMapNodeId: tutorial_3
-  respawnEnemyOnQuestAcceptedSpawnPointName: SpawnPoint35
-  respawnEnemyOnQuestAcceptedSpawnGroupId: AllSpawns
   sortOrder: 13

@@ -14,6 +14,9 @@ public enum NpcDialogueConditionKind
         "After the player dies and respawns (scene reload), or when loading a save with this flag still set. " +
         "When After Death Respawn Map Node Id is set, it must match the map where the player died (not the map you are on when the NPC speaks). Cleared when this dialogue is shown.")]
     AfterDeathAndRespawn = 1,
+
+    [Tooltip("True after the player has accepted the configured quest (reward need not be claimed).")]
+    QuestAccepted = 2,
 }
 
 public enum NpcDialogueOutcomeKind
@@ -31,11 +34,17 @@ public class NpcConditionalDialogueEntry
     public NpcDialogueConditionKind condition = NpcDialogueConditionKind.CompletedQuest;
 
     [Tooltip("Quest id (QuestDefinition.questId). Must match after reward is claimed.")]
+    [ShowWhenEnum(nameof(condition), (int)NpcDialogueConditionKind.CompletedQuest)]
     public string completedQuestId = "";
+
+    [Tooltip("Quest id (QuestDefinition.questId). Must match after the quest is accepted from this or any giver.")]
+    [ShowWhenEnum(nameof(condition), (int)NpcDialogueConditionKind.QuestAccepted)]
+    public string acceptedQuestId = "";
 
     [Tooltip(
         "For After Death And Respawn only: require this MapNodeDefinition.nodeId for the map where the player **died** " +
         "(e.g. tutorial_3). Empty = any map. Legacy saves with pending but no stored death node fall back to current map for this check.")]
+    [ShowWhenEnum(nameof(condition), (int)NpcDialogueConditionKind.AfterDeathAndRespawn)]
     public string afterDeathRespawnMapNodeId = "";
 
     [TextArea(2, 6)]
@@ -46,17 +55,20 @@ public class NpcConditionalDialogueEntry
     public NpcDialogueOutcomeKind onAcceptOutcome = NpcDialogueOutcomeKind.None;
 
     [Tooltip("e.g. drag MapNode_town_duskwood, or leave empty and set Teleport Map Node Id.")]
+    [ShowWhenEnum(nameof(onAcceptOutcome), (int)NpcDialogueOutcomeKind.TeleportToMapNode)]
     public MapNodeDefinition teleportTargetNode;
 
     [Tooltip("Used when Teleport Target Node is empty. Must match MapNodeDefinition.nodeId (e.g. duskwood).")]
+    [ShowWhenEnum(nameof(onAcceptOutcome), (int)NpcDialogueOutcomeKind.TeleportToMapNode)]
     public string teleportMapNodeId = "";
 
     [Tooltip("For Buy All Items: ItemDefinition.itemId to purchase from player inventory.")]
+    [ShowWhenEnum(nameof(onAcceptOutcome), (int)NpcDialogueOutcomeKind.BuyAllItems)]
     public string buyAllItemId = "";
 
-    [Min(1)]
-    [Tooltip("For Buy All Items: gold paid per item removed from inventory.")]
-    public int buyAllGoldPerItem = 50;
+    [Tooltip("For Buy All Items only: gold paid per item removed. Leave at 0 when outcome is not Buy All Items.")]
+    [ShowWhenEnum(nameof(onAcceptOutcome), (int)NpcDialogueOutcomeKind.BuyAllItems)]
+    public int buyAllGoldPerItem;
 }
 
 public class NPCInteractionSettings : MonoBehaviour
@@ -216,6 +228,7 @@ public class NPCInteractionSettings : MonoBehaviour
 
         // First-sighting path is unaffected by the proximity gate (per design).
         if (openDialogueOnFirstSighting && !_hasOpenedOnFirstSighting &&
+            IsOneWayQueueSaveHydratedForFirstSighting() &&
             Time.unscaledTime >= _nextFirstSightingCheckTime)
         {
             _nextFirstSightingCheckTime = Time.unscaledTime + 0.25f;
@@ -287,66 +300,78 @@ public class NPCInteractionSettings : MonoBehaviour
     private bool HasConditionalDialogues() =>
         additionalConditionalDialogues != null && additionalConditionalDialogues.Count > 0;
 
-    private bool IsOneWayBaseDialogueConsumed()
+    private bool IsOneWayQueueSaveHydratedForFirstSighting()
+    {
+        if (!oneWayDialogueQueue || string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
+            return true;
+        return NpcOneWayDialogueQueueStore.AreStoresReady;
+    }
+
+    private string ResolveOneWayQueueSaveId() =>
+        string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId) ? "" : oneWayDialogueQueueSaveId.Trim();
+
+    /// <summary>Unified queue: -1 = not started, 0 = base shown, 1+ = conditionals shown.</summary>
+    private int GetOneWayQueueIndex()
     {
         if (!oneWayDialogueQueue)
-            return false;
+            return NpcOneWayDialogueQueueStore.QueueIndexNotStarted;
 
-        if (!string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
-            return NpcOneWayDialogueQueueStore.IsConsumed(oneWayDialogueQueueSaveId.Trim());
+        string saveId = ResolveOneWayQueueSaveId();
+        if (!string.IsNullOrEmpty(saveId))
+            return NpcOneWayDialogueQueueStore.GetQueueIndex(saveId);
 
-        return _sessionOneWayConditionalConsumed;
+        if (!_sessionOneWayConditionalConsumed && _sessionHighestOneWayConditionalPresented < 0)
+            return NpcOneWayDialogueQueueStore.QueueIndexNotStarted;
+        if (_sessionHighestOneWayConditionalPresented < 0)
+            return NpcOneWayDialogueQueueStore.QueueIndexBasePresented;
+        return _sessionHighestOneWayConditionalPresented + 1;
     }
 
-    private void MaybeMarkOneWayBaseDialogueConsumed(NpcConditionalDialogueEntry winning)
+    private bool IsOneWayBaseDialogueConsumed() =>
+        oneWayDialogueQueue && GetOneWayQueueIndex() >= NpcOneWayDialogueQueueStore.QueueIndexBasePresented;
+
+    private void RecordOneWayQueueIndexPresented(int queueIndex)
     {
-        if (!oneWayDialogueQueue || winning == null)
+        if (!oneWayDialogueQueue || queueIndex < NpcOneWayDialogueQueueStore.QueueIndexBasePresented)
             return;
 
-        if (!string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
-            NpcOneWayDialogueQueueStore.MarkConsumedAndSave(oneWayDialogueQueueSaveId.Trim());
-        else
+        string saveId = ResolveOneWayQueueSaveId();
+        if (!string.IsNullOrEmpty(saveId))
+        {
+            NpcOneWayDialogueQueueStore.SetQueueIndex(saveId, queueIndex);
+            return;
+        }
+
+        if (queueIndex == NpcOneWayDialogueQueueStore.QueueIndexBasePresented)
             _sessionOneWayConditionalConsumed = true;
+        else
+        {
+            _sessionOneWayConditionalConsumed = true;
+            _sessionHighestOneWayConditionalPresented =
+                Mathf.Max(_sessionHighestOneWayConditionalPresented, queueIndex - 1);
+        }
     }
 
-    /// <summary>
-    /// After any conditional row has been shown, never evaluate earlier rows again. Later rows can still win.
-    /// When one-way base is consumed and no row matches, dialogue stays empty (no base fallback).
-    /// </summary>
     private int GetHighestOneWayConditionalPresented()
     {
-        if (!oneWayDialogueQueue)
-            return -1;
-
-        if (!string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
-            return NpcOneWayDialogueQueueStore.GetHighestConditionalIndexPresented(oneWayDialogueQueueSaveId.Trim());
-
-        if (!_sessionOneWayConditionalConsumed)
-            return -1;
-
-        return _sessionHighestOneWayConditionalPresented;
-    }
-
-    private void RecordOneWayConditionalPresented(int conditionalIndex)
-    {
-        if (!oneWayDialogueQueue || conditionalIndex < 0)
-            return;
-
-        if (!string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
-            NpcOneWayDialogueQueueStore.RecordHighestConditionalIndexPresented(
-                oneWayDialogueQueueSaveId.Trim(),
-                conditionalIndex);
-        else
-            _sessionHighestOneWayConditionalPresented =
-                Mathf.Max(_sessionHighestOneWayConditionalPresented, conditionalIndex);
+        int queue = GetOneWayQueueIndex();
+        return queue >= 1 ? queue - 1 : NpcOneWayDialogueQueueStore.QueueIndexNotStarted;
     }
 
     /// <param name="winningConditionalIndex">Index in <see cref="additionalConditionalDialogues"/> when <paramref name="winning"/> came from that loop; otherwise -1.</param>
-    private void NotifyOneWayConditionalPresented(NpcConditionalDialogueEntry winning, int winningConditionalIndex)
+    private void NotifyOneWayDialoguePresented(NpcConditionalDialogueEntry winning, int winningConditionalIndex)
     {
-        if (winning == null || winningConditionalIndex < 0)
+        if (!oneWayDialogueQueue)
             return;
-        RecordOneWayConditionalPresented(winningConditionalIndex);
+
+        if (winning == null && winningConditionalIndex < 0)
+        {
+            RecordOneWayQueueIndexPresented(NpcOneWayDialogueQueueStore.QueueIndexBasePresented);
+            return;
+        }
+
+        if (winning != null && winningConditionalIndex >= 0)
+            RecordOneWayQueueIndexPresented(winningConditionalIndex + 1);
     }
 
     /// <summary>First conditional index to evaluate (skips rows already superseded by the one-way chain).</summary>
@@ -354,29 +379,103 @@ public class NPCInteractionSettings : MonoBehaviour
     {
         if (additionalConditionalDialogues == null || additionalConditionalDialogues.Count == 0)
             return 0;
-        if (!oneWayDialogueQueue || !IsOneWayBaseDialogueConsumed())
+        if (!oneWayDialogueQueue)
             return 0;
 
-        // While death/respawn dialogue is still pending, the After Death row must stay in the evaluation window even
-        // if chain progress was written by an older build or the box was dismissed before pending was cleared correctly.
-        // Skip that reset when a turn-in is ready — claim runs first and advances the queue to the next row.
-        if (NpcPostDeathRespawnDialogueStore.IsPending &&
-            HasAfterDeathConditionalEntry() &&
-            !HasClaimableQuestAtGiver())
-            return 0;
-
-        int highest = GetHighestOneWayConditionalPresented();
-        if (highest < 0)
+        int queue = GetOneWayQueueIndex();
+        if (queue < NpcOneWayDialogueQueueStore.QueueIndexBasePresented)
             return 0;
 
         int count = additionalConditionalDialogues.Count;
-        // Next row after the furthest-shown index — but when that index is already the last row (highest == count - 1),
-        // highest + 1 == count and the for-loop never runs, stranding e.g. "Accept → teleport" after closing the box.
-        int start = highest + 1;
+        int start = queue;
         if (start >= count)
             start = Mathf.Max(0, count - 1);
 
+        if (NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry())
+        {
+            int afterDeathIdx = GetAfterDeathConditionalIndex();
+            if (afterDeathIdx >= 0)
+                return afterDeathIdx;
+        }
+
         return start;
+    }
+
+    private int GetAfterDeathConditionalIndex()
+    {
+        if (additionalConditionalDialogues == null)
+            return -1;
+
+        for (int i = 0; i < additionalConditionalDialogues.Count; i++)
+        {
+            NpcConditionalDialogueEntry e = additionalConditionalDialogues[i];
+            if (e != null && e.condition == NpcDialogueConditionKind.AfterDeathAndRespawn)
+                return i;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Called when the player dies so matching one-way NPCs do not replay base dialogue after reload.
+    /// Element 0 (base) is marked complete; element 1 (after-death conditional) is selected via pending flag.
+    /// </summary>
+    public void PrepareOneWayQueueForPlayerDeath(string diedOnMapNodeId)
+    {
+        if (!oneWayDialogueQueue || string.IsNullOrWhiteSpace(oneWayDialogueQueueSaveId))
+            return;
+        if (!HasAfterDeathConditionalEntryMatchingMap(diedOnMapNodeId))
+            return;
+
+        string saveId = ResolveOneWayQueueSaveId();
+        NpcOneWayDialogueQueueStore.EnsureMinimumQueueIndex(
+            saveId,
+            NpcOneWayDialogueQueueStore.QueueIndexBasePresented,
+            save: false);
+
+        int afterDeathIdx = GetAfterDeathConditionalIndex();
+        if (afterDeathIdx >= 0)
+        {
+            // Past intro / quest-accepted rows — after-death is the owed stage (presented when dialogue opens).
+            NpcOneWayDialogueQueueStore.EnsureMinimumQueueIndex(saveId, afterDeathIdx, save: false);
+        }
+
+        DismissStalePlainDialogueAfterPlayerDeath();
+    }
+
+    /// <summary>Closes intro lines still on screen so after-death dialogue can present on respawn / next open.</summary>
+    private void DismissStalePlainDialogueAfterPlayerDeath()
+    {
+        _lastAutoPlainDialogueSignature = "";
+        if (!NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+            return;
+        if (_activeDialogue != null)
+            _activeDialogue.Hide(suppressPlainDismissCallback: true);
+    }
+
+    private bool HasAfterDeathConditionalEntryMatchingMap(string diedOnMapNodeId)
+    {
+        if (additionalConditionalDialogues == null)
+            return false;
+
+        string died = string.IsNullOrWhiteSpace(diedOnMapNodeId) ? "" : diedOnMapNodeId.Trim();
+        for (int i = 0; i < additionalConditionalDialogues.Count; i++)
+        {
+            NpcConditionalDialogueEntry e = additionalConditionalDialogues[i];
+            if (e == null || e.condition != NpcDialogueConditionKind.AfterDeathAndRespawn)
+                continue;
+
+            if (string.IsNullOrWhiteSpace(e.afterDeathRespawnMapNodeId))
+                return true;
+
+            if (string.IsNullOrEmpty(died))
+                return true;
+
+            if (string.Equals(e.afterDeathRespawnMapNodeId.Trim(), died, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     private bool NeedsQuestProgressSubscription() =>
@@ -602,11 +701,19 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private void InteractNowAfterClaimGate(bool dialogueAlreadyOpenForThisNpc)
     {
+        bool deferFollowUpQuestOffersAfterTurnIn =
+            HasClaimableQuestAtGiver() &&
+            questGiver != null &&
+            questGiver.HasFollowUpQuestOfferAfterTurnIn();
+
         bool claimedRewardThisClick = false;
         if (TryClaimReadyQuestRewardBeforeDialogue(dialogueAlreadyOpenForThisNpc, out bool claimed))
         {
             claimedRewardThisClick = claimed;
             if (IsQuestClaimStartingMapTravel())
+                return;
+
+            if (claimed && deferFollowUpQuestOffersAfterTurnIn)
                 return;
         }
 
@@ -631,7 +738,9 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        if (quests.Count > 0 && NPCDialogueBoxUI.TryReshowCollapsedPlainDialogueForNpc(transform))
+        if (quests.Count > 0 &&
+            NPCDialogueBoxUI.HasPinnedPlainQuestSpreadForNpc(transform) &&
+            NPCDialogueBoxUI.IsPlainHostCollapsedForActiveSpread())
             return;
 
         if (quests.Count > 0 &&
@@ -645,7 +754,7 @@ public class NPCInteractionSettings : MonoBehaviour
             plainHost.StackQuestOffersBesidePlainDialogue(
                 quests,
                 () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
-                q => questGiver != null && questGiver.TryAcceptQuest(q),
+                BuildQuestAcceptHandler(),
                 autoCloseSeconds: 0f);
             return;
         }
@@ -685,23 +794,23 @@ public class NPCInteractionSettings : MonoBehaviour
                 Vector3.zero,
                 quests,
                 () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
-                q => questGiver != null && questGiver.TryAcceptQuest(q),
+                BuildQuestAcceptHandler(),
                 autoCloseSeconds: 0f);
             return;
         }
 
         TryGetResolvedPlainDialogue(
             out string text,
-            out bool showAccept,
-            out Action onAccept,
-            out NpcConditionalDialogueEntry winning,
-            out int winningConditionalIndex,
+            out bool showAcceptPlain,
+            out Action onAcceptPlain,
+            out NpcConditionalDialogueEntry winningPlain,
+            out int winningConditionalIndexPlain,
             allowBaseWhenOneWayHasNoMatchingConditional: true);
         EnsurePlainDialogueNeverEmpty(ref text);
-        float autoClose = ResolvePlainAutoCloseSeconds(showAccept, winning);
-        box.ShowAt(transform, transform, Vector3.zero, text, showAccept, onAccept, autoClose);
-        RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
-        ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
+        float autoClosePlain = ResolvePlainAutoCloseSeconds(showAcceptPlain, winningPlain);
+        box.ShowAt(transform, transform, Vector3.zero, text, showAcceptPlain, onAcceptPlain, autoClosePlain);
+        RememberAutoPlainDialogueSignatureIfNeeded(text, showAcceptPlain);
+        ApplyPlainDialoguePresentedSideEffects(box, winningPlain, winningConditionalIndexPlain);
     }
 
     private void TryOpenColocatedMerchantShop()
@@ -749,14 +858,29 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private void ShowNormalDialogueOnlyCore(bool replaceExistingThisNpcDialogue)
     {
-        TryGetResolvedPlainDialogue(
-            out string text,
-            out bool showAccept,
-            out Action onAccept,
-            out NpcConditionalDialogueEntry winning,
-            out int winningConditionalIndex,
-            allowBaseWhenOneWayHasNoMatchingConditional: true);
-        EnsurePlainDialogueNeverEmpty(ref text);
+        string text;
+        bool showAccept;
+        Action onAccept;
+        NpcConditionalDialogueEntry winning;
+        int winningConditionalIndex;
+
+        if (!TryResolvePendingAfterDeathPlainDialogue(
+                out text,
+                out showAccept,
+                out onAccept,
+                out winning,
+                out winningConditionalIndex))
+        {
+            TryGetResolvedPlainDialogue(
+                out text,
+                out showAccept,
+                out onAccept,
+                out winning,
+                out winningConditionalIndex,
+                allowBaseWhenOneWayHasNoMatchingConditional: true);
+            EnsurePlainDialogueNeverEmpty(ref text);
+        }
+
         if (string.IsNullOrWhiteSpace(text))
             return;
 
@@ -806,7 +930,6 @@ public class NPCInteractionSettings : MonoBehaviour
         int winningConditionalIndex)
     {
         box.SetPlainDialogueHideOnceCallback(null);
-        MaybeMarkOneWayBaseDialogueConsumed(winning);
 
         if (winning != null &&
             winning.condition == NpcDialogueConditionKind.AfterDeathAndRespawn &&
@@ -815,13 +938,13 @@ public class NPCInteractionSettings : MonoBehaviour
             box.SetPlainDialogueHideOnceCallback(() =>
             {
                 NpcPostDeathRespawnDialogueStore.ClearPendingAndSave();
-                NotifyOneWayConditionalPresented(winning, winningConditionalIndex);
+                NotifyOneWayDialoguePresented(winning, winningConditionalIndex);
             });
             return;
         }
 
         NotifyPresentedDeathRespawnDialogueIfNeeded(winning);
-        NotifyOneWayConditionalPresented(winning, winningConditionalIndex);
+        NotifyOneWayDialoguePresented(winning, winningConditionalIndex);
     }
 
     private void NotifyPresentedDeathRespawnDialogueIfNeeded(NpcConditionalDialogueEntry winning)
@@ -865,12 +988,11 @@ public class NPCInteractionSettings : MonoBehaviour
     }
 
     /// <summary>
-    /// When a turn-in is ready, claim before any plain dialogue (walk-to-arrive, first sighting, or click).
-    /// Post-death lines are only prioritized when there is nothing to claim.
+    /// When post-death dialogue is owed, show that line before auto-claiming a ready turn-in (e.g. Die Once quests).
     /// </summary>
     private bool ShouldDeferRewardClaimForPostDeathDialogue(bool dialogueAlreadyOpenForThisNpc)
     {
-        if (dialogueAlreadyOpenForThisNpc || HasClaimableQuestAtGiver())
+        if (dialogueAlreadyOpenForThisNpc)
             return false;
 
         return NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry();
@@ -908,13 +1030,13 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!debugLogPlainDialogueResolution)
             return;
 
-        int hi = GetHighestOneWayConditionalPresented();
+        int queueIdx = GetOneWayQueueIndex();
         int minIdx = GetOneWayChainMinimumConditionalIndexForEvaluation();
         Debug.Log(
             $"[NPCInteraction '{name}' ({gameObject.name})] {reason}\n" +
             $"  postDeathPending={NpcPostDeathRespawnDialogueStore.IsPending} deathNodeId='{NpcPostDeathRespawnDialogueStore.DeathOccurredOnMapNodeId}' " +
             $"curMapId='{NpcPostDeathRespawnDialogueStore.ResolveCurrentGameplayMapNodeId()}'\n" +
-            $"  oneWay={oneWayDialogueQueue} baseConsumed={IsOneWayBaseDialogueConsumed()} chainHigh={hi} evalMin={minIdx} " +
+            $"  oneWay={oneWayDialogueQueue} queueIndex={queueIdx} evalMin={minIdx} storesReady={NpcOneWayDialogueQueueStore.AreStoresReady} " +
             $"saveId='{oneWayDialogueQueueSaveId}'\n" +
             $"  questOffers={questOfferCount} hasAfterDeathRow={HasAfterDeathConditionalEntry()}",
             this);
@@ -1055,6 +1177,38 @@ public class NPCInteractionSettings : MonoBehaviour
         ShowNormalDialogueOnly(true);
     }
 
+    private Func<QuestDefinition, bool> BuildQuestAcceptHandler()
+    {
+        return quest =>
+        {
+            if (questGiver == null || !questGiver.TryAcceptQuest(quest))
+                return false;
+            SchedulePlainDialogueAfterQuestOfferAccepted();
+            return true;
+        };
+    }
+
+    private void SchedulePlainDialogueAfterQuestOfferAccepted()
+    {
+        StopDeferredQuestAcceptedPlainDialogue();
+        _deferredQuestAcceptedPlainDialogueRoutine =
+            StartCoroutine(DeferredShowPlainDialogueAfterQuestOfferAccepted());
+    }
+
+    private IEnumerator DeferredShowPlainDialogueAfterQuestOfferAccepted()
+    {
+        yield return null;
+        _deferredQuestAcceptedPlainDialogueRoutine = null;
+
+        if (!IsPlayerWithinAutoReopenRange())
+        {
+            _pendingProximityAutoReopen = true;
+            yield break;
+        }
+
+        ShowNormalDialogueOnlyCore(true);
+    }
+
     /// <param name="allowBaseWhenOneWayHasNoMatchingConditional">
     /// When true (manual <see cref="Interact"/> only): if non-one-way base was suppressed but no conditional matches,
     /// fall back to the base Dialogue field. Ignored when <see cref="oneWayDialogueQueue"/> is on (base never returns).
@@ -1080,19 +1234,30 @@ public class NPCInteractionSettings : MonoBehaviour
 
         if (additionalConditionalDialogues == null || additionalConditionalDialogues.Count == 0)
         {
-            ApplyOneWayManualInteractBaseFallback(
+            ApplyOneWayManualInteractReplayFallback(
                 allowBaseWhenOneWayHasNoMatchingConditional,
                 skipBase,
-                ref text);
+                ref text,
+                ref showAccept,
+                ref onAccept,
+                ref winningEntry,
+                ref winningConditionalIndex);
             return;
         }
 
         int minIndex = GetOneWayChainMinimumConditionalIndexForEvaluation();
-        bool skipAfterDeathWhileClaimReady = HasClaimableQuestAtGiver();
+        bool skipAfterDeathWhileClaimReady =
+            HasClaimableQuestAtGiver() && !NpcPostDeathRespawnDialogueStore.IsPending;
+        int afterDeathRow = GetAfterDeathConditionalIndex();
         for (int i = minIndex; i < additionalConditionalDialogues.Count; i++)
         {
             NpcConditionalDialogueEntry e = additionalConditionalDialogues[i];
             if (e == null || string.IsNullOrWhiteSpace(e.dialogue))
+                continue;
+            if (NpcPostDeathRespawnDialogueStore.IsPending &&
+                afterDeathRow >= 0 &&
+                e.condition == NpcDialogueConditionKind.QuestAccepted &&
+                i < afterDeathRow)
                 continue;
             if (skipAfterDeathWhileClaimReady &&
                 e.condition == NpcDialogueConditionKind.AfterDeathAndRespawn)
@@ -1110,37 +1275,100 @@ public class NPCInteractionSettings : MonoBehaviour
                 break;
         }
 
-        ApplyOneWayManualInteractBaseFallback(
+        ApplyOneWayManualInteractReplayFallback(
             allowBaseWhenOneWayHasNoMatchingConditional,
             skipBase,
-            ref text);
+            ref text,
+            ref showAccept,
+            ref onAccept,
+            ref winningEntry,
+            ref winningConditionalIndex);
     }
 
-    private void ApplyOneWayManualInteractBaseFallback(
-        bool allowBaseWhenOneWayHasNoMatchingConditional,
+    private void ApplyOneWayManualInteractReplayFallback(
+        bool allowManualReplay,
         bool skipBase,
-        ref string text)
+        ref string text,
+        ref bool showAccept,
+        ref Action onAccept,
+        ref NpcConditionalDialogueEntry winningEntry,
+        ref int winningConditionalIndex)
     {
-        if (!allowBaseWhenOneWayHasNoMatchingConditional || !skipBase || !string.IsNullOrWhiteSpace(text))
+        if (!allowManualReplay || !skipBase || !string.IsNullOrWhiteSpace(text))
             return;
-        // One-way mode after a conditional has been shown: do not resurrect base dialogue.
-        // Manual click fallback should replay the last shown one-way conditional line if possible.
+
         if (oneWayDialogueQueue)
         {
-            int replayIdx = GetHighestOneWayConditionalPresented();
-            if (additionalConditionalDialogues != null &&
-                replayIdx >= 0 &&
-                replayIdx < additionalConditionalDialogues.Count)
+            if (TryGetOneWayQueueStageReplay(out string replayText, out NpcConditionalDialogueEntry replayEntry, out int replayIndex))
             {
-                NpcConditionalDialogueEntry replay = additionalConditionalDialogues[replayIdx];
-                if (replay != null && !string.IsNullOrWhiteSpace(replay.dialogue))
-                    text = replay.dialogue.Trim();
+                text = replayText;
+                winningEntry = replayEntry;
+                winningConditionalIndex = replayIndex;
+                if (replayEntry != null)
+                {
+                    Action built = BuildAcceptActionOrNull(replayEntry);
+                    showAccept = built != null;
+                    onAccept = built;
+                }
+                else
+                {
+                    showAccept = false;
+                    onAccept = null;
+                }
             }
+
             return;
         }
+
         if (string.IsNullOrWhiteSpace(dialogue))
             return;
         text = dialogue.Trim();
+    }
+
+    /// <summary>Dialogue for the current one-way queue stage (base at index 0, conditionals at 1+).</summary>
+    private bool TryGetOneWayQueueStageReplay(
+        out string replayText,
+        out NpcConditionalDialogueEntry entry,
+        out int conditionalIndex)
+    {
+        replayText = "";
+        entry = null;
+        conditionalIndex = -1;
+
+        if (!oneWayDialogueQueue)
+            return false;
+
+        if (TryResolvePendingAfterDeathPlainDialogue(
+                out replayText,
+                out _,
+                out _,
+                out entry,
+                out conditionalIndex))
+            return true;
+
+        int queue = GetOneWayQueueIndex();
+        if (queue == NpcOneWayDialogueQueueStore.QueueIndexBasePresented)
+        {
+            if (string.IsNullOrWhiteSpace(dialogue))
+                return false;
+            replayText = dialogue.Trim();
+            return true;
+        }
+
+        int replayIdx = GetHighestOneWayConditionalPresented();
+        if (additionalConditionalDialogues == null ||
+            replayIdx < 0 ||
+            replayIdx >= additionalConditionalDialogues.Count)
+            return false;
+
+        NpcConditionalDialogueEntry replay = additionalConditionalDialogues[replayIdx];
+        if (replay == null || string.IsNullOrWhiteSpace(replay.dialogue))
+            return false;
+
+        replayText = replay.dialogue.Trim();
+        entry = replay;
+        conditionalIndex = replayIdx;
+        return true;
     }
 
     /// <summary>Last resort when base <see cref="dialogue"/> exists but resolution returned empty (interact + auto-open).</summary>
@@ -1149,14 +1377,66 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(text))
             return;
         if (oneWayDialogueQueue && IsOneWayBaseDialogueConsumed())
+        {
+            if (TryResolvePendingAfterDeathPlainDialogue(out string afterDeath, out _, out _, out _, out _))
+                text = afterDeath;
+            else if (TryGetOneWayQueueStageReplay(out string replay, out _, out _))
+                text = replay;
             return;
+        }
         if (string.IsNullOrWhiteSpace(dialogue))
             return;
         text = dialogue.Trim();
     }
 
+    /// <summary>Post-death row owed after player death; must win over base replay at queue index 0.</summary>
+    private bool TryResolvePendingAfterDeathPlainDialogue(
+        out string text,
+        out bool showAccept,
+        out Action onAccept,
+        out NpcConditionalDialogueEntry winning,
+        out int winningConditionalIndex)
+    {
+        text = "";
+        showAccept = false;
+        onAccept = null;
+        winning = null;
+        winningConditionalIndex = -1;
+
+        if (!NpcPostDeathRespawnDialogueStore.IsPending || !HasAfterDeathConditionalEntry())
+            return false;
+        if (!HasAfterDeathConditionalEntryMatchingMap(NpcPostDeathRespawnDialogueStore.DeathOccurredOnMapNodeId))
+            return false;
+
+        int idx = GetAfterDeathConditionalIndex();
+        if (idx < 0 || additionalConditionalDialogues == null || idx >= additionalConditionalDialogues.Count)
+            return false;
+
+        NpcConditionalDialogueEntry entry = additionalConditionalDialogues[idx];
+        if (entry == null ||
+            entry.condition != NpcDialogueConditionKind.AfterDeathAndRespawn ||
+            string.IsNullOrWhiteSpace(entry.dialogue))
+            return false;
+
+        QuestProgressManager mgr = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (!EvaluateConditionalEntry(entry, mgr))
+            return false;
+
+        text = entry.dialogue.Trim();
+        Action built = BuildAcceptActionOrNull(entry);
+        showAccept = built != null;
+        onAccept = built;
+        winning = entry;
+        winningConditionalIndex = idx;
+        return true;
+    }
+
     private static Action BuildAcceptActionOrNull(NpcConditionalDialogueEntry e)
     {
+        if (e == null)
+            return null;
+
         switch (e.onAcceptOutcome)
         {
             case NpcDialogueOutcomeKind.TeleportToMapNode:
@@ -1170,9 +1450,9 @@ public class NPCInteractionSettings : MonoBehaviour
             case NpcDialogueOutcomeKind.BuyAllItems:
             {
                 string itemId = string.IsNullOrWhiteSpace(e.buyAllItemId) ? "" : e.buyAllItemId.Trim();
-                int goldPerItem = Mathf.Max(1, e.buyAllGoldPerItem);
-                if (string.IsNullOrWhiteSpace(itemId))
+                if (string.IsNullOrWhiteSpace(itemId) || e.buyAllGoldPerItem <= 0)
                     return null;
+                int goldPerItem = e.buyAllGoldPerItem;
                 return () => BuyAllItemsFromPlayer(itemId, goldPerItem);
             }
             default:
@@ -1214,6 +1494,15 @@ public class NPCInteractionSettings : MonoBehaviour
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
     }
 
+    private static string ResolveAcceptedQuestIdForCondition(NpcConditionalDialogueEntry e)
+    {
+        if (!string.IsNullOrWhiteSpace(e.acceptedQuestId))
+            return e.acceptedQuestId.Trim();
+        if (!string.IsNullOrWhiteSpace(e.completedQuestId))
+            return e.completedQuestId.Trim();
+        return "";
+    }
+
     private static bool EvaluateConditionalEntry(NpcConditionalDialogueEntry e, QuestProgressManager mgr)
     {
         switch (e.condition)
@@ -1222,6 +1511,16 @@ public class NPCInteractionSettings : MonoBehaviour
                 if (string.IsNullOrWhiteSpace(e.completedQuestId) || mgr == null)
                     return false;
                 return mgr.IsRewardClaimed(e.completedQuestId.Trim());
+            case NpcDialogueConditionKind.QuestAccepted:
+            {
+                if (mgr == null)
+                    return false;
+                string acceptedId = ResolveAcceptedQuestIdForCondition(e);
+                if (string.IsNullOrWhiteSpace(acceptedId))
+                    return false;
+                QuestDefinition accepted = mgr.GetQuestDefinition(acceptedId);
+                return accepted != null && mgr.IsQuestAccepted(accepted);
+            }
             case NpcDialogueConditionKind.AfterDeathAndRespawn:
                 if (!NpcPostDeathRespawnDialogueStore.IsPending)
                     return false;

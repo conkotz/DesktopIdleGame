@@ -166,7 +166,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     public Vector2 DefaultHelperPanelSize => panelSize;
 
     [Tooltip(
-        "How far above the helper front panel Canvas sort order to place nested canvases built on whitelist UI markers (toolbar buttons). Larger = safer over other overlays.")]
+        "Extra sort order above the helper overlay root when no modal dimmer is active. During modal dim, whitelist UI markers are capped just below the helper panel so they stay above the blackout but never cover the tip.")]
     [SerializeField] private int whitelistUiCanvasSortBeyondPanel = 125;
 
     [Header("Body typewriter")]
@@ -2250,6 +2250,38 @@ public sealed class HelperGameplayController : MonoBehaviour
         return total;
     }
 
+    private int ResolveHelperPanelModalCanvasSortOrder() =>
+        Mathf.Clamp(canvasSortOrder + Mathf.Max(panelSortDelta, 2), -30000, 32760);
+
+    private bool IsHelperModalDimmerVisibleForDrawOrder() =>
+        _overlayRoot != null &&
+        _overlayRoot.activeSelf &&
+        _dimmerImage &&
+        _dimmerImage.isActiveAndEnabled &&
+        _dimmerImage.enabled &&
+        _dimmerImage.color.a > 0.05f;
+
+    /// <summary>
+    /// Whitelist UI markers (e.g. FoodSlot) need to sit above the dimmer but always below the helper panel nested canvas.
+    /// </summary>
+    private int ResolveWhitelistUiElevationSortOrder(int markerBump)
+    {
+        int overlayTopSort = canvasSortOrder + panelSortDelta;
+
+        if (IsHelperModalDimmerVisibleForDrawOrder())
+        {
+            int panelOrder = ResolveHelperPanelModalCanvasSortOrder();
+            int ceiling = panelOrder - 1 - markerBump;
+            int floor = canvasSortOrder + 1;
+            return Mathf.Clamp(ceiling, floor, panelOrder - 1);
+        }
+
+        return Mathf.Clamp(
+            overlayTopSort + Mathf.Max(1, whitelistUiCanvasSortBeyondPanel) + markerBump,
+            -30000,
+            32760);
+    }
+
     private void RaiseWhitelistUiTargetCanvasesForActiveOverlay()
     {
         RestoreWhitelistUiTargetCanvases();
@@ -2258,11 +2290,6 @@ public sealed class HelperGameplayController : MonoBehaviour
             !IsHelperExpandedPresentation() ||
             !_activeDefinition.HasConfiguredWhitelistInteractIds())
             return;
-
-        int overlayTopSort = canvasSortOrder + panelSortDelta;
-
-        int whitelistSort =
-            Mathf.Clamp(overlayTopSort + Mathf.Max(1, whitelistUiCanvasSortBeyondPanel), -30000, 32760);
 
         HelperWhitelistUiInteractTarget[] markers =
             FindObjectsByType<HelperWhitelistUiInteractTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -2274,7 +2301,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             if (!marker || !_activeDefinition.MatchesWhitelistId(marker.InteractionId))
                 continue;
 
-            ElevateWhitelistUiInteractTarget(marker, whitelistSort + bump);
+            ElevateWhitelistUiInteractTarget(marker, ResolveWhitelistUiElevationSortOrder(bump));
             bump++;
         }
     }
@@ -2807,12 +2834,25 @@ public sealed class HelperGameplayController : MonoBehaviour
         SyncAndPulseWhitelistGlow();
         TrackHelperLayoutSave();
         PulseHelperNewBadgeAlpha();
+        SyncMovementLockFromSettings();
     }
 
     private void Update()
     {
         LerpWhitelistPresentationTints();
         PollAnyPlayerActionDismiss();
+    }
+
+    private static bool IsSprintBindPressedThisFrame()
+    {
+        if (HotkeySettingsRowUI.IsRebinding)
+            return false;
+
+        KeyCode sprintKey = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.Sprint)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.Sprint);
+
+        return sprintKey != KeyCode.None && Input.GetKeyDown(sprintKey);
     }
 
     private void PollAnyPlayerActionDismiss()
@@ -2827,6 +2867,12 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.01f ||
             Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.01f)
+        {
+            TryDismiss(HelperDismissMode.AnyPlayerActionDismiss);
+            return;
+        }
+
+        if (IsSprintBindPressedThisFrame())
         {
             TryDismiss(HelperDismissMode.AnyPlayerActionDismiss);
             return;
@@ -4128,7 +4174,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
         }
 
-        int panelOrder = Mathf.Clamp(canvasSortOrder + Mathf.Max(panelSortDelta, 2), -30000, 32760);
+        int panelOrder = ResolveHelperPanelModalCanvasSortOrder();
 
         if (!_helperPanelRt.TryGetComponent(out Canvas _) &&
             _helperPanelRt.TryGetComponent(out GraphicRaycaster orphanRay))

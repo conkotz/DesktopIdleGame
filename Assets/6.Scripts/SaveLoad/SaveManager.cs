@@ -610,7 +610,7 @@ public class SaveManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Merges only <see cref="NpcPostDeathRespawnDialogueStore"/> fields into the active save file.
+    /// Merges NPC post-death and one-way dialogue queue fields into the active save file.
     /// Use when <see cref="Save"/> was skipped (<see cref="_isApplyingSaveData"/>) so death/respawn dialogue flags are not lost.
     /// </summary>
     public void FlushNpcPostDeathDialogueToDisk()
@@ -632,11 +632,20 @@ public class SaveManager : MonoBehaviour
             NormalizeSaveDataLists(data);
             SaveDataIntegrity.RepairAfterJsonLoad(data, "FlushNpcPostDeath");
             NpcPostDeathRespawnDialogueStore.WriteInto(data);
+            NpcOneWayDialogueQueueStore.WriteInto(data);
 
             if (_lastLoadedData != null)
             {
                 _lastLoadedData.npcPostDeathRespawnDialoguePending = data.npcPostDeathRespawnDialoguePending;
                 _lastLoadedData.npcPostDeathRespawnDialogueDeathNodeId = data.npcPostDeathRespawnDialogueDeathNodeId ?? "";
+                _lastLoadedData.npcOneWayConditionalDialogueConsumedKeys =
+                    data.npcOneWayConditionalDialogueConsumedKeys != null
+                        ? new List<string>(data.npcOneWayConditionalDialogueConsumedKeys)
+                        : new List<string>();
+                _lastLoadedData.npcOneWayDialogueChainProgressRows =
+                    data.npcOneWayDialogueChainProgressRows != null
+                        ? new List<NpcOneWayDialogueChainProgressRow>(data.npcOneWayDialogueChainProgressRows)
+                        : new List<NpcOneWayDialogueChainProgressRow>();
             }
 
             SaveDataIntegrity.SanitizeBeforeWrite(data, "FlushNpcPostDeath");
@@ -1104,6 +1113,14 @@ public class SaveManager : MonoBehaviour
             {
                 _lastLoadedData.npcPostDeathRespawnDialoguePending = data.npcPostDeathRespawnDialoguePending;
                 _lastLoadedData.npcPostDeathRespawnDialogueDeathNodeId = data.npcPostDeathRespawnDialogueDeathNodeId ?? "";
+                _lastLoadedData.npcOneWayConditionalDialogueConsumedKeys =
+                    data.npcOneWayConditionalDialogueConsumedKeys != null
+                        ? new List<string>(data.npcOneWayConditionalDialogueConsumedKeys)
+                        : new List<string>();
+                _lastLoadedData.npcOneWayDialogueChainProgressRows =
+                    data.npcOneWayDialogueChainProgressRows != null
+                        ? new List<NpcOneWayDialogueChainProgressRow>(data.npcOneWayDialogueChainProgressRows)
+                        : new List<NpcOneWayDialogueChainProgressRow>();
             }
         }
         catch (Exception ex)

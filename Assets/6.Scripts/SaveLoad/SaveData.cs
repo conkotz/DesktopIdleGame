@@ -303,8 +303,7 @@ public class SaveData
     public List<string> npcOneWayConditionalDialogueConsumedKeys = new();
 
     [Tooltip(
-        "Per one-way save id: highest Additional Conditional Dialogues index that has been presented (0-based). " +
-        "Earlier rows are never chosen again until the chain is exhausted, then base dialogue may return.")]
+        "Per one-way save id: unified dialogue queue progress. Element 0 = base dialogue, 1+ = additional conditional rows.")]
     public List<NpcOneWayDialogueChainProgressRow> npcOneWayDialogueChainProgressRows = new();
 }
 
@@ -313,7 +312,12 @@ public class SaveData
 public class NpcOneWayDialogueChainProgressRow
 {
     public string saveId;
-    public int highestIndex;
+
+    [Tooltip("Legacy conditional-only highest index (0-based). Superseded by queueIndex when present.")]
+    public int highestIndex = -1;
+
+    [Tooltip("Unified queue index: 0 = base dialogue shown, 1 = first conditional shown, etc. -1 = unset.")]
+    public int queueIndex = -1;
 }
 
 /// <summary>Two preset slots for one <see cref="SkillType"/>.</summary>

@@ -207,6 +207,22 @@ public class QuestGiver : MonoBehaviour
     }
 
     /// <summary>
+    /// When a ? turn-in is ready, true if claiming it would unlock a new quest offer at this same giver (second click shows the offer).
+    /// </summary>
+    public bool HasFollowUpQuestOfferAfterTurnIn()
+    {
+        TryBindManager();
+        if (_manager == null || string.IsNullOrWhiteSpace(locationId))
+            return false;
+
+        QuestDefinition claimable = GetFirstClaimableQuestAtLocation();
+        if (!claimable)
+            return false;
+
+        return _manager.HasAcceptableQuestAtLocationAfterRewardClaim(locationId, claimable);
+    }
+
+    /// <summary>
     /// Claims the first claimable quest at this giver (same as journal Complete Quest). Returns false if nothing to claim or claim blocked.
     /// </summary>
     public bool TryClaimFirstReadyQuestReward()

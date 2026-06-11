@@ -18,9 +18,10 @@ MonoBehaviour:
     support item to be equipped in order to use them. For magic weapons you will
     need either a focus or runes and for ranged weapon, they will require arrows.
     \n\nMaigc attacks will consume mana to cast but they will also provide elemental
-    ailments based on their. This ice weapon adds chill upon hitting enemies which
-    causes them to move slower per stack. \n\nHitting 'Tab' and equipping the magic
-    weapon on your secondary gear set. This makes switching between two styles easy."
+    ailments based on their type and chance. This ice weapon adds chill upon hitting
+    enemies which causes them to move slower per stack. \n\nHitting 'Tab' and equipping
+    the magic weapon on your secondary gear set. This makes switching between two
+    styles easy."
   activationTrigger: 3
   requiredMapNodeId: tutorial_3
   inventoryTriggerItemId: basic_ice_wand

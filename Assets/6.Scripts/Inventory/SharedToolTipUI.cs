@@ -204,7 +204,8 @@ public class SharedTooltipUI : MonoBehaviour
      string valueLabelOverride = null,
      string customValueOverride = null,
      bool maskUnrolledRandomStats = false,
-     string itemIdForHighlights = null)
+     string itemIdForHighlights = null,
+     string namePrefixRichText = null)
     {
         if (!def || !canvasGroup || !nameText)
             return;
@@ -221,7 +222,19 @@ public class SharedTooltipUI : MonoBehaviour
         HideStatsOnlyNameHeader();
 
         nameText.color = c;
-        nameText.text = def.displayName;
+        string prefix = string.IsNullOrWhiteSpace(namePrefixRichText) ? "" : namePrefixRichText.TrimEnd(' ', '\t');
+        if (prefix.Length > 0)
+        {
+            bool endsWithLineBreak =
+                prefix.EndsWith("\n", System.StringComparison.Ordinal) ||
+                prefix.EndsWith("<br>", System.StringComparison.OrdinalIgnoreCase) ||
+                prefix.EndsWith("<br/>", System.StringComparison.OrdinalIgnoreCase);
+            if (!endsWithLineBreak && !prefix.EndsWith(" ", System.StringComparison.Ordinal))
+                prefix += " ";
+            nameText.richText = true;
+        }
+
+        nameText.text = prefix.Length > 0 ? prefix + def.displayName : def.displayName;
         nameText.gameObject.SetActive(true);
 
         if (rarityText)
@@ -410,6 +423,8 @@ public class SharedTooltipUI : MonoBehaviour
             nameText.text = hasTitle ? title : "";
             nameText.color = titleColor ?? defaultNameColor;
             nameText.gameObject.SetActive(hasTitle);
+            if (hasTitle && title.IndexOf('<') >= 0)
+                nameText.richText = true;
         }
 
         if (rarityText)
@@ -439,7 +454,7 @@ public class SharedTooltipUI : MonoBehaviour
                 ? WithExtraBottomMargin(_marginBaseDescription, spacingAfterDescriptionPixels)
                 : _marginBaseDescription;
             descriptionText.gameObject.SetActive(hasBody);
-            if (hasBody && skillTreeChrome == SkillTreeTooltipChrome.MajorPassivePanel)
+            if (hasBody && (skillTreeChrome == SkillTreeTooltipChrome.MajorPassivePanel || b.IndexOf('<') >= 0))
                 descriptionText.richText = true;
         }
 
@@ -1211,7 +1226,8 @@ public class SharedTooltipUI : MonoBehaviour
         string valueLabelOverride = null,
         string customValueOverride = null,
         bool maskUnrolledRandomStats = false,
-        string itemId = null)
+        string itemId = null,
+        string namePrefixRichText = null)
     {
         if (!anchor || !def)
         {
@@ -1227,7 +1243,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (compact)
             ShowForEquipment(def, itemId);
         else
-            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats, itemId);
+            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats, itemId, namePrefixRichText);
     }
 
     private void BringToFront()

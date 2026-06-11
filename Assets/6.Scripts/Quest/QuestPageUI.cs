@@ -280,6 +280,7 @@ public class QuestPageUI : MonoBehaviour
         UnsubscribeQuestProgress();
         _progressEventsTarget = p;
         _progressEventsTarget.ProgressChanged += OnQuestProgressChanged;
+        _progressEventsTarget.QuestAccepted += OnQuestAccepted;
     }
 
     private void UnsubscribeQuestProgress()
@@ -287,6 +288,7 @@ public class QuestPageUI : MonoBehaviour
         if (_progressEventsTarget != null)
         {
             _progressEventsTarget.ProgressChanged -= OnQuestProgressChanged;
+            _progressEventsTarget.QuestAccepted -= OnQuestAccepted;
             _progressEventsTarget = null;
         }
     }
@@ -297,6 +299,37 @@ public class QuestPageUI : MonoBehaviour
             return;
         if (!TryRefreshQuestListInPlace())
             RebuildQuestList();
+        else
+            RefreshQuestSelectionVisuals();
+        RefreshDetails();
+    }
+
+    private void OnQuestAccepted(QuestDefinition quest) => FocusQuestInJournal(quest);
+
+    /// <summary>Selects <paramref name="quest"/> in the list and refreshes the details panel to match.</summary>
+    public void FocusQuestInJournal(QuestDefinition quest)
+    {
+        if (quest == null)
+            return;
+
+        ResolveWorldMap();
+        if (worldMap != null && !string.IsNullOrWhiteSpace(quest.regionId))
+        {
+            RegionDefinition region = worldMap.FindRegionById(quest.regionId);
+            if (region != null)
+                _selectedRegion = region;
+        }
+
+        _selectedQuest = quest;
+
+        if (!isActiveAndEnabled)
+            return;
+
+        if (!TryRefreshQuestListInPlace())
+            RebuildQuestList();
+        else
+            RefreshQuestSelectionVisuals();
+
         RefreshDetails();
     }
 
@@ -695,8 +728,36 @@ public class QuestPageUI : MonoBehaviour
             BindQuestListRow(_questRows[i], _scratchQuests[i], qProg);
 
         _visibleQuestListCount = _questRows.Count;
+        SyncSelectedQuestWithVisibleList();
         RefreshQuestSelectionVisuals();
         return true;
+    }
+
+    /// <summary>Keeps details aligned with list selection when the selected quest is still visible.</summary>
+    private void SyncSelectedQuestWithVisibleList()
+    {
+        if (_selectedQuest == null)
+            return;
+
+        for (int i = 0; i < _scratchQuests.Count; i++)
+        {
+            if (_scratchQuests[i] == _selectedQuest)
+                return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedQuest.questId))
+        {
+            string id = _selectedQuest.questId.Trim();
+            for (int i = 0; i < _scratchQuests.Count; i++)
+            {
+                QuestDefinition q = _scratchQuests[i];
+                if (q != null && string.Equals(q.questId.Trim(), id, StringComparison.Ordinal))
+                {
+                    _selectedQuest = q;
+                    return;
+                }
+            }
+        }
     }
 
     private void RebuildQuestList()
@@ -1182,10 +1243,15 @@ public class QuestPageUI : MonoBehaviour
             _selectedQuest = null;
             q = null;
         }
-        else if (q != null && !_scratchQuests.Contains(q))
+        else if (q != null)
         {
-            _selectedQuest = null;
-            q = null;
+            SyncSelectedQuestWithVisibleList();
+            q = _selectedQuest;
+            if (q == null || !_scratchQuests.Contains(q))
+            {
+                _selectedQuest = null;
+                q = null;
+            }
         }
 
         if (detailNameText)

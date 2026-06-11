@@ -12,6 +12,7 @@ public static class GameplayScreenOverlay
 {
     public const string FinalSeveranceChannelId = "final_severance_channel";
     public const string BladestormChannelId = "bladestorm_channel";
+    public const string DeathRespawnDimId = "death_respawn_dim";
 
     /// <summary>Slight red wash during Final Severance channel.</summary>
     public static readonly Color FinalSeveranceChannelTint = new Color(0.42f, 0.04f, 0.04f, 0.38f);
@@ -22,6 +23,7 @@ public static class GameplayScreenOverlay
     private const string RootNamePrefix = "GameplayScreenOverlay_";
 
     private static readonly Dictionary<string, Entry> s_entries = new Dictionary<string, Entry>(StringComparer.Ordinal);
+    private static Sprite s_whiteSprite;
 
     static GameplayScreenOverlay()
     {
@@ -64,6 +66,8 @@ public static class GameplayScreenOverlay
             return;
 
         entry.Visible = true;
+        entry.Image.sprite = GetWhiteSprite();
+        entry.Image.type = Image.Type.Simple;
         entry.Image.color = color;
         entry.Image.enabled = true;
         entry.CanvasGroup.alpha = 1f;
@@ -219,6 +223,8 @@ public static class GameplayScreenOverlay
         Image img = root.GetComponent<Image>();
         if (!img)
             img = root.AddComponent<Image>();
+        img.sprite = GetWhiteSprite();
+        img.type = Image.Type.Simple;
         img.raycastTarget = false;
         img.enabled = false;
 
@@ -242,6 +248,18 @@ public static class GameplayScreenOverlay
     /// <summary>Unity "fake null" after scene teardown — do not touch components without this check.</summary>
     private static bool IsEntryAlive(Entry entry) =>
         entry != null && entry.Root && entry.CanvasGroup && entry.Image;
+
+    private static Sprite GetWhiteSprite()
+    {
+        if (s_whiteSprite)
+            return s_whiteSprite;
+
+        var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+        tex.SetPixel(0, 0, Color.white);
+        tex.Apply();
+        s_whiteSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 100f);
+        return s_whiteSprite;
+    }
 
     private sealed class Entry
     {
