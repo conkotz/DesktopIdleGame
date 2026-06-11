@@ -234,7 +234,10 @@ public class EnemyBaseController : MonoBehaviour
         ApplyActiveMapCombatScaling();
         ApplyActiveMapEnhancementModifiers();
         if (spawnAsElite)
+        {
             stats.ApplyEliteEnemyScaling();
+            ApplyMapEnhancementEliteHealthReduction();
+        }
 
         string dn = string.IsNullOrWhiteSpace(def.displayName) ? "Enemy" : def.displayName.Trim();
         _nameCoreForUi = dn;
@@ -309,6 +312,22 @@ public class EnemyBaseController : MonoBehaviour
 
         if (aggregate.enemyDamageReductionFraction > 0.001f)
             stats.ApplyMapEnhancementDamageReduction(aggregate.enemyDamageReductionFraction);
+    }
+
+    private void ApplyMapEnhancementEliteHealthReduction()
+    {
+        if (!stats)
+            return;
+
+        MapNodeDefinition node = MapCombatScaling.ResolveActiveCombatMapNode();
+        if (node == null)
+            return;
+
+        MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(node);
+        if (aggregate == null || aggregate.eliteHealthReductionFraction <= 0.001f)
+            return;
+
+        stats.ApplyMapEnhancementEliteHealthReduction(aggregate.eliteHealthReductionFraction);
     }
 
     /// <summary>After <see cref="InitializeFromDefinition"/>, applies Tier II–V scaling from <see cref="EnduranceTrialTier"/>.</summary>

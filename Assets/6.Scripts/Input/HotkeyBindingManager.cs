@@ -90,6 +90,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.MoveRight => HotkeyChord.FromKeyCode(KeyCode.D),
             HotkeyBindId.Interact => HotkeyChord.FromKeyCode(KeyCode.F),
             HotkeyBindId.OpenEnhancePage => HotkeyChord.FromKeyCode(KeyCode.U),
+            HotkeyBindId.OpenDatabasePage => HotkeyChord.FromKeyCode(KeyCode.None),
             _ => HotkeyChord.FromKeyCode(KeyCode.None)
         };
     }

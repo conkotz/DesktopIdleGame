@@ -78,7 +78,7 @@ MonoBehaviour:
   idleWanderIdleMaxSec: 8
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 0
-  dropGold: 1
+  dropGold: 0
   goldMin: 250
   goldMax: 300
   goldDropChance: 1

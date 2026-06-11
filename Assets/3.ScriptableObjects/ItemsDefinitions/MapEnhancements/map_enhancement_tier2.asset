@@ -63,6 +63,7 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
+    weaponWeight: 0
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -143,6 +144,8 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
@@ -179,12 +182,24 @@ MonoBehaviour:
       maxValue: 0.2
     - modType: 3
       rollWeight: 10
-      minValue: 0.03
-      maxValue: 0.06
+      minValue: 0.04
+      maxValue: 0.07
     - modType: 4
       rollWeight: 10
-      minValue: 0.05
-      maxValue: 0.1
+      minValue: 0.06
+      maxValue: 0.11
+    - modType: 5
+      rollWeight: 7
+      minValue: 0.15
+      maxValue: 0.35
+    - modType: 6
+      rollWeight: 5
+      minValue: 0.07
+      maxValue: 0.12
+    - modType: 7
+      rollWeight: 4
+      minValue: 0.15
+      maxValue: 0.25
     openRequiredAmount: 1
     openableLoot: []
     foodEffectDurationSeconds: 0
@@ -197,6 +212,7 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

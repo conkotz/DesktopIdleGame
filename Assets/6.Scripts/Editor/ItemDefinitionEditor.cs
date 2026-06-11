@@ -861,7 +861,8 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.HelpBox(
             "Roll Weight controls how often each modifier is picked (relative to others). " +
             "Set weight to 0 to disable a modifier. " +
-            "Respawn uses seconds; extra spawns uses count; loot/gold/damage use fraction (0.10 = 10% from base).",
+            "Respawn uses seconds; extra spawns uses count; loot/gold/damage/elite health use fraction (0.10 = 10%). " +
+            "Elite spawn chance uses relative bonus (0.10 = +10% of base chance). Elite double uses flat chance (0.05 = 5%).",
             MessageType.None);
     }
 
@@ -945,6 +946,18 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.PropertyField(minValue, new GUIContent("Min Gold Bonus (fraction)"));
                 EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Gold Bonus (fraction)"));
                 break;
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Relative Bonus (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Relative Bonus (fraction)"));
+                break;
+            case MapEnhancementModType.EliteSpawnDouble:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Double Chance (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Double Chance (fraction)"));
+                break;
+            case MapEnhancementModType.EliteHealthReduction:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Health Reduction (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Health Reduction (fraction)"));
+                break;
         }
 
         if (rollWeight != null && rollWeight.floatValue < 0f)
@@ -966,6 +979,9 @@ public class ItemDefinitionEditor : Editor
             MapEnhancementModType.LootBonus => "Loot Bonus",
             MapEnhancementModType.EnemyDamageReduction => "Enemy Damage Reduction",
             MapEnhancementModType.GoldBonus => "Gold Bonus",
+            MapEnhancementModType.EliteSpawnChanceBonus => "Elite Spawn Chance Bonus",
+            MapEnhancementModType.EliteSpawnDouble => "Elite Spawn Double",
+            MapEnhancementModType.EliteHealthReduction => "Elite Health Reduction",
             _ => type.ToString()
         };
     }

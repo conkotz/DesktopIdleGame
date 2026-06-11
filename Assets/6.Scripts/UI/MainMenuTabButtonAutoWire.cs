@@ -96,13 +96,13 @@ public static class MainMenuTabButtonAutoWire
             return true;
         }
 
-        if (IsName(objectName, "UpgradeButton", "UpgradeTabButton", "UIButton_Upgrade"))
+        if (IsName(objectName, "UpgradeButton", "UpgradeTabButton", "UIButton_Upgrade", "UIButton_Enhance"))
         {
             tabId = MainMenuTabId.Upgrade;
             return true;
         }
 
-        if (IsName(objectName, "DatabaseButton", "DatabaseTabButton", "UIButton_Database"))
+        if (IsName(objectName, "DatabaseButton", "DatabaseTabButton", "UIButton_Database", "UIButton_Databse"))
         {
             tabId = MainMenuTabId.Database;
             return true;

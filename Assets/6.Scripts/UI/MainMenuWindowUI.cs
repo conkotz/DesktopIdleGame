@@ -470,6 +470,8 @@ public class MainMenuWindowUI : MonoBehaviour
             MainMenuTabId.Quest => HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId,
             MainMenuTabId.WorldMap =>
                 HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId,
+            MainMenuTabId.Upgrade => HelperWhitelistUiInteractTarget.EnhanceToolbarWhitelistId,
+            MainMenuTabId.Database => HelperWhitelistUiInteractTarget.DatabaseToolbarWhitelistId,
             _ => null
         };
 

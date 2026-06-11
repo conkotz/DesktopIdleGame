@@ -13,6 +13,12 @@ public class WorldTargetIndicatorAnchor : MonoBehaviour
     [Tooltip("Extra offset in anchor local space (e.g. raise above the head).")]
     [SerializeField] private Vector3 localOffset;
 
+    public Vector3 LocalOffset
+    {
+        get => localOffset;
+        set => localOffset = value;
+    }
+
     public Vector3 GetWorldPosition()
     {
         Transform t = anchor != null ? anchor : transform;

@@ -104,6 +104,8 @@ public static class HotkeyBindIds
                 return "Interact";
             case HotkeyBindId.OpenEnhancePage:
                 return "Open Enhance";
+            case HotkeyBindId.OpenDatabasePage:
+                return "Open Database";
             default:
                 return id.ToString();
         }

@@ -194,13 +194,18 @@ public class LevelSpawnDirector : MonoBehaviour
         if (logSpawns)
             Debug.Log($"[LevelSpawnDirector] Spawning level '{def.nodeId}' ({def.displayName}): {def.spawnGroupPlans.Count} spawn plan(s).", this);
 
+        MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
+        var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
         SpawnAllPlans(
             def,
             groups,
             parent,
             IsFixedPointWorldPrefabRow,
-            requireExactNamedPoint: true);
+            requireExactNamedPoint: true,
+            mapEnhancements,
+            extraSpawnBonusesApplied);
 
         // Pass 2: enemies, items, and anything without a fixed named point.
         SpawnAllPlans(
@@ -208,112 +213,9 @@ public class LevelSpawnDirector : MonoBehaviour
             groups,
             parent,
             row => !IsFixedPointWorldPrefabRow(row),
-            requireExactNamedPoint: false);
-
-        SpawnMapEnhancementExtras(def, groups, parent);
-    }
-
-    private void SpawnMapEnhancementExtras(
-        MapNodeDefinition def,
-        Dictionary<string, SpawnPointGroup> groups,
-        Transform parent)
-    {
-        if (!def)
-            return;
-
-        MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(def);
-        if (aggregate == null || aggregate.extraSpawnsByEnemyId.Count == 0)
-            return;
-
-        EnemyDatabase enemyDb = Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
-        if (enemyDb == null)
-            return;
-
-        foreach (KeyValuePair<string, int> pair in aggregate.extraSpawnsByEnemyId)
-        {
-            if (pair.Value <= 0 || string.IsNullOrWhiteSpace(pair.Key))
-                continue;
-
-            EnemyDefinition enemyDef = enemyDb.Get(pair.Key);
-            if (enemyDef == null)
-                continue;
-
-            GameObject prefabAsset = enemyDef.ResolveSpawnPrefab();
-            if (!prefabAsset)
-                continue;
-
-            if (!TryFindSpawnGroupForEnemy(def, pair.Key, out string groupId, out bool shuffle))
-                continue;
-
-            if (!groups.TryGetValue(groupId, out SpawnPointGroup pointGroup) || pointGroup == null)
-                continue;
-
-            for (int i = 0; i < pair.Value; i++)
-            {
-                Transform spawnPoint = PickSpawnPointForRespawn(pointGroup, shuffle, spawnPointName: null);
-                if (!spawnPoint)
-                    break;
-
-                GameObject inst = SpawnEnemyInstanceAt(
-                    spawnPoint,
-                    prefabAsset,
-                    enemyDef,
-                    parent,
-                    allowEliteRoll: false,
-                    nodeForEliteChance: null);
-                if (!inst)
-                    continue;
-
-                if (alignSpawnPointToColliderBottom)
-                    AlignBottomOfColliderToPoint(inst.transform, spawnPoint.position);
-
-                if (preventOverlappingSpawns)
-                    ReservePoint(spawnPoint.position);
-
-                if (logSpawns)
-                {
-                    Debug.Log(
-                        $"[LevelSpawnDirector] Map enhancement extra spawn: '{enemyDef.enemyId}' at '{spawnPoint.name}'.",
-                        inst);
-                }
-            }
-        }
-    }
-
-    private static bool TryFindSpawnGroupForEnemy(
-        MapNodeDefinition def,
-        string enemyId,
-        out string groupId,
-        out bool shuffleSpawnPoints)
-    {
-        groupId = null;
-        shuffleSpawnPoints = false;
-        if (!def || string.IsNullOrWhiteSpace(enemyId) || def.spawnGroupPlans == null)
-            return false;
-
-        string target = enemyId.Trim();
-        for (int p = 0; p < def.spawnGroupPlans.Count; p++)
-        {
-            LevelSpawnGroupPlan plan = def.spawnGroupPlans[p];
-            if (plan?.spawns == null)
-                continue;
-
-            for (int s = 0; s < plan.spawns.Count; s++)
-            {
-                SpawnPrefabCount row = plan.spawns[s];
-                if (row?.enemyDefinition == null || string.IsNullOrWhiteSpace(row.enemyDefinition.enemyId))
-                    continue;
-
-                if (!string.Equals(row.enemyDefinition.enemyId.Trim(), target, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                groupId = ResolveSpawnGroupId(plan, row);
-                shuffleSpawnPoints = plan.shuffleSpawnPoints;
-                return !string.IsNullOrWhiteSpace(groupId);
-            }
-        }
-
-        return false;
+            requireExactNamedPoint: false,
+            mapEnhancements,
+            extraSpawnBonusesApplied);
     }
 
     private void SpawnAllPlans(
@@ -321,7 +223,9 @@ public class LevelSpawnDirector : MonoBehaviour
         Dictionary<string, SpawnPointGroup> groups,
         Transform parent,
         Func<SpawnPrefabCount, bool> rowFilter,
-        bool requireExactNamedPoint)
+        bool requireExactNamedPoint,
+        MapEnhancementAggregate mapEnhancements,
+        HashSet<string> extraSpawnBonusesApplied)
     {
         for (int i = 0; i < def.spawnGroupPlans.Count; i++)
         {
@@ -346,7 +250,9 @@ public class LevelSpawnDirector : MonoBehaviour
                 planIndexForSaveKeys: i,
                 levelDefForOneShotKeys: def,
                 rowFilter: rowFilter,
-                requireExactNamedPoint: requireExactNamedPoint);
+                requireExactNamedPoint: requireExactNamedPoint,
+                mapEnhancements: mapEnhancements,
+                extraSpawnBonusesApplied: extraSpawnBonusesApplied);
         }
     }
 
@@ -615,7 +521,9 @@ public class LevelSpawnDirector : MonoBehaviour
         int planIndexForSaveKeys = -1,
         MapNodeDefinition levelDefForOneShotKeys = null,
         Func<SpawnPrefabCount, bool> rowFilter = null,
-        bool requireExactNamedPoint = false)
+        bool requireExactNamedPoint = false,
+        MapEnhancementAggregate mapEnhancements = null,
+        HashSet<string> extraSpawnBonusesApplied = null)
     {
         if (plan.spawns == null)
             return;
@@ -748,7 +656,13 @@ public class LevelSpawnDirector : MonoBehaviour
             if (!prefabAsset.activeSelf && logSpawns)
                 Debug.LogWarning($"[LevelSpawnDirector] Prefab '{prefabAsset.name}' is inactive in the Project. Instances would be invisible unless activated.", prefabAsset);
 
-            for (int c = 0; c < entry.count; c++)
+            int spawnCount = GetEnemySpawnCountWithMapEnhancementExtras(
+                entry,
+                defForInit,
+                mapEnhancements,
+                extraSpawnBonusesApplied);
+
+            for (int c = 0; c < spawnCount; c++)
             {
                 string permDeathKey = null;
                 if (defForInit != null && defForInit.cannotRespawn && saveDef != null &&
@@ -776,7 +690,8 @@ public class LevelSpawnDirector : MonoBehaviour
                     defForInit,
                     parent,
                     allowEliteSpawnRoll,
-                    allowEliteSpawnRoll ? levelDefForRespawn : null);
+                    allowEliteSpawnRoll ? levelDefForRespawn : null,
+                    out GameObject bonusElite);
                 if (!inst)
                     continue;
 
@@ -792,28 +707,32 @@ public class LevelSpawnDirector : MonoBehaviour
 
                 totalSpawned++;
 
-                bool allowRespawn =
-                    levelDefForRespawn != null &&
-                    levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f &&
-                    ShouldAllowRespawnBinding(levelDefForRespawn, entry.respawnUntilSimpleWavesStart) &&
-                    (defForInit == null || !defForInit.cannotRespawn);
-                if (allowRespawn)
+                TryBindEnemyRespawn(
+                    inst,
+                    levelDefForRespawn,
+                    gid,
+                    plan.shuffleSpawnPoints,
+                    prefabAsset,
+                    defForInit,
+                    entry.spawnPointName,
+                    entry.respawnUntilSimpleWavesStart);
+
+                if (bonusElite != null)
                 {
-                    EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
-                                             inst.GetComponentInChildren<EnemyBaseController>(true);
-                    if (ec != null)
-                    {
-                        var src = inst.AddComponent<EnemySpawnSource>();
-                        src.Bind(
-                            this,
-                            levelDefForRespawn,
-                            gid,
-                            plan.shuffleSpawnPoints,
-                            prefabAsset,
-                            defForInit,
-                            entry.spawnPointName,
-                            entry.respawnUntilSimpleWavesStart);
-                    }
+                    collectRoots?.Add(bonusElite);
+
+                    if (alignSpawnPointToColliderBottom)
+                        AlignBottomOfColliderToPoint(bonusElite.transform, p.position);
+
+                    TryBindEnemyRespawn(
+                        bonusElite,
+                        levelDefForRespawn,
+                        gid,
+                        plan.shuffleSpawnPoints,
+                        prefabAsset,
+                        defForInit,
+                        entry.spawnPointName,
+                        entry.respawnUntilSimpleWavesStart);
                 }
 
                 if (!string.IsNullOrEmpty(permDeathKey))
@@ -988,7 +907,14 @@ public class LevelSpawnDirector : MonoBehaviour
         }
 
         Transform parent = ResolveSpawnParent();
-        GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, enemyDefinition, parent, allowEliteRoll: true, nodeForEliteChance: active);
+        GameObject inst = SpawnEnemyInstanceAt(
+            p,
+            prefabAsset,
+            enemyDefinition,
+            parent,
+            allowEliteRoll: true,
+            nodeForEliteChance: active,
+            out GameObject bonusElite);
         if (!inst)
             return RespawnAttemptOutcome.AbortedInvalidContext;
 
@@ -998,16 +924,23 @@ public class LevelSpawnDirector : MonoBehaviour
         if (preventOverlappingSpawns)
             ReservePoint(p.position);
 
-        EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
-                                 inst.GetComponentInChildren<EnemyBaseController>(true);
-        if (ec != null &&
-            active.enemyRespawnDelaySeconds >= 0.01f &&
-            ShouldAllowRespawnBinding(active, respawnUntilSimpleWavesStart) &&
-            (enemyDefinition == null || !enemyDefinition.cannotRespawn))
+        TryBindEnemyRespawn(
+            inst,
+            active,
+            spawnPointGroupId,
+            shuffleSpawnPointsFromPlan,
+            prefabAsset,
+            enemyDefinition,
+            spawnPointName,
+            respawnUntilSimpleWavesStart);
+
+        if (bonusElite != null)
         {
-            var src = inst.AddComponent<EnemySpawnSource>();
-            src.Bind(
-                this,
+            if (alignSpawnPointToColliderBottom)
+                AlignBottomOfColliderToPoint(bonusElite.transform, p.position);
+
+            TryBindEnemyRespawn(
+                bonusElite,
                 active,
                 spawnPointGroupId,
                 shuffleSpawnPointsFromPlan,
@@ -1158,31 +1091,71 @@ public class LevelSpawnDirector : MonoBehaviour
         EnemyDefinition defForInit,
         Transform parent,
         bool allowEliteRoll,
-        MapNodeDefinition nodeForEliteChance)
+        MapNodeDefinition nodeForEliteChance,
+        out GameObject bonusEliteInstance)
     {
+        bonusEliteInstance = null;
+
         GameObject inst = Instantiate(prefabAsset, spawnPoint.position, spawnPoint.rotation, parent);
         if (!inst.activeSelf)
             inst.SetActive(true);
 
+        bool spawnedAsElite = false;
         if (defForInit != null)
-            ApplyEnemyDefinitionAfterSpawn(inst, defForInit, allowEliteRoll, nodeForEliteChance);
+            spawnedAsElite = ApplyEnemyDefinitionAfterSpawn(inst, defForInit, allowEliteRoll, nodeForEliteChance);
+
+        if (spawnedAsElite && allowEliteRoll && nodeForEliteChance != null && defForInit != null)
+            bonusEliteInstance = TrySpawnBonusEliteDouble(spawnPoint, prefabAsset, defForInit, parent, nodeForEliteChance);
 
         return inst;
     }
 
-    private void ApplyEnemyDefinitionAfterSpawn(
+    private GameObject TrySpawnBonusEliteDouble(
+        Transform spawnPoint,
+        GameObject prefabAsset,
+        EnemyDefinition defForInit,
+        Transform parent,
+        MapNodeDefinition nodeForEliteChance)
+    {
+        MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(nodeForEliteChance);
+        float doubleChance = aggregate != null ? Mathf.Clamp01(aggregate.eliteDoubleSpawnChance) : 0f;
+        if (doubleChance <= 0.001f || UnityEngine.Random.value >= doubleChance)
+            return null;
+
+        GameObject bonus = Instantiate(prefabAsset, spawnPoint.position, spawnPoint.rotation, parent);
+        if (!bonus.activeSelf)
+            bonus.SetActive(true);
+
+        ApplyEnemyDefinitionAfterSpawn(bonus, defForInit, allowEliteRoll: false, nodeForEliteChance: null, forceElite: true);
+
+        if (logSpawns)
+        {
+            Debug.Log(
+                $"[LevelSpawnDirector] Map enhancement elite double spawn: '{defForInit.enemyId}' at '{spawnPoint.name}'.",
+                bonus);
+        }
+
+        return bonus;
+    }
+
+    private bool ApplyEnemyDefinitionAfterSpawn(
         GameObject instance,
         EnemyDefinition def,
         bool allowEliteRoll,
-        MapNodeDefinition nodeForEliteChance)
+        MapNodeDefinition nodeForEliteChance,
+        bool forceElite = false)
     {
         if (!def || !instance)
-            return;
+            return false;
 
-        bool spawnAsElite = false;
-        if (allowEliteRoll && nodeForEliteChance != null && nodeForEliteChance.eliteSpawnChance > 0f)
+        bool spawnAsElite = forceElite;
+        if (!spawnAsElite && allowEliteRoll && nodeForEliteChance != null && nodeForEliteChance.eliteSpawnChance > 0f)
         {
-            spawnAsElite = UnityEngine.Random.value < Mathf.Clamp01(nodeForEliteChance.eliteSpawnChance);
+            MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(nodeForEliteChance);
+            float effectiveChance = MapEnhancementService.GetEffectiveEliteSpawnChance(
+                nodeForEliteChance.eliteSpawnChance,
+                aggregate);
+            spawnAsElite = UnityEngine.Random.value < effectiveChance;
         }
 
         EnemyBaseController ec = instance.GetComponent<EnemyBaseController>() ??
@@ -1190,7 +1163,7 @@ public class LevelSpawnDirector : MonoBehaviour
         if (ec != null)
         {
             ec.InitializeFromDefinition(def, spawnAsElite);
-            return;
+            return spawnAsElite;
         }
 
         if (logSpawns)
@@ -1199,6 +1172,70 @@ public class LevelSpawnDirector : MonoBehaviour
                 $"[LevelSpawnDirector] EnemyDefinition '{def.name}' was used but instance '{instance.name}' has no EnemyBaseController (root or children).",
                 instance);
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Adds map-enhancement extra spawns to the first spawn row for each enemy id (AllSpawns / spawnGroupPlans).
+    /// Extras use the same spawn, elite, and respawn rules as the base row count.
+    /// </summary>
+    private static int GetEnemySpawnCountWithMapEnhancementExtras(
+        SpawnPrefabCount entry,
+        EnemyDefinition defForInit,
+        MapEnhancementAggregate aggregate,
+        HashSet<string> extraBonusesApplied)
+    {
+        int count = entry != null ? entry.count : 0;
+        if (aggregate == null || defForInit == null || string.IsNullOrWhiteSpace(defForInit.enemyId))
+            return count;
+
+        string enemyId = defForInit.enemyId.Trim();
+        if (extraBonusesApplied != null && extraBonusesApplied.Contains(enemyId))
+            return count;
+
+        if (!aggregate.extraSpawnsByEnemyId.TryGetValue(enemyId, out int extra) || extra <= 0)
+            return count;
+
+        extraBonusesApplied?.Add(enemyId);
+        return count + extra;
+    }
+
+    private void TryBindEnemyRespawn(
+        GameObject inst,
+        MapNodeDefinition levelDefForRespawn,
+        string gid,
+        bool shuffleSpawnPoints,
+        GameObject prefabAsset,
+        EnemyDefinition defForInit,
+        string spawnPointName,
+        bool respawnUntilSimpleWavesStart)
+    {
+        if (!inst || levelDefForRespawn == null)
+            return;
+
+        bool allowRespawn =
+            levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f &&
+            ShouldAllowRespawnBinding(levelDefForRespawn, respawnUntilSimpleWavesStart) &&
+            (defForInit == null || !defForInit.cannotRespawn);
+        if (!allowRespawn)
+            return;
+
+        EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
+                                 inst.GetComponentInChildren<EnemyBaseController>(true);
+        if (ec == null)
+            return;
+
+        var src = inst.AddComponent<EnemySpawnSource>();
+        src.Bind(
+            this,
+            levelDefForRespawn,
+            gid,
+            shuffleSpawnPoints,
+            prefabAsset,
+            defForInit,
+            spawnPointName,
+            respawnUntilSimpleWavesStart);
     }
 
     private static string ResolveSpawnGroupId(LevelSpawnGroupPlan plan, SpawnPrefabCount entry)

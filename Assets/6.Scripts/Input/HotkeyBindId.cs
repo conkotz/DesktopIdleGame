@@ -34,4 +34,5 @@ public enum HotkeyBindId
     ActionBarAbility10 = 24,
 
     OpenEnhancePage = 25,
+    OpenDatabasePage = 26,
 }

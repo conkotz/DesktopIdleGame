@@ -185,6 +185,18 @@ MonoBehaviour:
       rollWeight: 10
       minValue: 0.05
       maxValue: 0.1
+    - modType: 5
+      rollWeight: 7
+      minValue: 0.1
+      maxValue: 0.3
+    - modType: 6
+      rollWeight: 5
+      minValue: 0.05
+      maxValue: 0.1
+    - modType: 7
+      rollWeight: 4
+      minValue: 0.1
+      maxValue: 0.2
     openRequiredAmount: 1
     openableLoot: []
     foodEffectDurationSeconds: 0

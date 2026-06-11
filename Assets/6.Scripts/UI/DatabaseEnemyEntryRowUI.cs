@@ -9,10 +9,13 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 {
     private const float NameBandHeight = 50f;
     private const float LootBandHeight = 50f;
-    private const float RowHeight = NameBandHeight + LootBandHeight;
+    private const float LocationsBandHeight = 50f;
+    private const float RowHeight = NameBandHeight + LootBandHeight + LocationsBandHeight;
 
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private Transform lootRow;
+    [SerializeField] private Transform locationsRow;
+    [SerializeField] private TMP_Text locationsText;
     [Tooltip("Optional. Auto-finds LootRow/LootTableBackground — cloned once per loot item.")]
     [SerializeField] private GameObject lootEntryBackgroundTemplate;
 
@@ -22,13 +25,27 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         EnsureRowLayout();
     }
 
-    public void Bind(EnemyDefinition enemy, SharedTooltipUI tooltip)
+    public void Bind(
+        EnemyDefinition enemy,
+        SharedTooltipUI tooltip,
+        WorldMapDefinition worldMap = null,
+        RegionDefinition regionFilter = null)
     {
         ResolveReferences();
         EnsureRowLayout();
 
         if (nameText)
             nameText.text = enemy != null ? enemy.displayName : string.Empty;
+
+        if (locationsText)
+        {
+            string enemyId = enemy != null && !string.IsNullOrWhiteSpace(enemy.enemyId)
+                ? enemy.enemyId.Trim()
+                : string.Empty;
+            locationsText.text = string.IsNullOrEmpty(enemyId)
+                ? string.Empty
+                : DatabaseRegionEnemyCatalog.FormatMapLocationsForEnemy(enemyId, worldMap, regionFilter);
+        }
 
         ClearSpawnedLootEntries();
 
@@ -87,6 +104,7 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 
         ConfigureTopBand(nameText ? nameText.rectTransform : null, 0f, NameBandHeight);
         ConfigureTopBand(lootRow as RectTransform, NameBandHeight, LootBandHeight);
+        ConfigureTopBand(locationsRow as RectTransform, NameBandHeight + LootBandHeight, LocationsBandHeight);
     }
 
     private static void ConfigureLootBackground(RectTransform background)
@@ -119,6 +137,10 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             nameText = transform.Find("NameText")?.GetComponent<TMP_Text>();
         if (!lootRow)
             lootRow = transform.Find("LootRow");
+        if (!locationsRow)
+            locationsRow = transform.Find("LocationsRow");
+        if (!locationsText)
+            locationsText = transform.Find("LocationsRow/LocationsText")?.GetComponent<TMP_Text>();
         if (!lootEntryBackgroundTemplate && lootRow != null)
             lootEntryBackgroundTemplate = lootRow.Find("LootTableBackground")?.gameObject;
     }

@@ -3987,7 +3987,7 @@ public class PlayerController : MonoBehaviour
                 combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), attacker);
         }
 
-        AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
+        AwardEnduranceXpFromIncomingDamage(preMitigatedDamage, attacker);
 
         if (blocked)
             wasCrit = false;
@@ -4618,9 +4618,12 @@ public class PlayerController : MonoBehaviour
         return damage * multiplier;
     }
 
-    private void AwardEnduranceXpFromIncomingDamage(float preMitigatedDamage)
+    private void AwardEnduranceXpFromIncomingDamage(float preMitigatedDamage, Transform attacker = null)
     {
         if (preMitigatedDamage <= 0f)
+            return;
+
+        if (!ShouldAwardEnduranceXpFromAttacker(attacker))
             return;
 
         SkillsManager sm = SkillsManager.Instance;
@@ -4635,6 +4638,17 @@ public class PlayerController : MonoBehaviour
         sm.AddXpFloat(SkillType.Endurance, xp, "Defence");
     }
 
+    private static bool ShouldAwardEnduranceXpFromAttacker(Transform attacker)
+    {
+        if (!attacker)
+            return true;
+
+        EnemyBaseController enemy = attacker.GetComponentInParent<EnemyBaseController>();
+        if (!enemy || enemy.Definition == null)
+            return true;
+
+        return enemy.Definition.grantCombatXp;
+    }
 
     public void SetActionOverride(PlayerAction action)
     {

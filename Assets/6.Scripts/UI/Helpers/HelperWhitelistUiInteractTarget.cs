@@ -34,6 +34,12 @@ public sealed class HelperWhitelistUiInteractTarget : MonoBehaviour, IPointerCli
     /// <summary>Level select toolbar — same-frame whitelist dismiss keeps tab open.</summary>
     public const string LevelSelectToolbarWhitelistId = "UIButton_LevelSelect";
 
+    /// <summary>Enhance / upgrade toolbar — same-frame whitelist dismiss keeps tab open.</summary>
+    public const string EnhanceToolbarWhitelistId = "UIButton_Enhance";
+
+    /// <summary>Database / activity toolbar — same-frame whitelist dismiss keeps tab open.</summary>
+    public const string DatabaseToolbarWhitelistId = "UIButton_Database";
+
     [Tooltip("Case-insensitive. Must match Whitelisted Interaction Ids on the active helper.")]
     [SerializeField] private string interactionId;
 

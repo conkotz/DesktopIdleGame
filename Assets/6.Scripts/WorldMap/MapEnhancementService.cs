@@ -223,6 +223,12 @@ public static class MapEnhancementService
                 return $"Enemy damage -{Mathf.RoundToInt(mod.value * 100f)}% from base";
             case MapEnhancementModType.GoldBonus:
                 return $"Enemy gold +{Mathf.RoundToInt(mod.value * 100f)}% from base";
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+                return $"Elite spawn chance +{Mathf.RoundToInt(mod.value * 100f)}% relative";
+            case MapEnhancementModType.EliteSpawnDouble:
+                return $"Elite double spawn {Mathf.RoundToInt(mod.value * 100f)}% chance";
+            case MapEnhancementModType.EliteHealthReduction:
+                return $"Elite health -{Mathf.RoundToInt(mod.value * 100f)}%";
             default:
                 return "Unknown modifier";
         }
@@ -334,6 +340,12 @@ public static class MapEnhancementService
                 return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
             case MapEnhancementModType.GoldBonus:
                 return $"Enemy gold +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+                return $"Elite spawn chance +{FormatPercentRange(cfg.minValue, cfg.maxValue)} relative";
+            case MapEnhancementModType.EliteSpawnDouble:
+                return $"Elite double spawn {FormatPercentRange(cfg.minValue, cfg.maxValue)} chance";
+            case MapEnhancementModType.EliteHealthReduction:
+                return $"Elite health -{FormatPercentRange(cfg.minValue, cfg.maxValue)}";
             default:
                 return "Unknown modifier";
         }
@@ -353,9 +365,25 @@ public static class MapEnhancementService
                 return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
             case MapEnhancementModType.GoldBonus:
                 return $"Enemy gold +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+                return $"Elite spawn chance +{FormatPercentRange(cfg.minValue, cfg.maxValue)} relative";
+            case MapEnhancementModType.EliteSpawnDouble:
+                return $"Elite double spawn {FormatPercentRange(cfg.minValue, cfg.maxValue)} chance";
+            case MapEnhancementModType.EliteHealthReduction:
+                return $"Elite health -{FormatPercentRange(cfg.minValue, cfg.maxValue)}";
             default:
                 return "Unknown modifier";
         }
+    }
+
+    /// <summary>Base elite chance multiplied by (1 + relative bonus). 10% base + 10% relative bonus = 11%.</summary>
+    public static float GetEffectiveEliteSpawnChance(float baseChance, MapEnhancementAggregate aggregate)
+    {
+        float chance = Mathf.Max(0f, baseChance);
+        if (aggregate == null || aggregate.eliteSpawnChanceBonusFraction <= 0.001f)
+            return Mathf.Clamp01(chance);
+
+        return Mathf.Clamp01(chance * (1f + aggregate.eliteSpawnChanceBonusFraction));
     }
 
     private static string FormatIntRange(float minValue, float maxValue)
@@ -399,6 +427,15 @@ public static class MapEnhancementService
 
         if (aggregate.goldBonusFraction > 0.001f)
             lines.Add($"Enemy gold +{Mathf.RoundToInt(aggregate.goldBonusFraction * 100f)}% from base");
+
+        if (aggregate.eliteSpawnChanceBonusFraction > 0.001f)
+            lines.Add($"Elite spawn chance +{Mathf.RoundToInt(aggregate.eliteSpawnChanceBonusFraction * 100f)}% relative");
+
+        if (aggregate.eliteDoubleSpawnChance > 0.001f)
+            lines.Add($"Elite double spawn {Mathf.RoundToInt(aggregate.eliteDoubleSpawnChance * 100f)}% chance");
+
+        if (aggregate.eliteHealthReductionFraction > 0.001f)
+            lines.Add($"Elite health -{Mathf.RoundToInt(aggregate.eliteHealthReductionFraction * 100f)}%");
 
         return lines.Count == 0 ? "None" : string.Join("\n", lines);
     }
@@ -495,6 +532,9 @@ public static class MapEnhancementService
             case MapEnhancementModType.LootBonus:
             case MapEnhancementModType.EnemyDamageReduction:
             case MapEnhancementModType.GoldBonus:
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+            case MapEnhancementModType.EliteSpawnDouble:
+            case MapEnhancementModType.EliteHealthReduction:
                 return new MapEnhancementMod
                 {
                     modType = config.modType,
@@ -565,6 +605,15 @@ public static class MapEnhancementService
                 break;
             case MapEnhancementModType.GoldBonus:
                 aggregate.goldBonusFraction += Mathf.Max(0f, mod.value);
+                break;
+            case MapEnhancementModType.EliteSpawnChanceBonus:
+                aggregate.eliteSpawnChanceBonusFraction += Mathf.Max(0f, mod.value);
+                break;
+            case MapEnhancementModType.EliteSpawnDouble:
+                aggregate.eliteDoubleSpawnChance += Mathf.Max(0f, mod.value);
+                break;
+            case MapEnhancementModType.EliteHealthReduction:
+                aggregate.eliteHealthReductionFraction += Mathf.Max(0f, mod.value);
                 break;
         }
     }

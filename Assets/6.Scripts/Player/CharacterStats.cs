@@ -4755,6 +4755,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// Reduces elite max HP from equipped map enhancements (additive fraction from base elite HP).
+    /// </summary>
+    public void ApplyMapEnhancementEliteHealthReduction(float reductionFraction)
+    {
+        ResolveOwnerEnemy();
+        if (!_ownerEnemy)
+            return;
+
+        float mult = Mathf.Clamp(1f - Mathf.Max(0f, reductionFraction), 0.01f, 1f);
+        if (mult >= 0.9999f)
+            return;
+
+        baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * mult));
+    }
+
+    /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales this enemy for Elite: +100% HP, +25% outgoing damage (enemies only).
     /// </summary>
     public void ApplyEliteEnemyScaling()

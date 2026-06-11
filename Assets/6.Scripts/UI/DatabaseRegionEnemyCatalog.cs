@@ -69,6 +69,100 @@ public static class DatabaseRegionEnemyCatalog
         return ids;
     }
 
+    public static string FormatMapLocationsForEnemy(
+        string enemyId,
+        WorldMapDefinition map,
+        RegionDefinition regionFilter = null)
+    {
+        List<string> locations = CollectMapLocationDisplayNames(enemyId, map, regionFilter);
+        if (locations.Count == 0)
+            return string.Empty;
+
+        return string.Join(", ", locations);
+    }
+
+    public static List<string> CollectMapLocationDisplayNames(
+        string enemyId,
+        WorldMapDefinition map,
+        RegionDefinition regionFilter = null)
+    {
+        var locations = new List<string>();
+        if (string.IsNullOrWhiteSpace(enemyId))
+            return locations;
+
+        string normalizedEnemyId = enemyId.Trim();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (regionFilter != null)
+        {
+            CollectMapLocationDisplayNamesFromRegion(regionFilter, normalizedEnemyId, locations, seen);
+            locations.Sort(StringComparer.OrdinalIgnoreCase);
+            return locations;
+        }
+
+        if (!map || map.regions == null)
+            return locations;
+
+        for (int i = 0; i < map.regions.Count; i++)
+        {
+            RegionDefinition region = map.regions[i];
+            if (!IsDatabaseListableRegion(region))
+                continue;
+
+            CollectMapLocationDisplayNamesFromRegion(region, normalizedEnemyId, locations, seen);
+        }
+
+        locations.Sort(StringComparer.OrdinalIgnoreCase);
+        return locations;
+    }
+
+    private static void CollectMapLocationDisplayNamesFromRegion(
+        RegionDefinition region,
+        string enemyId,
+        List<string> locations,
+        HashSet<string> seen)
+    {
+        if (!region || region.nodes == null || locations == null || seen == null)
+            return;
+
+        for (int i = 0; i < region.nodes.Count; i++)
+        {
+            MapNodeDefinition node = region.nodes[i];
+            if (!NodeContainsEnemy(node, enemyId))
+                continue;
+
+            string displayName = ResolveMapNodeDisplayName(node);
+            if (string.IsNullOrWhiteSpace(displayName) || !seen.Add(displayName))
+                continue;
+
+            locations.Add(displayName);
+        }
+    }
+
+    private static bool NodeContainsEnemy(MapNodeDefinition node, string enemyId)
+    {
+        if (!node || string.IsNullOrWhiteSpace(enemyId))
+            return false;
+
+        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectEnemyIdsFromNode(node, ids);
+        return ids.Contains(enemyId);
+    }
+
+    private static string ResolveMapNodeDisplayName(MapNodeDefinition node)
+    {
+        if (!node)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(node.displayName))
+            return node.displayName.Trim();
+
+        if (!string.IsNullOrWhiteSpace(node.nodeId))
+            return node.nodeId.Trim();
+
+        return string.Empty;
+    }
+
     private static void CollectEnemyIdsFromNode(MapNodeDefinition node, HashSet<string> ids)
     {
         if (!node)

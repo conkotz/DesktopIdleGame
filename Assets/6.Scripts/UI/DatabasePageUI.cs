@@ -11,6 +11,12 @@ public enum DatabaseSection
     Items = 2,
 }
 
+public enum DatabaseEnemySubtab
+{
+    GeneralInformation = 0,
+    EnemyInformation = 1,
+}
+
 /// <summary>Main menu database / bestiary page.</summary>
 [DisallowMultipleComponent]
 public sealed class DatabasePageUI : MonoBehaviour
@@ -34,14 +40,30 @@ public sealed class DatabasePageUI : MonoBehaviour
     [SerializeField] private TMP_Text regionNameLabel;
     [SerializeField] private WorldMapDefinition worldMap;
 
+    [Header("Enemy sub-tabs")]
+    [Tooltip("Pinned above the scroll view (RightPanel/EnemyTabButtonRow).")]
+    [SerializeField] private GameObject enemyTabButtonRow;
+    [SerializeField] private Button generalInformationTabButton;
+    [SerializeField] private Button enemyInformationTabButton;
+    [SerializeField] private GameObject generalEnemyInformationContent;
+    [Tooltip("Optional. Enemy rows spawn here. Auto-created under DatabaseContent when missing.")]
+    [SerializeField] private RectTransform enemyListContentRoot;
+
     [Header("Prefabs / data")]
-    [Tooltip("Drag Assets/2.Prefabs/UI/DatabaseEnemyWindowEntryRow here. Optional if a row already sits under DatabaseContent.")]
+    [Tooltip("Drag Assets/2.Prefabs/UI/DatabaseEnemyWindowEntryRow here.")]
     [SerializeField] private GameObject enemyRowPrefab;
+    [Tooltip("Drag Assets/2.Prefabs/UI/EnemyCombatProfileRow here.")]
+    [SerializeField] private GameObject combatProfileRowPrefab;
     [SerializeField] private EnemyDatabase enemyDatabase;
     [SerializeField] private SharedTooltipUI sharedTooltip;
 
+    [Header("Enemy sub-tab visuals")]
+    [SerializeField] private Color activeEnemySubtabColor = new Color32(247, 225, 190, 255);
+    [SerializeField] private Color inactiveEnemySubtabColor = new Color32(168, 152, 118, 200);
+
     private DatabaseSection _activeSection = DatabaseSection.Enemies;
-    /// <summary>Runtime clone source — never a child of <see cref="contentRoot"/> (that list is cleared on refresh).</summary>
+    private DatabaseEnemySubtab _activeEnemySubtab = DatabaseEnemySubtab.GeneralInformation;
+    /// <summary>Runtime clone source — never parented under the live enemy list.</summary>
     private GameObject _enemyRowTemplate;
     private readonly List<RegionDefinition> _databaseRegions = new();
     private RegionDefinition _selectedRegion;
@@ -65,6 +87,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     {
         if (regionDropdown)
             regionDropdown.onValueChanged.RemoveListener(OnRegionDropdownChanged);
+        UnwireEnemySubtabButtons();
         sharedTooltip?.Hide();
     }
 
@@ -98,6 +121,8 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void RefreshActiveSection()
     {
+        ResolveReferences();
+
         if (headerLabel)
             headerLabel.text = GetSectionTitle(_activeSection);
 
@@ -113,7 +138,12 @@ public sealed class DatabasePageUI : MonoBehaviour
         switch (_activeSection)
         {
             case DatabaseSection.Enemies:
-                RebuildEnemyRows();
+                SetEnemySubsectionChromeVisible(true);
+                WireEnemySubtabButtons();
+                ApplyEnemySubtab();
+                break;
+            default:
+                SetEnemySubsectionChromeVisible(false);
                 break;
         }
 
@@ -173,7 +203,10 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (_activeSection != DatabaseSection.Enemies)
             return;
 
-        ClearContent();
+        if (_activeEnemySubtab != DatabaseEnemySubtab.EnemyInformation)
+            return;
+
+        ClearEnemyListRows();
         RebuildEnemyRows();
         ResetScrollPosition();
     }
@@ -189,8 +222,11 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void RebuildEnemyRows()
     {
-        if (!contentRoot)
+        RectTransform listRoot = EnsureEnemyListContentRoot();
+        if (!listRoot)
             return;
+
+        ClearEnemyListRows();
 
         if (!_enemyRowTemplate)
             CacheEnemyRowTemplate();
@@ -198,7 +234,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (!_enemyRowTemplate)
         {
             Debug.LogWarning(
-                $"[{nameof(DatabasePageUI)}] Assign Enemy Row Prefab on DatabasePage, or place one sample row under DatabaseContent.",
+                $"[{nameof(DatabasePageUI)}] Assign Enemy Row Prefab on DatabasePage.",
                 this);
             return;
         }
@@ -230,16 +266,15 @@ public sealed class DatabasePageUI : MonoBehaviour
                     continue;
             }
 
-            GameObject rowGo = Instantiate(_enemyRowTemplate, contentRoot);
+            GameObject rowGo = Instantiate(_enemyRowTemplate, listRoot);
             rowGo.SetActive(true);
             DatabaseEnemyEntryRowUI row = rowGo.GetComponent<DatabaseEnemyEntryRowUI>();
             if (!row)
                 row = rowGo.AddComponent<DatabaseEnemyEntryRowUI>();
-            row.Bind(enemy, sharedTooltip);
+            row.Bind(enemy, sharedTooltip, worldMap, _selectedRegion);
         }
 
-        if (contentRoot)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        RefreshScrollContentLayout();
     }
 
     private void CacheEnemyRowTemplate()
@@ -248,40 +283,346 @@ public sealed class DatabasePageUI : MonoBehaviour
             return;
 
         if (enemyRowPrefab)
-        {
             _enemyRowTemplate = enemyRowPrefab;
-            return;
-        }
-
-        if (!contentRoot || contentRoot.childCount == 0)
-            return;
-
-        Transform sampleRow = contentRoot.GetChild(0);
-        if (!sampleRow)
-            return;
-
-        // Move off DatabaseContent so ClearContent does not destroy the instantiate source.
-        sampleRow.SetParent(transform, false);
-        sampleRow.gameObject.SetActive(false);
-        _enemyRowTemplate = sampleRow.gameObject;
     }
 
     private void ClearContent()
     {
+        ClearEnemyListRows();
+
+        if (_activeSection == DatabaseSection.Enemies)
+            return;
+
         if (!contentRoot)
             return;
 
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
-            Destroy(contentRoot.GetChild(i).gameObject);
+        {
+            Transform child = contentRoot.GetChild(i);
+            if (!child || IsPreservedDatabaseContentChild(child))
+                continue;
+
+            Destroy(child.gameObject);
+        }
+    }
+
+    private void ClearEnemyListRows()
+    {
+        RectTransform listRoot = enemyListContentRoot;
+        if (!listRoot && contentRoot)
+            listRoot = contentRoot.Find("EnemyInformationContent") as RectTransform;
+
+        if (!listRoot)
+            return;
+
+        for (int i = listRoot.childCount - 1; i >= 0; i--)
+            Destroy(listRoot.GetChild(i).gameObject);
+    }
+
+    private void WireEnemySubtabButtons()
+    {
+        if (generalInformationTabButton)
+        {
+            generalInformationTabButton.onClick.RemoveListener(ShowGeneralEnemyInformation);
+            generalInformationTabButton.onClick.AddListener(ShowGeneralEnemyInformation);
+        }
+
+        if (enemyInformationTabButton)
+        {
+            enemyInformationTabButton.onClick.RemoveListener(ShowEnemyInformation);
+            enemyInformationTabButton.onClick.AddListener(ShowEnemyInformation);
+        }
+    }
+
+    private void UnwireEnemySubtabButtons()
+    {
+        if (generalInformationTabButton)
+            generalInformationTabButton.onClick.RemoveListener(ShowGeneralEnemyInformation);
+        if (enemyInformationTabButton)
+            enemyInformationTabButton.onClick.RemoveListener(ShowEnemyInformation);
+    }
+
+    private void ShowGeneralEnemyInformation()
+    {
+        if (_activeEnemySubtab == DatabaseEnemySubtab.GeneralInformation)
+            return;
+
+        _activeEnemySubtab = DatabaseEnemySubtab.GeneralInformation;
+        sharedTooltip?.Hide();
+        ApplyEnemySubtab();
+    }
+
+    private void ShowEnemyInformation()
+    {
+        if (_activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation)
+            return;
+
+        _activeEnemySubtab = DatabaseEnemySubtab.EnemyInformation;
+        ApplyEnemySubtab();
+    }
+
+    private void ApplyEnemySubtab()
+    {
+        bool showGeneral = _activeEnemySubtab == DatabaseEnemySubtab.GeneralInformation;
+
+        if (generalEnemyInformationContent)
+            generalEnemyInformationContent.SetActive(showGeneral);
+
+        RectTransform listRoot = EnsureEnemyListContentRoot();
+        if (listRoot)
+            listRoot.gameObject.SetActive(!showGeneral);
+
+        RefreshEnemySubtabButtonVisuals();
+
+        if (showGeneral)
+        {
+            ClearEnemyListRows();
+            sharedTooltip?.Hide();
+            RefreshGeneralEnemyInformationContent();
+        }
+        else
+        {
+            RebuildEnemyRows();
+        }
+
+        RefreshScrollContentLayout();
+    }
+
+    private void RefreshGeneralEnemyInformationContent()
+    {
+        if (!generalEnemyInformationContent)
+            return;
+
+        DatabaseGeneralEnemyInformationUI binder =
+            generalEnemyInformationContent.GetComponent<DatabaseGeneralEnemyInformationUI>();
+        if (!binder)
+            binder = generalEnemyInformationContent.AddComponent<DatabaseGeneralEnemyInformationUI>();
+
+        if (!combatProfileRowPrefab)
+            combatProfileRowPrefab = ResolveCombatProfileRowPrefab();
+
+        binder.RebuildCombatProfileRows();
+    }
+
+    internal static GameObject ResolveCombatProfileRowPrefab()
+    {
+#if UNITY_EDITOR
+        const string prefabPath = "Assets/2.Prefabs/UI/EnemyCombatProfileRow.prefab";
+        GameObject fromAssetDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (fromAssetDatabase)
+            return fromAssetDatabase;
+#endif
+
+        DatabasePageUI[] pages = FindObjectsByType<DatabasePageUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < pages.Length; i++)
+        {
+            DatabasePageUI page = pages[i];
+            if (page != null && page.combatProfileRowPrefab)
+                return page.combatProfileRowPrefab;
+        }
+
+        return null;
+    }
+
+    private void RefreshEnemySubtabButtonVisuals()
+    {
+        ApplyEnemySubtabButtonVisual(generalInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.GeneralInformation);
+        ApplyEnemySubtabButtonVisual(enemyInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation);
+    }
+
+    private void ApplyEnemySubtabButtonVisual(Button button, bool isActive)
+    {
+        if (!button)
+            return;
+
+        if (button.TryGetComponent(out Image image))
+            image.color = isActive ? activeEnemySubtabColor : inactiveEnemySubtabColor;
+    }
+
+    private void SetEnemySubsectionChromeVisible(bool visible)
+    {
+        if (enemyTabButtonRow)
+            enemyTabButtonRow.SetActive(visible);
+
+        if (visible)
+            return;
+
+        if (generalEnemyInformationContent)
+            generalEnemyInformationContent.SetActive(false);
+
+        if (enemyListContentRoot)
+            enemyListContentRoot.gameObject.SetActive(false);
+
+        ClearEnemyListRows();
+    }
+
+    private RectTransform EnsureEnemyListContentRoot()
+    {
+        if (enemyListContentRoot)
+            return enemyListContentRoot;
+
+        if (!contentRoot)
+            return null;
+
+        Transform existing = contentRoot.Find("EnemyInformationContent");
+        if (existing != null)
+        {
+            enemyListContentRoot = existing as RectTransform;
+            return enemyListContentRoot;
+        }
+
+        var go = new GameObject("EnemyInformationContent", typeof(RectTransform));
+        enemyListContentRoot = go.GetComponent<RectTransform>();
+        enemyListContentRoot.SetParent(contentRoot, false);
+        ConfigureEnemyListContentRoot(enemyListContentRoot);
+
+        enemyListContentRoot.SetSiblingIndex(
+            generalEnemyInformationContent != null
+                ? generalEnemyInformationContent.transform.GetSiblingIndex() + 1
+                : contentRoot.childCount - 1);
+
+        ConfigureSubtabPanelLayout(enemyListContentRoot.gameObject);
+        return enemyListContentRoot;
+    }
+
+    private static void ConfigureEnemyListContentRoot(RectTransform root)
+    {
+        VerticalLayoutGroup layout = root.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.spacing = 8f;
+        layout.padding = new RectOffset(6, 6, 6, 6);
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+
+        ContentSizeFitter fitter = root.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+    }
+
+    private static bool IsPreservedDatabaseContentChild(Transform child)
+    {
+        if (!child)
+            return false;
+
+        return child.name switch
+        {
+            "GeneralEnemyInformationContent" => true,
+            "EnemyInformationContent" => true,
+            _ => false,
+        };
     }
 
     private void ResetScrollPosition()
     {
-        if (!contentScrollRect)
+        RefreshScrollContentLayout();
+    }
+
+    private void RefreshScrollContentLayout()
+    {
+        if (!contentRoot)
             return;
 
+        if (UsesEnemySubtabs())
+            EnsureEnemySubtabScrollLayout();
+
         Canvas.ForceUpdateCanvases();
-        contentScrollRect.verticalNormalizedPosition = 1f;
+
+        if (enemyListContentRoot && enemyListContentRoot.gameObject.activeInHierarchy)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(enemyListContentRoot);
+
+        if (generalEnemyInformationContent && generalEnemyInformationContent.activeInHierarchy)
+        {
+            RectTransform generalRect = generalEnemyInformationContent.transform as RectTransform;
+            if (generalRect)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(generalRect);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        Canvas.ForceUpdateCanvases();
+
+        if (contentScrollRect)
+            contentScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    private bool UsesEnemySubtabs()
+    {
+        if (enemyTabButtonRow != null)
+            return true;
+
+        return contentRoot != null && contentRoot.Find("GeneralEnemyInformationContent") != null;
+    }
+
+    private void EnsureEnemySubtabScrollLayout()
+    {
+        if (!contentRoot)
+            return;
+
+        VerticalLayoutGroup rootLayout = contentRoot.GetComponent<VerticalLayoutGroup>();
+        if (!rootLayout)
+            rootLayout = contentRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        rootLayout.enabled = true;
+        rootLayout.childAlignment = TextAnchor.UpperLeft;
+        rootLayout.spacing = 0f;
+        rootLayout.padding = new RectOffset(0, 0, 0, 0);
+        rootLayout.childForceExpandWidth = true;
+        rootLayout.childForceExpandHeight = false;
+        rootLayout.childControlWidth = true;
+        rootLayout.childControlHeight = true;
+
+        ContentSizeFitter rootFitter = contentRoot.GetComponent<ContentSizeFitter>();
+        if (!rootFitter)
+            rootFitter = contentRoot.gameObject.AddComponent<ContentSizeFitter>();
+        rootFitter.enabled = true;
+        rootFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        rootFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        contentRoot.anchorMin = new Vector2(0f, 1f);
+        contentRoot.anchorMax = new Vector2(1f, 1f);
+        contentRoot.pivot = new Vector2(0f, 1f);
+        contentRoot.anchoredPosition = Vector2.zero;
+
+        ConfigureSubtabPanelLayout(generalEnemyInformationContent);
+
+        RectTransform listRoot = enemyListContentRoot;
+        if (!listRoot)
+            listRoot = contentRoot.Find("EnemyInformationContent") as RectTransform;
+        if (listRoot)
+            ConfigureSubtabPanelLayout(listRoot.gameObject);
+    }
+
+    private static void ConfigureSubtabPanelLayout(GameObject panel)
+    {
+        if (!panel)
+            return;
+
+        PrepareLayoutChild(panel.transform as RectTransform);
+
+        LayoutElement layoutElement = panel.GetComponent<LayoutElement>();
+        if (!layoutElement)
+            layoutElement = panel.AddComponent<LayoutElement>();
+        layoutElement.flexibleWidth = 1f;
+        layoutElement.minHeight = 0f;
+
+        ContentSizeFitter fitter = panel.GetComponent<ContentSizeFitter>();
+        if (!fitter)
+            fitter = panel.AddComponent<ContentSizeFitter>();
+        fitter.enabled = true;
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+    }
+
+    private static void PrepareLayoutChild(RectTransform rect)
+    {
+        if (!rect)
+            return;
+
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
     }
 
     private void EnsureContentScrollConfigured()
@@ -323,6 +664,12 @@ public sealed class DatabasePageUI : MonoBehaviour
         contentRoot.pivot = new Vector2(0f, 1f);
         contentRoot.anchoredPosition = Vector2.zero;
         contentRoot.sizeDelta = new Vector2(0f, contentRoot.sizeDelta.y);
+
+        if (UsesEnemySubtabs())
+        {
+            EnsureEnemySubtabScrollLayout();
+            return;
+        }
 
         VerticalLayoutGroup layout = contentRoot.GetComponent<VerticalLayoutGroup>();
         if (!layout)
@@ -421,6 +768,30 @@ public sealed class DatabasePageUI : MonoBehaviour
                 regionDropdown = regionsPanel.transform.Find("Dropdown")?.GetComponent<TMP_Dropdown>();
             if (!regionNameLabel)
                 regionNameLabel = regionsPanel.transform.Find("RegionLabel")?.GetComponent<TMP_Text>();
+        }
+
+        if (!enemyTabButtonRow && rightPanel != null)
+            enemyTabButtonRow = rightPanel.Find("EnemyTabButtonRow")?.gameObject;
+
+        if (contentRoot != null)
+        {
+            if (!generalEnemyInformationContent)
+                generalEnemyInformationContent = contentRoot.Find("GeneralEnemyInformationContent")?.gameObject;
+            if (!enemyListContentRoot)
+                enemyListContentRoot = contentRoot.Find("EnemyInformationContent") as RectTransform;
+        }
+
+        Transform tabRow = enemyTabButtonRow != null
+            ? enemyTabButtonRow.transform
+            : rightPanel != null ? rightPanel.Find("EnemyTabButtonRow") : null;
+        if (tabRow != null)
+        {
+            if (!enemyTabButtonRow)
+                enemyTabButtonRow = tabRow.gameObject;
+            if (!generalInformationTabButton)
+                generalInformationTabButton = tabRow.Find("GeneralButton")?.GetComponent<Button>();
+            if (!enemyInformationTabButton)
+                enemyInformationTabButton = tabRow.Find("EnemyInformationButton")?.GetComponent<Button>();
         }
     }
 

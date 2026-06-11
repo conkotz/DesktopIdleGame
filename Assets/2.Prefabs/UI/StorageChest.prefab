@@ -194,6 +194,7 @@ GameObject:
   - component: {fileID: 3678239188401076600}
   - component: {fileID: 661633069377667575}
   - component: {fileID: -5161748566951480440}
+  - component: {fileID: 8821044556677889900}
   m_Layer: 7
   m_Name: StorageChest
   m_TagString: Storage
@@ -266,7 +267,7 @@ SpriteRenderer:
   m_SortingLayer: 3
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 1509478067197531143, guid: d7a890a06c195fe449a2f07a2e79aee7, type: 3}
+  m_Sprite: {fileID: -6047068763884803496, guid: 1fabbd0a2239b0a45a589b1035794bcf, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -314,7 +315,7 @@ BoxCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 2.32, y: 1.5285715}
+    oldSize: {x: 2.05, y: 1.43}
     newSize: {x: 3.248, y: 2.14}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
@@ -336,10 +337,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StorageClick
   mainMenuWindowUI: {fileID: 0}
   storageUI: {fileID: 0}
+  spriteRenderer: {fileID: 0}
+  chestVisual: {fileID: 0}
+  openedSprite: {fileID: -8927742213376149463, guid: 1fabbd0a2239b0a45a589b1035794bcf, type: 3}
+  nameLabel: {fileID: 107939362021230622}
+  targetIndicatorAnchor: {fileID: 8821044556677889900}
+  openedSpriteLocalOffset: {x: 0, y: 0.15, z: 0}
+  openedNameLabelLocalOffset: {x: 0, y: 0.2, z: 0}
+  openedTargetMarkerLocalOffset: {x: 0, y: 0.2, z: 0}
   storageRect: {fileID: 0}
   canvasRect: {fileID: 0}
   pinGap: 8
   pinCanvasEdgeMargin: 4
+--- !u!114 &8821044556677889900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284140584376777183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bf83fd4b53e494d8a17afce10279e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldTargetIndicatorAnchor
+  anchor: {fileID: 0}
+  localOffset: {x: 0, y: 0.9, z: 0}
 --- !u!114 &-5161748566951480440
 MonoBehaviour:
   m_ObjectHideFlags: 0
