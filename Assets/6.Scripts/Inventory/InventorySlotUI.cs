@@ -23,6 +23,7 @@ public class InventorySlotUI : MonoBehaviour,
     IItemTooltipHoverSource
 {
     private const float InventoryBorderThicknessMul = 0.65f;
+    private const float IdentifyGlowSeconds = 1.1f;
 
     [Header("UI")]
     [SerializeField] private Image background;
@@ -91,6 +92,7 @@ public class InventorySlotUI : MonoBehaviour,
     private RectTransform _upgradeDropTarget;
     private CanvasGroup _upgradeCanvasGroup;
     private bool _upgradeSelected;
+    private Coroutine _identifyRoutine;
 
     private static readonly Color UpgradeDimIconColor = new(0.45f, 0.45f, 0.45f, 0.55f);
 
@@ -741,6 +743,53 @@ public class InventorySlotUI : MonoBehaviour,
 
         // Use THIS slot as the anchor, so tooltip appears beside hovered slot
         _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+    }
+
+    public bool CanIdentifyStats()
+    {
+        if (!HasItemContext || _inventory == null)
+            return false;
+
+        return ItemRandomStatIdentification.IsPending(_inventory.GetItemDatabase(), _itemId);
+    }
+
+    public void PerformIdentifyStatsAction()
+    {
+        if (!CanIdentifyStats())
+            return;
+
+        if (_identifyRoutine != null)
+            StopCoroutine(_identifyRoutine);
+
+        _identifyRoutine = StartCoroutine(IdentifyStatsRoutine());
+    }
+
+    private IEnumerator IdentifyStatsRoutine()
+    {
+        UIPulseGlowOverlay glow = UIPulseGlowOverlay.Show(transform as RectTransform);
+        yield return new WaitForSecondsRealtime(IdentifyGlowSeconds);
+        glow?.Clear();
+        _identifyRoutine = null;
+
+        if (!CanIdentifyStats())
+            yield break;
+
+        ItemDatabase db = _inventory.GetItemDatabase();
+        if (!ItemRandomStatIdentification.TryIdentify(db, _itemId, out string activityMessage))
+            yield break;
+
+        GameLog.Add(activityMessage, ItemRandomStatIdentification.ActivityLogColor);
+
+        if (_isPointerOver)
+            ShowItemTooltip();
+    }
+
+    public void PerformLookupAction()
+    {
+        if (string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        MainMenuWindowUI.Resolve()?.OpenDatabaseLookupItem(_itemId);
     }
 
     public void PerformEquipAction() => TryDoubleClickEquipFromThisSlot();

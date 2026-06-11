@@ -18,6 +18,7 @@ public static class InventoryContextMenuBuilder
         {
             bool canSell = slot.CanSellToActiveMerchant(out string sellLabel);
             entries.Add(new ContextMenuEntry(sellLabel, slot.PerformSellAction, disabled: !canSell));
+            entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));
             AddDropEntry(entries, slot.PerformDropAction);
             return entries;
         }
@@ -39,6 +40,11 @@ public static class InventoryContextMenuBuilder
 
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));
+
+        if (slot.CanIdentifyStats())
+            entries.Add(new ContextMenuEntry("Identify Stats", slot.PerformIdentifyStatsAction));
+
+        entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));
 
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;
@@ -62,6 +68,8 @@ public static class InventoryContextMenuBuilder
 
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));
+
+        entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));
 
         AddDropEntry(entries, slot.PerformDropAction);
         return entries;

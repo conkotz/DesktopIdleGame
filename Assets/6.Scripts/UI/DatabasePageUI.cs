@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -97,6 +98,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     private GameObject _itemRowTemplate;
     private readonly List<RegionDefinition> _databaseRegions = new();
     private RegionDefinition _selectedRegion;
+    private Coroutine _lookupRoutine;
 
     private void Awake()
     {
@@ -135,6 +137,131 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         _activeSection = section;
         RefreshActiveSection();
+    }
+
+    /// <summary>Opens the Items section, correct sub-tab, and scrolls the matching row into view.</summary>
+    public void LookupItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        if (_lookupRoutine != null)
+            StopCoroutine(_lookupRoutine);
+
+        _lookupRoutine = StartCoroutine(LookupItemRoutine(itemId));
+    }
+
+    private IEnumerator LookupItemRoutine(string itemId)
+    {
+        EnsureDatabases();
+        sharedTooltip?.Hide();
+
+        if (!DatabaseItemCatalog.TryResolveDatabaseLookup(
+                itemDatabase,
+                itemId,
+                out ItemDefinition listItem,
+                out DatabaseItemSubtab subtab))
+        {
+            GameLog.Add("This item is not listed in the database.", GameLog.CannotMessageColor);
+            _lookupRoutine = null;
+            yield break;
+        }
+
+        ClearSearchQuery();
+        NavigateToItemSubtab(subtab);
+
+        string targetItemId = listItem.itemId;
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        RefreshScrollContentLayout();
+        yield return null;
+
+        RectTransform row = FindItemRowTransform(targetItemId);
+        if (row)
+            ScrollToCenterRow(row);
+
+        _lookupRoutine = null;
+    }
+
+    private void NavigateToItemSubtab(DatabaseItemSubtab subtab)
+    {
+        bool sectionChanged = _activeSection != DatabaseSection.Items;
+        bool subtabChanged = _activeItemSubtab != subtab;
+
+        _activeSection = DatabaseSection.Items;
+        _activeItemSubtab = subtab;
+
+        if (!sectionChanged && !subtabChanged)
+        {
+            ApplyItemSubtab();
+            return;
+        }
+
+        RefreshActiveSection();
+    }
+
+    private void ClearSearchQuery()
+    {
+        _searchQuery = string.Empty;
+        if (searchField)
+            searchField.SetTextWithoutNotify(string.Empty);
+    }
+
+    private RectTransform FindItemRowTransform(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        RectTransform listRoot = GetActiveItemListContentRoot();
+        if (!listRoot)
+            return null;
+
+        for (int i = 0; i < listRoot.childCount; i++)
+        {
+            Transform child = listRoot.GetChild(i);
+            if (!child)
+                continue;
+
+            DatabaseItemEntryRowUI row = child.GetComponent<DatabaseItemEntryRowUI>();
+            if (row == null || string.IsNullOrWhiteSpace(row.ItemId))
+                continue;
+
+            if (string.Equals(row.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
+                return child as RectTransform;
+        }
+
+        return null;
+    }
+
+    private void ScrollToCenterRow(RectTransform row)
+    {
+        if (!contentScrollRect || !row || !contentScrollRect.content)
+            return;
+
+        RectTransform viewport = contentScrollRect.viewport;
+        if (!viewport)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentScrollRect.content);
+
+        Vector3[] rowCorners = new Vector3[4];
+        Vector3[] contentCorners = new Vector3[4];
+        row.GetWorldCorners(rowCorners);
+        contentScrollRect.content.GetWorldCorners(contentCorners);
+
+        float contentTop = contentCorners[1].y;
+        float contentBottom = contentCorners[0].y;
+        float contentHeight = contentTop - contentBottom;
+        float viewportHeight = viewport.rect.height;
+        float scrollable = contentHeight - viewportHeight;
+        if (scrollable <= 0.01f)
+            return;
+
+        float rowCenterY = (rowCorners[0].y + rowCorners[1].y) * 0.5f;
+        float rowCenterFromContentTop = contentTop - rowCenterY;
+        float targetOffset = Mathf.Clamp(rowCenterFromContentTop - viewportHeight * 0.5f, 0f, scrollable);
+        contentScrollRect.verticalNormalizedPosition = 1f - targetOffset / scrollable;
     }
 
     private void WireFilterButtons()
@@ -667,10 +794,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         {
             SetAllItemContentPanelsActive(false);
             ClearItemListRows();
-            return;
         }
-
-        _activeItemSubtab = DatabaseItemSubtab.Resources;
     }
 
     private void RebuildItemRows()

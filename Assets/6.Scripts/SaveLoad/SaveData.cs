@@ -135,6 +135,7 @@ public class SaveData
         public BonusStats bonusStats;
         public CombatSupportStats combatSupportStats;
         public ToolStats toolStats;
+        public bool randomStatsPendingIdentification;
     }
 
     [Header("Equipment")]

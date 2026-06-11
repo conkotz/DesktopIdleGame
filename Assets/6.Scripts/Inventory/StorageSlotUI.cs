@@ -287,6 +287,14 @@ public class StorageSlotUI : MonoBehaviour,
         _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
     }
 
+    public void PerformLookupAction()
+    {
+        if (string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        MainMenuWindowUI.Resolve()?.OpenDatabaseLookupItem(_itemId);
+    }
+
     public void PerformEquipAction()
     {
         if (!TryWithdrawOneToInventory(out int invSlot))

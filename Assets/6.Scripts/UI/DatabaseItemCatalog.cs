@@ -164,6 +164,55 @@ public static class DatabaseItemCatalog
         return RepresentativeScrollIds.Contains(id);
     }
 
+    /// <summary>Resolves the authored database entry for an inventory/storage item id (including runtime clones).</summary>
+    public static bool TryResolveDatabaseLookup(
+        ItemDatabase db,
+        string itemId,
+        out ItemDefinition listItem,
+        out DatabaseItemSubtab subtab)
+    {
+        listItem = null;
+        subtab = DatabaseItemSubtab.Resources;
+
+        if (!db || string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        string baseId = db.GetBaseItemId(itemId);
+        ItemDefinition def = db.Get(baseId);
+        if (!def || !ShouldListInDatabase(def))
+            return false;
+
+        if (PassesSubtab(def, DatabaseItemSubtab.Resources))
+        {
+            listItem = def;
+            subtab = DatabaseItemSubtab.Resources;
+            return true;
+        }
+
+        if (PassesSubtab(def, DatabaseItemSubtab.Equipment))
+        {
+            listItem = def;
+            subtab = DatabaseItemSubtab.Equipment;
+            return true;
+        }
+
+        if (PassesSubtab(def, DatabaseItemSubtab.Consumables))
+        {
+            listItem = def;
+            subtab = DatabaseItemSubtab.Consumables;
+            return true;
+        }
+
+        if (PassesSubtab(def, DatabaseItemSubtab.Enhancement))
+        {
+            listItem = def;
+            subtab = DatabaseItemSubtab.Enhancement;
+            return true;
+        }
+
+        return false;
+    }
+
     private static int CompareByDisplayName(ItemDefinition a, ItemDefinition b)
     {
         string nameA = a != null ? a.displayName : string.Empty;

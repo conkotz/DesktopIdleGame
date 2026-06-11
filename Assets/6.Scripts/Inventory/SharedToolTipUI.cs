@@ -851,11 +851,17 @@ public class SharedTooltipUI : MonoBehaviour
 
         CaptureTooltipMarginBasesOnce();
 
-        ItemDefinition highlightBaseline = ResolveHighlightBaseline(itemIdForHighlights);
+        ItemDatabase itemDb = ResolveItemDatabase();
+        bool maskPendingIdentification = ItemRandomStatIdentification.IsPending(itemDb, itemIdForHighlights);
+        ItemDefinition statsDef = ResolveStatsDefinitionForTooltip(def, itemDb, itemIdForHighlights);
+        ItemDefinition highlightBaseline = maskPendingIdentification
+            ? null
+            : ResolveHighlightBaseline(itemIdForHighlights);
 
         if (mainStatsText == null)
         {
             string combined = BuildTooltipStatsTextWithSupportRequirement(
+                statsDef,
                 def,
                 maskUnrolledRandomStats,
                 showRandomStatPoolOptions,
@@ -875,12 +881,17 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
-        string misc = def.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
+        string misc = statsDef.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
         string main = highlightBaseline != null
             ? def.BuildTooltipMainStatsText(highlightBaseline)
-            : def.BuildTooltipMainStatsText() ?? "";
-        main = ApplyOffhandSupportRequirementColoring(main, def);
-        main = AppendRandomStatTooltipLines(def, main, maskUnrolledRandomStats, showRandomStatPoolOptions);
+            : statsDef.BuildTooltipMainStatsText() ?? "";
+        main = ApplyOffhandSupportRequirementColoring(main, statsDef);
+        main = AppendRandomStatTooltipLines(
+            def,
+            main,
+            maskUnrolledRandomStats,
+            showRandomStatPoolOptions,
+            itemIdForHighlights);
 
         if (miscStatsText)
         {
@@ -994,21 +1005,22 @@ public class SharedTooltipUI : MonoBehaviour
     }
 
     private string BuildTooltipStatsTextWithSupportRequirement(
-        ItemDefinition def,
+        ItemDefinition statsDef,
+        ItemDefinition displayDef,
         bool maskUnrolledRandomStats = false,
         bool showRandomStatPoolOptions = false,
         ItemDefinition highlightBaseline = null,
         string itemIdForHighlights = null)
     {
-        if (!def)
+        if (!statsDef)
             return "";
 
         bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
         string stats;
-        if (highlightBaseline != null)
+        if (highlightBaseline != null && displayDef)
         {
-            string misc = def.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
-            string main = def.BuildTooltipMainStatsText(highlightBaseline);
+            string misc = displayDef.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
+            string main = displayDef.BuildTooltipMainStatsText(highlightBaseline);
             if (string.IsNullOrWhiteSpace(misc))
                 stats = main ?? "";
             else if (string.IsNullOrWhiteSpace(main))
@@ -1018,11 +1030,16 @@ public class SharedTooltipUI : MonoBehaviour
         }
         else
         {
-            stats = def.BuildTooltipStatsText() ?? "";
+            stats = statsDef.BuildTooltipStatsText() ?? "";
         }
 
-        stats = ApplyOffhandSupportRequirementColoring(stats, def);
-        return AppendRandomStatTooltipLines(def, stats, maskUnrolledRandomStats, showRandomStatPoolOptions);
+        stats = ApplyOffhandSupportRequirementColoring(stats, statsDef);
+        return AppendRandomStatTooltipLines(
+            displayDef,
+            stats,
+            maskUnrolledRandomStats,
+            showRandomStatPoolOptions,
+            itemIdForHighlights);
     }
 
     private static bool IsAdvancedDetailsEnabled(string itemIdForHighlights) =>
@@ -1054,25 +1071,48 @@ public class SharedTooltipUI : MonoBehaviour
         if (!ItemTooltipAdvancedInput.IsHeld)
             return null;
 
+        return ItemTooltipStatHighlight.ResolveBaseline(ResolveItemDatabase(), itemIdForHighlights);
+    }
+
+    private static ItemDatabase ResolveItemDatabase()
+    {
         Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        ItemDatabase db = inventory ? inventory.GetItemDatabase() : Resources.Load<ItemDatabase>("Databases/ItemDatabase");
-        return ItemTooltipStatHighlight.ResolveBaseline(db, itemIdForHighlights);
+        return inventory ? inventory.GetItemDatabase() : Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+    }
+
+    private static ItemDefinition ResolveStatsDefinitionForTooltip(
+        ItemDefinition def,
+        ItemDatabase db,
+        string itemId)
+    {
+        if (!def)
+            return null;
+
+        if (!ItemRandomStatIdentification.IsPending(db, itemId))
+            return def;
+
+        string baseId = db != null ? db.GetBaseItemId(itemId) : null;
+        ItemDefinition baseDef = string.IsNullOrWhiteSpace(baseId) || db == null ? null : db.Get(baseId);
+        return baseDef ? baseDef : def;
     }
 
     private static string AppendRandomStatTooltipLines(
         ItemDefinition def,
         string statsBlock,
         bool maskUnrolledRandomStats,
-        bool showRandomStatPoolOptions)
+        bool showRandomStatPoolOptions,
+        string itemId = null)
     {
-        if (def == null || !def.HasRandomStatPool)
-            return statsBlock ?? "";
+        ItemDatabase db = ResolveItemDatabase();
+        bool maskPendingIdentification = ItemRandomStatIdentification.IsPending(db, itemId);
 
         string appendix = null;
-        if (maskUnrolledRandomStats)
-            appendix = def.BuildMaskedRandomStatTooltipAppendix();
-        else if (showRandomStatPoolOptions)
+        if (showRandomStatPoolOptions && def != null && def.HasRandomStatPool)
             appendix = def.BuildRandomStatPoolDatabaseTooltipSection();
+        else if (maskPendingIdentification)
+            appendix = ItemRandomStatIdentification.BuildMaskedAppendix(db, itemId);
+        else if (maskUnrolledRandomStats && def != null && def.HasRandomStatPool)
+            appendix = def.BuildMaskedRandomStatTooltipAppendix();
 
         if (string.IsNullOrWhiteSpace(appendix))
             return statsBlock ?? "";

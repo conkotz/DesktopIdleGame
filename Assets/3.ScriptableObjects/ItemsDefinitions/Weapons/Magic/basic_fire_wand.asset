@@ -184,6 +184,7 @@ MonoBehaviour:
     secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

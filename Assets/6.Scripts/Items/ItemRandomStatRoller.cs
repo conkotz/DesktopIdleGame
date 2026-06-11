@@ -81,6 +81,12 @@ public enum RandomItemStatType
 
     /// <summary>Seconds subtracted from map enemy respawn delay while equipped (misc effect).</summary>
     EnemyRespawnTimeReductionSeconds,
+
+    /// <summary>Additive bonus chill apply chance on weapons (stacks with ice magic ailment chance).</summary>
+    ChillChance,
+
+    /// <summary>Additive bonus shock apply chance on weapons (stacks with lightning magic ailment chance).</summary>
+    ShockChance,
 }
 
 public enum RandomStatValueKind
@@ -174,6 +180,7 @@ public static class ItemRandomStatRoller
         var pool = new List<RandomStatPoolEntry>(baseDef.RandomStatPoolEntries);
         ApplyRolls(clone, pool, baseDef.rarity);
         clone.ClearRandomStatPool();
+        clone.randomStatsPendingIdentification = true;
         return clone;
     }
 
@@ -268,6 +275,8 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.PoisonDurationBonus, bonus.poisonDurationBonus);
         TryAdd(RandomItemStatType.PoisonMaxStacksBonus, bonus.poisonMaxStacksBonus);
         TryAdd(RandomItemStatType.BurnChance, bonus.burnChance);
+        TryAdd(RandomItemStatType.ChillChance, bonus.chillChance);
+        TryAdd(RandomItemStatType.ShockChance, bonus.shockChance);
         TryAdd(RandomItemStatType.BurnMultiplier, bonus.burnExplosionMultiplierBonus);
         TryAdd(RandomItemStatType.ChillMultiplier, bonus.chillSlowPerStackBonus);
         TryAdd(RandomItemStatType.ShockMultiplier, bonus.shockDamageTakenMultiplierBonus);
@@ -311,7 +320,30 @@ public static class ItemRandomStatRoller
         if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
             TryAdd(RandomItemStatType.EnemyRespawnTimeReductionSeconds, item.miscEffects.enemyRespawnTimeReductionSeconds);
 
+        results.Sort((a, b) => ComparePoolEntriesForDisplay(a, b, item));
         return results;
+    }
+
+    public static int ComparePoolEntriesForDisplay(
+        RandomStatPoolEntry a,
+        RandomStatPoolEntry b,
+        ItemDefinition item = null)
+    {
+        if (a == null && b == null)
+            return 0;
+        if (a == null)
+            return 1;
+        if (b == null)
+            return -1;
+
+        int order = GetRandomStatPoolSortOrder(a.stat).CompareTo(GetRandomStatPoolSortOrder(b.stat));
+        if (order != 0)
+            return order;
+
+        return string.Compare(
+            GetRandomStatDisplayName(a.stat, item),
+            GetRandomStatDisplayName(b.stat, item),
+            System.StringComparison.OrdinalIgnoreCase);
     }
 
     public static void GetTemplateMinMax(
@@ -662,6 +694,12 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.BurnChance:
                 item.bonusStats.burnChance = Mathf.Clamp01(item.bonusStats.burnChance + primary);
                 break;
+            case RandomItemStatType.ChillChance:
+                item.bonusStats.chillChance = Mathf.Clamp01(item.bonusStats.chillChance + primary);
+                break;
+            case RandomItemStatType.ShockChance:
+                item.bonusStats.shockChance = Mathf.Clamp01(item.bonusStats.shockChance + primary);
+                break;
             case RandomItemStatType.BurnMultiplier:
                 item.bonusStats.burnExplosionMultiplierBonus += primary;
                 break;
@@ -828,8 +866,61 @@ public static class ItemRandomStatRoller
         field += Mathf.RoundToInt(kind == RandomStatValueKind.FlatInteger ? value : value);
     }
 
+    /// <summary>Sort key for database pool listings (matches weapon tooltip stat order).</summary>
+    public static int GetRandomStatPoolSortOrder(RandomItemStatType stat)
+    {
+        switch (stat)
+        {
+            case RandomItemStatType.WeaponMinPhysicalDamage: return 100;
+            case RandomItemStatType.WeaponMinFireDamage: return 101;
+            case RandomItemStatType.WeaponMinIceDamage: return 102;
+            case RandomItemStatType.WeaponMinLightningDamage: return 103;
+            case RandomItemStatType.WeaponMinCorruptionDamage: return 104;
+
+            case RandomItemStatType.WeaponMaxPhysicalDamage: return 200;
+            case RandomItemStatType.WeaponMaxFireDamage: return 201;
+            case RandomItemStatType.WeaponMaxIceDamage: return 202;
+            case RandomItemStatType.WeaponMaxLightningDamage: return 203;
+            case RandomItemStatType.WeaponMaxCorruptionDamage: return 204;
+            case RandomItemStatType.WeaponCorruptionDamageRange: return 205;
+
+            case RandomItemStatType.WeaponAttacksPerSecond: return 300;
+            case RandomItemStatType.AttackSpeedPercent: return 301;
+
+            case RandomItemStatType.WeaponCritChance: return 400;
+            case RandomItemStatType.CritChanceBonus: return 401;
+            case RandomItemStatType.WeaponCritMultiplier: return 402;
+            case RandomItemStatType.CritMultiplierBonus: return 403;
+
+            case RandomItemStatType.WeaponMagicAilmentApplyChance: return 500;
+            case RandomItemStatType.BleedChance: return 510;
+            case RandomItemStatType.BleedMultiplier: return 511;
+            case RandomItemStatType.PoisonChance: return 512;
+            case RandomItemStatType.PoisonMultiplier: return 513;
+            case RandomItemStatType.PoisonDurationBonus: return 514;
+            case RandomItemStatType.PoisonMaxStacksBonus: return 515;
+            case RandomItemStatType.BurnChance: return 516;
+            case RandomItemStatType.ChillChance: return 517;
+            case RandomItemStatType.ShockChance: return 518;
+            case RandomItemStatType.BurnMultiplier: return 519;
+            case RandomItemStatType.ChillMultiplier: return 520;
+            case RandomItemStatType.ShockMultiplier: return 521;
+
+            case RandomItemStatType.BonusMana: return 600;
+            case RandomItemStatType.ManaRegen: return 601;
+
+            case RandomItemStatType.ParryChance: return 700;
+            case RandomItemStatType.StunChance: return 701;
+
+            case RandomItemStatType.WeaponAttackRange: return 900;
+            case RandomItemStatType.AttackRangeBonus: return 901;
+
+            default: return 750;
+        }
+    }
+
     /// <summary>Player-facing label for a random pool stat (database / encyclopedia tooltips).</summary>
-    public static string GetRandomStatDisplayName(RandomItemStatType stat)
+    public static string GetRandomStatDisplayName(RandomItemStatType stat, ItemDefinition item = null)
     {
         switch (stat)
         {
@@ -869,23 +960,53 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.WeaponAttackRange:
                 return "Range";
             case RandomItemStatType.WeaponAttacksPerSecond:
-                return "Attack Speed";
+                return "Speed";
+            case RandomItemStatType.WeaponMinPhysicalDamage:
+                return "Min Physical Damage";
+            case RandomItemStatType.WeaponMaxPhysicalDamage:
+                return "Max Physical Damage";
+            case RandomItemStatType.WeaponMinFireDamage:
+                return "Min Fire Damage";
+            case RandomItemStatType.WeaponMaxFireDamage:
+                return "Max Fire Damage";
+            case RandomItemStatType.WeaponMinIceDamage:
+                return "Min Ice Damage";
+            case RandomItemStatType.WeaponMaxIceDamage:
+                return "Max Ice Damage";
+            case RandomItemStatType.WeaponMinLightningDamage:
+                return "Min Lightning Damage";
+            case RandomItemStatType.WeaponMaxLightningDamage:
+                return "Max Lightning Damage";
+            case RandomItemStatType.WeaponMinCorruptionDamage:
+                return "Min Corruption Damage";
+            case RandomItemStatType.WeaponMaxCorruptionDamage:
+                return "Max Corruption Damage";
             case RandomItemStatType.ArmorFlatGuard:
                 return "Guard";
             case RandomItemStatType.ArmorMaxGuardPercent:
                 return "Max Guard";
+            case RandomItemStatType.BurnChance:
+                return "Burn Chance";
+            case RandomItemStatType.ChillChance:
+                return "Chill Chance";
+            case RandomItemStatType.ShockChance:
+                return "Shock Chance";
             case RandomItemStatType.BurnMultiplier:
                 return "Burn Multiplier";
             case RandomItemStatType.ChillMultiplier:
-                return "Chill Multiplier";
+                return "Chill Effect";
             case RandomItemStatType.ShockMultiplier:
-                return "Shock Multiplier";
+                return "Shock Damage Amount";
             case RandomItemStatType.BleedMultiplier:
                 return "Bleed Multi";
             case RandomItemStatType.PoisonMultiplier:
                 return "Poison Multi";
             case RandomItemStatType.WeaponMagicAilmentApplyChance:
-                return "Magic Ailment Apply Chance";
+                return GetMagicAilmentChanceRollName(item);
+            case RandomItemStatType.ParryChance:
+                return "Parry Chance";
+            case RandomItemStatType.StunChance:
+                return "Stun Chance";
             case RandomItemStatType.WeaponCorruptionDamageRange:
                 return "Corruption Damage";
             case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
@@ -896,14 +1017,28 @@ public static class ItemRandomStatRoller
     }
 
     /// <summary>One line for the database item tooltip random-stat pool section.</summary>
-    public static string FormatPoolEntryDatabaseLine(RandomStatPoolEntry entry)
+    public static string FormatPoolEntryDatabaseLine(RandomStatPoolEntry entry, ItemDefinition item = null)
     {
         if (entry == null || !entry.IsValid)
             return "";
 
-        string name = GetRandomStatDisplayName(entry.stat);
+        string name = GetRandomStatDisplayName(entry.stat, item);
         string range = FormatPoolEntryValueRange(entry);
         return string.IsNullOrWhiteSpace(range) ? name : $"{name} ({range})";
+    }
+
+    private static string GetMagicAilmentChanceRollName(ItemDefinition item)
+    {
+        if (!item || !item.IsWeapon)
+            return "Magic Ailment Apply Chance";
+
+        return item.weaponStats.magicAttackType switch
+        {
+            MagicAttackType.Fire => "Burn Chance",
+            MagicAttackType.Ice => "Chill Chance",
+            MagicAttackType.Lightning => "Shock Chance",
+            _ => "Magic Ailment Apply Chance"
+        };
     }
 
     private static string FormatPoolEntryValueRange(RandomStatPoolEntry entry)

@@ -293,6 +293,24 @@ public class MainMenuWindowUI : MonoBehaviour
         OpenPage(databasePage);
     }
 
+    /// <summary>Opens the database tab and scrolls to the item's encyclopedia entry.</summary>
+    public void OpenDatabaseLookupItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        SelectTab(MainMenuTabId.Database);
+        ResolveDatabasePageReference();
+        if (!databasePage)
+            return;
+
+        DatabasePageUI page = databasePage.GetComponent<DatabasePageUI>();
+        if (!page)
+            page = databasePage.GetComponentInChildren<DatabasePageUI>(true);
+
+        page?.LookupItem(itemId);
+    }
+
     public void OpenQuestShow()
     {
         if (!questPage)

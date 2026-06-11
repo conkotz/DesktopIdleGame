@@ -131,24 +131,26 @@ public static class ItemTooltipStatHighlight
         if (!string.IsNullOrWhiteSpace(matchingAilments))
             s.Append(matchingAilments).Append('\n');
 
-        s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
+        string ailmentBonuses = current.BuildWeaponAilmentBonusLinesForTooltip(baseline);
+        if (!string.IsNullOrWhiteSpace(ailmentBonuses))
+            s.Append(ailmentBonuses).Append('\n');
 
-        AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);
-        if (current.ParryChance > 0f && Mathf.Approximately(current.ParryChance, baseline.ParryChance))
-            AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
-        if (current.StunChance > 0f && Mathf.Approximately(current.StunChance, baseline.StunChance))
-            AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
-        AppendWeaponProcLine(s, "Health", current.BonusHealth, baseline.BonusHealth, percent01: false, prefixPlus: true);
+        if (current.BonusMana > 0)
+            AppendIntStatLine(s, "Mana", current.BonusMana, baseline.BonusMana, prefixPlus: true);
 
         if (current.weaponStats.attackSkill == AttackSkill.Magic)
             s.Append($"\nMana Cost: {current.ManaCostPerAttack:0.##}");
 
+        AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
+        AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
+
+        s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
+
+        AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);
+        AppendWeaponProcLine(s, "Health", current.BonusHealth, baseline.BonusHealth, percent01: false, prefixPlus: true);
+
         if (current.RequiresOffhandSupport)
             s.Append($"\nRequires: {current.RequiredSupportType}");
-
-        string ailmentBonuses = current.BuildWeaponAilmentBonusLinesForTooltip(baseline);
-        if (!string.IsNullOrWhiteSpace(ailmentBonuses))
-            s.Append('\n').Append(ailmentBonuses);
 
         string extras = current.BuildBonusLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(extras))

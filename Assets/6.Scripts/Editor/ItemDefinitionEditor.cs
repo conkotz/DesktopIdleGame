@@ -464,9 +464,9 @@ public class ItemDefinitionEditor : Editor
                 if (burnExplosionMultiplierBonus != null)
                     EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
                 if (chillSlowPerStackBonus != null)
-                    EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Multiplier"));
+                    EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Effect"));
                 if (shockDamageTakenMultiplierBonus != null)
-                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Multiplier"));
+                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Damage Amount"));
             }
         }
         EditorGUILayout.PropertyField(canEquipInOffHand);
@@ -1501,6 +1501,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
         SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
         SerializedProperty bonusBurnChance = bonusStats.FindPropertyRelative("burnChance");
+        SerializedProperty bonusChillChance = bonusStats.FindPropertyRelative("chillChance");
+        SerializedProperty bonusShockChance = bonusStats.FindPropertyRelative("shockChance");
         SerializedProperty parryChance = bonusStats.FindPropertyRelative("parryChance");
         SerializedProperty stunChance = bonusStats.FindPropertyRelative("stunChance");
 
@@ -1567,9 +1569,13 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(poisonMaxStacksBonus);
         if (bonusBurnChance != null)
             EditorGUILayout.PropertyField(bonusBurnChance, new GUIContent("Burn Chance (bonus)"));
+        if (bonusChillChance != null)
+            EditorGUILayout.PropertyField(bonusChillChance, new GUIContent("Chill Chance (bonus)"));
+        if (bonusShockChance != null)
+            EditorGUILayout.PropertyField(bonusShockChance, new GUIContent("Shock Chance (bonus)"));
         EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
-        EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Multiplier"));
-        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Multiplier"));
+        EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Effect"));
+        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Damage Amount"));
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Combat Procs", EditorStyles.boldLabel);

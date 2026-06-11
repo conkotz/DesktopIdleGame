@@ -223,7 +223,8 @@ public class ItemDatabase : ScriptableObject
                 armorStats = def.armorStats,
                 bonusStats = def.bonusStats,
                 combatSupportStats = def.combatSupportStats,
-                toolStats = def.toolStats
+                toolStats = def.toolStats,
+                randomStatsPendingIdentification = def.randomStatsPendingIdentification
             });
         }
     }
@@ -259,6 +260,7 @@ public class ItemDatabase : ScriptableObject
             clone.bonusStats = saved.bonusStats;
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
+            clone.randomStatsPendingIdentification = saved.randomStatsPendingIdentification;
             clone.NormalizeEnhancementState();
         }
     }

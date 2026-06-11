@@ -174,16 +174,9 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 43
-    weight: 1
-    minValue: 5
-    maxValue: 10
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
