@@ -200,6 +200,6 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
     {
         string chance = MapCombatScaling.FormatSpecialDropChancePercent(dropChance);
         string quantity = FormatAmountRange(amountMin, amountMax);
-        return $"Drop %: {chance}\nQuantity: {quantity}";
+        return $"Drop chance: {chance}\nQuantity: {quantity}";
     }
 }

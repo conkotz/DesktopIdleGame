@@ -184,6 +184,7 @@ MonoBehaviour:
   dialogueFollowWorldAnchor: {fileID: 6567681578057083310}
   dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 5
+  onlyShowDialogueWhenNoQuestAvailable: 1
   openDialogueOnFirstSighting: 0
   walkPlayerToNpcOnClick: 1
   openWhenWithinXDistance: 0.15

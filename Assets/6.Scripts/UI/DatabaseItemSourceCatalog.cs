@@ -334,7 +334,7 @@ public static class DatabaseItemSourceCatalog
             return;
 
         var drops = new List<MapScalingSpecialLootEntry>();
-        node.CollectCombatScalingSpecialDropsUpToSlider(MapCombatScaling.SliderMax, drops);
+        node.CollectMapSpecificSpecialDrops(MapCombatScaling.SliderMax, drops);
 
         string label = string.IsNullOrWhiteSpace(mapLabel)
             ? "Combat maps (scaling)"

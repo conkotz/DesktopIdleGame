@@ -73,11 +73,17 @@ public sealed class DatabasePageUI : MonoBehaviour
     [SerializeField] private ItemDatabase itemDatabase;
     [SerializeField] private SharedTooltipUI sharedTooltip;
 
+    [Header("Search")]
+    [SerializeField] private GameObject searchPanel;
+    [SerializeField] private TMP_Text searchLabelText;
+    [SerializeField] private TMP_InputField searchField;
+
     [Header("Enemy sub-tab visuals")]
     [SerializeField] private Color activeEnemySubtabColor = new Color32(247, 225, 190, 255);
     [SerializeField] private Color inactiveEnemySubtabColor = new Color32(168, 152, 118, 200);
 
     private DatabaseSection _activeSection = DatabaseSection.Enemies;
+    private string _searchQuery = string.Empty;
     private DatabaseEnemySubtab _activeEnemySubtab = DatabaseEnemySubtab.GeneralInformation;
     private DatabaseItemSubtab _activeItemSubtab = DatabaseItemSubtab.Resources;
     /// <summary>Runtime clone source — never parented under the live enemy list.</summary>
@@ -99,6 +105,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     private void OnEnable()
     {
         WireRegionDropdown();
+        WireSearchField();
         RefreshActiveSection();
     }
 
@@ -108,6 +115,7 @@ public sealed class DatabasePageUI : MonoBehaviour
             regionDropdown.onValueChanged.RemoveListener(OnRegionDropdownChanged);
         UnwireEnemySubtabButtons();
         UnwireItemSubtabButtons();
+        UnwireSearchField();
         sharedTooltip?.Hide();
     }
 
@@ -146,6 +154,8 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (headerLabel)
             headerLabel.text = GetSectionTitle(_activeSection);
 
+        RefreshSectionButtonVisuals();
+
         bool showRegionFilter = _activeSection == DatabaseSection.Enemies;
         if (regionsPanel)
             regionsPanel.SetActive(showRegionFilter);
@@ -175,6 +185,7 @@ public sealed class DatabasePageUI : MonoBehaviour
                 break;
         }
 
+        RefreshSearchPanelVisibility();
         ResetScrollPosition();
     }
 
@@ -293,6 +304,9 @@ public sealed class DatabasePageUI : MonoBehaviour
                 if (string.IsNullOrEmpty(enemyId) || !allowedEnemyIds.Contains(enemyId))
                     continue;
             }
+
+            if (!EnemyPassesSearch(enemy, _selectedRegion))
+                continue;
 
             GameObject rowGo = Instantiate(_enemyRowTemplate, listRoot);
             rowGo.SetActive(true);
@@ -430,6 +444,7 @@ public sealed class DatabasePageUI : MonoBehaviour
             RebuildEnemyRows();
         }
 
+        RefreshSearchPanelVisibility();
         RefreshScrollContentLayout();
     }
 
@@ -469,13 +484,20 @@ public sealed class DatabasePageUI : MonoBehaviour
         return null;
     }
 
-    private void RefreshEnemySubtabButtonVisuals()
+    private void RefreshSectionButtonVisuals()
     {
-        ApplyEnemySubtabButtonVisual(generalInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.GeneralInformation);
-        ApplyEnemySubtabButtonVisual(enemyInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation);
+        ApplySectionButtonVisual(generalButton, _activeSection == DatabaseSection.General);
+        ApplySectionButtonVisual(enemyButton, _activeSection == DatabaseSection.Enemies);
+        ApplySectionButtonVisual(itemButton, _activeSection == DatabaseSection.Items);
     }
 
-    private void ApplyEnemySubtabButtonVisual(Button button, bool isActive)
+    private void RefreshEnemySubtabButtonVisuals()
+    {
+        ApplySectionButtonVisual(generalInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.GeneralInformation);
+        ApplySectionButtonVisual(enemyInformationTabButton, _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation);
+    }
+
+    private void ApplySectionButtonVisual(Button button, bool isActive)
     {
         if (!button)
             return;
@@ -576,6 +598,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         ClearInactiveItemListRows();
         RebuildItemRows();
         RefreshItemSubtabButtonVisuals();
+        RefreshSearchPanelVisibility();
         RefreshScrollContentLayout();
     }
 
@@ -636,12 +659,20 @@ public sealed class DatabasePageUI : MonoBehaviour
             if (!item)
                 continue;
 
+            if (!ItemPassesSearch(item, _activeItemSubtab))
+                continue;
+
             GameObject rowGo = Instantiate(_itemRowTemplate, listRoot);
             rowGo.SetActive(true);
             DatabaseItemEntryRowUI row = rowGo.GetComponent<DatabaseItemEntryRowUI>();
             if (!row)
+            {
+                if (rowGo.TryGetComponent(out DatabaseEnemyEntryRowUI wrongRow))
+                    Destroy(wrongRow);
                 row = rowGo.AddComponent<DatabaseItemEntryRowUI>();
-            row.Bind(item, sharedTooltip);
+            }
+
+            row.Bind(item, sharedTooltip, _activeItemSubtab);
         }
 
         EnsureItemListContentLayout(listRoot);
@@ -723,19 +754,10 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void RefreshItemSubtabButtonVisuals()
     {
-        ApplyItemSubtabButtonVisual(resourceTabButton, _activeItemSubtab == DatabaseItemSubtab.Resources);
-        ApplyItemSubtabButtonVisual(equipmentTabButton, _activeItemSubtab == DatabaseItemSubtab.Equipment);
-        ApplyItemSubtabButtonVisual(consumablesTabButton, _activeItemSubtab == DatabaseItemSubtab.Consumables);
-        ApplyItemSubtabButtonVisual(enhancementTabButton, _activeItemSubtab == DatabaseItemSubtab.Enhancement);
-    }
-
-    private void ApplyItemSubtabButtonVisual(Button button, bool isActive)
-    {
-        if (!button)
-            return;
-
-        if (button.TryGetComponent(out Image image))
-            image.color = isActive ? activeEnemySubtabColor : inactiveEnemySubtabColor;
+        ApplySectionButtonVisual(resourceTabButton, _activeItemSubtab == DatabaseItemSubtab.Resources);
+        ApplySectionButtonVisual(equipmentTabButton, _activeItemSubtab == DatabaseItemSubtab.Equipment);
+        ApplySectionButtonVisual(consumablesTabButton, _activeItemSubtab == DatabaseItemSubtab.Consumables);
+        ApplySectionButtonVisual(enhancementTabButton, _activeItemSubtab == DatabaseItemSubtab.Enhancement);
     }
 
     private RectTransform EnsureEnemyListContentRoot()
@@ -961,7 +983,7 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
         rect.anchoredPosition = Vector2.zero;
         rect.sizeDelta = new Vector2(0f, rect.sizeDelta.y);
     }
@@ -1077,6 +1099,142 @@ public sealed class DatabasePageUI : MonoBehaviour
         return null;
     }
 
+    private void WireSearchField()
+    {
+        ResolveSearchReferences();
+
+        if (!searchField)
+            return;
+
+        searchField.onValueChanged.RemoveListener(OnSearchQueryChanged);
+        searchField.onValueChanged.AddListener(OnSearchQueryChanged);
+        _searchQuery = searchField.text ?? string.Empty;
+    }
+
+    private void UnwireSearchField()
+    {
+        if (searchField)
+            searchField.onValueChanged.RemoveListener(OnSearchQueryChanged);
+    }
+
+    private void OnSearchQueryChanged(string value)
+    {
+        _searchQuery = value ?? string.Empty;
+        RefreshSearchResults();
+    }
+
+    private void RefreshSearchResults()
+    {
+        if (_activeSection == DatabaseSection.Enemies &&
+            _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation)
+        {
+            RebuildEnemyRows();
+        }
+        else if (_activeSection == DatabaseSection.Items)
+        {
+            RebuildItemRows();
+        }
+
+        ResetScrollPosition();
+    }
+
+    private bool ShouldShowSearchPanel()
+    {
+        if (_activeSection == DatabaseSection.Items)
+            return true;
+
+        return _activeSection == DatabaseSection.Enemies &&
+               _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation;
+    }
+
+    private void RefreshSearchPanelVisibility()
+    {
+        ResolveSearchReferences();
+
+        bool show = ShouldShowSearchPanel();
+        if (searchLabelText)
+            searchLabelText.gameObject.SetActive(show);
+        if (searchField)
+            searchField.gameObject.SetActive(show);
+
+        if (show)
+            return;
+
+        _searchQuery = string.Empty;
+        if (searchField)
+            searchField.SetTextWithoutNotify(string.Empty);
+    }
+
+    private void ResolveSearchReferences()
+    {
+        Transform sectionsGroup = transform.Find("SectionsGroup");
+        Transform rightPanel = sectionsGroup != null ? sectionsGroup.Find("RightPanel") : null;
+        if (!rightPanel)
+            return;
+
+        if (!searchPanel)
+            searchPanel = rightPanel.Find("SearchPanel")?.gameObject;
+
+        Transform searchRoot = searchPanel != null ? searchPanel.transform : rightPanel.Find("SearchPanel");
+        if (!searchRoot)
+            return;
+
+        if (!searchLabelText)
+            searchLabelText = searchRoot.Find("SearchLabelText")?.GetComponent<TMP_Text>();
+        if (!searchField)
+            searchField = searchRoot.Find("SearchField")?.GetComponent<TMP_InputField>();
+    }
+
+    private bool EnemyPassesSearch(EnemyDefinition enemy, RegionDefinition regionFilter)
+    {
+        if (enemy == null || string.IsNullOrWhiteSpace(_searchQuery))
+            return true;
+
+        string query = _searchQuery.Trim();
+        if (string.IsNullOrEmpty(query))
+            return true;
+
+        return BuildEnemySearchHaystack(enemy, regionFilter)
+            .IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private bool ItemPassesSearch(ItemDefinition item, DatabaseItemSubtab subtab)
+    {
+        if (item == null || string.IsNullOrWhiteSpace(_searchQuery))
+            return true;
+
+        string query = _searchQuery.Trim();
+        if (string.IsNullOrEmpty(query))
+            return true;
+
+        return BuildItemSearchHaystack(item, subtab)
+            .IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private string BuildEnemySearchHaystack(EnemyDefinition enemy, RegionDefinition regionFilter)
+    {
+        if (!enemy)
+            return string.Empty;
+
+        string enemyId = string.IsNullOrWhiteSpace(enemy.enemyId) ? string.Empty : enemy.enemyId.Trim();
+        string locations = string.IsNullOrEmpty(enemyId)
+            ? string.Empty
+            : DatabaseRegionEnemyCatalog.FormatMapLocationsForEnemy(enemyId, worldMap, regionFilter);
+
+        return $"{enemy.displayName} {enemyId} {locations}";
+    }
+
+    private string BuildItemSearchHaystack(ItemDefinition item, DatabaseItemSubtab subtab)
+    {
+        if (!item)
+            return string.Empty;
+
+        string displayName = DatabaseItemCatalog.FormatDatabaseDisplayName(item);
+        string locations = DatabaseItemCatalog.FormatDatabaseObtainLocations(item, subtab);
+        string itemId = item.itemId ?? string.Empty;
+        return $"{displayName} {item.displayName} {itemId} {locations}";
+    }
+
     private void ResolveReferences()
     {
         Transform sectionsGroup = transform.Find("SectionsGroup");
@@ -1178,6 +1336,8 @@ public sealed class DatabasePageUI : MonoBehaviour
             if (!enhancementContent)
                 enhancementContent = contentRoot.Find("EnhancementContent")?.gameObject;
         }
+
+        ResolveSearchReferences();
     }
 
     private static Button FindChildButton(Transform parent, string childName)
@@ -1193,7 +1353,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     {
         return section switch
         {
-            DatabaseSection.General => "General",
+            DatabaseSection.General => "Map areas",
             DatabaseSection.Enemies => "Enemies",
             DatabaseSection.Items => "Items",
             _ => section.ToString(),

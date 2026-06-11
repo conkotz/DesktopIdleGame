@@ -92,6 +92,10 @@ public class NPCInteractionSettings : MonoBehaviour
         "Optional extra nudge after viewport projection (0–1 per axis). Usually leave at zero when using Dialogue Follow World Anchor.")]
     [SerializeField] private Vector2 dialogueFollowViewportOffset = Vector2.zero;
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
+    [Tooltip(
+        "When enabled, plain dialogue is hidden while this NPC has at least one quest available to accept. " +
+        "Use for notice boards that should only show the quest offer when a quest is ready.")]
+    [SerializeField] private bool onlyShowDialogueWhenNoQuestAvailable;
     [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
 
@@ -751,6 +755,13 @@ public class NPCInteractionSettings : MonoBehaviour
         if (quests.Count > 0 &&
             NPCDialogueBoxUI.TryGetPlainDialogueHostForNpc(transform, out NPCDialogueBoxUI plainHost))
         {
+            if (onlyShowDialogueWhenNoQuestAvailable)
+            {
+                plainHost.Hide(suppressPlainDismissCallback: true);
+                ShowQuestOffersOnly(quests);
+                return;
+            }
+
             plainHost.StackQuestOffersBesidePlainDialogue(
                 quests,
                 () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
@@ -788,14 +799,7 @@ public class NPCInteractionSettings : MonoBehaviour
 
         if (quests.Count > 0)
         {
-            box.ShowQuestOffersAt(
-                transform,
-                transform,
-                Vector3.zero,
-                quests,
-                () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
-                BuildQuestAcceptHandler(),
-                autoCloseSeconds: 0f);
+            ShowQuestOffersOnly(quests, box);
             return;
         }
 
@@ -811,6 +815,25 @@ public class NPCInteractionSettings : MonoBehaviour
         box.ShowAt(transform, transform, Vector3.zero, text, showAcceptPlain, onAcceptPlain, autoClosePlain);
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAcceptPlain);
         ApplyPlainDialoguePresentedSideEffects(box, winningPlain, winningConditionalIndexPlain);
+    }
+
+    private void ShowQuestOffersOnly(List<QuestDefinition> quests, NPCDialogueBoxUI box = null)
+    {
+        if (quests == null || quests.Count == 0)
+            return;
+
+        box ??= GetOrCreateDialogueBox();
+        if (!box)
+            return;
+
+        box.ShowQuestOffersAt(
+            transform,
+            transform,
+            Vector3.zero,
+            quests,
+            () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
+            BuildQuestAcceptHandler(),
+            autoCloseSeconds: 0f);
     }
 
     private void TryOpenColocatedMerchantShop()
@@ -858,6 +881,9 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private void ShowNormalDialogueOnlyCore(bool replaceExistingThisNpcDialogue)
     {
+        if (onlyShowDialogueWhenNoQuestAvailable && HasAvailableQuestOffers())
+            return;
+
         string text;
         bool showAccept;
         Action onAccept;

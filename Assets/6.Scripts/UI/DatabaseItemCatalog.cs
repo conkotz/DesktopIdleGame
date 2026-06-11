@@ -79,8 +79,77 @@ public static class DatabaseItemCatalog
             results.Add(item);
         }
 
-        results.Sort(CompareByDisplayName);
+        if (subtab == DatabaseItemSubtab.Enhancement)
+            results.Sort(CompareEnhancementDisplayOrder);
+        else
+            results.Sort(CompareByDisplayName);
+
         return results;
+    }
+
+    private static int CompareEnhancementDisplayOrder(ItemDefinition a, ItemDefinition b)
+    {
+        int orderA = GetEnhancementDisplaySortOrder(a);
+        int orderB = GetEnhancementDisplaySortOrder(b);
+        if (orderA != orderB)
+            return orderA.CompareTo(orderB);
+
+        return CompareByDisplayName(a, b);
+    }
+
+    private static int GetEnhancementDisplaySortOrder(ItemDefinition item)
+    {
+        if (!item || string.IsNullOrWhiteSpace(item.itemId))
+            return 99;
+
+        string id = item.itemId.Trim();
+        if (string.Equals(id, BasicScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return 0;
+        if (string.Equals(id, IntermediateScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return 1;
+        if (string.Equals(id, AdvancedScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return 2;
+        if (string.Equals(id, MapCombatScalingSpecialDropDefaults.SlotReductionScrollItemId, StringComparison.OrdinalIgnoreCase))
+            return 3;
+        if (string.Equals(id, MapCombatScalingSpecialDropDefaults.MapEnhancementTier1ItemId, StringComparison.OrdinalIgnoreCase))
+            return 4;
+        if (string.Equals(id, MapCombatScalingSpecialDropDefaults.MapEnhancementTier2ItemId, StringComparison.OrdinalIgnoreCase))
+            return 5;
+
+        return 50;
+    }
+
+    public const string EnhancementScaledMapsLocationText =
+        "All scaled maps -> view scaling in world map to see";
+
+    public static string FormatDatabaseDisplayName(ItemDefinition item)
+    {
+        if (!item || string.IsNullOrWhiteSpace(item.itemId))
+            return string.Empty;
+
+        string id = item.itemId.Trim();
+        if (string.Equals(id, BasicScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return "Basic Scroll";
+        if (string.Equals(id, IntermediateScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return "Intermediate Scroll";
+        if (string.Equals(id, AdvancedScrollExampleId, StringComparison.OrdinalIgnoreCase))
+            return "Advanced Scroll";
+
+        return item.displayName ?? string.Empty;
+    }
+
+    public static string FormatDatabaseObtainLocations(ItemDefinition item, DatabaseItemSubtab subtab)
+    {
+        if (!item)
+            return string.Empty;
+
+        if (subtab == DatabaseItemSubtab.Enhancement &&
+            (item.IsEnhancementScroll || item.IsMapEnhancement))
+        {
+            return EnhancementScaledMapsLocationText;
+        }
+
+        return DatabaseItemSourceCatalog.FormatObtainLocations(item);
     }
 
     public static bool IsRepresentativeEnhancementScroll(ItemDefinition item)

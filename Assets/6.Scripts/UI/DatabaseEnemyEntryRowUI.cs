@@ -12,6 +12,7 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
     private const float LocationsBandHeight = 50f;
     private const float AbilityBandHeight = 50f;
     private const float RowHeightWithoutAbilities = NameBandHeight + LootBandHeight + LocationsBandHeight;
+    private const string BossNamePrefixRichText = "<size=60%><color=#FF2B2B>- Boss -</color></size> ";
 
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private Transform lootRow;
@@ -42,7 +43,14 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         EnsureRowLayout(showAbilityRow);
 
         if (nameText)
-            nameText.text = enemy != null ? enemy.displayName : string.Empty;
+        {
+            if (enemy == null)
+                nameText.text = string.Empty;
+            else
+                nameText.text = enemy.isBossEnemy
+                    ? $"{BossNamePrefixRichText}{enemy.displayName}"
+                    : enemy.displayName;
+        }
 
         if (locationsText)
         {
