@@ -2633,11 +2633,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
+        EnemyBaseController previous = _target;
         _target = enemy;
         _isClosingDistanceForAttack = false;
         _attackBufferedFromRange = false;
         _targetColCached = null;
         _combatChaseMovementEnabled = true;
+        TryConsumeBladeDancerDashOnNewTarget(previous, enemy);
         OnTargetChanged?.Invoke();
     }
 

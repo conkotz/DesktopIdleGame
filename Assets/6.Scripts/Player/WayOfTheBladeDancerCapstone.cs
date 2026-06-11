@@ -5,6 +5,7 @@ public partial class PlayerCombatController
     private float _bladeDancerKillCritEndsAt = -1f;
     private float _nextBladeDancerDashTime = -1f;
     private int _lastSyncedBladeDancerKillCritHud = int.MinValue;
+    private bool _bladeDancerDashPendingOnNextTarget;
 
     public float GetWayOfTheBladeDancerKillCritBonusFraction() =>
         stats != null && stats.IsWayOfTheBladeDancerCapstoneActive() && Time.time < _bladeDancerKillCritEndsAt
@@ -31,14 +32,26 @@ public partial class PlayerCombatController
         SyncWayOfTheBladeDancerKillCritHudBuff();
     }
 
-    /// <summary>After a kill, dash once toward the nearest enemy if a single dash can reach melee.</summary>
-    private void TryBladeDancerDashToNearbyEnemyAfterKill()
+    /// <summary>Arms the post-kill dash; consumed when a new combat target is acquired.</summary>
+    private void ArmBladeDancerDashOnNextTarget()
     {
-        EnemyBaseController dashTarget = FindClosestLivingEnemy();
-        if (dashTarget == null || dashTarget.IsDead)
+        if (!IsWayOfTheBladeDancerCapstoneActive() || !stats.IsBladeDancerDualWieldingMatchingWeapons())
             return;
 
-        TryBladeDancerDashTowardEnemy(dashTarget);
+        _bladeDancerDashPendingOnNextTarget = true;
+    }
+
+    /// <summary>After a kill, dash once toward the newly selected target if a single dash can reach melee.</summary>
+    private void TryConsumeBladeDancerDashOnNewTarget(EnemyBaseController previous, EnemyBaseController next)
+    {
+        if (!_bladeDancerDashPendingOnNextTarget || next == null || next.IsDead)
+            return;
+
+        if (previous == next && previous != null && !previous.IsDead)
+            return;
+
+        if (TryBladeDancerDashTowardEnemy(next))
+            _bladeDancerDashPendingOnNextTarget = false;
     }
 
     /// <summary>Idle auto-battle: while pathing to the current target (not yet in melee range), dash when in dash range.</summary>
@@ -47,7 +60,14 @@ public partial class PlayerCombatController
         if (!idleCombatEnabled || pathTarget == null || pathTarget.IsDead)
             return false;
 
-        return TryBladeDancerDashTowardEnemy(pathTarget);
+        if (!_bladeDancerDashPendingOnNextTarget)
+            return false;
+
+        if (!TryBladeDancerDashTowardEnemy(pathTarget))
+            return false;
+
+        _bladeDancerDashPendingOnNextTarget = false;
+        return true;
     }
 
     private bool TryBladeDancerDashTowardEnemy(EnemyBaseController dashTarget)
@@ -175,7 +195,7 @@ public partial class PlayerCombatController
         _bladeDancerKillCritEndsAt = Time.time + AbilityCombatPower.WayOfTheBladeDancerKillCritDurationSeconds;
         _lastSyncedBladeDancerKillCritHud = int.MinValue;
         stats?.NotifyStatsChanged();
-        TryBladeDancerDashToNearbyEnemyAfterKill();
+        ArmBladeDancerDashOnNextTarget();
     }
 
     private void SyncWayOfTheBladeDancerKillCritHudBuff()
@@ -210,10 +230,12 @@ public partial class PlayerCombatController
     private void ClearWayOfTheBladeDancerStateIfAny()
     {
         bool hadState = _bladeDancerKillCritEndsAt >= 0f
-                        || _lastSyncedBladeDancerKillCritHud != int.MinValue;
+                        || _lastSyncedBladeDancerKillCritHud != int.MinValue
+                        || _bladeDancerDashPendingOnNextTarget;
 
         _bladeDancerKillCritEndsAt = -1f;
         _lastSyncedBladeDancerKillCritHud = int.MinValue;
+        _bladeDancerDashPendingOnNextTarget = false;
 
         if (!hadState)
             return;

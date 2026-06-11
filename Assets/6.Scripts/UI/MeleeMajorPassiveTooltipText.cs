@@ -196,7 +196,7 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append(AbilityCombatPower.WayOfTheBladeDancerTripleHitInterval);
         sb.AppendLine("rd melee auto attack hits twice.");
         sb.AppendLine();
-        sb.AppendLine("When fighting, dash to your nearest enemy.");
+        sb.AppendLine("After a kill, your next target selection dashes you into melee range.");
         sb.AppendLine();
         sb.Append("After killing an enemy, gain ");
         sb.Append(critPct);

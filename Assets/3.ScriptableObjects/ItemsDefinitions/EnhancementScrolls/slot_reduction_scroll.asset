@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: slot_reduction_scroll
   displayName: Slot Reduction Scroll
   displayNameSingular: 
-  icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
+  icon: {fileID: 21300000, guid: 1a691c7a4e44eea4db3f4fc37a5383f2, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -181,7 +181,7 @@ MonoBehaviour:
     foodFocusedDamageBonusFraction: 0
   enhancementOptionId: slot_reduction
   enhancementScrollStats:
-    successChance: 0.5
+    successChance: 0
     targetStat: 14
     modifierKind: 0
     modifierValue: 1
@@ -189,7 +189,7 @@ MonoBehaviour:
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 3857
+    allowedGearTypes: 1809
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

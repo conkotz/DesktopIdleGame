@@ -46330,7 +46330,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 574885988}
   m_HandleRect: {fileID: 574885987}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -55250,10 +55250,10 @@ MonoBehaviour:
   minOrthoSize: 2.5
   maxOrthoSizeFallback: 9
   enableKeyboardZoom: 1
-  orthoZoomSpeed: 2
-  scrollZoomSensitivity: 0.07
-  maxScrollOrthoDeltaPerFrame: 0.12
-  orthoZoomSmoothTime: 0.16
+  orthoZoomSpeed: 7
+  scrollZoomSensitivity: 0.25
+  maxScrollOrthoDeltaPerFrame: 0.45
+  orthoZoomSmoothTime: 0.05
   updateContinuously: 0
   persistStripLayout: 1
 --- !u!114 &414385173
@@ -131577,8 +131577,8 @@ Transform:
   m_GameObject: {fileID: 964139935}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -8.6, y: 4.9, z: 0}
-  m_LocalScale: {x: 7.2094483, y: 1, z: 1}
+  m_LocalPosition: {x: -5.2668, y: -1.1604, z: 0}
+  m_LocalScale: {x: 18.375233, y: 9.167315, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 266756109}

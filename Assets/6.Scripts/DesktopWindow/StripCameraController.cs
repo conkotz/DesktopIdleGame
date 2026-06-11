@@ -45,16 +45,16 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     [SerializeField] private bool enableKeyboardZoom = true;
 
     [Tooltip("Ortho half-height change per second while a zoom key is held (world units/s).")]
-    [SerializeField] private float orthoZoomSpeed = 1.25f;
+    [SerializeField] private float orthoZoomSpeed = 7f;
 
     [Tooltip("Ortho half-height change per scroll-wheel unit (applied to zoom target, then smoothed).")]
-    [SerializeField] private float scrollZoomSensitivity = 0.07f;
+    [SerializeField] private float scrollZoomSensitivity = 0.25f;
 
     [Tooltip("Max ortho target change from one scroll-wheel frame (prevents harsh multi-notch jumps).")]
-    [SerializeField] private float maxScrollOrthoDeltaPerFrame = 0.12f;
+    [SerializeField] private float maxScrollOrthoDeltaPerFrame = 0.45f;
 
     [Tooltip("Seconds to ease the camera toward the scroll/key zoom target.")]
-    [SerializeField] private float orthoZoomSmoothTime = 0.16f;
+    [SerializeField] private float orthoZoomSmoothTime = 0.05f;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;

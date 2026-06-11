@@ -62,6 +62,7 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
+    weaponWeight: 0
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -180,7 +181,7 @@ MonoBehaviour:
     foodFocusedDamageBonusFraction: 0
   enhancementOptionId: shock_chance_basic
   enhancementScrollStats:
-    successChance: 0.5
+    successChance: 0
     targetStat: 25
     modifierKind: 1
     modifierValue: 0.03
