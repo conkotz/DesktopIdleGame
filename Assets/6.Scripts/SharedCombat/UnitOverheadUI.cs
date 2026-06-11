@@ -99,6 +99,10 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private float stackAllowedOverlapBeforeStackPx = 20f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
     [Tooltip(
+        "Extra canvas pixels added above the player overhead before the first enemy stack row, " +
+        "so enemy HP bars do not cover debuff icons on the row below.")]
+    [SerializeField] private float stackExtraSpacingAbovePlayerPx = 36f;
+    [Tooltip(
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
         "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
     [SerializeField] private float stackMinClusteringHalfWidthPx = 0f;
@@ -435,6 +439,7 @@ public class UnitOverheadUI : MonoBehaviour
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
+        float playerExtraSpacing = Mathf.Max(0f, candidates[0].stackExtraSpacingAbovePlayerPx);
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
 
@@ -451,13 +456,18 @@ public class UnitOverheadUI : MonoBehaviour
         for (int i = 0; i < spans.Count; i++)
             s_lastSortRankByUiId[spans[i].ui.GetInstanceID()] = i;
 
-        // Player compact HP bar(s) are fixed anchors: never move them and never let them affect
-        // enemy lane assignment — enemy bars stack purely among themselves.
+        bool hasPlayerBaseline = false;
         for (int i = 0; i < spans.Count; i++)
         {
             if (IsFixedPlayerBaseline(spans[i].ui))
+            {
+                hasPlayerBaseline = true;
                 spans[i].ui._stackYOffset = 0f;
+            }
         }
+
+        // Player HP stays on the bottom row; enemy bars stack above it (and among themselves).
+        int enemyLaneBase = hasPlayerBaseline ? 1 : 0;
 
         // Assign each enemy bar to the lowest available "lane" that does not horizontally overlap
         // any other enemy bar. This avoids transitive chaining (A overlaps B, B overlaps C) from
@@ -512,7 +522,8 @@ public class UnitOverheadUI : MonoBehaviour
                 padding,
                 allowedOverlap);
 
-            ui._stackYOffset = committedLane * spacing;
+            float playerClearance = hasPlayerBaseline ? playerExtraSpacing : 0f;
+            ui._stackYOffset = playerClearance + (enemyLaneBase + committedLane) * spacing;
             s_lastAssignedStackLaneByUiId[uiId] = committedLane;
 
             if (committedLane >= laneLastMaxX.Count)

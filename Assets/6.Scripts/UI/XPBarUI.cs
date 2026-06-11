@@ -84,8 +84,6 @@ public class XPBarUI : MonoBehaviour
     private void HandleActiveDisplayChanged(SkillType skill, string source)
     {
         if (!followActiveDisplay) return;
-        if (skill == SkillType.Endurance) return;
-
         _currentSkill = skill;
 
         RefreshAll();
@@ -118,9 +116,6 @@ public class XPBarUI : MonoBehaviour
         }
         else
         {
-            if (skill == SkillType.Endurance)
-                return;
-
             _currentSkill = skill;
         }
 
@@ -169,7 +164,7 @@ public class XPBarUI : MonoBehaviour
     private static string SkillLabel(SkillType s)
     {
         if (s == SkillType.Endurance)
-            return "Combat";
+            return "Endurance";
         return s.ToString();
     }
 
@@ -184,17 +179,13 @@ public class XPBarUI : MonoBehaviour
         return $" ({sourceLabel})";
     }
 
-    /// <summary>Empty = hide. Maps legacy "Endurance" source label to "Combat".</summary>
+    /// <summary>Empty = hide.</summary>
     private static string FormatXpSourceDisplay(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
             return "";
 
-        raw = raw.Trim();
-        if (raw.Equals("Endurance", StringComparison.OrdinalIgnoreCase))
-            return "Combat";
-
-        return raw;
+        return raw.Trim();
     }
 
     private Color GetColorForSkill(SkillType s)

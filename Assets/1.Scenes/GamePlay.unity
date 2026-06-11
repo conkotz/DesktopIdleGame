@@ -144722,7 +144722,7 @@ MonoBehaviour:
   worldVisualsRoot: {fileID: 2041091447}
   floorVisualsPath: FloorVisuals
   backgroundVisualsPath: BackgroundVisuals
-  defaultBackgroundObjectName: DefaultSkyVisual
+  defaultBackgroundObjectName: FullSkyVisual
   caveBackgroundObjectName: CaveBackground
   caveOverlayBaseAlpha: 0.2
   caveFlickerFlashMinDuration: 0.08

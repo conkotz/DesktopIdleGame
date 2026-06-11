@@ -54,10 +54,10 @@ public partial class PlayerCombatController
             _bladeDancerDashPendingOnNextTarget = false;
     }
 
-    /// <summary>Idle auto-battle: while pathing to the current target (not yet in melee range), dash when in dash range.</summary>
-    private bool TryBladeDancerDashDuringIdleAutoBattlePathing(EnemyBaseController pathTarget)
+    /// <summary>While closing on a target, consume a pending post-kill dash when in dash range.</summary>
+    private bool TryBladeDancerDashWhileClosingToTarget(EnemyBaseController pathTarget)
     {
-        if (!idleCombatEnabled || pathTarget == null || pathTarget.IsDead)
+        if (pathTarget == null || pathTarget.IsDead)
             return false;
 
         if (!_bladeDancerDashPendingOnNextTarget)

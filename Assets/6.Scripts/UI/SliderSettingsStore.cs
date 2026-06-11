@@ -127,7 +127,7 @@ public static class SliderSettingsStore
             SliderSettingId.WindowResize => 1.25f,
             SliderSettingId.OverheadHpBarResize => 1.25f,
             SliderSettingId.TooltipResize => 1.25f,
-            SliderSettingId.HudLeftResize => 1.5f,
+            SliderSettingId.HudLeftResize => 1.25f,
             _ => 1f
         };
     }

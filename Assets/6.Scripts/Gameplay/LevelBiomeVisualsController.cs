@@ -11,7 +11,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private const string FloorVisualsName = "FloorVisuals";
     private const string WorldVisualsName = "WorldVisuals";
     private const string BackgroundVisualsName = "BackgroundVisuals";
-    private const string DefaultSkyVisualName = "DefaultSkyVisual";
+    private const string FullSkyVisualName = "FullSkyVisual";
     private const string CaveBackgroundName = "CaveBackground";
     private const string OverlayName = "BiomeCaveOverlay";
 
@@ -35,7 +35,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     [SerializeField] private Transform worldVisualsRoot;
     [SerializeField] private string floorVisualsPath = "FloorVisuals";
     [SerializeField] private string backgroundVisualsPath = "BackgroundVisuals";
-    [SerializeField] private string defaultBackgroundObjectName = DefaultSkyVisualName;
+    [SerializeField] private string defaultBackgroundObjectName = FullSkyVisualName;
     [SerializeField] private string caveBackgroundObjectName = CaveBackgroundName;
 
     [Header("Cave Overlay")]
@@ -242,24 +242,30 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
             return;
 
         string defaultName = string.IsNullOrWhiteSpace(defaultBackgroundObjectName)
-            ? DefaultSkyVisualName
+            ? FullSkyVisualName
             : defaultBackgroundObjectName.Trim();
         string caveName = string.IsNullOrWhiteSpace(caveBackgroundObjectName)
             ? CaveBackgroundName
             : caveBackgroundObjectName.Trim();
 
         Transform defaultBg = backgroundRoot.Find(defaultName);
+        if (defaultBg == null && !string.Equals(defaultName, FullSkyVisualName, System.StringComparison.Ordinal))
+            defaultBg = backgroundRoot.Find(FullSkyVisualName);
         Transform caveBg = backgroundRoot.Find(caveName);
-        Transform selected = biome == LevelBiome.Cave && caveBg != null ? caveBg : defaultBg;
-        if (selected == null)
-            return;
+        bool useCave = biome == LevelBiome.Cave && caveBg != null;
 
         for (int i = 0; i < backgroundRoot.childCount; i++)
         {
             Transform child = backgroundRoot.GetChild(i);
             if (child == null)
                 continue;
-            child.gameObject.SetActive(child == selected);
+
+            if (useCave)
+                child.gameObject.SetActive(child == caveBg);
+            else if (defaultBg != null)
+                child.gameObject.SetActive(child == defaultBg);
+            else
+                child.gameObject.SetActive(false);
         }
     }
 

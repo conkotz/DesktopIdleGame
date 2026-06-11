@@ -2607,6 +2607,7 @@ MonoBehaviour:
   inventory: {fileID: 0}
   wallet: {fileID: 0}
   maxEntriesKept: 30
+  maxEntriesPerMerchant: 30
 --- !u!114 &945330858
 MonoBehaviour:
   m_ObjectHideFlags: 0

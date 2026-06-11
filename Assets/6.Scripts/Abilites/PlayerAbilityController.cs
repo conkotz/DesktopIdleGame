@@ -4712,6 +4712,7 @@ public class PlayerAbilityController : MonoBehaviour
             approachSign = 1f;
 
         float landX = enemyX + approachSign * Mathf.Max(0f, behindDistance);
+        landX = player.ClampWorldX(landX);
 
         Vector3 pos = player.transform.position;
         pos.x = landX;
@@ -4752,7 +4753,7 @@ public class PlayerAbilityController : MonoBehaviour
             facing = 1f;
 
         // Land on the forward-arc side (same side you dashed from), then face the target.
-        float desiredX = enemyX - facing * desiredCenterDist;
+        float desiredX = player.ClampWorldX(enemyX - facing * desiredCenterDist);
 
         Vector3 pos = player.transform.position;
         pos.x = desiredX;

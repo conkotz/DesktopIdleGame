@@ -50,9 +50,9 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 0) != 0,
             ToggleSettingId.DisableScreenOverlayVisuals =>
                 PlayerPrefs.GetInt(DisableScreenOverlayVisualsKey, 0) != 0,
-            // Default on (1) — expanded sky background for new installs and after settings reset.
+            // Default off (0) — strip layout unlocked until the player opts in.
             ToggleSettingId.ExpandStripBackground =>
-                PlayerPrefs.GetInt(ExpandStripBackgroundKey, 1) != 0,
+                PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
             ToggleSettingId.ShowFps =>
                 PlayerPrefs.GetInt(ShowFpsKey, 0) != 0,
             ToggleSettingId.MinimiseHudDisplayInTown =>

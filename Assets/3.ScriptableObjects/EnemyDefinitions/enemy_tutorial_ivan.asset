@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_tutorial_ivan
   displayName: Ivan
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
@@ -26,6 +27,7 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
+  physBlockMitigation: 0.7
   flatGuard: 0
   maxGuardPercent: 0
   minPhysicalDamage: 14
@@ -75,7 +77,7 @@ MonoBehaviour:
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 4
   idleWanderMaxDistanceFromSpawn: 4
-  grantCombatXp: 1
+  grantCombatXp: 0
   dropGold: 1
   goldMin: 50
   goldMax: 70

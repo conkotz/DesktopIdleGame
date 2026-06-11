@@ -26,12 +26,17 @@ MonoBehaviour:
     gathering will require you too increase your stamina efficiency.
 
 
-    The game
-    world can be zoomed in or out by using the up and down arrow keys.
+    Movement
+    can be done using the mouse or by using the left and right arrow keys and the
+    F key to interact.
 
 
-    These
-    help popups can be disabled and more can be adjusted in the settings.'
+    The game world can be zoomed in or out by using the
+    scroll wheel.
+
+
+    These help popups can be disabled and more can be adjusted
+    in the settings.'
   activationTrigger: 1
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 
@@ -54,5 +59,6 @@ MonoBehaviour:
   - NPC_Tutorial_1
   - UIButton_Settings
   - splitwood_tree_node
+  - UIButton_QuickMenu
   highlightWhitelistTargetsDuringHelper: 1
   highlightInventorySlotsForItem: {fileID: 0}

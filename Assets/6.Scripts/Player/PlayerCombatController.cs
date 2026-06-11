@@ -952,8 +952,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _isClosingDistanceForAttack = true;
 
             player.ClearActionOverride();
-            bool bladeDancerDashed = idleCombatEnabled && !inAttackRange
-                && TryBladeDancerDashDuringIdleAutoBattlePathing(_target);
+            bool bladeDancerDashed = !inAttackRange
+                && TryBladeDancerDashWhileClosingToTarget(_target);
 
             if (!player.IsPlayerSteeringMovement && !bladeDancerDashed)
                 player.MoveToPointX_Combat(desiredX);
