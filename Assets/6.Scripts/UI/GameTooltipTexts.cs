@@ -60,7 +60,7 @@ public static class GameTooltipTexts
             case "DPSText":
                 title = "DPS (Damage Per Second)";
                 description =
-                    "Your total expected damage per second.\n\n" +
+                    "Your total expected damage per second on a single enemy.\n\n" +
                     "Includes attack speed, critical strikes, damage types, abilities currently slotted (assuming you have energy), and expected ailment damage (Bleed, Poison). " +
                     "Useful as a single offensive summary.";
                 return true;

@@ -42,4 +42,15 @@ public static class StorageTabFilters
         if (PassesTab(def, StorageTabKind.Consumables)) return StorageTabKind.Consumables;
         return StorageTabKind.Main;
     }
+
+    public static string GetDisplayName(StorageTabKind tab) =>
+        tab switch
+        {
+            StorageTabKind.Main => "Main",
+            StorageTabKind.Resources => "Resources",
+            StorageTabKind.Equips => "Equips",
+            StorageTabKind.Consumables => "Consumables",
+            StorageTabKind.Enhance => "Enhance",
+            _ => tab.ToString()
+        };
 }

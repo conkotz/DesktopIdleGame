@@ -55,19 +55,19 @@ MonoBehaviour:
   - itemId: knights_polearm
     costs:
     - type: 0
-      amount: 23500
+      amount: 125000
       itemId: 
     - type: 1
-      amount: 40
+      amount: 200
       itemId: stone_chunk
     defaultQuantity: 1
   - itemId: ghorrocks_mace
     costs:
     - type: 0
-      amount: 45000
+      amount: 250000
       itemId: 
     - type: 1
-      amount: 75
+      amount: 500
       itemId: stone_chunk
     defaultQuantity: 1
   - itemId: stone_shield

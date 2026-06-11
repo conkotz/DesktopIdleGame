@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>
@@ -13,8 +14,9 @@ public class StorageBottomBarUI : MonoBehaviour
     [SerializeField] private Button storeAllButton;
     [Tooltip("If empty, a sibling named StorageSpaceText under the storage window is used (same pattern as StorageTotalValue).")]
     [SerializeField] private TMP_Text spaceText;
-    [Tooltip("Shown before used/total slot counts, e.g. \"Space:\" → \"Space: 12/72\".")]
-    [SerializeField] private string spaceCountPrefix = "Space:";
+    [Tooltip("Suffix before used/total counts. Tab name is prefixed automatically, e.g. \"Main Space: 12/88\".")]
+    [FormerlySerializedAs("spaceCountPrefix")]
+    [SerializeField] private string spaceCountSuffix = "Space:";
     [Tooltip(
         "Optional. Renders the combined value of all items in storage. If empty, a sibling named StorageTotalValue " +
         "under the same storage window (parent of BottomBarOfStorage) is used.")]
@@ -190,9 +192,8 @@ public class StorageBottomBarUI : MonoBehaviour
         int used = storage.GetTabUsedSlotCount(tab);
         int capacity = PlayerStorage.SlotsPerTab;
 
-        string label = string.IsNullOrWhiteSpace(spaceCountPrefix) ? "Space:" : spaceCountPrefix.Trim();
-        if (!label.EndsWith(":", System.StringComparison.Ordinal))
-            label += ":";
+        string suffix = string.IsNullOrWhiteSpace(spaceCountSuffix) ? "Space" : spaceCountSuffix.Trim().TrimEnd(':');
+        string label = $"{StorageTabFilters.GetDisplayName(tab)} {suffix}:";
         spaceText.text = $"{label} {used}/{capacity}";
     }
 

@@ -339,15 +339,7 @@ public class StorageTabButtonUI : MonoBehaviour,
                 return label.text.Trim();
         }
 
-        return tabKind switch
-        {
-            StorageTabKind.Main => "Main",
-            StorageTabKind.Resources => "Resources",
-            StorageTabKind.Equips => "Equips",
-            StorageTabKind.Consumables => "Consumables",
-            StorageTabKind.Enhance => "Enhance",
-            _ => tabKind.ToString()
-        };
+        return StorageTabFilters.GetDisplayName(tabKind);
     }
 
     private void ResolveAffinityBarIfNeeded()

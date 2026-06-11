@@ -342,27 +342,13 @@ MonoBehaviour:
   openedSprite: {fileID: -8927742213376149463, guid: 1fabbd0a2239b0a45a589b1035794bcf, type: 3}
   nameLabel: {fileID: 107939362021230622}
   targetIndicatorAnchor: {fileID: 8821044556677889900}
-  openedSpriteLocalOffset: {x: 0, y: 0.15, z: 0}
-  openedNameLabelLocalOffset: {x: 0, y: 0.2, z: 0}
-  openedTargetMarkerLocalOffset: {x: 0, y: 0.2, z: 0}
+  openedSpriteLocalOffset: {x: 0, y: 0.3, z: 0}
+  openedNameLabelLocalOffset: {x: 0, y: 0.5, z: 0}
+  openedTargetMarkerLocalOffset: {x: 0, y: 0.8, z: 0}
   storageRect: {fileID: 0}
   canvasRect: {fileID: 0}
   pinGap: 8
   pinCanvasEdgeMargin: 4
---- !u!114 &8821044556677889900
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6284140584376777183}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 22bf83fd4b53e494d8a17afce10279e3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WorldTargetIndicatorAnchor
-  anchor: {fileID: 0}
-  localOffset: {x: 0, y: 0.9, z: 0}
 --- !u!114 &-5161748566951480440
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -386,3 +372,17 @@ MonoBehaviour:
   pulseWhenTargeted: 1
   pulseSpeed: 5
   pulseAmount: 0.015
+--- !u!114 &8821044556677889900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6284140584376777183}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bf83fd4b53e494d8a17afce10279e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldTargetIndicatorAnchor
+  anchor: {fileID: 0}
+  localOffset: {x: 0, y: 0.9, z: 0}

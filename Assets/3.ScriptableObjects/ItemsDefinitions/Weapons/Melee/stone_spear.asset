@@ -26,15 +26,16 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: A basic 1h spear made from stone
-  rarity: 1
-  value: 150
+  rarity: 2
+  value: 300
   equipSlot: 1
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 4
-    maxPhysicalDamage: 24
+    maxPhysicalDamage: 32
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -47,7 +48,7 @@ MonoBehaviour:
     maxCorruptionDamage: 0
     attacksPerSecond: 0.5
     critChance: 0.05
-    critMultiplier: 1.5
+    critMultiplier: 1.7
     handedness: 1
     attackRange: 4
     attackSkill: 0
@@ -60,7 +61,7 @@ MonoBehaviour:
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
-    equipmentTier: 0
+    equipmentTier: 1
     weaponWeight: 2
   combatSupportStats:
     supportType: 0
@@ -142,6 +143,8 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
@@ -194,6 +197,8 @@ MonoBehaviour:
       effectId: 
     baitTier: 0
     fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
     openRequiredAmount: 0
     openableLoot: []
     foodEffectDurationSeconds: 0
@@ -206,6 +211,7 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
   enhancementScrollStats:
     successChance: 0
     targetStat: 0
