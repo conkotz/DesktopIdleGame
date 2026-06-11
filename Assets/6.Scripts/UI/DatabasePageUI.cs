@@ -50,6 +50,12 @@ public sealed class DatabasePageUI : MonoBehaviour
     [Tooltip("Optional. Enemy rows spawn here. Auto-created under DatabaseContent when missing.")]
     [SerializeField] private RectTransform enemyListContentRoot;
 
+    [Header("Map areas")]
+    [Tooltip("Pinned above the scroll view (RightPanel/MapAreasTabButtonRow).")]
+    [SerializeField] private GameObject mapAreasTabButtonRow;
+    [SerializeField] private Button generalMapInformationTabButton;
+    [SerializeField] private GameObject generalMapInformationContent;
+
     [Header("Item sub-tabs")]
     [Tooltip("Pinned above the scroll view (RightPanel/ItemTabButtonRow).")]
     [SerializeField] private GameObject itemTabButtonRow;
@@ -168,20 +174,29 @@ public sealed class DatabasePageUI : MonoBehaviour
         switch (_activeSection)
         {
             case DatabaseSection.Enemies:
+                SetMapAreasSubsectionChromeVisible(false);
                 SetItemSubsectionChromeVisible(false);
                 SetEnemySubsectionChromeVisible(true);
                 WireEnemySubtabButtons();
                 ApplyEnemySubtab();
                 break;
             case DatabaseSection.Items:
+                SetMapAreasSubsectionChromeVisible(false);
                 SetEnemySubsectionChromeVisible(false);
                 SetItemSubsectionChromeVisible(true);
                 WireItemSubtabButtons();
                 ApplyItemSubtab();
                 break;
+            case DatabaseSection.General:
+                SetEnemySubsectionChromeVisible(false);
+                SetItemSubsectionChromeVisible(false);
+                SetMapAreasSubsectionChromeVisible(true);
+                ApplyMapAreasSection();
+                break;
             default:
                 SetEnemySubsectionChromeVisible(false);
                 SetItemSubsectionChromeVisible(false);
+                SetMapAreasSubsectionChromeVisible(false);
                 break;
         }
 
@@ -349,7 +364,9 @@ public sealed class DatabasePageUI : MonoBehaviour
     {
         ClearEnemyListRows();
 
-        if (_activeSection == DatabaseSection.Enemies || _activeSection == DatabaseSection.Items)
+        if (_activeSection == DatabaseSection.Enemies ||
+            _activeSection == DatabaseSection.Items ||
+            _activeSection == DatabaseSection.General)
             return;
 
         if (!contentRoot)
@@ -426,6 +443,9 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         if (generalEnemyInformationContent)
             generalEnemyInformationContent.SetActive(showGeneral);
+
+        if (generalMapInformationContent)
+            generalMapInformationContent.SetActive(false);
 
         RectTransform listRoot = EnsureEnemyListContentRoot();
         if (listRoot)
@@ -504,6 +524,39 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         if (button.TryGetComponent(out Image image))
             image.color = isActive ? activeEnemySubtabColor : inactiveEnemySubtabColor;
+    }
+
+    private void ApplyMapAreasSection()
+    {
+        if (generalEnemyInformationContent)
+            generalEnemyInformationContent.SetActive(false);
+
+        if (enemyListContentRoot)
+            enemyListContentRoot.gameObject.SetActive(false);
+
+        ClearEnemyListRows();
+        SetAllItemContentPanelsActive(false);
+
+        if (generalMapInformationContent)
+            generalMapInformationContent.SetActive(true);
+
+        RefreshMapAreasTabButtonVisuals();
+        RefreshSearchPanelVisibility();
+        RefreshScrollContentLayout();
+    }
+
+    private void SetMapAreasSubsectionChromeVisible(bool visible)
+    {
+        if (mapAreasTabButtonRow)
+            mapAreasTabButtonRow.SetActive(visible);
+
+        if (!visible && generalMapInformationContent)
+            generalMapInformationContent.SetActive(false);
+    }
+
+    private void RefreshMapAreasTabButtonVisuals()
+    {
+        ApplySectionButtonVisual(generalMapInformationTabButton, true);
     }
 
     private void SetEnemySubsectionChromeVisible(bool visible)
@@ -591,6 +644,9 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (generalEnemyInformationContent)
             generalEnemyInformationContent.SetActive(false);
 
+        if (generalMapInformationContent)
+            generalMapInformationContent.SetActive(false);
+
         if (enemyListContentRoot)
             enemyListContentRoot.gameObject.SetActive(false);
 
@@ -609,15 +665,7 @@ public sealed class DatabasePageUI : MonoBehaviour
 
         if (!visible)
         {
-            if (resourceContent)
-                resourceContent.SetActive(false);
-            if (equipmentContent)
-                equipmentContent.SetActive(false);
-            if (consumablesContent)
-                consumablesContent.SetActive(false);
-            if (enhancementContent)
-                enhancementContent.SetActive(false);
-
+            SetAllItemContentPanelsActive(false);
             ClearItemListRows();
             return;
         }
@@ -818,8 +866,21 @@ public sealed class DatabasePageUI : MonoBehaviour
             "EquipmentContent" => true,
             "ConsumablesContent" => true,
             "EnhancementContent" => true,
+            "GeneralMapInformationContent" => true,
             _ => false,
         };
+    }
+
+    private void SetAllItemContentPanelsActive(bool active)
+    {
+        if (resourceContent)
+            resourceContent.SetActive(active);
+        if (equipmentContent)
+            equipmentContent.SetActive(active);
+        if (consumablesContent)
+            consumablesContent.SetActive(active);
+        if (enhancementContent)
+            enhancementContent.SetActive(active);
     }
 
     private void ResetScrollPosition()
@@ -836,6 +897,8 @@ public sealed class DatabasePageUI : MonoBehaviour
             EnsureEnemySubtabScrollLayout();
         else if (UsesItemSubtabs())
             EnsureItemSubtabScrollLayout();
+        else if (UsesMapAreasSection())
+            EnsureMapAreasScrollLayout();
 
         Canvas.ForceUpdateCanvases();
 
@@ -847,6 +910,13 @@ public sealed class DatabasePageUI : MonoBehaviour
             RectTransform generalRect = generalEnemyInformationContent.transform as RectTransform;
             if (generalRect)
                 LayoutRebuilder.ForceRebuildLayoutImmediate(generalRect);
+        }
+
+        if (generalMapInformationContent && generalMapInformationContent.activeInHierarchy)
+        {
+            RectTransform mapRect = generalMapInformationContent.transform as RectTransform;
+            if (mapRect)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(mapRect);
         }
 
         RectTransform activeItemList = GetActiveItemListContentRoot();
@@ -880,6 +950,17 @@ public sealed class DatabasePageUI : MonoBehaviour
             return true;
 
         return contentRoot != null && contentRoot.Find("ResourceContent") != null;
+    }
+
+    private bool UsesMapAreasSection()
+    {
+        if (_activeSection != DatabaseSection.General)
+            return false;
+
+        if (mapAreasTabButtonRow != null)
+            return true;
+
+        return contentRoot != null && contentRoot.Find("GeneralMapInformationContent") != null;
     }
 
     private void EnsureEnemySubtabScrollLayout()
@@ -953,6 +1034,38 @@ public sealed class DatabasePageUI : MonoBehaviour
         ConfigureSubtabPanelLayout(equipmentContent);
         ConfigureSubtabPanelLayout(consumablesContent);
         ConfigureSubtabPanelLayout(enhancementContent);
+    }
+
+    private void EnsureMapAreasScrollLayout()
+    {
+        if (!contentRoot)
+            return;
+
+        VerticalLayoutGroup rootLayout = contentRoot.GetComponent<VerticalLayoutGroup>();
+        if (!rootLayout)
+            rootLayout = contentRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        rootLayout.enabled = true;
+        rootLayout.childAlignment = TextAnchor.UpperLeft;
+        rootLayout.spacing = 0f;
+        rootLayout.padding = new RectOffset(0, 0, 0, 0);
+        rootLayout.childForceExpandWidth = true;
+        rootLayout.childForceExpandHeight = false;
+        rootLayout.childControlWidth = true;
+        rootLayout.childControlHeight = true;
+
+        ContentSizeFitter rootFitter = contentRoot.GetComponent<ContentSizeFitter>();
+        if (!rootFitter)
+            rootFitter = contentRoot.gameObject.AddComponent<ContentSizeFitter>();
+        rootFitter.enabled = true;
+        rootFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        rootFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        contentRoot.anchorMin = new Vector2(0f, 1f);
+        contentRoot.anchorMax = new Vector2(1f, 1f);
+        contentRoot.pivot = new Vector2(0f, 1f);
+        contentRoot.anchoredPosition = Vector2.zero;
+
+        ConfigureSubtabPanelLayout(generalMapInformationContent);
     }
 
     private static void ConfigureSubtabPanelLayout(GameObject panel)
@@ -1037,6 +1150,12 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (UsesItemSubtabs())
         {
             EnsureItemSubtabScrollLayout();
+            return;
+        }
+
+        if (UsesMapAreasSection())
+        {
+            EnsureMapAreasScrollLayout();
             return;
         }
 
@@ -1299,6 +1418,27 @@ public sealed class DatabasePageUI : MonoBehaviour
                 generalInformationTabButton = tabRow.Find("GeneralButton")?.GetComponent<Button>();
             if (!enemyInformationTabButton)
                 enemyInformationTabButton = tabRow.Find("EnemyInformationButton")?.GetComponent<Button>();
+        }
+
+        if (!mapAreasTabButtonRow && rightPanel != null)
+            mapAreasTabButtonRow = rightPanel.Find("MapAreasTabButtonRow")?.gameObject;
+
+        if (contentRoot != null && !generalMapInformationContent)
+            generalMapInformationContent = contentRoot.Find("GeneralMapInformationContent")?.gameObject;
+
+        Transform mapAreasTabRow = mapAreasTabButtonRow != null
+            ? mapAreasTabButtonRow.transform
+            : rightPanel != null ? rightPanel.Find("MapAreasTabButtonRow") : null;
+        if (mapAreasTabRow != null)
+        {
+            if (!mapAreasTabButtonRow)
+                mapAreasTabButtonRow = mapAreasTabRow.gameObject;
+            if (!generalMapInformationTabButton)
+            {
+                generalMapInformationTabButton = mapAreasTabRow.Find("GeneralButton")?.GetComponent<Button>();
+                if (!generalMapInformationTabButton)
+                    generalMapInformationTabButton = mapAreasTabRow.Find("GeneralMapInformationButton")?.GetComponent<Button>();
+            }
         }
 
         if (!itemTabButtonRow && rightPanel != null)

@@ -94,7 +94,7 @@ MonoBehaviour:
     armor: 40
     magicResist: 0
     corruptionResist: 0
-    physBlockChance: 0.25
+    physBlockChance: 0.2
     bonusHealth: 10
     bonusEnergy: 0
     energyEfficiency: 0.03
@@ -149,7 +149,39 @@ MonoBehaviour:
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
     stunChance: 0
-  randomStatPool: []
+  randomStatPool:
+  - stat: 56
+    weight: 1
+    minValue: 10
+    maxValue: 15
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 59
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 60
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 62
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:

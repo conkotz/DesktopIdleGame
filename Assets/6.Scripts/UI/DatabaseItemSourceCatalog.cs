@@ -78,7 +78,10 @@ public static class DatabaseItemSourceCatalog
             if (cookable.isCookable && !string.IsNullOrWhiteSpace(cookable.cookedResultItemId))
                 Register(cookable.cookedResultItemId.Trim(), "Cooking");
 
-            OpenableLootEntry[] openableLoot = item.consumableStats.openableLoot;
+            if (!item.IsOpenable)
+                continue;
+
+            OpenableLootEntry[] openableLoot = item.OpenableLootEntries;
             if (openableLoot == null || openableLoot.Length == 0)
                 continue;
 
@@ -385,6 +388,9 @@ public static class DatabaseItemSourceCatalog
         if (!quest)
             return string.Empty;
 
+        if (IsNoticeBoardQuest(quest))
+            return "The Notice Board - quest reward";
+
         if (!string.IsNullOrWhiteSpace(quest.obtainLocationDisplayName))
             return quest.obtainLocationDisplayName.Trim();
 
@@ -395,6 +401,19 @@ public static class DatabaseItemSourceCatalog
             return quest.displayName.Trim();
 
         return string.Empty;
+    }
+
+    private static bool IsNoticeBoardQuest(QuestDefinition quest)
+    {
+        if (!quest)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(quest.obtainLocationId) &&
+            string.Equals(quest.obtainLocationId.Trim(), "noticeboard", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return !string.IsNullOrWhiteSpace(quest.obtainLocationDisplayName) &&
+               quest.obtainLocationDisplayName.Trim().Equals("The Notice Board", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void Register(string itemId, string sourceLabel)

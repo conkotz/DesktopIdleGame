@@ -43,15 +43,6 @@ MonoBehaviour:
       amount: 25
       itemId: vial_poison
     defaultQuantity: 3
-  - itemId: stone_spear
-    costs:
-    - type: 0
-      amount: 1500
-      itemId: 
-    - type: 1
-      amount: 5
-      itemId: stone_chunk
-    defaultQuantity: 2
   - itemId: knights_polearm
     costs:
     - type: 0

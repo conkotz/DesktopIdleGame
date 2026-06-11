@@ -444,7 +444,7 @@ public struct BonusStats
     [Tooltip("Bonus maximum poison stacks")]
     public int poisonMaxStacksBonus;
 
-    [Tooltip("Added to burn tick multiplier. 0.25 = +0.25 to multiplier (same fractional style as ability coefficients).")]
+    [Tooltip("Burn multiplier bonus. 0.25 = +0.25 to burn tick multiplier (same fractional style as ability coefficients).")]
     public float burnExplosionMultiplierBonus;
 
     [Range(0f, 1f)]
@@ -459,10 +459,10 @@ public struct BonusStats
     [Tooltip("Bonus chance to apply shock on hit (additive, player).")]
     public float shockChance;
 
-    [Tooltip("Adds to chill slow per stack. 0.02 means +2 percentage points (e.g. 15% -> 17%).")]
+    [Tooltip("Chill multiplier bonus. 0.02 = +2 percentage points to chill slow per stack (e.g. 15% -> 17%).")]
     public float chillSlowPerStackBonus;
 
-    [Tooltip("Adds to shock damage taken multiplier. 0.05 means +5 percentage points (e.g. 15% -> 20%).")]
+    [Tooltip("Shock multiplier bonus. 0.05 = +5 percentage points to shock damage taken (e.g. 15% -> 20%).")]
     public float shockDamageTakenMultiplierBonus;
 
     [Header("Combat Procs")]
@@ -1017,6 +1017,31 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
 
         return lines.ToString();
+    }
+
+    /// <summary>Lists every possible random affix from this item's pool (database encyclopedia tooltips).</summary>
+    public string BuildRandomStatPoolDatabaseTooltipSection()
+    {
+        if (!HasRandomStatPool)
+            return "";
+
+        var lines = new System.Text.StringBuilder();
+        lines.Append("Possible additional stat rolls");
+
+        IReadOnlyList<RandomStatPoolEntry> entries = RandomStatPoolEntries;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            string line = ItemRandomStatRoller.FormatPoolEntryDatabaseLine(entries[i]);
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            lines.Append('\n');
+            lines.Append(line);
+        }
+
+        return lines.Length > "Possible additional stat rolls".Length
+            ? lines.ToString()
+            : "";
     }
 
     public bool UsesEquipmentTierGating =>
@@ -2983,8 +3008,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 float delta = FloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus);
                 AppendCompared(
-                    FormatScalingCoefficientPercentLine(baselineStats.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)"),
-                    FormatScalingCoefficientPercentLine(cur.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)"),
+                    FormatScalingCoefficientPercentLine(baselineStats.burnExplosionMultiplierBonus, "Burn multiplier"),
+                    FormatScalingCoefficientPercentLine(cur.burnExplosionMultiplierBonus, "Burn multiplier"),
                     HasFloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus),
                     DeltaPercentFractionNote(delta));
             }
@@ -2995,9 +3020,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus);
             AppendCompared(
 
-                $"Chill Slow/Stack Bonus: {FormatSignedPercent01(baselineStats.chillSlowPerStackBonus)}",
+                $"Chill multiplier: {FormatSignedPercent01(baselineStats.chillSlowPerStackBonus)}",
 
-                $"Chill Slow/Stack Bonus: {FormatSignedPercent01(cur.chillSlowPerStackBonus)}",
+                $"Chill multiplier: {FormatSignedPercent01(cur.chillSlowPerStackBonus)}",
 
                 HasFloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus),
 
@@ -3009,9 +3034,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus);
             AppendCompared(
 
-                $"Shock Amp Bonus: {FormatSignedPercent01(baselineStats.shockDamageTakenMultiplierBonus)}",
+                $"Shock multiplier: {FormatSignedPercent01(baselineStats.shockDamageTakenMultiplierBonus)}",
 
-                $"Shock Amp Bonus: {FormatSignedPercent01(cur.shockDamageTakenMultiplierBonus)}",
+                $"Shock multiplier: {FormatSignedPercent01(cur.shockDamageTakenMultiplierBonus)}",
 
                 HasFloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus),
 
@@ -3123,10 +3148,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (!omitAilmentChanceBonuses && bonusStats.burnChance != 0f)
                 s += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
             if (bonusStats.burnExplosionMultiplierBonus != 0f)
-                s += $"{FormatScalingCoefficientPercentLine(bonusStats.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)")}\n";
+                s += $"{FormatScalingCoefficientPercentLine(bonusStats.burnExplosionMultiplierBonus, "Burn multiplier")}\n";
         }
-        if (bonusStats.chillSlowPerStackBonus != 0f) s += $"Chill Slow/Stack Bonus: {FormatSignedPercent01(bonusStats.chillSlowPerStackBonus)}\n";
-        if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
+        if (bonusStats.chillSlowPerStackBonus != 0f) s += $"Chill multiplier: {FormatSignedPercent01(bonusStats.chillSlowPerStackBonus)}\n";
+        if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock multiplier: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
         if (bonusStats.parryChance != 0f) s += $"Parry Chance: {FormatSignedPercent01(bonusStats.parryChance)}\n";
         if (bonusStats.stunChance != 0f) s += $"Stun Chance: {FormatSignedPercent01(bonusStats.stunChance)}\n";
 

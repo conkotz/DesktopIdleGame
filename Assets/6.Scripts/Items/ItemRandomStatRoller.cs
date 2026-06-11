@@ -45,9 +45,9 @@ public enum RandomItemStatType
     PoisonDurationBonus,
     PoisonMaxStacksBonus,
     BurnChance,
-    BurnExplosionMultiplierBonus,
-    ChillSlowPerStackBonus,
-    ShockDamageTakenMultiplierBonus,
+    BurnMultiplier,
+    ChillMultiplier,
+    ShockMultiplier,
     ParryChance,
     StunChance,
 
@@ -91,10 +91,10 @@ public enum RandomStatValueKind
     [Tooltip("Raw float add (regen, weapon APS).")]
     FlatFloat,
 
-    [Tooltip("Fraction where 0.05 = 5% (attack speed %, poison chance, life steal).")]
+    [Tooltip("Legacy: raw fraction (0.05 = 5%). Prefer Percent Points for new entries.")]
     Fraction,
 
-    [Tooltip("Enter whole percents (10 = +10%). Converts to stored fraction for most stats; ability power stores as-is.")]
+    [Tooltip("Whole percent points (1 = +1%). Flat-added to % stats; weapon APS rolls add that many APS (2 = +0.02 APS).")]
     PercentPoints
 }
 
@@ -200,6 +200,263 @@ public static class ItemRandomStatRoller
         }
     }
 
+    /// <summary>
+    /// Builds pool entries from non-zero stats on <paramref name="item"/> (weight 1, small min/max, default value kind per stat).
+    /// </summary>
+    public static List<RandomStatPoolEntry> BuildTemplatePoolEntries(ItemDefinition item)
+    {
+        var results = new List<RandomStatPoolEntry>();
+        if (!item)
+            return results;
+
+        void TryAdd(RandomItemStatType stat, float value)
+        {
+            if (IsEffectivelyZero(value))
+                return;
+
+            RandomStatValueKind kind = GetDefaultValueKind(stat);
+            GetTemplateMinMax(stat, value, kind, out float min, out float max);
+            results.Add(new RandomStatPoolEntry
+            {
+                stat = stat,
+                weight = 1f,
+                valueKind = kind,
+                minValue = min,
+                maxValue = max,
+            });
+        }
+
+        BonusStats bonus = item.bonusStats;
+        TryAdd(RandomItemStatType.BonusHealth, bonus.bonusHealth);
+        TryAdd(RandomItemStatType.BonusEnergy, bonus.bonusEnergy);
+        TryAdd(RandomItemStatType.BonusMana, bonus.bonusMana);
+        TryAdd(RandomItemStatType.BonusArmor, bonus.armor);
+        TryAdd(RandomItemStatType.BonusMagicResist, bonus.magicResist);
+        TryAdd(RandomItemStatType.BonusCorruptionResist, bonus.corruptionResist);
+        TryAdd(RandomItemStatType.BonusPhysBlockChance, bonus.physBlockChance);
+        TryAdd(RandomItemStatType.LifeRegen, bonus.lifeRegen);
+        TryAdd(RandomItemStatType.EnergyRegen, bonus.energyRegen);
+        TryAdd(RandomItemStatType.ManaRegen, bonus.manaRegen);
+        TryAdd(RandomItemStatType.EnergyEfficiency, bonus.energyEfficiency);
+        TryAdd(RandomItemStatType.LifeSteal, bonus.lifeSteal);
+        TryAdd(RandomItemStatType.MoveSpeedPercent, bonus.moveSpeedPercent);
+        TryAdd(RandomItemStatType.PhysicalDamageFlat, bonus.physicalDamage);
+        TryAdd(RandomItemStatType.PhysicalDamagePercent, bonus.physicalDamagePercent);
+        TryAdd(RandomItemStatType.GlobalPhysicalDamagePercent, bonus.globalPhysicalDamagePercent);
+        TryAdd(RandomItemStatType.RangedPhysicalDamagePercent, bonus.rangedPhysicalDamagePercent);
+        TryAdd(RandomItemStatType.MagicDamageFlat, bonus.magicDamage);
+        TryAdd(RandomItemStatType.MagicDamagePercent, bonus.magicDamagePercent);
+        TryAdd(RandomItemStatType.FireSkillDamagePercent, bonus.fireSkillDamagePercent);
+        TryAdd(RandomItemStatType.IceSkillDamagePercent, bonus.iceSkillDamagePercent);
+        TryAdd(RandomItemStatType.LightningSkillDamagePercent, bonus.lightningSkillDamagePercent);
+        TryAdd(RandomItemStatType.CorruptionDamagePercent, bonus.corruptionDamagePercent);
+        TryAdd(RandomItemStatType.CorruptionDamageFlat, bonus.corruptionDamage);
+        TryAdd(RandomItemStatType.AbilityPowerPercent, bonus.abilityPower);
+        TryAdd(RandomItemStatType.AttackSpeedPercent, bonus.attackSpeedPercent);
+        TryAdd(RandomItemStatType.AbilityCooldownReduction, bonus.abilityCooldownReductionFraction);
+        TryAdd(RandomItemStatType.MinionDamagePercent, bonus.minionDamagePercent);
+        TryAdd(RandomItemStatType.MinionAttackSpeedPercent, bonus.minionAttackSpeedPercent);
+        TryAdd(RandomItemStatType.MinionCritChance, bonus.minionCritChance);
+        TryAdd(RandomItemStatType.MinionMaxLifePercent, bonus.minionMaxLifePercent);
+        TryAdd(RandomItemStatType.CritChanceBonus, bonus.critChanceBonus);
+        TryAdd(RandomItemStatType.CritMultiplierBonus, bonus.critMultiplierBonus);
+        TryAdd(RandomItemStatType.AttackRangeBonus, bonus.attackRangeBonus);
+        TryAdd(RandomItemStatType.BleedChance, bonus.bleedChance);
+        TryAdd(RandomItemStatType.BleedMultiplier, bonus.bleedMultiplier);
+        TryAdd(RandomItemStatType.PoisonChance, bonus.poisonChance);
+        TryAdd(RandomItemStatType.PoisonMultiplier, bonus.poisonMultiplier);
+        TryAdd(RandomItemStatType.PoisonDurationBonus, bonus.poisonDurationBonus);
+        TryAdd(RandomItemStatType.PoisonMaxStacksBonus, bonus.poisonMaxStacksBonus);
+        TryAdd(RandomItemStatType.BurnChance, bonus.burnChance);
+        TryAdd(RandomItemStatType.BurnMultiplier, bonus.burnExplosionMultiplierBonus);
+        TryAdd(RandomItemStatType.ChillMultiplier, bonus.chillSlowPerStackBonus);
+        TryAdd(RandomItemStatType.ShockMultiplier, bonus.shockDamageTakenMultiplierBonus);
+        TryAdd(RandomItemStatType.ParryChance, bonus.parryChance);
+        TryAdd(RandomItemStatType.StunChance, bonus.stunChance);
+
+        if (item.IsWeapon)
+        {
+            WeaponStats weapon = item.weaponStats;
+            TryAdd(RandomItemStatType.WeaponMinPhysicalDamage, weapon.minPhysicalDamage);
+            TryAdd(RandomItemStatType.WeaponMaxPhysicalDamage, weapon.maxPhysicalDamage);
+            TryAdd(RandomItemStatType.WeaponMinFireDamage, weapon.minFireDamage);
+            TryAdd(RandomItemStatType.WeaponMaxFireDamage, weapon.maxFireDamage);
+            TryAdd(RandomItemStatType.WeaponMinIceDamage, weapon.minIceDamage);
+            TryAdd(RandomItemStatType.WeaponMaxIceDamage, weapon.maxIceDamage);
+            TryAdd(RandomItemStatType.WeaponMinLightningDamage, weapon.minLightningDamage);
+            TryAdd(RandomItemStatType.WeaponMaxLightningDamage, weapon.maxLightningDamage);
+            TryAdd(RandomItemStatType.WeaponMinCorruptionDamage, weapon.minCorruptionDamage);
+            TryAdd(RandomItemStatType.WeaponMaxCorruptionDamage, weapon.maxCorruptionDamage);
+            TryAdd(RandomItemStatType.WeaponAttacksPerSecond, weapon.attacksPerSecond);
+            TryAdd(RandomItemStatType.WeaponCritChance, weapon.critChance);
+            TryAdd(RandomItemStatType.WeaponCritMultiplier, weapon.critMultiplier);
+            TryAdd(RandomItemStatType.WeaponAttackRange, weapon.attackRange);
+            TryAdd(RandomItemStatType.WeaponMagicAilmentApplyChance, weapon.magicAilmentApplyChance);
+        }
+
+        if (item.IsArmor)
+        {
+            ArmorStats armor = item.armorStats;
+            TryAdd(RandomItemStatType.ArmorFlatArmor, armor.armor);
+            TryAdd(RandomItemStatType.ArmorMagicResist, armor.magicResist);
+            TryAdd(RandomItemStatType.ArmorCorruptionResist, armor.corruptionResist);
+            TryAdd(RandomItemStatType.ArmorPhysBlockChance, armor.physBlockChance);
+            TryAdd(RandomItemStatType.ArmorBonusHealth, armor.bonusHealth);
+            TryAdd(RandomItemStatType.ArmorBonusEnergy, armor.bonusEnergy);
+            TryAdd(RandomItemStatType.ArmorEnergyEfficiency, armor.energyEfficiency);
+            TryAdd(RandomItemStatType.ArmorFlatGuard, armor.flatGuard);
+            TryAdd(RandomItemStatType.ArmorMaxGuardPercent, armor.maxGuardPercent);
+        }
+
+        if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
+            TryAdd(RandomItemStatType.EnemyRespawnTimeReductionSeconds, item.miscEffects.enemyRespawnTimeReductionSeconds);
+
+        return results;
+    }
+
+    public static void GetTemplateMinMax(
+        RandomItemStatType stat,
+        float currentValue,
+        RandomStatValueKind kind,
+        out float min,
+        out float max)
+    {
+        float abs = Mathf.Abs(currentValue);
+        switch (kind)
+        {
+            case RandomStatValueKind.FlatInteger:
+                if (UsesDefenceFlatTemplateRange(stat))
+                {
+                    min = 4f;
+                    max = 8f;
+                    break;
+                }
+
+                if (UsesHealthFlatTemplateRange(stat))
+                {
+                    min = 5f;
+                    max = 10f;
+                    break;
+                }
+
+                if (stat == RandomItemStatType.BonusMana)
+                {
+                    min = 10f;
+                    max = 20f;
+                    break;
+                }
+
+                if (stat == RandomItemStatType.ArmorFlatGuard)
+                {
+                    min = 5f;
+                    max = 10f;
+                    break;
+                }
+
+                if (abs <= 3f)
+                {
+                    min = 1f;
+                    max = 2f;
+                }
+                else
+                {
+                    min = Mathf.Max(1f, Mathf.Round(abs * 0.05f));
+                    max = Mathf.Max(min + 1f, Mathf.Round(abs * 0.12f));
+                }
+                break;
+
+            case RandomStatValueKind.FlatFloat:
+                if (stat == RandomItemStatType.ManaRegen)
+                {
+                    min = 0.3f;
+                    max = 0.5f;
+                    break;
+                }
+
+                min = Mathf.Max(0.01f, abs * 0.08f);
+                max = Mathf.Max(min + 0.01f, abs * 0.2f);
+                break;
+
+            case RandomStatValueKind.PercentPoints:
+                if (UsesMultiplicativeAttackSpeedRoll(stat) || stat == RandomItemStatType.WeaponCritMultiplier)
+                {
+                    min = 1f;
+                    max = 2f;
+                    break;
+                }
+
+                float points = StoredValueToPercentPoints(currentValue, stat);
+                if (stat == RandomItemStatType.AbilityPowerPercent)
+                {
+                    if (points < 10f)
+                    {
+                        min = 3f;
+                        max = 6f;
+                    }
+                    else
+                    {
+                        min = Mathf.Max(1f, Mathf.Round(points * 0.12f));
+                        max = Mathf.Max(min + 1f, Mathf.Round(points * 0.25f));
+                    }
+                    break;
+                }
+
+                if (points < 3f)
+                {
+                    min = 1f;
+                    max = 2f;
+                }
+                else
+                {
+                    min = Mathf.Max(1f, Mathf.Round(points * 0.2f));
+                    max = Mathf.Max(min + 1f, Mathf.Round(points * 0.4f));
+                }
+                break;
+
+            default:
+                if (abs <= 1f)
+                {
+                    min = Mathf.Max(0.01f, abs * 0.5f);
+                    max = Mathf.Max(min + 0.005f, abs * 1.25f);
+                }
+                else
+                {
+                    min = abs * 0.1f;
+                    max = abs * 0.25f;
+                }
+                break;
+        }
+    }
+
+    /// <summary>Converts stored item stat values into whole percent points for pool min/max display.</summary>
+    public static float StoredValueToPercentPoints(float stored, RandomItemStatType stat)
+    {
+        if (stat == RandomItemStatType.AbilityPowerPercent)
+            return stored;
+
+        if (stat == RandomItemStatType.WeaponCritMultiplier || stat == RandomItemStatType.CritMultiplierBonus)
+            return stored * 100f;
+
+        return stored * 100f;
+    }
+
+    private static bool UsesMultiplicativeAttackSpeedRoll(RandomItemStatType stat) =>
+        stat == RandomItemStatType.WeaponAttacksPerSecond;
+
+    private static bool UsesDefenceFlatTemplateRange(RandomItemStatType stat) =>
+        stat == RandomItemStatType.BonusArmor ||
+        stat == RandomItemStatType.BonusMagicResist ||
+        stat == RandomItemStatType.BonusCorruptionResist ||
+        stat == RandomItemStatType.ArmorFlatArmor ||
+        stat == RandomItemStatType.ArmorMagicResist ||
+        stat == RandomItemStatType.ArmorCorruptionResist;
+
+    private static bool UsesHealthFlatTemplateRange(RandomItemStatType stat) =>
+        stat == RandomItemStatType.BonusHealth ||
+        stat == RandomItemStatType.ArmorBonusHealth;
+
+    private static bool IsEffectivelyZero(float value) => Mathf.Abs(value) < 0.0001f;
+
     public static RandomStatValueKind GetDefaultValueKind(RandomItemStatType stat)
     {
         switch (stat)
@@ -232,21 +489,17 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.WeaponMaxLightningDamage:
                 return RandomStatValueKind.FlatInteger;
 
-            case RandomItemStatType.AbilityPowerPercent:
-                return RandomStatValueKind.PercentPoints;
-
             case RandomItemStatType.LifeRegen:
             case RandomItemStatType.EnergyRegen:
             case RandomItemStatType.ManaRegen:
             case RandomItemStatType.PoisonDurationBonus:
-            case RandomItemStatType.WeaponAttacksPerSecond:
             case RandomItemStatType.WeaponAttackRange:
-            case RandomItemStatType.WeaponCritMultiplier:
+            case RandomItemStatType.AttackRangeBonus:
             case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
                 return RandomStatValueKind.FlatFloat;
 
             default:
-                return RandomStatValueKind.Fraction;
+                return RandomStatValueKind.PercentPoints;
         }
     }
 
@@ -409,13 +662,13 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.BurnChance:
                 item.bonusStats.burnChance = Mathf.Clamp01(item.bonusStats.burnChance + primary);
                 break;
-            case RandomItemStatType.BurnExplosionMultiplierBonus:
+            case RandomItemStatType.BurnMultiplier:
                 item.bonusStats.burnExplosionMultiplierBonus += primary;
                 break;
-            case RandomItemStatType.ChillSlowPerStackBonus:
+            case RandomItemStatType.ChillMultiplier:
                 item.bonusStats.chillSlowPerStackBonus += primary;
                 break;
-            case RandomItemStatType.ShockDamageTakenMultiplierBonus:
+            case RandomItemStatType.ShockMultiplier:
                 item.bonusStats.shockDamageTakenMultiplierBonus += primary;
                 break;
             case RandomItemStatType.ParryChance:
@@ -523,15 +776,16 @@ public static class ItemRandomStatRoller
         if (!item || !item.IsWeapon)
             return;
 
-        if (kind == RandomStatValueKind.FlatFloat)
+        // Percent Points: roll 2 → +0.02 APS (0.6 → 0.62). Legacy Fraction entries still add the rolled fraction directly.
+        if (kind == RandomStatValueKind.Fraction)
         {
-            item.weaponStats.attacksPerSecond = Mathf.Max(0.01f, item.weaponStats.attacksPerSecond + primary);
+            item.weaponStats.attacksPerSecond = Mathf.Max(
+                0.01f,
+                item.weaponStats.attacksPerSecond * (1f + primary));
             return;
         }
 
-        item.weaponStats.attacksPerSecond = Mathf.Max(
-            0.01f,
-            item.weaponStats.attacksPerSecond * (1f + primary));
+        item.weaponStats.attacksPerSecond = Mathf.Max(0.01f, item.weaponStats.attacksPerSecond + primary);
     }
 
     private static float RollValue(float min, float max, RandomStatValueKind kind, RandomItemStatType stat)
@@ -540,10 +794,8 @@ public static class ItemRandomStatRoller
         return ConvertRolledValue(raw, kind, stat);
     }
 
-    /// <summary>
-    /// Ability power alone stores literal percent points (5 = +5%). Most other % stats store fractions (0.05 = +5%).
-    /// </summary>
-    private static bool UsesPercentPointsStorage(RandomItemStatType stat) =>
+    /// <summary>Ability power stores literal percent points (5 = +5%). All other % stats store fractions (0.05 = +5%).</summary>
+    private static bool StoresLiteralPercentPoints(RandomItemStatType stat) =>
         stat == RandomItemStatType.AbilityPowerPercent;
 
     private static float ConvertRolledValue(float raw, RandomStatValueKind kind, RandomItemStatType stat)
@@ -551,7 +803,7 @@ public static class ItemRandomStatRoller
         switch (kind)
         {
             case RandomStatValueKind.PercentPoints:
-                return UsesPercentPointsStorage(stat) ? raw : raw / 100f;
+                return StoresLiteralPercentPoints(stat) ? raw : raw / 100f;
             case RandomStatValueKind.Fraction:
                 return raw;
             case RandomStatValueKind.FlatInteger:
@@ -574,5 +826,163 @@ public static class ItemRandomStatRoller
     private static void AddArmorInt(ref int field, float value, RandomStatValueKind kind)
     {
         field += Mathf.RoundToInt(kind == RandomStatValueKind.FlatInteger ? value : value);
+    }
+
+    /// <summary>Player-facing label for a random pool stat (database / encyclopedia tooltips).</summary>
+    public static string GetRandomStatDisplayName(RandomItemStatType stat)
+    {
+        switch (stat)
+        {
+            case RandomItemStatType.BonusHealth:
+            case RandomItemStatType.ArmorBonusHealth:
+                return "Health";
+            case RandomItemStatType.BonusEnergy:
+            case RandomItemStatType.ArmorBonusEnergy:
+                return "Energy";
+            case RandomItemStatType.BonusMana:
+                return "Mana";
+            case RandomItemStatType.BonusArmor:
+            case RandomItemStatType.ArmorFlatArmor:
+                return "Armour";
+            case RandomItemStatType.BonusMagicResist:
+            case RandomItemStatType.ArmorMagicResist:
+                return "Magic Res";
+            case RandomItemStatType.BonusCorruptionResist:
+            case RandomItemStatType.ArmorCorruptionResist:
+                return "Corruption Res";
+            case RandomItemStatType.BonusPhysBlockChance:
+            case RandomItemStatType.ArmorPhysBlockChance:
+                return "Phys Block";
+            case RandomItemStatType.ManaRegen:
+                return "Mana Regen";
+            case RandomItemStatType.LifeRegen:
+                return "Life Regen";
+            case RandomItemStatType.EnergyRegen:
+                return "Energy Regen";
+            case RandomItemStatType.CritChanceBonus:
+            case RandomItemStatType.WeaponCritChance:
+                return "Crit Chance";
+            case RandomItemStatType.CritMultiplierBonus:
+            case RandomItemStatType.WeaponCritMultiplier:
+                return "Crit Multi";
+            case RandomItemStatType.AttackRangeBonus:
+            case RandomItemStatType.WeaponAttackRange:
+                return "Range";
+            case RandomItemStatType.WeaponAttacksPerSecond:
+                return "Attack Speed";
+            case RandomItemStatType.ArmorFlatGuard:
+                return "Guard";
+            case RandomItemStatType.ArmorMaxGuardPercent:
+                return "Max Guard";
+            case RandomItemStatType.BurnMultiplier:
+                return "Burn Multiplier";
+            case RandomItemStatType.ChillMultiplier:
+                return "Chill Multiplier";
+            case RandomItemStatType.ShockMultiplier:
+                return "Shock Multiplier";
+            case RandomItemStatType.BleedMultiplier:
+                return "Bleed Multi";
+            case RandomItemStatType.PoisonMultiplier:
+                return "Poison Multi";
+            case RandomItemStatType.WeaponMagicAilmentApplyChance:
+                return "Magic Ailment Apply Chance";
+            case RandomItemStatType.WeaponCorruptionDamageRange:
+                return "Corruption Damage";
+            case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
+                return "Enemy Respawn Reduction";
+            default:
+                return SplitCamelCase(stat.ToString());
+        }
+    }
+
+    /// <summary>One line for the database item tooltip random-stat pool section.</summary>
+    public static string FormatPoolEntryDatabaseLine(RandomStatPoolEntry entry)
+    {
+        if (entry == null || !entry.IsValid)
+            return "";
+
+        string name = GetRandomStatDisplayName(entry.stat);
+        string range = FormatPoolEntryValueRange(entry);
+        return string.IsNullOrWhiteSpace(range) ? name : $"{name} ({range})";
+    }
+
+    private static string FormatPoolEntryValueRange(RandomStatPoolEntry entry)
+    {
+        float min = entry.minValue;
+        float max = entry.maxValue;
+
+        if (entry.stat == RandomItemStatType.WeaponCorruptionDamageRange && entry.rollSecondaryValue)
+        {
+            string primary = FormatPoolValueSpan(min, max, entry.valueKind, entry.stat);
+            string secondary = FormatPoolValueSpan(entry.secondaryMinValue, entry.secondaryMaxValue, entry.valueKind, entry.stat);
+            return $"{primary} to {secondary}";
+        }
+
+        return FormatPoolValueSpan(min, max, entry.valueKind, entry.stat);
+    }
+
+    private static string FormatPoolValueSpan(float min, float max, RandomStatValueKind kind, RandomItemStatType stat)
+    {
+        if (Mathf.Approximately(min, max))
+            return FormatSinglePoolValue(min, kind, stat);
+
+        return $"{FormatSinglePoolValue(min, kind, stat)}-{FormatSinglePoolValue(max, kind, stat)}";
+    }
+
+    private static string FormatSinglePoolValue(float value, RandomStatValueKind kind, RandomItemStatType stat)
+    {
+        if (stat == RandomItemStatType.WeaponAttacksPerSecond && kind == RandomStatValueKind.PercentPoints)
+            return FormatCompactFloat(value / 100f);
+
+        switch (kind)
+        {
+            case RandomStatValueKind.FlatInteger:
+                return Mathf.RoundToInt(value).ToString();
+
+            case RandomStatValueKind.FlatFloat:
+                return FormatCompactFloat(value);
+
+            case RandomStatValueKind.PercentPoints:
+                return StoresLiteralPercentPoints(stat)
+                    ? $"{FormatCompactFloat(value)}%"
+                    : $"{FormatCompactFloat(value)}%";
+
+            case RandomStatValueKind.Fraction:
+                if (Mathf.Abs(value) <= 1f)
+                    return $"{FormatCompactFloat(value * 100f)}%";
+                return FormatCompactFloat(value);
+
+            default:
+                return FormatCompactFloat(value);
+        }
+    }
+
+    private static string FormatCompactFloat(float value)
+    {
+        float abs = Mathf.Abs(value);
+        if (abs >= 100f)
+            return value.ToString("0");
+        if (abs >= 10f)
+            return value.ToString("0.#");
+        if (abs >= 1f)
+            return value.ToString("0.##");
+        return value.ToString("0.###");
+    }
+
+    private static string SplitCamelCase(string raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return raw;
+
+        var sb = new System.Text.StringBuilder(raw.Length + 8);
+        for (int i = 0; i < raw.Length; i++)
+        {
+            char c = raw[i];
+            if (i > 0 && char.IsUpper(c) && (char.IsLower(raw[i - 1]) || (i + 1 < raw.Length && char.IsLower(raw[i + 1]))))
+                sb.Append(' ');
+            sb.Append(c);
+        }
+
+        return sb.ToString();
     }
 }

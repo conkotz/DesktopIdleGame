@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -461,11 +462,11 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("Magic Ailment Scaling (Bonus Stats)", EditorStyles.boldLabel);
                 if (burnExplosionMultiplierBonus != null)
-                    EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Damage Bonus"));
+                    EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
                 if (chillSlowPerStackBonus != null)
-                    EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
+                    EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Multiplier"));
                 if (shockDamageTakenMultiplierBonus != null)
-                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
+                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Multiplier"));
             }
         }
         EditorGUILayout.PropertyField(canEquipInOffHand);
@@ -1566,9 +1567,9 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(poisonMaxStacksBonus);
         if (bonusBurnChance != null)
             EditorGUILayout.PropertyField(bonusBurnChance, new GUIContent("Burn Chance (bonus)"));
-        EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Damage Bonus"));
-        EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
-        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
+        EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
+        EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Multiplier"));
+        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Multiplier"));
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Combat Procs", EditorStyles.boldLabel);
@@ -1621,8 +1622,9 @@ public class ItemDefinitionEditor : Editor
             "Optional affixes rolled when this item enters the player's inventory.\n" +
             "Common/Uncommon = 1 roll, Rare = 2, Epic = 3, Legendary = 4.\n" +
             "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until purchased.\n" +
-            "Value Kind: Flat Integer (health), Flat Float (regen/APS), Fraction (0.05 = 5%), " +
-            "Percent Points (enter 5 for +5% — auto-converts for bleed/poison/speed/etc.; ability power stores 5 as +5%).",
+            "Value Kind: Flat Integer (health/damage), Flat Float (regen/range), " +
+            "Percent Points (enter 5 for +5% crit/stun/etc.; weapon APS rolls add flat APS — 2 = +0.02 APS on a 0.6 weapon → 0.62). " +
+            "Ability power stores points as-is. Legacy Fraction APS entries still multiply.",
             MessageType.Info
         );
 
@@ -1689,26 +1691,105 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.EndScrollView();
 
         EditorGUILayout.Space(2);
-        if (GUILayout.Button("+ Add Pool Entry"))
-        {
-            int newIndex = randomStatPool.arraySize;
-            randomStatPool.InsertArrayElementAtIndex(newIndex);
-            SerializedProperty newEntry = randomStatPool.GetArrayElementAtIndex(newIndex);
-            if (newEntry != null)
-            {
-                SerializedProperty weight = newEntry.FindPropertyRelative("weight");
-                if (weight != null)
-                    weight.floatValue = 1f;
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Generate template stats"))
+            GenerateTemplateRandomStatPool();
 
-                SerializedProperty valueKind = newEntry.FindPropertyRelative("valueKind");
-                SerializedProperty stat = newEntry.FindPropertyRelative("stat");
-                if (valueKind != null && stat != null)
-                {
-                    RandomItemStatType statType = (RandomItemStatType)stat.enumValueIndex;
-                    valueKind.enumValueIndex = (int)ItemRandomStatRoller.GetDefaultValueKind(statType);
-                }
-            }
+        if (GUILayout.Button("+ Add Pool Entry"))
+            AddEmptyRandomStatPoolEntry();
+
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void AddEmptyRandomStatPoolEntry()
+    {
+        int newIndex = randomStatPool.arraySize;
+        randomStatPool.InsertArrayElementAtIndex(newIndex);
+        SerializedProperty newEntry = randomStatPool.GetArrayElementAtIndex(newIndex);
+        if (newEntry == null)
+            return;
+
+        SerializedProperty weight = newEntry.FindPropertyRelative("weight");
+        if (weight != null)
+            weight.floatValue = 1f;
+
+        SerializedProperty valueKind = newEntry.FindPropertyRelative("valueKind");
+        SerializedProperty stat = newEntry.FindPropertyRelative("stat");
+        if (valueKind != null && stat != null)
+        {
+            RandomItemStatType statType = (RandomItemStatType)stat.enumValueIndex;
+            valueKind.enumValueIndex = (int)ItemRandomStatRoller.GetDefaultValueKind(statType);
         }
+    }
+
+    private void GenerateTemplateRandomStatPool()
+    {
+        var item = (ItemDefinition)target;
+        if (!item)
+            return;
+
+        List<RandomStatPoolEntry> templates = ItemRandomStatRoller.BuildTemplatePoolEntries(item);
+        if (templates.Count == 0)
+        {
+            EditorUtility.DisplayDialog(
+                "Generate template stats",
+                "No non-zero stats found on this item to turn into pool entries.",
+                "OK");
+            return;
+        }
+
+        if (randomStatPool.arraySize > 0 &&
+            !EditorUtility.DisplayDialog(
+                "Generate template stats",
+                $"Replace {randomStatPool.arraySize} existing pool entr{(randomStatPool.arraySize == 1 ? "y" : "ies")} " +
+                $"with {templates.Count} template entr{(templates.Count == 1 ? "y" : "ies")} from current item stats?",
+                "Replace",
+                "Cancel"))
+            return;
+
+        randomStatPool.ClearArray();
+        for (int i = 0; i < templates.Count; i++)
+            WriteRandomStatPoolEntry(randomStatPool, i, templates[i]);
+
+        serializedObject.ApplyModifiedProperties();
+        EditorUtility.SetDirty(item);
+    }
+
+    private static void WriteRandomStatPoolEntry(
+        SerializedProperty pool,
+        int index,
+        RandomStatPoolEntry entry)
+    {
+        pool.InsertArrayElementAtIndex(index);
+        SerializedProperty element = pool.GetArrayElementAtIndex(index);
+        if (element == null)
+            return;
+
+        SerializedProperty stat = element.FindPropertyRelative("stat");
+        SerializedProperty weight = element.FindPropertyRelative("weight");
+        SerializedProperty minValue = element.FindPropertyRelative("minValue");
+        SerializedProperty maxValue = element.FindPropertyRelative("maxValue");
+        SerializedProperty valueKind = element.FindPropertyRelative("valueKind");
+        SerializedProperty rollSecondary = element.FindPropertyRelative("rollSecondaryValue");
+        SerializedProperty secondaryMin = element.FindPropertyRelative("secondaryMinValue");
+        SerializedProperty secondaryMax = element.FindPropertyRelative("secondaryMaxValue");
+
+        if (stat != null)
+            stat.enumValueIndex = (int)entry.stat;
+        if (weight != null)
+            weight.floatValue = entry.weight;
+        if (minValue != null)
+            minValue.floatValue = entry.minValue;
+        if (maxValue != null)
+            maxValue.floatValue = entry.maxValue;
+        if (valueKind != null)
+            valueKind.enumValueIndex = (int)entry.valueKind;
+        if (rollSecondary != null)
+            rollSecondary.boolValue = entry.rollSecondaryValue;
+        if (secondaryMin != null)
+            secondaryMin.floatValue = entry.secondaryMinValue;
+        if (secondaryMax != null)
+            secondaryMax.floatValue = entry.secondaryMaxValue;
     }
 
     private void DrawScrollableRandomStatPicker(SerializedProperty statProp, int entryIndex)

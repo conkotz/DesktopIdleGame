@@ -32,6 +32,7 @@ MonoBehaviour:
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
@@ -61,6 +62,7 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
+    weaponWeight: 0
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -141,11 +143,61 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
     stunChance: 0
-  randomStatPool: []
+  randomStatPool:
+  - stat: 12
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 16
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 57
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 58
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 60
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 62
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
@@ -161,6 +213,8 @@ MonoBehaviour:
       effectId: 
     baitTier: 0
     fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
     openRequiredAmount: 0
     openableLoot: []
     foodEffectDurationSeconds: 0
@@ -173,6 +227,7 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

@@ -32,6 +32,7 @@ MonoBehaviour:
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 3
     maxPhysicalDamage: 6
@@ -142,23 +143,49 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
     stunChance: 0
   randomStatPool:
-  - stat: 52
+  - stat: 46
     weight: 1
     minValue: 1
-    maxValue: 5
+    maxValue: 2
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 47
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 51
+    weight: 1
+    minValue: 2
+    maxValue: 4
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 52
+    weight: 1
+    minValue: 3
+    maxValue: 6
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 53
     weight: 1
-    minValue: 3
-    maxValue: 8
+    minValue: 5
+    maxValue: 10
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
@@ -178,6 +205,8 @@ MonoBehaviour:
       effectId: 
     baitTier: 0
     fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
     openRequiredAmount: 0
     openableLoot: []
     foodEffectDurationSeconds: 0
@@ -190,6 +219,7 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

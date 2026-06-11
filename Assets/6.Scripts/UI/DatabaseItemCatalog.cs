@@ -120,7 +120,7 @@ public static class DatabaseItemCatalog
     }
 
     public const string EnhancementScaledMapsLocationText =
-        "All scaled maps -> view scaling in world map to see";
+        "All scaled maps -> view scaling in each combat map area";
 
     public static string FormatDatabaseDisplayName(ItemDefinition item)
     {

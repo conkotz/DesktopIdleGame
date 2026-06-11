@@ -27,6 +27,12 @@ public sealed class DatabaseItemIconTooltipUI : MonoBehaviour,
         if (_tooltip == null || _item == null)
             return;
 
-        _tooltip.ShowAt(transform, _item, 1, compact: false, itemId: _item.itemId);
+        _tooltip.ShowAt(
+            transform,
+            _item,
+            1,
+            compact: false,
+            showRandomStatPoolOptions: _item.HasRandomStatPool,
+            itemId: _item.itemId);
     }
 }
