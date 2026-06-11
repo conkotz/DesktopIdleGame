@@ -23,7 +23,7 @@ MonoBehaviour:
   maxHealth: 5000
   maxEnergy: 0
   maxMana: 0
-  armor: 150
+  armor: 0
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
@@ -79,8 +79,8 @@ MonoBehaviour:
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 0
   dropGold: 0
-  goldMin: 250
-  goldMax: 300
+  goldMin: 0
+  goldMax: 0
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
@@ -89,4 +89,5 @@ MonoBehaviour:
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 2
   eliteLoot: []
+  abilities: []
   designerNotes: 

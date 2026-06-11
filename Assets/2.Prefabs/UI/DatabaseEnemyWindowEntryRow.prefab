@@ -858,7 +858,9 @@ MonoBehaviour:
   lootRow: {fileID: 4111997297026391949}
   locationsRow: {fileID: 0}
   locationsText: {fileID: 0}
+  abilityRow: {fileID: 0}
   lootEntryBackgroundTemplate: {fileID: 255790343932740842}
+  abilityEntryBackgroundTemplate: {fileID: 0}
 --- !u!1 &6503111535036635880
 GameObject:
   m_ObjectHideFlags: 0
