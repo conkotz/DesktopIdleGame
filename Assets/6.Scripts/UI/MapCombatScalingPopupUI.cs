@@ -12,7 +12,8 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
     private const int TooltipSortOrder = CanvasSortOrder + 100;
-    private const int UiVersion = 11;
+    private const int UiVersion = 12;
+    private const float DetailsScrollbarWidth = 14f;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
     private static MapCombatScalingPopupUI _instance;
@@ -171,6 +172,27 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         RefreshEnhancementSlots();
         if (_panelRoot != null)
             _panelRoot.gameObject.SetActive(true);
+
+        StartCoroutine(CoCenterOnMainMenuWindow());
+    }
+
+    private IEnumerator CoCenterOnMainMenuWindow()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        CenterOnMainMenuWindow();
+    }
+
+    private void CenterOnMainMenuWindow()
+    {
+        if (_panelRoot == null)
+            return;
+
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu == null || !menu.TryGetMenuWindowRect(out RectTransform menuRect) || !menuRect)
+            return;
+
+        UIPinNextToMenuWindow.AlignCenterTo(_panelRoot, menuRect);
     }
 
     private void HandleSliderChanged(float value)
@@ -766,12 +788,17 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 24f;
         scroll.inertia = true;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
         _detailsScrollRect = scroll;
 
         RectTransform viewport = CreateChild(scrollRoot, "Viewport");
         Stretch(viewport, 0f, 0f, 1f, 1f);
+        viewport.offsetMax = new Vector2(-DetailsScrollbarWidth, 0f);
         viewport.gameObject.AddComponent<RectMask2D>();
         scroll.viewport = viewport;
+
+        Scrollbar verticalScrollbar = CreateDetailsVerticalScrollbar(scrollRoot);
+        scroll.verticalScrollbar = verticalScrollbar;
 
         RectTransform content = CreateChild(viewport, "Content");
         content.anchorMin = new Vector2(0f, 1f);
@@ -823,6 +850,39 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         textFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         return text;
+    }
+
+    private static Scrollbar CreateDetailsVerticalScrollbar(RectTransform scrollRoot)
+    {
+        RectTransform scrollbarRt = CreateChild(scrollRoot, "ScrollbarVertical");
+        scrollbarRt.anchorMin = new Vector2(1f, 0f);
+        scrollbarRt.anchorMax = new Vector2(1f, 1f);
+        scrollbarRt.pivot = new Vector2(1f, 0.5f);
+        scrollbarRt.anchoredPosition = Vector2.zero;
+        scrollbarRt.sizeDelta = new Vector2(DetailsScrollbarWidth, 0f);
+
+        Image trackImage = scrollbarRt.gameObject.AddComponent<Image>();
+        trackImage.color = new Color(0.1f, 0.09f, 0.08f, 0.95f);
+        trackImage.raycastTarget = true;
+
+        Scrollbar scrollbar = scrollbarRt.gameObject.AddComponent<Scrollbar>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        scrollbar.transition = Selectable.Transition.ColorTint;
+
+        RectTransform slidingArea = CreateChild(scrollbarRt, "SlidingArea");
+        Stretch(slidingArea, 0.08f, 0.02f, 0.92f, 0.98f);
+
+        RectTransform handle = CreateChild(slidingArea, "Handle");
+        Stretch(handle, 0f, 0f, 1f, 1f);
+
+        Image handleImage = handle.gameObject.AddComponent<Image>();
+        handleImage.color = new Color(0.72f, 0.62f, 0.38f, 0.95f);
+        handleImage.raycastTarget = true;
+
+        scrollbar.targetGraphic = handleImage;
+        scrollbar.handleRect = handle;
+
+        return scrollbar;
     }
 
     private void BuildSliderTicks(RectTransform parent)

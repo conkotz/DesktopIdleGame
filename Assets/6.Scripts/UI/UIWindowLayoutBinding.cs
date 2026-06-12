@@ -19,13 +19,13 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
     private static readonly Color[] PivotGhostFillPalette =
     {
-        new Color(0.72f, 0.45f, 0.45f, 0.5f),
-        new Color(0.45f, 0.58f, 0.72f, 0.5f),
-        new Color(0.48f, 0.68f, 0.50f, 0.5f),
-        new Color(0.70f, 0.58f, 0.40f, 0.5f),
-        new Color(0.62f, 0.48f, 0.70f, 0.5f),
-        new Color(0.45f, 0.65f, 0.62f, 0.5f),
-        new Color(0.75f, 0.55f, 0.48f, 0.5f),
+        new Color(0.72f, 0.45f, 0.45f, 0.74f),
+        new Color(0.45f, 0.58f, 0.72f, 0.74f),
+        new Color(0.48f, 0.68f, 0.50f, 0.74f),
+        new Color(0.70f, 0.58f, 0.40f, 0.74f),
+        new Color(0.62f, 0.48f, 0.70f, 0.74f),
+        new Color(0.45f, 0.65f, 0.62f, 0.74f),
+        new Color(0.75f, 0.55f, 0.48f, 0.74f),
     };
 
     [SerializeField] private RectTransform windowRect;

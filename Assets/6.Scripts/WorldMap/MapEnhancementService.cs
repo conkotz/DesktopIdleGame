@@ -224,7 +224,7 @@ public static class MapEnhancementService
             case MapEnhancementModType.ExtraEnemySpawns:
                 return $"Extra spawns +{Mathf.RoundToInt(mod.value)} {FormatEnemyName(mod.extraSpawnEnemyId)}";
             case MapEnhancementModType.LootBonus:
-                return $"Enemy loot +{Mathf.RoundToInt(mod.value * 100f)}% from base";
+                return FormatLootBonusLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.EnemyDamageReduction:
                 return $"Enemy damage -{Mathf.RoundToInt(mod.value * 100f)}% from base";
             case MapEnhancementModType.GoldBonus:
@@ -341,7 +341,7 @@ public static class MapEnhancementService
             case MapEnhancementModType.ExtraEnemySpawns:
                 return $"Extra spawns {FormatIntRange(cfg.minValue, cfg.maxValue)} {FormatEnemyName(mod.extraSpawnEnemyId)}";
             case MapEnhancementModType.LootBonus:
-                return $"Enemy loot +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatLootBonusRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EnemyDamageReduction:
                 return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
             case MapEnhancementModType.GoldBonus:
@@ -366,7 +366,7 @@ public static class MapEnhancementService
             case MapEnhancementModType.ExtraEnemySpawns:
                 return $"Extra spawns {FormatIntRange(cfg.minValue, cfg.maxValue)} enemies";
             case MapEnhancementModType.LootBonus:
-                return $"Enemy loot +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatLootBonusRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EnemyDamageReduction:
                 return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
             case MapEnhancementModType.GoldBonus:
@@ -380,6 +380,17 @@ public static class MapEnhancementService
             default:
                 return "Unknown modifier";
         }
+    }
+
+    private static string FormatLootBonusLine(int percent) =>
+        $"Enemy loot chance: +{percent}% (Non elite)";
+
+    private static string FormatLootBonusRangeLine(float minFraction, float maxFraction)
+    {
+        int min = Mathf.RoundToInt(minFraction * 100f);
+        int max = Mathf.RoundToInt(maxFraction * 100f);
+        string percent = min == max ? $"+{min}%" : $"+{min}-{max}%";
+        return $"Enemy loot chance: {percent} (Non elite)";
     }
 
     /// <summary>Base elite chance multiplied by (1 + relative bonus). 10% base + 10% relative bonus = 11%.</summary>
@@ -426,7 +437,7 @@ public static class MapEnhancementService
         }
 
         if (aggregate.lootBonusFraction > 0.001f)
-            lines.Add($"Enemy loot +{Mathf.RoundToInt(aggregate.lootBonusFraction * 100f)}% from base");
+            lines.Add(FormatLootBonusLine(Mathf.RoundToInt(aggregate.lootBonusFraction * 100f)));
 
         if (aggregate.enemyDamageReductionFraction > 0.001f)
             lines.Add($"Enemy damage -{Mathf.RoundToInt(aggregate.enemyDamageReductionFraction * 100f)}% from base");

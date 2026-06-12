@@ -25,6 +25,9 @@ public class ToggleSettingsRowUI : MonoBehaviour
 
     private void OnEnable()
     {
+        if (settingId == ToggleSettingId.ShowDevPanel)
+            ShowDevPanelSettingsInstaller.ApplyRowStyle(this);
+
         if (toggle)
             toggle.onValueChanged.AddListener(OnToggleChanged);
 

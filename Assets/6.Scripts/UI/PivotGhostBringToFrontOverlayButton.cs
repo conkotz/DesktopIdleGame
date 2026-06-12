@@ -1,12 +1,14 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
 /// Overlay-layer center square for a pivot ghost. Stays above all ghosts so it remains visible and clickable
-/// even when another ghost overlaps it.
+/// even when another ghost overlaps it. Dragging moves the ghost; a click without drag brings it to front.
 /// </summary>
 [DisallowMultipleComponent]
-public sealed class PivotGhostBringToFrontOverlayButton : MonoBehaviour
+public sealed class PivotGhostBringToFrontOverlayButton : MonoBehaviour,
+    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
     private static Sprite s_whiteSprite;
 
@@ -15,6 +17,7 @@ public sealed class PivotGhostBringToFrontOverlayButton : MonoBehaviour
     private RectTransform _overlayRoot;
     private Image _image;
     private bool _interactionEnabled = true;
+    private bool _didDrag;
 
     public WindowPivotGhostUI Ghost => _ghost;
 
@@ -42,13 +45,9 @@ public sealed class PivotGhostBringToFrontOverlayButton : MonoBehaviour
         _image.raycastTarget = true;
         ApplyColor(color);
 
-        Button button = GetComponent<Button>();
-        if (button == null)
-            button = gameObject.AddComponent<Button>();
-
-        button.transition = Selectable.Transition.None;
-        button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(OnClicked);
+        Button legacyButton = GetComponent<Button>();
+        if (legacyButton)
+            Destroy(legacyButton);
 
         SyncPosition();
     }
@@ -100,9 +99,35 @@ public sealed class PivotGhostBringToFrontOverlayButton : MonoBehaviour
         _rect.anchoredPosition = localPoint;
     }
 
-    private void OnClicked()
+    public void OnBeginDrag(PointerEventData eventData)
     {
         if (!_interactionEnabled || MovePivotsModeController.IsTestViewActive || _ghost == null)
+            return;
+
+        _didDrag = false;
+        _ghost.OnBeginDrag(eventData);
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!_interactionEnabled || MovePivotsModeController.IsTestViewActive || _ghost == null)
+            return;
+
+        _didDrag = true;
+        _ghost.OnDrag(eventData);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (!_interactionEnabled || MovePivotsModeController.IsTestViewActive || _ghost == null)
+            return;
+
+        _ghost.OnEndDrag(eventData);
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (!_interactionEnabled || MovePivotsModeController.IsTestViewActive || _ghost == null || _didDrag)
             return;
 
         _ghost.BringSelfToFront();

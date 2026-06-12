@@ -1848,7 +1848,9 @@ public class EnemyBaseController : MonoBehaviour
     private float ComputeEffectiveLootDropChance(float baseChance, float dropChanceMultiplier)
     {
         float scaled = baseChance * dropChanceMultiplier;
-        float enhanced = baseChance * _mapEnhancementLootBonusFraction;
+        float enhanced = !_isElite && _mapEnhancementLootBonusFraction > 0.001f
+            ? baseChance * _mapEnhancementLootBonusFraction
+            : 0f;
         return Mathf.Clamp01(scaled + enhanced);
     }
 

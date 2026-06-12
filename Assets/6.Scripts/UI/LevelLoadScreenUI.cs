@@ -199,6 +199,15 @@ public sealed class LevelLoadScreenUI : MonoBehaviour
         Object[] assets = AssetDatabase.LoadAllAssetsAtPath(SettingsIconPath);
         for (int i = 0; i < assets.Length; i++)
         {
+            if (assets[i] is Sprite sprite && sprite.name == "SettingsIcon_0")
+            {
+                s_cogSprite = sprite;
+                return s_cogSprite;
+            }
+        }
+
+        for (int i = 0; i < assets.Length; i++)
+        {
             if (assets[i] is Sprite sprite)
             {
                 s_cogSprite = sprite;
@@ -207,7 +216,10 @@ public sealed class LevelLoadScreenUI : MonoBehaviour
         }
 #endif
 
-        s_cogSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/Knob.psd");
+        s_cogSprite = UILoadingSpriteRefs.LoadingCogSprite;
+        if (!s_cogSprite)
+            s_cogSprite = UILoadingSpriteRefs.LoadingSpinnerSprite;
+
         return s_cogSprite;
     }
 }

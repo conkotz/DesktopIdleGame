@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f4c2a1b9e3d7c645a1b2c3d4e5f6071, type: 3}
+  m_Name: UILoadingSpriteRefs
+  m_EditorClassIdentifier: Assembly-CSharp::UILoadingSpriteRefs
+  loadingCogSprite: {fileID: 5904627132653970092, guid: 718ebc9ff3013c34f9c211296a65f63c, type: 3}
+  loadingSpinnerSprite: {fileID: 4858617907598388553, guid: c5c7d02442de5c945803bbee2365405a, type: 3}

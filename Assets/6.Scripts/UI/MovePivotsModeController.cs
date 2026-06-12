@@ -11,6 +11,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
 {
     private const int OverlayCanvasSortOrder = 10005;
     private const float OverlayButtonHeight = 40f;
+    private const float OverlaySaveButtonWidth = 280f;
+    private const float OverlaySaveButtonHeight = 48f;
     private const float OverlayButtonStackGap = 8f;
     private const float OverlayTopInset = 12f;
 
@@ -522,8 +524,25 @@ public sealed class MovePivotsModeController : MonoBehaviour
                 : null;
         }
 
+        ApplySaveLayoutButtonChrome();
         LayoutOverlayButtons();
         UpdateTestViewButtonLabel();
+    }
+
+    private void ApplySaveLayoutButtonChrome()
+    {
+        if (!_overlayRoot)
+            return;
+
+        Transform doneTransform = _overlayRoot.Find("MovePivotsDoneButton");
+        if (doneTransform is not RectTransform doneRt)
+            return;
+
+        doneRt.sizeDelta = new Vector2(OverlaySaveButtonWidth, OverlaySaveButtonHeight);
+
+        TMP_Text label = doneRt.GetComponentInChildren<TMP_Text>(true);
+        if (label)
+            label.text = "Save layout";
     }
 
     private void LayoutOverlayButtons()
@@ -532,7 +551,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
             return;
 
         float doneY = -OverlayTopInset;
-        float testViewY = doneY - OverlayButtonHeight - OverlayButtonStackGap;
+        float testViewY = doneY - OverlaySaveButtonHeight - OverlayButtonStackGap;
 
         Transform doneTransform = _overlayRoot.Find("MovePivotsDoneButton");
         if (doneTransform is RectTransform doneRt)
@@ -551,8 +570,10 @@ public sealed class MovePivotsModeController : MonoBehaviour
         Button button = CreateOverlayButton(
             parent,
             "MovePivotsDoneButton",
-            "Done arranging",
-            new Vector2(0f, -OverlayTopInset));
+            "Save layout",
+            new Vector2(0f, -OverlayTopInset),
+            OverlaySaveButtonWidth,
+            OverlaySaveButtonHeight);
         button.onClick.AddListener(() =>
         {
             _userFinishedArranging = true;
@@ -562,7 +583,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
     private void CreateTestViewButton(RectTransform parent)
     {
-        float testViewY = -OverlayTopInset - OverlayButtonHeight - OverlayButtonStackGap;
+        float testViewY = -OverlayTopInset - OverlaySaveButtonHeight - OverlayButtonStackGap;
         _testViewButton = CreateOverlayButton(
             parent,
             "MovePivotsTestViewButton",
@@ -576,7 +597,9 @@ public sealed class MovePivotsModeController : MonoBehaviour
         RectTransform parent,
         string objectName,
         string labelText,
-        Vector2 anchoredPosition)
+        Vector2 anchoredPosition,
+        float width = 220f,
+        float height = 40f)
     {
         GameObject buttonGo = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         buttonGo.layer = parent.gameObject.layer;
@@ -586,7 +609,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         rt.anchorMax = new Vector2(0.5f, 1f);
         rt.pivot = new Vector2(0.5f, 1f);
         rt.anchoredPosition = anchoredPosition;
-        rt.sizeDelta = new Vector2(220f, 40f);
+        rt.sizeDelta = new Vector2(width, height);
 
         Image image = buttonGo.GetComponent<Image>();
         image.color = new Color(0.22f, 0.2f, 0.16f, 0.92f);

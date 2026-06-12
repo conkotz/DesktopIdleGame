@@ -248,19 +248,27 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         labelGo.layer = gameObject.layer;
         RectTransform labelRt = labelGo.GetComponent<RectTransform>();
         labelRt.SetParent(transform, false);
-        labelRt.anchorMin = new Vector2(0f, 1f);
-        labelRt.anchorMax = new Vector2(1f, 1f);
-        labelRt.pivot = new Vector2(0.5f, 1f);
-        labelRt.anchoredPosition = new Vector2(0f, -8f);
-        labelRt.sizeDelta = new Vector2(-16f, 24f);
+        PositionLabelAtTop(labelRt);
 
         TextMeshProUGUI label = labelGo.GetComponent<TextMeshProUGUI>();
         label.text = _binding != null ? _binding.DisplayLabel : "Window";
-        label.fontSize = 14f;
+        label.fontSize = 18f;
         label.fontStyle = FontStyles.Bold;
         label.alignment = TextAlignmentOptions.Center;
         label.color = _labelColor;
         label.raycastTarget = false;
+    }
+
+    private static void PositionLabelAtTop(RectTransform labelRt)
+    {
+        if (!labelRt)
+            return;
+
+        labelRt.anchorMin = new Vector2(0f, 1f);
+        labelRt.anchorMax = new Vector2(1f, 1f);
+        labelRt.pivot = new Vector2(0.5f, 1f);
+        labelRt.anchoredPosition = new Vector2(0f, -10f);
+        labelRt.sizeDelta = new Vector2(-16f, 30f);
     }
 
     private void ApplyVisualChromeColors(Transform fillTransform)
@@ -278,10 +286,17 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         }
 
         Transform labelTransform = transform.Find("Label");
-        if (labelTransform && labelTransform.TryGetComponent(out TextMeshProUGUI label))
+        if (labelTransform)
         {
-            label.text = _binding != null ? _binding.DisplayLabel : "Window";
-            label.color = _labelColor;
+            if (labelTransform is RectTransform labelRt)
+                PositionLabelAtTop(labelRt);
+
+            if (labelTransform.TryGetComponent(out TextMeshProUGUI label))
+            {
+                label.text = _binding != null ? _binding.DisplayLabel : "Window";
+                label.color = _labelColor;
+                label.fontSize = 18f;
+            }
         }
     }
 
@@ -343,11 +358,13 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         Image image;
         Button button;
         TMP_Text label;
+        Outline outline;
 
         if (existing)
         {
             image = existing.GetComponent<Image>();
             button = existing.GetComponent<Button>();
+            outline = existing.GetComponent<Outline>();
             label = existing.GetComponentInChildren<TMP_Text>(true);
         }
         else
@@ -357,6 +374,7 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
                 typeof(RectTransform),
                 typeof(CanvasRenderer),
                 typeof(Image),
+                typeof(Outline),
                 typeof(Button));
             buttonGo.layer = gameObject.layer;
 
@@ -366,13 +384,21 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
             buttonRt.anchorMax = new Vector2(1f, 1f);
             buttonRt.pivot = new Vector2(1f, 1f);
             buttonRt.anchoredPosition = new Vector2(-8f, -8f);
-            buttonRt.sizeDelta = new Vector2(196f, 28f);
+            buttonRt.sizeDelta = new Vector2(220f, 34f);
 
             image = buttonGo.GetComponent<Image>();
             image.sprite = GetWhiteSprite();
 
+            outline = buttonGo.GetComponent<Outline>();
+
             button = buttonGo.GetComponent<Button>();
-            button.transition = Selectable.Transition.None;
+            button.transition = Selectable.Transition.ColorTint;
+            button.targetGraphic = image;
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+            colors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+            button.colors = colors;
             button.onClick.AddListener(CenterShopInMainMenuWindow);
 
             GameObject labelGo = new GameObject(
@@ -385,29 +411,39 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
             labelRt.SetParent(buttonRt, false);
             labelRt.anchorMin = Vector2.zero;
             labelRt.anchorMax = Vector2.one;
-            labelRt.offsetMin = new Vector2(4f, 2f);
-            labelRt.offsetMax = new Vector2(-4f, -2f);
+            labelRt.offsetMin = new Vector2(8f, 4f);
+            labelRt.offsetMax = new Vector2(-8f, -4f);
 
             label = labelGo.GetComponent<TextMeshProUGUI>();
             label.text = "center in main menu window";
-            label.fontSize = 11f;
+            label.fontSize = 12f;
             label.fontStyle = FontStyles.Bold;
             label.alignment = TextAlignmentOptions.Center;
             label.raycastTarget = false;
         }
 
-        Color buttonColor = new Color(
-            Mathf.Clamp01(_fillColor.r * 0.82f),
-            Mathf.Clamp01(_fillColor.g * 0.82f),
-            Mathf.Clamp01(_fillColor.b * 0.82f),
-            0.96f);
+        Color panelColor = new Color(0.22f, 0.2f, 0.16f, 0.94f);
+        Color panelBorder = new Color(0.08f, 0.07f, 0.06f, 0.95f);
+        Color labelColor = new Color(0.95f, 0.9f, 0.82f, 1f);
+
         if (image)
-            image.color = buttonColor;
+        {
+            image.sprite = GetWhiteSprite();
+            image.color = panelColor;
+        }
+
+        if (!outline && existing)
+            outline = existing.gameObject.AddComponent<Outline>();
+        if (outline)
+        {
+            outline.effectColor = panelBorder;
+            outline.effectDistance = new Vector2(1.5f, -1.5f);
+        }
 
         if (label == null && existing)
             label = existing.GetComponentInChildren<TMP_Text>(true);
         if (label)
-            label.color = _labelColor;
+            label.color = labelColor;
     }
 
     private void CenterShopInMainMenuWindow()

@@ -8,11 +8,10 @@ public static class ShowDevPanelSettingsInstaller
 
     private static bool _installed;
 
+    public static void ApplyRowStyle(ToggleSettingsRowUI row) => ApplyShowDevPanelRowStyle(row);
+
     public static void EnsureSettingsRowExists()
     {
-        if (_installed)
-            return;
-
         ToggleSettingsRowUI[] rows = Object.FindObjectsByType<ToggleSettingsRowUI>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
@@ -26,6 +25,9 @@ public static class ShowDevPanelSettingsInstaller
                 return;
             }
         }
+
+        if (_installed)
+            return;
 
         ToggleSettingsRowUI template = null;
         for (int i = 0; i < rows.Length; i++)
@@ -64,7 +66,10 @@ public static class ShowDevPanelSettingsInstaller
             return;
 
         Image rowBackground = row.GetComponent<Image>();
-        if (rowBackground)
-            rowBackground.color = DevPanelRowStripColor;
+        if (!rowBackground)
+            rowBackground = row.gameObject.AddComponent<Image>();
+
+        rowBackground.color = DevPanelRowStripColor;
+        rowBackground.raycastTarget = true;
     }
 }
