@@ -316,11 +316,15 @@ public class PlayerAbilityController : MonoBehaviour
     private Transform _ownerTransform;
 
     private readonly List<SoulforgedWeaponMinion> _activeSoulforgedWeaponMinions = new();
+    private readonly List<SoulforgedWarriorMinion> _activeSoulforgedWarriorMinions = new();
     private bool _activeSoulforgedWeaponIsPersistent;
     private float _soulforgedAvailabilityCheckPausedUntil;
 
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
+    private AbilityDefinition _soulforgedWarriorCooldownAbilityDef;
+    private float _soulforgedWarriorHudBuffEndsAt;
+    private float _soulforgedWarriorHudBuffDuration;
 
     /// <summary>
     /// HUD buff bookkeeping for Soulforged Weapon (swarm/timed countdown or indefinite full overlay).
@@ -518,6 +522,7 @@ public class PlayerAbilityController : MonoBehaviour
             ClearBattleEngineOverloadStacksIfAny();
         TickPhoenixSoulBurnRegen(Time.deltaTime);
         SyncSoulforgedWeaponHudBuff();
+        SyncSoulforgedWarriorHudBuff();
         abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
         abilityVfx?.UpdateBattleTranceGlowVfx(IsBattleTranceActive);
     }
@@ -546,10 +551,39 @@ public class PlayerAbilityController : MonoBehaviour
             minion.ReturnHomeAfterSceneLoad();
         }
 
+        StartCoroutine(RebindSoulforgedWarriorsAfterSceneLoad());
+
         // PlayerBuffController is fresh in the new scene — force the next Soulforged HUD sync to
         // re-push the buff entry instead of skipping because the cached "last synced" values match.
         _lastSyncedSoulforgedHudEnd = float.NaN;
         _lastSyncedSoulforgedHudStacks = int.MinValue;
+    }
+
+    private IEnumerator RebindSoulforgedWarriorsAfterSceneLoad()
+    {
+        for (int i = 0; i < 10; i++)
+            yield return null;
+
+        if (!_ownerStats)
+            _ownerStats = stats;
+        if (!player)
+            player = GetComponent<PlayerController>();
+        if (!_ownerStats || !player)
+            yield break;
+
+        CleanupSoulforgedWarriorList();
+        Transform ownerRoot = _ownerStats.transform;
+        Transform rangeOrigin = _ownerTransform ? _ownerTransform : ownerRoot;
+
+        for (int i = 0; i < _activeSoulforgedWarriorMinions.Count; i++)
+        {
+            SoulforgedWarriorMinion minion = _activeSoulforgedWarriorMinions[i];
+            if (!minion)
+                continue;
+
+            minion.RebindOwnerAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
+            minion.SnapToOwnerAfterSceneLoad();
+        }
     }
 
     private IEnumerator RestorePendingSoulforgedAfterSceneLoad()
@@ -669,6 +703,8 @@ public class PlayerAbilityController : MonoBehaviour
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
             return _activeSoulforgedWeaponMinions.Count > 0;
+        if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase))
+            return _activeSoulforgedWarriorMinions.Count > 0;
 
         return false;
     }
@@ -763,6 +799,13 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (_activeSoulforgedWeaponMinions.Count > 0)
                 EndSoulforgedAndStartCooldown();
+            return;
+        }
+
+        if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_activeSoulforgedWarriorMinions.Count > 0)
+                EndSoulforgedWarriorAndStartCooldown();
             return;
         }
 
@@ -2994,6 +3037,19 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
 
         CleanupSoulforgedWeaponList();
+        CleanupSoulforgedWarriorList();
+        if (def.minionSpawnDefinition && IsSoulforgedWarriorAbility(def) && _activeSoulforgedWarriorMinions.Count > 0)
+        {
+            if (!allowSoulforgedRecastWhileActive)
+                return false;
+
+            RecastActiveSoulforgedWarriors();
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
         if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinions.Count > 0)
         {
             if (!allowSoulforgedRecastWhileActive)
@@ -3079,7 +3135,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
                 return false;
 
-            if (!TrySpawnSoulforgedWeaponMinion(def))
+            if (!TrySpawnMinionForAbility(def))
             {
                 RefundAbilityResourceCost(def);
                 return false;
@@ -8174,6 +8230,157 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         return true;
+    }
+
+    private static bool IsSoulforgedWarriorAbility(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase);
+
+    private bool TrySpawnMinionForAbility(AbilityDefinition def)
+    {
+        MinionDefinition md = def.minionSpawnDefinition;
+        if (!md || !md.runtimePrefab)
+            return false;
+
+        if (md.runtimePrefab.GetComponent<SoulforgedWarriorMinion>() ||
+            md.runtimePrefab.GetComponentInChildren<SoulforgedWarriorMinion>(true))
+            return TrySpawnSoulforgedWarriorMinion(def);
+
+        return TrySpawnSoulforgedWeaponMinion(def);
+    }
+
+    private bool TrySpawnSoulforgedWarriorMinion(AbilityDefinition def, bool recordDamageMeterSummonUse = true)
+    {
+        MinionDefinition md = def.minionSpawnDefinition;
+        if (!md || !md.runtimePrefab || !_ownerStats || !player)
+            return false;
+
+        CleanupSoulforgedWarriorSummonsWithoutCooldown();
+
+        Transform ownerRoot = _ownerStats.transform;
+        Transform attacker = _ownerTransform ? _ownerTransform : ownerRoot;
+        GameObject go = Instantiate(md.runtimePrefab, ownerRoot.position, Quaternion.identity);
+        SoulforgedWarriorMinion minion = go.GetComponent<SoulforgedWarriorMinion>();
+        if (!minion)
+        {
+            Destroy(go);
+            return false;
+        }
+
+        float duration = md.summonDuration;
+        if (def.tooltipBuffMinionDurationSeconds > 0.01f)
+            duration = def.tooltipBuffMinionDurationSeconds;
+
+        if (!minion.Initialize(
+                _ownerStats,
+                md,
+                abilityVfx != null ? abilityVfx.SoulforgedWeaponMinionPresentation : default,
+                ownerRoot,
+                attacker,
+                HandleSoulforgedWarriorReleased,
+                duration))
+        {
+            Destroy(go);
+            return false;
+        }
+
+        minion.PersistAcrossSceneLoads();
+        _activeSoulforgedWarriorMinions.Add(minion);
+        _soulforgedWarriorCooldownAbilityDef = def;
+        _soulforgedWarriorHudBuffDuration = Mathf.Max(0.1f, duration);
+        _soulforgedWarriorHudBuffEndsAt = Time.time + _soulforgedWarriorHudBuffDuration;
+        SyncSoulforgedWarriorHudBuff();
+
+        if (recordDamageMeterSummonUse)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.RecordOutgoingSourceUse(AbilityCombatPower.SoulforgedWarriorOutgoingSourceLabel);
+        }
+
+        return true;
+    }
+
+    private void SyncSoulforgedWarriorHudBuff()
+    {
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (!buffController)
+            return;
+
+        CleanupSoulforgedWarriorList();
+        if (_activeSoulforgedWarriorMinions.Count <= 0)
+        {
+            if (buffController.IsHudAbilityBuffActive(AbilityCombatPower.SoulforgedWarriorAbilityId))
+                buffController.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
+            return;
+        }
+
+        if (IsOnCooldown(AbilityCombatPower.SoulforgedWarriorAbilityId, out _))
+        {
+            buffController.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
+            return;
+        }
+
+        buffController.SetHudAbilityBuff(
+            AbilityCombatPower.SoulforgedWarriorAbilityId,
+            1,
+            _soulforgedWarriorHudBuffEndsAt,
+            _soulforgedWarriorHudBuffDuration,
+            persistActiveOverlay: false);
+    }
+
+    private void HandleSoulforgedWarriorReleased(SoulforgedWarriorMinion m)
+    {
+        _activeSoulforgedWarriorMinions.Remove(m);
+        CleanupSoulforgedWarriorList();
+
+        if (_activeSoulforgedWarriorMinions.Count == 0 && _soulforgedWarriorCooldownAbilityDef)
+        {
+            StartCooldown(_soulforgedWarriorCooldownAbilityDef);
+            _soulforgedWarriorCooldownAbilityDef = null;
+            buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
+        }
+    }
+
+    private void RecastActiveSoulforgedWarriors()
+    {
+        CleanupSoulforgedWarriorList();
+        for (int i = 0; i < _activeSoulforgedWarriorMinions.Count; i++)
+            _activeSoulforgedWarriorMinions[i]?.TryRecastRetargetOrReturn();
+    }
+
+    private void CleanupSoulforgedWarriorList()
+    {
+        for (int i = _activeSoulforgedWarriorMinions.Count - 1; i >= 0; i--)
+        {
+            if (!_activeSoulforgedWarriorMinions[i])
+                _activeSoulforgedWarriorMinions.RemoveAt(i);
+        }
+    }
+
+    private void CleanupSoulforgedWarriorSummonsWithoutCooldown()
+    {
+        for (int i = _activeSoulforgedWarriorMinions.Count - 1; i >= 0; i--)
+        {
+            SoulforgedWarriorMinion minion = _activeSoulforgedWarriorMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
+        }
+
+        _activeSoulforgedWarriorMinions.Clear();
+        _soulforgedWarriorCooldownAbilityDef = null;
+    }
+
+    private void EndSoulforgedWarriorAndStartCooldown()
+    {
+        CleanupSoulforgedWarriorSummonsWithoutCooldown();
+        if (_soulforgedWarriorCooldownAbilityDef)
+        {
+            StartCooldown(_soulforgedWarriorCooldownAbilityDef);
+            _soulforgedWarriorCooldownAbilityDef = null;
+        }
+
+        buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
     }
 
     private void SyncSoulforgedWeaponHudBuff()

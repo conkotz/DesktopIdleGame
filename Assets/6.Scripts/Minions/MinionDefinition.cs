@@ -10,7 +10,7 @@ using UnityEngine.Serialization;
 public class MinionDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Prefab")]
-    [Tooltip("Prefab must include a SoulforgedWeaponMinion (or future runtime) on the root or a child.")]
+    [Tooltip("Prefab must include SoulforgedWeaponMinion, or a MinionUnit-based puppet such as SoulforgedWarriorMinion.")]
     public GameObject runtimePrefab;
 
     [Header("Lifetime")]
@@ -22,12 +22,21 @@ public class MinionDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Minion combat (Phase 2)")]
     public MinionCombatConfig combatConfig;
 
-    [Header("Minion durability (future)")]
+    [Header("Minion durability")]
     [Tooltip(
-        "Flat base max HP for this minion type. 0 = no health until minion combat is implemented. " +
+        "When > 0, max HP = owner MaxHP × this fraction (+ owner minion max life %). " +
+        "When 0, uses flat baseMaxHealth instead (0 = no health).")]
+    [Range(0f, 2f)]
+    public float ownerMaxHealthFraction = 0f;
+
+    [Tooltip(
+        "Flat base max HP when ownerMaxHealthFraction is 0. " +
         "Scaled at runtime by owner minion max life % (see CharacterStats.FinalMinionMaxLifePercent).")]
     [Min(0f)]
     public float baseMaxHealth = 0f;
+
+    [Header("Inherit — owner defenses")]
+    public MinionDefensiveInheritance defensiveInheritance = MinionDefensiveInheritance.InheritFullOwner;
 
     public void OnBeforeSerialize() { }
 

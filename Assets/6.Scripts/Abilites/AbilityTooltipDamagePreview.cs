@@ -343,6 +343,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSoulforgedWarrior(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsCleavingChop(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -968,6 +971,9 @@ public static class AbilityTooltipDamagePreview
                 AppendSoulforgedWeaponDurationLine(body, O, def, skillsManager);
             }
 
+            if (IsSoulforgedWarrior(def))
+                AppendSoulforgedWarriorEffectLines(body, O, def);
+
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1449,7 +1455,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         return IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def) ||
                IsCleavingChop(def) || IsSpectralAxe(def) || IsCleavingStrikes(def) ||
-               IsSoulforgedWeapon(def);
+               IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def);
     }
 
     private static string BuildCompactEffectsBody(
@@ -2076,6 +2082,40 @@ public static class AbilityTooltipDamagePreview
             return null;
 
         return nonNullChoices[selectedIndex];
+    }
+
+    private static string FormatMinionDefenseFraction(float fraction) =>
+        $"{Mathf.Clamp(fraction, 0f, 2f) * 100f:0.#}%";
+
+    private static void AppendSoulforgedWarriorEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def)
+    {
+        body.AppendLine(O("Summons a soulforged clone of your current appearance."));
+        float hpFrac = def?.minionSpawnDefinition != null
+            ? Mathf.Max(0f, def.minionSpawnDefinition.ownerMaxHealthFraction)
+            : 0.5f;
+        if (hpFrac > 0f)
+            body.AppendLine(O($"Max health: {hpFrac * 100f:0.#}% of your maximum life."));
+        MinionDefensiveInheritance defenses = def?.minionSpawnDefinition != null
+            ? def.minionSpawnDefinition.defensiveInheritance
+            : default;
+        if (defenses.inheritOwnerDefenses)
+        {
+            body.AppendLine(O(
+                $"Defenses: {FormatMinionDefenseFraction(defenses.ownerArmorFraction)} armour, " +
+                $"{FormatMinionDefenseFraction(defenses.ownerMagicResistFraction)} magic resist, " +
+                $"{FormatMinionDefenseFraction(defenses.ownerCorruptionResistFraction)} corruption resist."));
+        }
+
+        body.AppendLine(O("Enemies struck by your warrior will attack it back."));
+        float dur = def?.minionSpawnDefinition != null
+            ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
+            : 30f;
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            dur = def.tooltipBuffMinionDurationSeconds;
+        body.AppendLine(O($"Duration: {dur:0.#}s"));
     }
 
     private static void AppendSoulforgedEnhancementEffectLines(

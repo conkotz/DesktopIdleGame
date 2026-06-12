@@ -117,6 +117,9 @@ public class EnemyBaseController : MonoBehaviour
 
     private bool _countedAlive;
     private bool _provoked;
+    private bool _playerDamagedThisEnemy;
+    private bool _minionDamagedThisEnemy;
+    private Transform _retaliationMinionTarget;
     private bool _mapAggroTriggeredForSession;
     private bool _engaged;
     private bool _isChasingForRange;
@@ -540,10 +543,13 @@ public class EnemyBaseController : MonoBehaviour
         if (stats)
             stats.TickRegen(Time.deltaTime);
 
-        if (!IsPlayerValidAlive())
+        if (!IsCombatThreatValidAlive())
         {
             _hitQueued = false;
             _provoked = false;
+            _playerDamagedThisEnemy = false;
+            _minionDamagedThisEnemy = false;
+            _retaliationMinionTarget = null;
             EndAbilityCombat();
             ClearEngagement();
             state = EnemyState.Idle;
@@ -551,7 +557,7 @@ public class EnemyBaseController : MonoBehaviour
             return;
         }
 
-        float dist = DistanceToPlayerX();
+        float dist = GetNearestPlayerTeamThreatDistanceX();
         bool shouldAggro = ResolveShouldAggro(dist);
 
         if (!shouldAggro)
@@ -575,7 +581,11 @@ public class EnemyBaseController : MonoBehaviour
         UpdateEngagement(dist);
 
         if (state != EnemyState.Dead)
-            FaceTargetX(player.position.x);
+        {
+            Transform threat = GetCombatThreatTransform();
+            if (threat)
+                FaceTargetX(threat.position.x);
+        }
 
         bool shouldChaseForRange = ResolveShouldChaseForRange(dist);
         if (!shouldChaseForRange)
@@ -596,14 +606,14 @@ public class EnemyBaseController : MonoBehaviour
             bool committedHit = _queuedHitCommitted;
             _queuedHitCommitted = false;
 
-            if (!IsPlayerValidAlive()) return;
+            if (!IsCombatThreatValidAlive()) return;
 
             if (IsStunned)
                 return;
 
             // If the attack windup already started, treat the hit as committed.
-            if (committedHit || !requireRangeOnHit || DistanceToPlayerX() <= AttackRange)
-                ApplyEnemyHitToPlayer();
+            if (committedHit || !requireRangeOnHit || DistanceToThreatX() <= AttackRange)
+                ApplyEnemyHitToThreat();
         }
     }
 
@@ -626,20 +636,27 @@ public class EnemyBaseController : MonoBehaviour
             return;
         }
 
-        if (!IsPlayerValidAlive())
+        if (!IsCombatThreatValidAlive())
         {
             StopHorizontal();
             EnforceWorldBoundsX();
             return;
         }
 
-        float dist = DistanceToPlayerX();
-        bool shouldAggro = ResolveShouldAggro(dist);
-
+        float dist = DistanceToThreatX();
+        bool shouldAggro = ResolveShouldAggro(GetNearestPlayerTeamThreatDistanceX());
         bool shouldChaseForRange = ResolveShouldChaseForRange(dist);
         if (shouldAggro && shouldChaseForRange)
         {
-            float dx = player.position.x - transform.position.x;
+            Transform threat = GetCombatThreatTransform();
+            if (!threat)
+            {
+                StopHorizontal();
+                EnforceWorldBoundsX();
+                return;
+            }
+
+            float dx = threat.position.x - transform.position.x;
             float dir = Mathf.Sign(dx);
             float ailmentMoveMult = _ailments != null ? _ailments.GetMoveSpeedMultiplier() : 1f;
             float currentMoveSpeed = Mathf.Max(0f, moveSpeed * ailmentMoveMult);
@@ -749,37 +766,21 @@ public class EnemyBaseController : MonoBehaviour
         return _isChasingForRange;
     }
 
-    private bool ResolveShouldAggro(float distanceToPlayerX)
+    private bool ResolveShouldAggro(float nearestPlayerTeamDistanceX)
     {
         MapNodeDefinition def = GetActiveMapNodeDefinition();
         LevelEnemyAggroMode mode = def != null ? def.enemyAggroMode : LevelEnemyAggroMode.Aggressive;
         bool playerTriggeredWaveAggro = def != null && LevelAggroState.IsWaveAggroLatched(def);
         bool playerTriggeredMapAggro = playerTriggeredWaveAggro || _mapAggroTriggeredForSession;
-        bool inEnemyAggroRange = distanceToPlayerX <= aggroRange;
         bool ignoreRange = LevelIgnoresAggroRange(def);
 
-        if (ignoreRange)
-        {
-            return mode switch
-            {
-                LevelEnemyAggroMode.Aggressive => true,
-                // Same latch/provoke rules as ranged aggro; distance gate removed once triggered.
-                LevelEnemyAggroMode.CalmUntilPlayerAggressive => _provoked || playerTriggeredMapAggro,
-                _ => _provoked
-            };
-        }
-
-        return mode switch
-        {
-            LevelEnemyAggroMode.Aggressive => inEnemyAggroRange,
-
-            // Calm until player aggression: always retaliates when personally provoked (damaged),
-            // and after map trigger also aggroes by this enemy's own aggroRange.
-            LevelEnemyAggroMode.CalmUntilPlayerAggressive => _provoked || (playerTriggeredMapAggro && inEnemyAggroRange),
-
-            // Calm mode remains retaliation-only.
-            _ => _provoked
-        };
+        return EnemyAggro.ShouldEngage(
+            mode,
+            _provoked,
+            playerTriggeredMapAggro,
+            nearestPlayerTeamDistanceX,
+            aggroRange,
+            ignoreRange);
     }
 
     /// <summary>
@@ -831,8 +832,88 @@ public class EnemyBaseController : MonoBehaviour
         return Mathf.Abs(player.position.x - transform.position.x);
     }
 
+    private float DistanceToThreatX()
+    {
+        Transform threat = GetCombatThreatTransform();
+        if (!threat) return float.MaxValue;
+        return Mathf.Abs(threat.position.x - transform.position.x);
+    }
+
+    private float GetNearestPlayerTeamThreatDistanceX() =>
+        EnemyAggro.GetNearestPlayerTeamDistanceX(transform.position.x, player);
+
+    private Transform GetCombatThreatTransform()
+    {
+        if (IsRetaliationMinionValidAlive())
+            return _retaliationMinionTarget;
+
+        if (!_playerDamagedThisEnemy && TryGetMapAggroMinionThreat(out Transform mapMinion))
+            return mapMinion;
+
+        return player;
+    }
+
+    private static bool TryGetMapAggroMinionThreat(out Transform minionThreat)
+    {
+        minionThreat = LevelAggroState.MapAggroInstigatorMinion;
+        if (!minionThreat)
+            return false;
+
+        MinionCombatTarget mct = minionThreat.GetComponent<MinionCombatTarget>();
+        if (!mct)
+            mct = minionThreat.GetComponentInParent<MinionCombatTarget>();
+        if (mct == null || !mct.IsAlive)
+        {
+            minionThreat = null;
+            return false;
+        }
+
+        minionThreat = mct.transform;
+        return true;
+    }
+
+    private bool IsRetaliationMinionValidAlive()
+    {
+        if (!_retaliationMinionTarget)
+            return false;
+
+        MinionCombatTarget mct = _retaliationMinionTarget.GetComponent<MinionCombatTarget>();
+        if (!mct)
+            mct = _retaliationMinionTarget.GetComponentInParent<MinionCombatTarget>();
+        if (mct == null || !mct.IsAlive)
+        {
+            _retaliationMinionTarget = null;
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsCombatThreatValidAlive()
+    {
+        if (IsRetaliationMinionValidAlive())
+            return true;
+        return IsPlayerValidAlive();
+    }
+
+    /// <summary>Enemy switches melee retaliation to a living minion that damaged it.</summary>
+    public void NotifyRetaliationAgainstMinion(Transform minionTransform)
+    {
+        if (!minionTransform)
+            return;
+
+        MinionCombatTarget mct = minionTransform.GetComponent<MinionCombatTarget>();
+        if (!mct)
+            mct = minionTransform.GetComponentInParent<MinionCombatTarget>();
+        if (mct == null || !mct.IsAlive)
+            return;
+
+        _retaliationMinionTarget = mct.transform;
+        _provoked = true;
+    }
+
     /// <summary>Center-to-center X distance used for disengage and other melee-threat checks.</summary>
-    public float GetPlayerMeleeThreatDistanceX() => DistanceToPlayerX();
+    public float GetPlayerMeleeThreatDistanceX() => DistanceToThreatX();
 
     public bool TryApplyStun(float durationSeconds, float chance01, Transform source = null)
     {
@@ -976,6 +1057,48 @@ public class EnemyBaseController : MonoBehaviour
 
         _provoked = true;
         SetMoving(false);
+    }
+
+    private void ApplyEnemyHitToThreat(float damageMultiplier = 1f)
+    {
+        if (IsRetaliationMinionValidAlive())
+        {
+            ApplyEnemyHitToMinion(damageMultiplier);
+            return;
+        }
+
+        ApplyEnemyHitToPlayer(damageMultiplier);
+    }
+
+    private void ApplyEnemyHitToMinion(float damageMultiplier = 1f)
+    {
+        if (stats == null || !_retaliationMinionTarget)
+            return;
+
+        MinionCombatTarget mct = _retaliationMinionTarget.GetComponent<MinionCombatTarget>();
+        if (!mct || !mct.IsAlive)
+        {
+            _retaliationMinionTarget = null;
+            return;
+        }
+
+        SplitDamage hit = stats.RollSplitAttackDamage(out bool wasCrit);
+        float totalMult = Mathf.Max(0f, damageMultiplier);
+        float neurotoxinMult = _ailments != null ? _ailments.GetOutgoingDamageMultiplier() : 1f;
+        if (neurotoxinMult < 0.999f)
+            totalMult *= neurotoxinMult;
+
+        if (totalMult < 0.999f || totalMult > 1.001f)
+        {
+            hit.physical *= totalMult;
+            hit.magic *= totalMult;
+            hit.corruptionDamage *= totalMult;
+        }
+
+        if (hit.IsEmpty)
+            return;
+
+        mct.TakeDamageFromEnemy(hit, wasCrit, transform, this);
     }
 
     private void ApplyEnemyHitToPlayer(float damageMultiplier = 1f)
@@ -1206,6 +1329,8 @@ public class EnemyBaseController : MonoBehaviour
 
         TryTriggerMapWideAggroFromAttacker(attacker);
         _provoked = true;
+        StampDamageEngagementFromAttacker(attacker);
+        ResolveIncomingAggroFromAttacker(attacker);
 
         if (IsImmuneToIncomingHit(attackSkillSource))
         {
@@ -1302,6 +1427,8 @@ public class EnemyBaseController : MonoBehaviour
 
         TryTriggerMapWideAggroFromAttacker(source);
         _provoked = true;
+        StampDamageEngagementFromAttacker(source);
+        ResolveIncomingAggroFromAttacker(source);
 
         // DOT tick amount is already final; do not re-apply armor/MR/corruption resist.
         float applied = stats.TakeDamageFromResolvedDot(finalDamage, out _);
@@ -1892,9 +2019,7 @@ public class EnemyBaseController : MonoBehaviour
         if (source == null || damageDealt <= 0f)
             return;
 
-        var combat = source.GetComponent<PlayerCombatController>();
-        if (combat == null)
-            combat = source.GetComponentInParent<PlayerCombatController>();
+        PlayerCombatController combat = ResolvePlayerCombatFromDamageSource(source);
 
         bool grantXp = definition == null || definition.grantCombatXp;
         if (combat != null)
@@ -1902,6 +2027,75 @@ public class EnemyBaseController : MonoBehaviour
             float xpDamage = damageDealt * (_isElite ? 2f : 1f);
             combat.AwardCombatXp(xpDamage, bucket, grantXp, outgoingDpsSourceLabel, _mapScalingXpRateMultiplier);
         }
+    }
+
+    private static PlayerCombatController ResolvePlayerCombatFromDamageSource(Transform source)
+    {
+        if (!source)
+            return null;
+
+        PlayerCombatController combat = source.GetComponent<PlayerCombatController>();
+        if (combat != null)
+            return combat;
+
+        combat = source.GetComponentInParent<PlayerCombatController>();
+        if (combat != null)
+            return combat;
+
+        MinionCombatTarget mct = source.GetComponent<MinionCombatTarget>();
+        if (!mct)
+            mct = source.GetComponentInParent<MinionCombatTarget>();
+        return mct != null ? mct.OwnerCombat : null;
+    }
+
+    private void StampDamageEngagementFromAttacker(Transform attacker)
+    {
+        if (!attacker)
+            return;
+
+        if (EnemyAggro.IsDirectPlayerAttacker(attacker))
+        {
+            _playerDamagedThisEnemy = true;
+            return;
+        }
+
+        MinionCombatTarget minionAttacker = EnemyAggro.GetMinionCombatTargetFrom(attacker);
+        if (minionAttacker != null && minionAttacker.IsAlive)
+            _minionDamagedThisEnemy = true;
+    }
+
+    private void ResolveIncomingAggroFromAttacker(Transform attacker)
+    {
+        if (!attacker)
+            return;
+
+        MinionCombatTarget minionAttacker = EnemyAggro.GetMinionCombatTargetFrom(attacker);
+
+        EnemyAggro.ResolveIncomingHitAggro(
+            attacker,
+            _playerDamagedThisEnemy,
+            _minionDamagedThisEnemy,
+            IsRetaliationMinionValidAlive(),
+            IsMinionActivelyStrikingThisEnemy(_retaliationMinionTarget),
+            minionAttacker,
+            ref _retaliationMinionTarget);
+    }
+
+    private bool IsMinionActivelyStrikingThisEnemy(Transform minionTransform)
+    {
+        if (!minionTransform)
+            return false;
+
+        SoulforgedWarriorMinion warrior = minionTransform.GetComponent<SoulforgedWarriorMinion>();
+        if (!warrior)
+            warrior = minionTransform.GetComponentInParent<SoulforgedWarriorMinion>();
+        if (warrior)
+            return warrior.CurrentTarget == this;
+
+        MinionCombatController combat = minionTransform.GetComponent<MinionCombatController>();
+        if (!combat)
+            combat = minionTransform.GetComponentInParent<MinionCombatController>();
+        return combat != null && combat.CurrentTarget == this;
     }
 
     private void TryDropMapCombatScalingSpecialLoot()
@@ -2038,7 +2232,7 @@ public class EnemyBaseController : MonoBehaviour
         if (def == null || def.enemyAggroMode != LevelEnemyAggroMode.CalmUntilPlayerAggressive)
             return;
 
-        LevelAggroState.TriggerPlayerAggression(def);
+        LevelAggroState.TriggerAggression(def, attacker);
     }
 
     private static bool IsFromPlayerTeam(Transform attacker)
@@ -2055,6 +2249,10 @@ public class EnemyBaseController : MonoBehaviour
         if (attacker.GetComponent<PlayerAbilityController>() != null || attacker.GetComponentInParent<PlayerAbilityController>() != null)
             return true;
         if (attacker.GetComponent<SoulforgedWeaponMinion>() != null || attacker.GetComponentInParent<SoulforgedWeaponMinion>() != null)
+            return true;
+        if (attacker.GetComponent<SoulforgedWarriorMinion>() != null || attacker.GetComponentInParent<SoulforgedWarriorMinion>() != null)
+            return true;
+        if (attacker.GetComponent<MinionCombatTarget>() != null || attacker.GetComponentInParent<MinionCombatTarget>() != null)
             return true;
 
         return false;
@@ -2123,6 +2321,12 @@ public class EnemyBaseController : MonoBehaviour
         // Mark this enemy as "player aggression triggered on this map" so it can
         // switch to normal range-based aggro without forcing hard aggro at any distance.
         _mapAggroTriggeredForSession = true;
+
+        if (_playerDamagedThisEnemy || _minionDamagedThisEnemy)
+            return;
+
+        if (TryGetMapAggroMinionThreat(out Transform instigator))
+            _retaliationMinionTarget = instigator;
     }
 
     private void OnDrawGizmosSelected()

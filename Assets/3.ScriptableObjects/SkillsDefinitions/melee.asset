@@ -1492,6 +1492,35 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 45
+    title: Soulforged Warrior
+    description: Summon a soulforged clone of yourself to fight at your side. Your
+      warrior inherits your weapon strikes and draws enemy attacks while it lives.
+    icon: {fileID: 2127427094619477876, guid: a311d655e950d354a9c1c011aaaeb036, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 8a23a1c8cd5e76081a355bb4c482a28b, type: 2}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 48
+      title: Placeholder Enhancement A
+      description: Placeholder — enhancement details coming soon.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 48
+      title: Placeholder Enhancement B
+      description: Placeholder — enhancement details coming soon.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 46
     title: Ailment Synergy II
     description: +4% Melee Bleed, Poison & Burn Multipliers

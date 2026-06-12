@@ -21,6 +21,9 @@ public static class AbilityCombatPower
     public const float CrescentSlashReach = 12f;
     public const string GuardiansHammerAbilityId = "guardians_hammer";
     public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
+    public const string SoulforgedWarriorAbilityId = "soulforged_warrior";
+    public const string SoulforgedWarriorOutgoingSourceLabel = "Soulforged Warrior";
+    public const string SoulforgedWarriorEnhancementParentSpineNodeId = "Lv40_0";
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
     public const string FishingFrenzyAbilityId = "fishing_frenzy";
     public const string CleavingChopAbilityId = "cleaving_chop";

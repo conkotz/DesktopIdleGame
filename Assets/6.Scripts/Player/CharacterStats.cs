@@ -5294,6 +5294,34 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return totalToVitals;
     }
 
+    /// <summary>Fixed vitals for summons/minions (no gear bonuses; HP bar only).</summary>
+    public void ApplySummonVitals(int maxHp, string displayName = "Summon")
+    {
+        _isDead = false;
+        baseMaxHP = Mathf.Max(1, maxHp);
+        currentHP = MaxHP;
+        currentGuard = 0f;
+        unitDisplayName = string.IsNullOrWhiteSpace(displayName) ? "Summon" : displayName.Trim();
+        OnHPChanged?.Invoke(currentHP, MaxHP);
+        RaiseGuardChanged();
+        OnStatsChanged?.Invoke();
+        OnNameChanged?.Invoke(unitDisplayName);
+    }
+
+    /// <summary>Copies scaled owner defense ratings onto this summon (flat base stats only).</summary>
+    public void ApplySummonDefensesFromOwner(CharacterStats owner, MinionDefensiveInheritance inheritance)
+    {
+        if (!owner || !inheritance.inheritOwnerDefenses)
+            return;
+
+        baseArmor = Mathf.Max(0, Mathf.RoundToInt(owner.Armor * inheritance.ownerArmorFraction));
+        baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(owner.MagicResist * inheritance.ownerMagicResistFraction));
+        baseCorruptionResist = Mathf.Max(
+            0,
+            Mathf.RoundToInt(owner.CorruptionResist * inheritance.ownerCorruptionResistFraction));
+        OnStatsChanged?.Invoke();
+    }
+
     public void ReviveFull()
     {
         _isDead = false;

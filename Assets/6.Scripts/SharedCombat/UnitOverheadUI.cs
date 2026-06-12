@@ -1573,6 +1573,7 @@ public class UnitOverheadUI : MonoBehaviour
     private void RefreshNameCombatPowerAndProfile()
     {
         string baseName = "Unit";
+        bool isAllyMinion = characterStats != null && characterStats.GetComponent<MinionCombatTarget>() != null;
 
         if (enemy != null)
             baseName = enemy.GetRichTextDisplayNameForOverhead();
@@ -1582,7 +1583,7 @@ public class UnitOverheadUI : MonoBehaviour
         if (nameText != null)
         {
             nameText.richText = true;
-            if (characterStats == null)
+            if (characterStats == null || isAllyMinion)
                 nameText.text = baseName;
             else
             {
@@ -1593,13 +1594,15 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (combatProfileText != null)
         {
-            if (characterStats == null)
+            if (characterStats == null || isAllyMinion)
             {
                 combatProfileText.text = string.Empty;
                 combatProfileText.color = Color.white;
+                combatProfileText.gameObject.SetActive(false);
             }
             else
             {
+                combatProfileText.gameObject.SetActive(true);
                 CombatPowerBreakdown breakdown = characterStats.GetCombatPowerBreakdown();
                 CombatProfileDefenseHints defenseHints = characterStats.GetCombatProfileDefenseHints();
                 string profileLabel = CombatProfileClassifier.Classify(breakdown, defenseHints);

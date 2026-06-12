@@ -1760,8 +1760,30 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead) return;
 
+        GetClampXMinMax(out float min, out float max);
+        float clamped = Mathf.Clamp(x, min, max);
+
         if (fromPlayerInput)
+        {
+            float distFromCurrent = Mathf.Abs(clamped - transform.position.x);
+            if (distFromCurrent <= clickArriveThreshold)
+                return;
+
+            if (Mathf.Abs(clamped - moveTargetX) <= clickArriveThreshold)
+                return;
+
+            bool redirectWhileWalking =
+                state == State.MoveToPoint &&
+                _moveToPointFromPlayerInput;
+
+            if (redirectWhileWalking)
+            {
+                moveTargetX = clamped;
+                return;
+            }
+
             NotifyPlayerInitiatedMovement();
+        }
 
         CaptureWoodcuttingFlowLingerOnGatherStop();
         CaptureFishingCalmWatersOnGatherStop();
@@ -1774,14 +1796,12 @@ public class PlayerController : MonoBehaviour
         _gatherTimer = 0f;
         _nextGatherInterval = 0f;
 
-        GetClampXMinMax(out float min, out float max);
-
-        moveTargetX = Mathf.Clamp(x, min, max);
+        moveTargetX = clamped;
         _moveToPointFromPlayerInput = fromPlayerInput;
         state = State.MoveToPoint;
 
         equipment?.ClearMainHandVisualOverride();
-        SetAction(PlayerAction.Walking, true);
+        SetAction(PlayerAction.Walking, fromPlayerInput ? false : true);
     }
 
     public void MoveToPointX_Combat(float x)
@@ -1892,6 +1912,12 @@ public class PlayerController : MonoBehaviour
                 !combat.CurrentTarget.IsDead)
             {
                 state = State.Idle;
+            }
+            else if (_moveToPointFromPlayerInput)
+            {
+                state = State.Idle;
+                _moveToPointFromPlayerInput = false;
+                SetAction(PlayerAction.Idle, false);
             }
             else
             {

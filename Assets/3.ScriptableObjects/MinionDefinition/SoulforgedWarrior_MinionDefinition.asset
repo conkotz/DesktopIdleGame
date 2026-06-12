@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b1c9fcc0c4430e4b973ca502d99cd4a, type: 3}
-  m_Name: SoulforgedWeapon_MinionDefinition
+  m_Name: SoulforgedWarrior_MinionDefinition
   m_EditorClassIdentifier: Assembly-CSharp::MinionDefinition
-  runtimePrefab: {fileID: 5834920744521277035, guid: 2d089ffdb42e1404b8233d580cdc04e3, type: 3}
+  runtimePrefab: {fileID: 7123456789012345678, guid: b6b235c6c1e4b1258997c7db9c72e9a5, type: 3}
   summonDuration: 30
   combatConfig:
     damageSourceMode: 0
@@ -41,5 +41,10 @@ MonoBehaviour:
       bleedChance: 0
       burnChance: 0
       shockChance: 0
-  ownerMaxHealthFraction: 0
+  ownerMaxHealthFraction: 1
   baseMaxHealth: 0
+  defensiveInheritance:
+    inheritOwnerDefenses: 1
+    ownerArmorFraction: 1
+    ownerMagicResistFraction: 1
+    ownerCorruptionResistFraction: 1
