@@ -219,9 +219,24 @@ public class InventoryGridUI : MonoBehaviour
     {
         _dirty = true;
         _displayPrewarmed = false;
+        ClearSlotRebindCache();
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
             return;
         _pendingLateRebuild = true;
+    }
+
+    public static void RefreshAllGrids()
+    {
+        InventoryGridUI[] grids = FindObjectsByType<InventoryGridUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < grids.Length; i++)
+        {
+            InventoryGridUI grid = grids[i];
+            if (grid)
+                grid.RefreshNow();
+        }
     }
 
     private void LateUpdate()

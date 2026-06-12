@@ -119,6 +119,7 @@ public static class MapEnhancementService
 
         progress.NotifyProgressChangedAndSave();
         MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
+        InventoryGridUI.RefreshAllGrids();
         return true;
     }
 
@@ -143,6 +144,7 @@ public static class MapEnhancementService
 
         progress.NotifyProgressChangedAndSave();
         MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
+        InventoryGridUI.RefreshAllGrids();
         return true;
     }
 
@@ -220,21 +222,21 @@ public static class MapEnhancementService
         switch (mod.modType)
         {
             case MapEnhancementModType.RespawnTimeReduction:
-                return $"Enemy respawn time -{mod.value:0.#}s";
+                return FormatRespawnTimeLine(mod.value);
             case MapEnhancementModType.ExtraEnemySpawns:
-                return $"Extra spawns +{Mathf.RoundToInt(mod.value)} {FormatEnemyName(mod.extraSpawnEnemyId)}";
+                return FormatExtraSpawnsLine(Mathf.RoundToInt(mod.value), mod.extraSpawnEnemyId);
             case MapEnhancementModType.LootBonus:
                 return FormatLootBonusLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.EnemyDamageReduction:
-                return $"Enemy damage -{Mathf.RoundToInt(mod.value * 100f)}% from base";
+                return FormatEnemyDamageLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.GoldBonus:
-                return $"Enemy gold +{Mathf.RoundToInt(mod.value * 100f)}% from base";
+                return FormatEnemyGoldLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.EliteSpawnChanceBonus:
-                return $"Elite spawn chance +{Mathf.RoundToInt(mod.value * 100f)}% relative";
+                return FormatEliteSpawnChanceLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.EliteSpawnDouble:
-                return $"Elite double spawn {Mathf.RoundToInt(mod.value * 100f)}% chance";
+                return FormatEliteDoubleSpawnLine(Mathf.RoundToInt(mod.value * 100f));
             case MapEnhancementModType.EliteHealthReduction:
-                return $"Elite health -{Mathf.RoundToInt(mod.value * 100f)}%";
+                return FormatEliteHealthLine(Mathf.RoundToInt(mod.value * 100f));
             default:
                 return "Unknown modifier";
         }
@@ -337,21 +339,21 @@ public static class MapEnhancementService
         switch (mod.modType)
         {
             case MapEnhancementModType.RespawnTimeReduction:
-                return $"Enemy respawn time -{cfg.minValue:0.#}-{cfg.maxValue:0.#}s";
+                return FormatRespawnTimeRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.ExtraEnemySpawns:
-                return $"Extra spawns {FormatIntRange(cfg.minValue, cfg.maxValue)} {FormatEnemyName(mod.extraSpawnEnemyId)}";
+                return FormatExtraSpawnsRangeLine(cfg.minValue, cfg.maxValue, mod.extraSpawnEnemyId);
             case MapEnhancementModType.LootBonus:
                 return FormatLootBonusRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EnemyDamageReduction:
-                return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatEnemyDamageRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.GoldBonus:
-                return $"Enemy gold +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatEnemyGoldRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteSpawnChanceBonus:
-                return $"Elite spawn chance +{FormatPercentRange(cfg.minValue, cfg.maxValue)} relative";
+                return FormatEliteSpawnChanceRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteSpawnDouble:
-                return $"Elite double spawn {FormatPercentRange(cfg.minValue, cfg.maxValue)} chance";
+                return FormatEliteDoubleSpawnRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteHealthReduction:
-                return $"Elite health -{FormatPercentRange(cfg.minValue, cfg.maxValue)}";
+                return FormatEliteHealthRangeLine(cfg.minValue, cfg.maxValue);
             default:
                 return "Unknown modifier";
         }
@@ -362,36 +364,82 @@ public static class MapEnhancementService
         switch (cfg.modType)
         {
             case MapEnhancementModType.RespawnTimeReduction:
-                return $"Enemy respawn time -{cfg.minValue:0.#}-{cfg.maxValue:0.#}s";
+                return FormatRespawnTimeRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.ExtraEnemySpawns:
-                return $"Extra spawns {FormatIntRange(cfg.minValue, cfg.maxValue)} enemies";
+                return FormatExtraSpawnsRangeLine(cfg.minValue, cfg.maxValue, enemyId: null);
             case MapEnhancementModType.LootBonus:
                 return FormatLootBonusRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EnemyDamageReduction:
-                return $"Enemy damage -{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatEnemyDamageRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.GoldBonus:
-                return $"Enemy gold +{FormatPercentRange(cfg.minValue, cfg.maxValue)} from base";
+                return FormatEnemyGoldRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteSpawnChanceBonus:
-                return $"Elite spawn chance +{FormatPercentRange(cfg.minValue, cfg.maxValue)} relative";
+                return FormatEliteSpawnChanceRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteSpawnDouble:
-                return $"Elite double spawn {FormatPercentRange(cfg.minValue, cfg.maxValue)} chance";
+                return FormatEliteDoubleSpawnRangeLine(cfg.minValue, cfg.maxValue);
             case MapEnhancementModType.EliteHealthReduction:
-                return $"Elite health -{FormatPercentRange(cfg.minValue, cfg.maxValue)}";
+                return FormatEliteHealthRangeLine(cfg.minValue, cfg.maxValue);
             default:
                 return "Unknown modifier";
         }
     }
 
+    private static string FormatRespawnTimeLine(float seconds) =>
+        $"Enemy Respawn Time: -{seconds:0.#}s";
+
+    private static string FormatRespawnTimeRangeLine(float minSeconds, float maxSeconds) =>
+        $"Enemy Respawn Time: -{minSeconds:0.#}-{maxSeconds:0.#}s";
+
+    private static string FormatExtraSpawnsLine(int count, string enemyId) =>
+        $"Extra Spawns: +{count} {FormatEnemyName(enemyId)}";
+
+    private static string FormatExtraSpawnsRangeLine(float minValue, float maxValue, string enemyId)
+    {
+        string count = FormatIntRange(minValue, maxValue);
+        string enemy = string.IsNullOrWhiteSpace(enemyId) ? "enemies" : FormatEnemyName(enemyId);
+        return $"Extra Spawns: +{count} {enemy}";
+    }
+
     private static string FormatLootBonusLine(int percent) =>
-        $"Enemy loot chance: +{percent}% (Non elite)";
+        $"Enemy Loot Chance: +{percent}% (Non elite)";
 
     private static string FormatLootBonusRangeLine(float minFraction, float maxFraction)
     {
         int min = Mathf.RoundToInt(minFraction * 100f);
         int max = Mathf.RoundToInt(maxFraction * 100f);
         string percent = min == max ? $"+{min}%" : $"+{min}-{max}%";
-        return $"Enemy loot chance: {percent} (Non elite)";
+        return $"Enemy Loot Chance: {percent} (Non elite)";
     }
+
+    private static string FormatEnemyDamageLine(int percent) =>
+        $"Enemy Damage: -{percent}%";
+
+    private static string FormatEnemyDamageRangeLine(float minFraction, float maxFraction) =>
+        $"Enemy Damage: -{FormatPercentRange(minFraction, maxFraction)}";
+
+    private static string FormatEnemyGoldLine(int percent) =>
+        $"Enemy Gold: +{percent}%";
+
+    private static string FormatEnemyGoldRangeLine(float minFraction, float maxFraction) =>
+        $"Enemy Gold: +{FormatPercentRange(minFraction, maxFraction)}";
+
+    private static string FormatEliteSpawnChanceLine(int percent) =>
+        $"Elite Spawn Chance: +{percent}%";
+
+    private static string FormatEliteSpawnChanceRangeLine(float minFraction, float maxFraction) =>
+        $"Elite Spawn Chance: +{FormatPercentRange(minFraction, maxFraction)}";
+
+    private static string FormatEliteDoubleSpawnLine(int percent) =>
+        $"Elite Double Spawn: {percent}%";
+
+    private static string FormatEliteDoubleSpawnRangeLine(float minFraction, float maxFraction) =>
+        $"Elite Double Spawn: {FormatPercentRange(minFraction, maxFraction)}";
+
+    private static string FormatEliteHealthLine(int percent) =>
+        $"Elite Health: -{percent}%";
+
+    private static string FormatEliteHealthRangeLine(float minFraction, float maxFraction) =>
+        $"Elite Health: -{FormatPercentRange(minFraction, maxFraction)}";
 
     /// <summary>Base elite chance multiplied by (1 + relative bonus). 10% base + 10% relative bonus = 11%.</summary>
     public static float GetEffectiveEliteSpawnChance(float baseChance, MapEnhancementAggregate aggregate)
@@ -426,33 +474,33 @@ public static class MapEnhancementService
         var lines = new List<string>();
 
         if (aggregate.respawnTimeReductionSeconds > 0.001f)
-            lines.Add($"Enemy respawn time -{aggregate.respawnTimeReductionSeconds:0.#}s");
+            lines.Add(FormatRespawnTimeLine(aggregate.respawnTimeReductionSeconds));
 
         foreach (KeyValuePair<string, int> pair in aggregate.extraSpawnsByEnemyId)
         {
             if (pair.Value <= 0)
                 continue;
 
-            lines.Add($"Extra spawns +{pair.Value} {FormatEnemyName(pair.Key)}");
+            lines.Add(FormatExtraSpawnsLine(pair.Value, pair.Key));
         }
 
         if (aggregate.lootBonusFraction > 0.001f)
             lines.Add(FormatLootBonusLine(Mathf.RoundToInt(aggregate.lootBonusFraction * 100f)));
 
         if (aggregate.enemyDamageReductionFraction > 0.001f)
-            lines.Add($"Enemy damage -{Mathf.RoundToInt(aggregate.enemyDamageReductionFraction * 100f)}% from base");
+            lines.Add(FormatEnemyDamageLine(Mathf.RoundToInt(aggregate.enemyDamageReductionFraction * 100f)));
 
         if (aggregate.goldBonusFraction > 0.001f)
-            lines.Add($"Enemy gold +{Mathf.RoundToInt(aggregate.goldBonusFraction * 100f)}% from base");
+            lines.Add(FormatEnemyGoldLine(Mathf.RoundToInt(aggregate.goldBonusFraction * 100f)));
 
         if (aggregate.eliteSpawnChanceBonusFraction > 0.001f)
-            lines.Add($"Elite spawn chance +{Mathf.RoundToInt(aggregate.eliteSpawnChanceBonusFraction * 100f)}% relative");
+            lines.Add(FormatEliteSpawnChanceLine(Mathf.RoundToInt(aggregate.eliteSpawnChanceBonusFraction * 100f)));
 
         if (aggregate.eliteDoubleSpawnChance > 0.001f)
-            lines.Add($"Elite double spawn {Mathf.RoundToInt(aggregate.eliteDoubleSpawnChance * 100f)}% chance");
+            lines.Add(FormatEliteDoubleSpawnLine(Mathf.RoundToInt(aggregate.eliteDoubleSpawnChance * 100f)));
 
         if (aggregate.eliteHealthReductionFraction > 0.001f)
-            lines.Add($"Elite health -{Mathf.RoundToInt(aggregate.eliteHealthReductionFraction * 100f)}%");
+            lines.Add(FormatEliteHealthLine(Mathf.RoundToInt(aggregate.eliteHealthReductionFraction * 100f)));
 
         return lines.Count == 0 ? "None" : string.Join("\n", lines);
     }

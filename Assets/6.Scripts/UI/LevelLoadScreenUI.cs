@@ -83,7 +83,7 @@ public sealed class LevelLoadScreenUI : MonoBehaviour
         _cogBaseColor = LabelColor;
         _loadingText = CreateLabel(contentRect, "LoadingText", "Loading", 28f, FontStyles.Bold, LabelColor);
         _loadingBaseColor = LabelColor;
-        _mapNameText = CreateLabel(contentRect, "MapNameText", string.Empty, 22f, FontStyles.Normal, MapNameColor);
+        _mapNameText = CreateLabel(contentRect, "MapNameText", string.Empty, 44f, FontStyles.Normal, MapNameColor);
         _mapNameBaseColor = MapNameColor;
         _pulseActive = true;
     }

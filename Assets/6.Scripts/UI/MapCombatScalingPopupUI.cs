@@ -12,7 +12,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
     private const int TooltipSortOrder = CanvasSortOrder + 100;
-    private const int UiVersion = 12;
+    private const int UiVersion = 13;
     private const float DetailsScrollbarWidth = 14f;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
@@ -38,6 +38,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private TMP_Text _reenterWarningText;
     private TMP_Text _detailsText;
     private ScrollRect _detailsScrollRect;
+    private Scrollbar _detailsVerticalScrollbar;
     private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
     private MapEnhancementScalingSlotUI[] _enhancementSlots;
     private TMP_Text _appliedEffectsText;
@@ -296,6 +297,22 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
 
         _detailsScrollRect.verticalNormalizedPosition = 1f;
+        UpdateDetailsScrollbarVisibility();
+    }
+
+    private void UpdateDetailsScrollbarVisibility()
+    {
+        if (_detailsScrollRect == null)
+            return;
+
+        RectTransform viewport = _detailsScrollRect.viewport;
+        RectTransform content = _detailsScrollRect.content;
+        if (!viewport || !content)
+            return;
+
+        bool scrollable = content.rect.height > viewport.rect.height + 1f;
+        if (_detailsVerticalScrollbar)
+            _detailsVerticalScrollbar.gameObject.SetActive(scrollable);
     }
 
     private IEnumerator CoRefreshDetailsScrollNextFrame()
@@ -365,6 +382,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _reenterWarningText = null;
         _detailsText = null;
         _detailsScrollRect = null;
+        _detailsVerticalScrollbar = null;
         _confirmButton = null;
         _appliedEffectsText = null;
         _enhancementSlots = null;
@@ -788,17 +806,16 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
         scroll.scrollSensitivity = 24f;
         scroll.inertia = true;
-        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
         _detailsScrollRect = scroll;
 
         RectTransform viewport = CreateChild(scrollRoot, "Viewport");
         Stretch(viewport, 0f, 0f, 1f, 1f);
-        viewport.offsetMax = new Vector2(-DetailsScrollbarWidth, 0f);
         viewport.gameObject.AddComponent<RectMask2D>();
         scroll.viewport = viewport;
 
-        Scrollbar verticalScrollbar = CreateDetailsVerticalScrollbar(scrollRoot);
-        scroll.verticalScrollbar = verticalScrollbar;
+        _detailsVerticalScrollbar = CreateDetailsVerticalScrollbar(scrollRoot);
+        scroll.verticalScrollbar = _detailsVerticalScrollbar;
 
         RectTransform content = CreateChild(viewport, "Content");
         content.anchorMin = new Vector2(0f, 1f);
