@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -42,7 +43,11 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     /// </summary>
     [SerializeField] private bool counterHudCanvasScale;
 
+    [SerializeField] private bool persistCornerScaleToPlayerPrefs = true;
+
     private bool _subscribedHudSlider;
+
+    public event Action ResizeEnded;
 
     private readonly Vector3[] _corners = new Vector3[4];
     private RectTransform _rect;
@@ -71,6 +76,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         resize.omitTopCornerHandles = omitTopCornerHandles;
         resize.counterHudCanvasScale = counterHudCanvasScale;
         resize.omitBottomRightCornerHandle = omitBottomRightCornerHandle;
+        resize.persistCornerScaleToPlayerPrefs = true;
         resize.ResolveTarget();
         resize.EnsureHandles();
         resize.RefreshHandlesActive();
@@ -80,6 +86,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         resize.ApplyScale(remembered);
         return resize;
     }
+
+    public void SetPersistCornerScaleToPlayerPrefs(bool persist) =>
+        persistCornerScaleToPlayerPrefs = persist;
 
     /// <summary>
     /// Parents bottom corner hit targets under <paramref name="parent"/> so they track that rect's bottom edge (see <see cref="bottomResizeHandleParent"/>).
@@ -232,6 +241,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (!targetWindow || handle == null)
             return;
 
+        if (targetWindow.GetComponent<WindowPivotGhostUI>() != null)
+            targetWindow.SetAsLastSibling();
+
         targetWindow.GetWorldCorners(_corners);
         _oppositeCornerScreenPoint = RectTransformUtility.WorldToScreenPoint(
             eventData.pressEventCamera,
@@ -260,6 +272,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     {
         RememberCurrentScale();
         ClampDragWindows();
+        if (targetWindow && UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey))
+            UIWindowSessionLayoutMemory.Capture(targetWindow, memoryKey);
+        ResizeEnded?.Invoke();
     }
 
     public void ResetScale()
@@ -500,6 +515,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     private void RestoreRememberedScale()
     {
+        if (!string.IsNullOrWhiteSpace(memoryKey) && UIWindowLayoutPrefs.HasSaved(memoryKey))
+            return;
+
         ApplyScale(GetPersistedCornerScaleMultiplier());
     }
 
@@ -518,6 +536,33 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     }
 
     private void RememberCurrentScale()
+    {
+        if (!ShouldPersistCornerScaleToPlayerPrefs() || !targetWindow || string.IsNullOrWhiteSpace(memoryKey))
+            return;
+
+        float mult = GetCurrentScaleMultiplier();
+        PlayerPrefs.SetFloat(GetScalePrefsKey(memoryKey), mult);
+        PlayerPrefs.Save();
+    }
+
+    private bool ShouldPersistCornerScaleToPlayerPrefs()
+    {
+        if (!persistCornerScaleToPlayerPrefs)
+            return false;
+
+        // Pivot windows only persist size from Move Pivots mode, not normal corner drags.
+        return !UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey);
+    }
+
+    public void ApplyLayoutScaleFromSnapshot(Vector3 localScale)
+    {
+        if (!targetWindow)
+            return;
+
+        targetWindow.localScale = localScale;
+    }
+
+    public void SyncPersistedScaleFromCurrentTransform()
     {
         if (!targetWindow || string.IsNullOrWhiteSpace(memoryKey))
             return;

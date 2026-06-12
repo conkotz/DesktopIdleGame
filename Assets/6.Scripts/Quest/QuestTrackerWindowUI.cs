@@ -12,6 +12,10 @@ using UnityEngine.UI;
 public class QuestTrackerWindowUI : MonoBehaviour
 {
     private const string TrackerWindowName = "QuestTrackerWindow";
+    private const float PivotPlaceholderHeaderHeight = 35f;
+    private const float PivotPlaceholderRowSpacing = 12f;
+    private const float PivotPlaceholderFallbackRowHeight = 73f;
+    private static float s_cachedPivotRowHeight = -1f;
     private const string TrackerContentName = "Content";
     private const string TrackerTitleName = "QuestsTrackLabel";
     private const string RowNameTextChild = "QuestTrackerListName";
@@ -594,6 +598,117 @@ public class QuestTrackerWindowUI : MonoBehaviour
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Quest entries stack downward from the header — pivot layout anchors the window top so growth extends down only.
+    /// </summary>
+    public static void ApplyTopAnchoredPivotLayout(RectTransform rect, float targetHeight)
+    {
+        if (!rect || targetHeight <= 0f)
+            return;
+
+        RectTransform parent = rect.parent as RectTransform;
+        if (!parent)
+            return;
+
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        Vector2 topLeftScreen = RectTransformUtility.WorldToScreenPoint(null, corners[1]);
+
+        float anchorX = rect.anchorMin.x;
+        float anchorMaxX = rect.anchorMax.x;
+        float pivotX = rect.pivot.x;
+        rect.anchorMin = new Vector2(anchorX, 1f);
+        rect.anchorMax = new Vector2(anchorMaxX, 1f);
+        rect.pivot = new Vector2(pivotX, 1f);
+        rect.sizeDelta = new Vector2(rect.sizeDelta.x, targetHeight);
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            parent,
+            topLeftScreen,
+            null,
+            out Vector2 topLeftInParent);
+
+        Vector2 anchorRef = GetAnchorReferenceInParentLocal(parent, rect.anchorMin, rect.anchorMax);
+        rect.anchoredPosition = topLeftInParent - anchorRef;
+    }
+
+    private static Vector2 GetAnchorReferenceInParentLocal(
+        RectTransform parent,
+        Vector2 anchorMin,
+        Vector2 anchorMax)
+    {
+        Rect parentRect = parent.rect;
+        return new Vector2(
+            Mathf.Lerp(parentRect.xMin, parentRect.xMax, anchorMin.x),
+            Mathf.Lerp(parentRect.yMin, parentRect.yMax, anchorMax.y));
+    }
+
+    /// <summary>Height for move-pivots placeholder assuming <see cref="QuestTrackerState.MaxTrackedQuestCount"/> tracked rows.</summary>
+    public static float GetPivotPlaceholderHeight()
+    {
+        int rows = QuestTrackerState.MaxTrackedQuestCount;
+        float rowHeight = MeasureOrEstimatePivotRowHeight();
+        float contentHeight = rows * rowHeight + Mathf.Max(0, rows - 1) * PivotPlaceholderRowSpacing;
+        return PivotPlaceholderHeaderHeight + contentHeight;
+    }
+
+    private static float MeasureOrEstimatePivotRowHeight()
+    {
+        if (s_cachedPivotRowHeight > 0f)
+            return s_cachedPivotRowHeight;
+
+        QuestTrackerWindowUI tracker =
+            FindFirstObjectByType<QuestTrackerWindowUI>(FindObjectsInactive.Include);
+        if (tracker != null && tracker.TryMeasurePivotRowHeight(out float measured))
+        {
+            s_cachedPivotRowHeight = measured;
+            return measured;
+        }
+
+        s_cachedPivotRowHeight = PivotPlaceholderFallbackRowHeight;
+        return s_cachedPivotRowHeight;
+    }
+
+    private bool TryMeasurePivotRowHeight(out float rowHeight)
+    {
+        rowHeight = 0f;
+        if (!questTrackerRowPrefab)
+            return false;
+
+        RectTransform widthReference = trackerContentRoot != null
+            ? trackerContentRoot
+            : transform as RectTransform;
+        float contentWidth = widthReference != null ? Mathf.Max(1f, widthReference.rect.width) : 380f;
+
+        GameObject measureHost = new GameObject("PivotRowMeasure", typeof(RectTransform));
+        RectTransform hostRt = measureHost.GetComponent<RectTransform>();
+        hostRt.SetParent(transform, false);
+        hostRt.sizeDelta = new Vector2(contentWidth, 0f);
+
+        GameObject row = Instantiate(questTrackerRowPrefab, hostRt);
+        row.SetActive(true);
+
+        TMP_Text nameText = row.transform.Find(RowNameTextChild)?.GetComponent<TMP_Text>();
+        TMP_Text progressText = row.transform.Find(RowProgressTextChild)?.GetComponent<TMP_Text>();
+        if (nameText)
+            nameText.text = "Sample quest name";
+        if (progressText)
+            progressText.text = "0 / 1 objective";
+
+        RectTransform rowRt = row.transform as RectTransform;
+        if (rowRt)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rowRt);
+            rowHeight = LayoutUtility.GetPreferredHeight(rowRt);
+            if (rowHeight <= 0f)
+                rowHeight = rowRt.rect.height;
+        }
+
+        Destroy(measureHost);
+        return rowHeight > 0f;
     }
 
     /// <summary>

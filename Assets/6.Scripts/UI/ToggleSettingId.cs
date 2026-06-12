@@ -44,4 +44,10 @@ public enum ToggleSettingId
 
     /// <summary>When true (default), floating damage numbers appear on enemies when the player deals damage.</summary>
     ShowOutgoingDamageNumbers = 15,
+
+    /// <summary>When true, shows draggable/resizable ghost outlines for all movable HUD windows.</summary>
+    MoveWindowPivots = 16,
+
+    /// <summary>When true (default), the dev testing toolbar (<see cref="DevTestingPanelUI"/>) is visible.</summary>
+    ShowDevPanel = 17,
 }

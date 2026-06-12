@@ -118,6 +118,9 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public GameObject CurrentPage => currentPage;
 
+    public bool IsSettingsPageOpen =>
+        IsOpen && settingsPage != null && currentPage == settingsPage;
+
     public GameObject FullMapPage => fullMapPage;
 
     /// <summary>True when <paramref name="t"/> is under a hierarchy root named OLD_UNUSED.</summary>

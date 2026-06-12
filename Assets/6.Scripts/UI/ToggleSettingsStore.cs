@@ -25,6 +25,8 @@ public static class ToggleSettingsStore
     private const string ShowOffscreenMarkersKey = "Settings.ShowOffscreenMarkers";
     private const string ShowIncomingDamageNumbersKey = "Settings.ShowIncomingDamageNumbers";
     private const string ShowOutgoingDamageNumbersKey = "Settings.ShowOutgoingDamageNumbers";
+    private const string MoveWindowPivotsKey = "Settings.MoveWindowPivots";
+    private const string ShowDevPanelKey = "Settings.ShowDevPanel";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -63,6 +65,10 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ShowIncomingDamageNumbersKey, 1) != 0,
             ToggleSettingId.ShowOutgoingDamageNumbers =>
                 PlayerPrefs.GetInt(ShowOutgoingDamageNumbersKey, 1) != 0,
+            ToggleSettingId.MoveWindowPivots =>
+                PlayerPrefs.GetInt(MoveWindowPivotsKey, 0) != 0,
+            ToggleSettingId.ShowDevPanel =>
+                PlayerPrefs.GetInt(ShowDevPanelKey, 1) != 0,
             _ => false
         };
     }
@@ -159,6 +165,12 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowOutgoingDamageNumbers:
                 PlayerPrefs.SetInt(ShowOutgoingDamageNumbersKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.MoveWindowPivots:
+                PlayerPrefs.SetInt(MoveWindowPivotsKey, value ? 1 : 0);
+                break;
+            case ToggleSettingId.ShowDevPanel:
+                PlayerPrefs.SetInt(ShowDevPanelKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -178,6 +190,12 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.ShowOffscreenMarkers)
             OffscreenMarkersController.RefreshAllFromSettings();
+
+        if (setting == ToggleSettingId.MoveWindowPivots)
+            MovePivotsModeController.RefreshAllFromSettings();
+
+        if (setting == ToggleSettingId.ShowDevPanel)
+            DevTestingPanelUI.RefreshAllFromSettings();
     }
 
     internal static void ClearAllStoredKeysAndReload()
@@ -200,6 +218,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(ShowOffscreenMarkersKey);
         PlayerPrefs.DeleteKey(ShowIncomingDamageNumbersKey);
         PlayerPrefs.DeleteKey(ShowOutgoingDamageNumbersKey);
+        PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
+        PlayerPrefs.DeleteKey(ShowDevPanelKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
@@ -207,6 +227,9 @@ public static class ToggleSettingsStore
         FpsDisplayText.RefreshAllFromSettings();
         HUDToggle.RefreshAllFromTownSetting();
         OffscreenMarkersController.RefreshAllFromSettings();
+
+        MovePivotsModeController.RefreshAllFromSettings();
+        DevTestingPanelUI.RefreshAllFromSettings();
 
         foreach (ToggleSettingId id in Enum.GetValues(typeof(ToggleSettingId)))
             Changed?.Invoke(id, Get(id));
@@ -240,6 +263,10 @@ public static class ToggleSettingsStore
                 "Show incoming damage numbers",
             ToggleSettingId.ShowOutgoingDamageNumbers =>
                 "Show outgoing damage numbers",
+            ToggleSettingId.MoveWindowPivots =>
+                "Move pivots",
+            ToggleSettingId.ShowDevPanel =>
+                "Show dev panel (TESTING ONLY SETTING)",
             _ => setting.ToString()
         };
     }

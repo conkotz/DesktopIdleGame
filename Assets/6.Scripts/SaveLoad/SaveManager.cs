@@ -261,6 +261,7 @@ public class SaveManager : MonoBehaviour
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
+        UIWindowLayoutBinding.RestoreAllPivotLayoutsForGameLoad();
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         _ = player;

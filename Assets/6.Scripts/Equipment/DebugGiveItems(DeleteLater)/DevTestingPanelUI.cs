@@ -92,6 +92,7 @@ public class DevTestingPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        ShowDevPanelSettingsInstaller.EnsureSettingsRowExists();
         TryResolveRefsByName();
         TryResolveFeedbackRefs();
         TryResolveItemDefsFromDebugGiveItems();
@@ -118,12 +119,16 @@ public class DevTestingPanelUI : MonoBehaviour
 
     private void OnEnable()
     {
+        ToggleSettingsStore.Changed += OnToggleSettingChanged;
         SceneManager.sceneLoaded += OnSceneLoaded;
-        ApplyRowGroupVisible(false, forceLabel: true);
+        ApplyVisibilityFromSettings();
+        if (gameObject.activeSelf)
+            ApplyRowGroupVisible(false, forceLabel: true);
     }
 
     private void OnDisable()
     {
+        ToggleSettingsStore.Changed -= OnToggleSettingChanged;
         SceneManager.sceneLoaded -= OnSceneLoaded;
         _autoResetCooldownsEnabled = false;
         _autoRefreshEnergyEnabled = false;
@@ -146,8 +151,42 @@ public class DevTestingPanelUI : MonoBehaviour
         }
     }
 
-    private void OnSceneLoaded(Scene _, LoadSceneMode __) =>
-        ApplyRowGroupVisible(false, forceLabel: true);
+    private void OnSceneLoaded(Scene _, LoadSceneMode __)
+    {
+        ApplyVisibilityFromSettings();
+        if (gameObject.activeSelf)
+            ApplyRowGroupVisible(false, forceLabel: true);
+    }
+
+    private void OnToggleSettingChanged(ToggleSettingId id, bool _)
+    {
+        if (id == ToggleSettingId.ShowDevPanel)
+            ApplyVisibilityFromSettings();
+    }
+
+    public static void RefreshAllFromSettings()
+    {
+        DevTestingPanelUI[] list = FindObjectsByType<DevTestingPanelUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < list.Length; i++)
+        {
+            if (list[i])
+                list[i].ApplyVisibilityFromSettings();
+        }
+    }
+
+    private void ApplyVisibilityFromSettings()
+    {
+        bool show = ToggleSettingsStore.Get(ToggleSettingId.ShowDevPanel);
+        if (gameObject.activeSelf == show)
+            return;
+
+        gameObject.SetActive(show);
+        if (show)
+            ApplyRowGroupVisible(false, forceLabel: true);
+    }
 
     private void OnReportBugClicked()
     {

@@ -25,6 +25,7 @@ public static class UIWindowPositionMemory
     public static void ForgetAll()
     {
         SavedAnchoredPositions.Clear();
+        UIWindowSessionLayoutMemory.ForgetAll();
     }
 
     public static void ForgetKey(string key)
@@ -38,8 +39,19 @@ public static class UIWindowPositionMemory
     public static void ResetAllWindowsToAnchors()
     {
         ForgetAll();
+        UIWindowLayoutPrefs.ClearAll();
         UIWindowCornerResize.ResetAllScalesToDefault();
         HelperPopupLayoutPrefs.Clear();
+
+        UIWindowLayoutBinding[] bindings = Object.FindObjectsByType<UIWindowLayoutBinding>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < bindings.Length; i++)
+        {
+            if (bindings[i] != null)
+                bindings[i].ResetToFactory();
+        }
 
         UIDragWindow[] windows = Object.FindObjectsByType<UIDragWindow>(
             FindObjectsInactive.Include,

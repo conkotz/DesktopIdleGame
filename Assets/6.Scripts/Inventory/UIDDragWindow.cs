@@ -227,6 +227,20 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         if (!window)
             return;
 
+        // Session drag/position wins during play. Pivot layout is applied on session start (see UIWindowLayoutBinding).
+        if (UIWindowPositionMemory.TryGet(memoryKey, out Vector2 sessionPosition))
+        {
+            window.anchoredPosition = sessionPosition;
+            return;
+        }
+
+        if (UIWindowLayoutPrefs.HasSaved(memoryKey))
+        {
+            UIWindowLayoutPrefs.TryLoadAndApply(window, memoryKey);
+            UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(_prefsPosKeyX) &&
             !string.IsNullOrWhiteSpace(_prefsPosKeyY) &&
             PlayerPrefs.HasKey(_prefsPosKeyX) &&
@@ -235,11 +249,7 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
             var fromDisk = new Vector2(PlayerPrefs.GetFloat(_prefsPosKeyX), PlayerPrefs.GetFloat(_prefsPosKeyY));
             window.anchoredPosition = fromDisk;
             UIWindowPositionMemory.Save(memoryKey, fromDisk);
-            return;
         }
-
-        if (UIWindowPositionMemory.TryGet(memoryKey, out Vector2 remembered))
-            window.anchoredPosition = remembered;
     }
 
     private void RememberCurrentPosition()
@@ -247,7 +257,10 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         if (!window)
             return;
 
+        // Session-only: pivot layout is saved only via Move Pivots mode (UIWindowLayoutBinding.SaveCurrentLayout).
         UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
+        if (UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey))
+            UIWindowSessionLayoutMemory.Capture(window, memoryKey);
 
         if (!string.IsNullOrWhiteSpace(_prefsPosKeyX) && !string.IsNullOrWhiteSpace(_prefsPosKeyY))
         {
