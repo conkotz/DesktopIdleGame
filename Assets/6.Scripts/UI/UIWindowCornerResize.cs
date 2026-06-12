@@ -46,8 +46,19 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     [SerializeField] private bool persistCornerScaleToPlayerPrefs = true;
 
     private bool _subscribedHudSlider;
+    private bool _forcePivotGhostHandlesVisible;
 
     public event Action ResizeEnded;
+
+    public bool ForcePivotGhostHandlesVisible
+    {
+        get => _forcePivotGhostHandlesVisible;
+        set
+        {
+            _forcePivotGhostHandlesVisible = value;
+            RefreshHandlesActive();
+        }
+    }
 
     private readonly Vector3[] _corners = new Vector3[4];
     private RectTransform _rect;
@@ -200,7 +211,8 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (!_rect)
             return;
 
-        bool showVisual = ToggleSettingsStore.Get(ToggleSettingId.ShowWindowResizeHandles);
+        bool showVisual = _forcePivotGhostHandlesVisible
+            || ToggleSettingsStore.Get(ToggleSettingId.ShowWindowResizeHandles);
 
         for (int i = 0; i < 4; i++)
         {
@@ -218,7 +230,18 @@ public sealed class UIWindowCornerResize : MonoBehaviour
             {
                 t.gameObject.SetActive(true); // Always interactive; toggle controls visual hint only.
                 if (t.TryGetComponent(out Image img))
-                    ApplyHandleVisual(img, showVisual);
+                {
+                    WindowPivotGhostUI pivotGhost = targetWindow != null
+                        ? targetWindow.GetComponent<WindowPivotGhostUI>()
+                        : null;
+                    if (pivotGhost != null)
+                    {
+                        img.color = pivotGhost.GetResizeHandleColor();
+                        img.raycastTarget = true;
+                    }
+                    else
+                        ApplyHandleVisual(img, showVisual);
+                }
             }
         }
     }
@@ -238,7 +261,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     public void BeginResize(UIWindowResizeHandle handle, PointerEventData eventData)
     {
-        if (!targetWindow || handle == null)
+        if (MovePivotsModeController.IsTestViewActive || !targetWindow || handle == null)
             return;
 
         if (targetWindow.GetComponent<WindowPivotGhostUI>() != null)

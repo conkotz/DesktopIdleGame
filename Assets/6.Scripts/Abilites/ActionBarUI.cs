@@ -654,6 +654,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     internal Button CombatSetOneButton => combatSetOneButton;
     internal Button CombatSetTwoButton => combatSetTwoButton;
 
+    public const float CollapsedWindowHeight = 100f;
+    public const float ExpandedWindowHeight = 175f;
+
     [Header("Extended ability row (optional)")]
     [Tooltip("SecondaryRow under Content — hidden until expanded or until slots 6–10 hold abilities.")]
     [SerializeField] private GameObject secondaryRow;
@@ -1531,6 +1534,84 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return false;
     }
 
+    public static float GetPivotPlaceholderHeight() => CollapsedWindowHeight;
+
+    public static Rect[] CapturePivotSlotRects(RectTransform windowRect)
+    {
+        if (!windowRect)
+            return Array.Empty<Rect>();
+
+        ActionBarUI bar = windowRect.GetComponent<ActionBarUI>();
+        if (!bar)
+            return Array.Empty<Rect>();
+
+        var rects = new List<Rect>(16);
+
+        foreach (ActionBarSlotUI slot in bar.GetSlots())
+        {
+            if (slot == null || !slot.isActiveAndEnabled)
+                continue;
+
+            RectTransform slotRt = slot.transform as RectTransform;
+            if (slotRt != null)
+                rects.Add(NormalizedRectInWindow(windowRect, slotRt));
+        }
+
+        bar.AppendOptionalButtonPivotRect(windowRect, bar.gatheringWoodStripButton, rects);
+        bar.AppendOptionalButtonPivotRect(windowRect, bar.gatheringMiningStripButton, rects);
+        bar.AppendOptionalButtonPivotRect(windowRect, bar.gatheringFishingStripButton, rects);
+        bar.AppendOptionalButtonPivotRect(windowRect, bar.combatSetOneButton, rects);
+        bar.AppendOptionalButtonPivotRect(windowRect, bar.combatSetTwoButton, rects);
+
+        return rects.ToArray();
+    }
+
+    private void AppendOptionalButtonPivotRect(RectTransform windowRect, Button button, List<Rect> rects)
+    {
+        if (button == null || !button.isActiveAndEnabled)
+            return;
+
+        RectTransform buttonRt = button.transform as RectTransform;
+        if (buttonRt != null)
+            rects.Add(NormalizedRectInWindow(windowRect, buttonRt));
+    }
+
+    private static Rect NormalizedRectInWindow(RectTransform windowRect, RectTransform childRect)
+    {
+        Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(windowRect, childRect);
+        Rect window = windowRect.rect;
+        float width = Mathf.Max(window.width, 1f);
+        float height = Mathf.Max(window.height, 1f);
+
+        float x = (bounds.min.x - window.xMin) / width;
+        float y = (bounds.min.y - window.yMin) / height;
+        return new Rect(x, y, bounds.size.x / width, bounds.size.y / height);
+    }
+
+    public static void SyncWindowOnPivotLayoutApplied(RectTransform windowRect)
+    {
+        if (!windowRect)
+            return;
+
+        ActionBarUI bar = windowRect.GetComponent<ActionBarUI>();
+        if (bar == null)
+            bar = windowRect.GetComponentInChildren<ActionBarUI>(true);
+
+        bar?.SyncWindowHeightToSecondaryRowState();
+    }
+
+    public void SyncWindowHeightToSecondaryRowState()
+    {
+        RectTransform windowRect = transform as RectTransform;
+        if (windowRect == null)
+            return;
+
+        float targetHeight = _secondaryRowExpanded ? ExpandedWindowHeight : CollapsedWindowHeight;
+        Vector2 size = windowRect.sizeDelta;
+        if (!Mathf.Approximately(size.y, targetHeight))
+            windowRect.sizeDelta = new Vector2(size.x, targetHeight);
+    }
+
     private void RefreshSecondaryRowVisibility()
     {
         ResolveExpandUiRefs();
@@ -1544,6 +1625,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             scale.y = _secondaryRowExpanded ? -1f : 1f;
             expandIcon.rectTransform.localScale = scale;
         }
+
+        SyncWindowHeightToSecondaryRowState();
     }
 
     private void WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi()

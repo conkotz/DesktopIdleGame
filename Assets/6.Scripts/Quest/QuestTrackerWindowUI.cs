@@ -359,6 +359,36 @@ public class QuestTrackerWindowUI : MonoBehaviour
         }
     }
 
+    private void SyncSavedPivotLayoutAfterContentChange()
+    {
+        RectTransform windowRect = transform as RectTransform;
+        if (!windowRect)
+            return;
+
+        bool hasSession = UIWindowSessionLayoutMemory.TryGet(TrackerWindowName, out UIWindowLayoutPrefs.Snapshot session);
+        bool hasPrefs = UIWindowLayoutPrefs.TryLoad(TrackerWindowName, out UIWindowLayoutPrefs.Snapshot prefs);
+        if (!hasSession && !hasPrefs)
+            return;
+
+        UIWindowLayoutPrefs.Snapshot saved = hasSession ? session : prefs;
+
+        windowRect.anchorMin = new Vector2(saved.anchorMin.x, 1f);
+        windowRect.anchorMax = new Vector2(saved.anchorMax.x, 1f);
+        windowRect.pivot = new Vector2(saved.pivot.x, 1f);
+        windowRect.anchoredPosition = saved.anchoredPosition;
+        windowRect.sizeDelta = new Vector2(saved.sizeDelta.x, windowRect.sizeDelta.y);
+        windowRect.localScale = saved.localScale;
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(windowRect);
+
+        float height = Mathf.Max(windowRect.rect.height, LayoutUtility.GetPreferredHeight(windowRect), 1f);
+        ApplyTopAnchoredPivotLayout(windowRect, height);
+
+        UIWindowPositionMemory.Save(TrackerWindowName, windowRect.anchoredPosition);
+        UIWindowSessionLayoutMemory.Capture(windowRect, TrackerWindowName);
+    }
+
     private void ClearRows()
     {
         for (int i = 0; i < _spawnedRows.Count; i++)
@@ -489,6 +519,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
         }
 
         RebuildTrackerLayoutImmediate();
+        SyncSavedPivotLayoutAfterContentChange();
     }
 
     private QuestDefinition FindQuestDefinition(string questId)

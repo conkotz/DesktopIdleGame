@@ -40,7 +40,8 @@ public static class GameLog
         }
     }
 
-    public static readonly Color DefaultTextColor = Color.white;
+    /// <summary>Default activity body text — matches quest tracker row text.</summary>
+    public static readonly Color DefaultTextColor = new Color32(43, 33, 24, 255);
     public static readonly Color ItemGainColor = new Color(0.22f, 0.68f, 0.28f, 1f);
     public static readonly Color ItemLostColor = new Color(0.95f, 0.38f, 0.32f, 1f);
     public static readonly Color GoldColor = new Color(1f, 0.82f, 0.2f, 1f);

@@ -81,6 +81,9 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (MovePivotsModeController.IsTestViewActive)
+            return;
+
         _isDragging = true;
 
         _parent = window.parent as RectTransform;
@@ -100,6 +103,9 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     public void OnDrag(PointerEventData eventData)
     {
+        if (MovePivotsModeController.IsTestViewActive)
+            return;
+
         _parent = window.parent as RectTransform;
         if (!_parent) return;
 
@@ -228,9 +234,20 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
             return;
 
         // Session drag/position wins during play. Pivot layout is applied on session start (see UIWindowLayoutBinding).
+        if (UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey) &&
+            UIWindowSessionLayoutMemory.TryGet(memoryKey, out UIWindowLayoutPrefs.Snapshot sessionLayout))
+        {
+            UIWindowLayoutPrefs.Apply(window, sessionLayout);
+            if (UIWindowLayoutBinding.IsQuestTrackerWindow(memoryKey))
+                UIWindowLayoutBinding.EnsureQuestTrackerTopAnchoredLayout(window);
+            return;
+        }
+
         if (UIWindowPositionMemory.TryGet(memoryKey, out Vector2 sessionPosition))
         {
             window.anchoredPosition = sessionPosition;
+            if (UIWindowLayoutBinding.IsQuestTrackerWindow(memoryKey))
+                UIWindowLayoutBinding.EnsureQuestTrackerTopAnchoredLayout(window);
             return;
         }
 

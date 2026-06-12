@@ -88,10 +88,26 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     public static bool IsQuestTrackerWindow(string memoryKey) =>
         string.Equals(memoryKey, "QuestTrackerWindow", System.StringComparison.Ordinal);
 
+    public static bool IsShopWindow(string memoryKey) =>
+        string.Equals(memoryKey, "ShopWindow", System.StringComparison.Ordinal);
+
+    public static bool IsMainMenuWindow(string memoryKey) =>
+        string.Equals(memoryKey, "MainMenuWindow", System.StringComparison.Ordinal);
+
+    public static bool IsActionBarWindow(string memoryKey) =>
+        string.Equals(memoryKey, "ActionBarWindow", System.StringComparison.Ordinal);
+
+    /// <summary>Main menu and shop never open together in-game — keep ghosts during Test View.</summary>
+    public static bool UsesGhostDuringTestView(string memoryKey) =>
+        IsMainMenuWindow(memoryKey) || IsShopWindow(memoryKey);
+
     public static float GetPivotGhostMinimumHeight(string memoryKey)
     {
         if (IsQuestTrackerWindow(memoryKey))
             return QuestTrackerWindowUI.GetPivotPlaceholderHeight();
+
+        if (IsActionBarWindow(memoryKey))
+            return ActionBarUI.GetPivotPlaceholderHeight();
 
         return 180f;
     }
@@ -258,6 +274,9 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
             resize.ApplyLayoutScaleFromSnapshot(windowRect.localScale);
         else
             resize?.ForgetPersistedScaleAndResetToBase();
+
+        if (IsActionBarWindow(memoryKey))
+            ActionBarUI.SyncWindowOnPivotLayoutApplied(windowRect);
     }
 
     public void SaveCurrentLayout()
@@ -278,17 +297,31 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
             return;
 
         UIWindowLayoutPrefs.Apply(windowRect, snapshot);
+
+        if (IsQuestTrackerWindow(memoryKey))
+            EnsureQuestTrackerTopAnchoredLayout(windowRect);
+
+        if (IsActionBarWindow(memoryKey))
+            ActionBarUI.SyncWindowOnPivotLayoutApplied(windowRect);
     }
 
     private void EnsureQuestTrackerTopAnchoredLayout()
     {
+        EnsureQuestTrackerTopAnchoredLayout(windowRect);
+    }
+
+    public static void EnsureQuestTrackerTopAnchoredLayout(RectTransform windowRect)
+    {
+        if (!windowRect)
+            return;
+
         UIWindowLayoutPrefs.Snapshot trackerSnapshot = UIWindowLayoutPrefs.Capture(windowRect);
         if (trackerSnapshot.anchorMin.y > 0.99f && trackerSnapshot.pivot.y > 0.99f)
             return;
 
         QuestTrackerWindowUI.ApplyTopAnchoredPivotLayout(
             windowRect,
-            Mathf.Max(windowRect.sizeDelta.y, 1f));
+            Mathf.Max(windowRect.sizeDelta.y, windowRect.rect.height, 1f));
     }
 
     public UIWindowLayoutPrefs.Snapshot GetCurrentSnapshot() =>

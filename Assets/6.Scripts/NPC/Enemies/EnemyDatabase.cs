@@ -47,6 +47,23 @@ public class EnemyDatabase : ScriptableObject
         return _map.TryGetValue(key, out EnemyDefinition d) ? d : null;
     }
 
+    /// <summary>All authored enemies in inspector list order (type / definition order).</summary>
+    public List<EnemyDefinition> GetAllInDefinitionOrder()
+    {
+        var result = new List<EnemyDefinition>(enemies != null ? enemies.Count : 0);
+        if (enemies == null)
+            return result;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyDefinition enemy = enemies[i];
+            if (enemy != null)
+                result.Add(enemy);
+        }
+
+        return result;
+    }
+
     /// <summary>All authored enemies, sorted by display name.</summary>
     public List<EnemyDefinition> GetAllSortedByDisplayName()
     {

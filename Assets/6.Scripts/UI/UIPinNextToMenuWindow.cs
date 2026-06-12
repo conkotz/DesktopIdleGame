@@ -128,6 +128,23 @@ public static class UIPinNextToMenuWindow
         ClampToCanvas(secondary, canvasRect);
     }
 
+    public static void AlignCenterTo(RectTransform target, RectTransform reference)
+    {
+        if (!target || !reference)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        Vector3[] referenceCorners = new Vector3[4];
+        Vector3[] targetCorners = new Vector3[4];
+        reference.GetWorldCorners(referenceCorners);
+        target.GetWorldCorners(targetCorners);
+
+        Vector3 referenceCenter = (referenceCorners[0] + referenceCorners[2]) * 0.5f;
+        Vector3 targetCenter = (targetCorners[0] + targetCorners[2]) * 0.5f;
+        target.position += referenceCenter - targetCenter;
+    }
+
     public static void ClampToCanvas(RectTransform rect, RectTransform canvas)
     {
         if (!rect || !canvas) return;

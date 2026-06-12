@@ -8,6 +8,13 @@ public enum DatabaseItemSubtab
     Equipment = 1,
     Consumables = 2,
     Enhancement = 3,
+    All = 4,
+}
+
+public enum DatabaseListSortMode
+{
+    Alphabetical = 0,
+    DefinitionOrder = 1,
 }
 
 /// <summary>Filters and sorts items for the database Items section.</summary>
@@ -62,7 +69,9 @@ public static class DatabaseItemCatalog
 
     public static List<ItemDefinition> CollectForSubtab(
         IReadOnlyList<ItemDefinition> allItems,
-        DatabaseItemSubtab subtab)
+        DatabaseItemSubtab subtab,
+        DatabaseListSortMode sortMode,
+        ItemDatabase itemDatabase)
     {
         var results = new List<ItemDefinition>();
         if (allItems == null)
@@ -79,12 +88,76 @@ public static class DatabaseItemCatalog
             results.Add(item);
         }
 
+        SortItems(results, subtab, sortMode, itemDatabase);
+        return results;
+    }
+
+    public static List<ItemDefinition> CollectAllListed(
+        IReadOnlyList<ItemDefinition> allItems,
+        DatabaseListSortMode sortMode,
+        ItemDatabase itemDatabase)
+    {
+        var results = new List<ItemDefinition>();
+        if (allItems == null)
+            return results;
+
+        for (int i = 0; i < allItems.Count; i++)
+        {
+            ItemDefinition item = allItems[i];
+            if (!ShouldListInDatabase(item))
+                continue;
+
+            results.Add(item);
+        }
+
+        SortItems(results, DatabaseItemSubtab.All, sortMode, itemDatabase);
+        return results;
+    }
+
+    public static DatabaseItemSubtab ResolveListingSubtab(ItemDefinition item)
+    {
+        if (PassesSubtab(item, DatabaseItemSubtab.Resources))
+            return DatabaseItemSubtab.Resources;
+        if (PassesSubtab(item, DatabaseItemSubtab.Equipment))
+            return DatabaseItemSubtab.Equipment;
+        if (PassesSubtab(item, DatabaseItemSubtab.Consumables))
+            return DatabaseItemSubtab.Consumables;
+        if (PassesSubtab(item, DatabaseItemSubtab.Enhancement))
+            return DatabaseItemSubtab.Enhancement;
+
+        return DatabaseItemSubtab.Resources;
+    }
+
+    private static void SortItems(
+        List<ItemDefinition> results,
+        DatabaseItemSubtab subtab,
+        DatabaseListSortMode sortMode,
+        ItemDatabase itemDatabase)
+    {
+        if (results == null || results.Count <= 1)
+            return;
+
+        if (sortMode == DatabaseListSortMode.DefinitionOrder && itemDatabase != null)
+        {
+            results.Sort((a, b) => CompareByDatabaseIndex(a, b, itemDatabase));
+            return;
+        }
+
         if (subtab == DatabaseItemSubtab.Enhancement)
             results.Sort(CompareEnhancementDisplayOrder);
         else
             results.Sort(CompareByDisplayName);
+    }
 
-        return results;
+    private static int CompareByDatabaseIndex(ItemDefinition a, ItemDefinition b, ItemDatabase itemDatabase)
+    {
+        int indexA = a != null ? itemDatabase.GetIndex(a.itemId) : int.MaxValue;
+        int indexB = b != null ? itemDatabase.GetIndex(b.itemId) : int.MaxValue;
+        int result = indexA.CompareTo(indexB);
+        if (result != 0)
+            return result;
+
+        return CompareByDisplayName(a, b);
     }
 
     private static int CompareEnhancementDisplayOrder(ItemDefinition a, ItemDefinition b)

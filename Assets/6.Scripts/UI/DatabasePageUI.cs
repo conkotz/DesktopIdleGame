@@ -60,6 +60,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     [Header("Item sub-tabs")]
     [Tooltip("Pinned above the scroll view (RightPanel/ItemTabButtonRow).")]
     [SerializeField] private GameObject itemTabButtonRow;
+    [SerializeField] private Button allTabButton;
     [SerializeField] private Button resourceTabButton;
     [SerializeField] private Button equipmentTabButton;
     [SerializeField] private Button consumablesTabButton;
@@ -85,6 +86,11 @@ public sealed class DatabasePageUI : MonoBehaviour
     [SerializeField] private TMP_Text searchLabelText;
     [SerializeField] private TMP_InputField searchField;
 
+    [Header("List sort filter (items + enemies)")]
+    [SerializeField] private GameObject filterPanel;
+    [SerializeField] private Button azFilterButton;
+    [SerializeField] private Button typeFilterButton;
+
     [Header("Enemy sub-tab visuals")]
     [SerializeField] private Color activeEnemySubtabColor = new Color32(247, 225, 190, 255);
     [SerializeField] private Color inactiveEnemySubtabColor = new Color32(168, 152, 118, 200);
@@ -93,6 +99,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     private string _searchQuery = string.Empty;
     private DatabaseEnemySubtab _activeEnemySubtab = DatabaseEnemySubtab.GeneralInformation;
     private DatabaseItemSubtab _activeItemSubtab = DatabaseItemSubtab.Resources;
+    private DatabaseListSortMode _listSortMode = DatabaseListSortMode.Alphabetical;
     /// <summary>Runtime clone source — never parented under the live enemy list.</summary>
     private GameObject _enemyRowTemplate;
     private GameObject _itemRowTemplate;
@@ -108,12 +115,14 @@ public sealed class DatabasePageUI : MonoBehaviour
         CacheItemRowTemplate();
         EnsureDatabases();
         WireFilterButtons();
+        WireListSortFilterButtons();
     }
 
     private void OnEnable()
     {
         WireRegionDropdown();
         WireSearchField();
+        WireListSortFilterButtons();
         RefreshActiveSection();
     }
 
@@ -123,6 +132,7 @@ public sealed class DatabasePageUI : MonoBehaviour
             regionDropdown.onValueChanged.RemoveListener(OnRegionDropdownChanged);
         UnwireEnemySubtabButtons();
         UnwireItemSubtabButtons();
+        UnwireListSortFilterButtons();
         UnwireSearchField();
         sharedTooltip?.Hide();
     }
@@ -328,6 +338,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         }
 
         RefreshSearchPanelVisibility();
+        RefreshListSortFilterVisibility();
         ResetScrollPosition();
     }
 
@@ -433,7 +444,9 @@ public sealed class DatabasePageUI : MonoBehaviour
         if (_selectedRegion != null)
             allowedEnemyIds = DatabaseRegionEnemyCatalog.CollectEnemyIds(_selectedRegion);
 
-        var enemies = enemyDatabase.GetAllSortedByDisplayName();
+        List<EnemyDefinition> enemies = _listSortMode == DatabaseListSortMode.DefinitionOrder
+            ? enemyDatabase.GetAllInDefinitionOrder()
+            : enemyDatabase.GetAllSortedByDisplayName();
         for (int i = 0; i < enemies.Count; i++)
         {
             EnemyDefinition enemy = enemies[i];
@@ -592,6 +605,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         }
 
         RefreshSearchPanelVisibility();
+        RefreshListSortFilterVisibility();
         RefreshScrollContentLayout();
     }
 
@@ -705,6 +719,7 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void WireItemSubtabButtons()
     {
+        BindItemSubtabButton(allTabButton, ShowAllItems);
         BindItemSubtabButton(resourceTabButton, ShowResourceItems);
         BindItemSubtabButton(equipmentTabButton, ShowEquipmentItems);
         BindItemSubtabButton(consumablesTabButton, ShowConsumableItems);
@@ -713,10 +728,37 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void UnwireItemSubtabButtons()
     {
+        UnbindItemSubtabButton(allTabButton, ShowAllItems);
         UnbindItemSubtabButton(resourceTabButton, ShowResourceItems);
         UnbindItemSubtabButton(equipmentTabButton, ShowEquipmentItems);
         UnbindItemSubtabButton(consumablesTabButton, ShowConsumableItems);
         UnbindItemSubtabButton(enhancementTabButton, ShowEnhancementItems);
+    }
+
+    private void WireListSortFilterButtons()
+    {
+        BindItemSubtabButton(azFilterButton, ShowAlphabeticalListSort);
+        BindItemSubtabButton(typeFilterButton, ShowDefinitionOrderListSort);
+    }
+
+    private void UnwireListSortFilterButtons()
+    {
+        UnbindItemSubtabButton(azFilterButton, ShowAlphabeticalListSort);
+        UnbindItemSubtabButton(typeFilterButton, ShowDefinitionOrderListSort);
+    }
+
+    private void ShowAlphabeticalListSort() => SelectListSortMode(DatabaseListSortMode.Alphabetical);
+
+    private void ShowDefinitionOrderListSort() => SelectListSortMode(DatabaseListSortMode.DefinitionOrder);
+
+    private void SelectListSortMode(DatabaseListSortMode sortMode)
+    {
+        if (_listSortMode == sortMode)
+            return;
+
+        _listSortMode = sortMode;
+        RefreshListSortFilterButtonVisuals();
+        RefreshSearchResults();
     }
 
     private static void BindItemSubtabButton(Button button, UnityEngine.Events.UnityAction handler)
@@ -734,6 +776,7 @@ public sealed class DatabasePageUI : MonoBehaviour
             button.onClick.RemoveListener(handler);
     }
 
+    private void ShowAllItems() => SelectItemSubtab(DatabaseItemSubtab.All);
     private void ShowResourceItems() => SelectItemSubtab(DatabaseItemSubtab.Resources);
     private void ShowEquipmentItems() => SelectItemSubtab(DatabaseItemSubtab.Equipment);
     private void ShowConsumableItems() => SelectItemSubtab(DatabaseItemSubtab.Consumables);
@@ -754,13 +797,14 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void ApplyItemSubtab()
     {
+        bool showAll = _activeItemSubtab == DatabaseItemSubtab.All;
         bool showResources = _activeItemSubtab == DatabaseItemSubtab.Resources;
         bool showEquipment = _activeItemSubtab == DatabaseItemSubtab.Equipment;
         bool showConsumables = _activeItemSubtab == DatabaseItemSubtab.Consumables;
         bool showEnhancement = _activeItemSubtab == DatabaseItemSubtab.Enhancement;
 
         if (resourceContent)
-            resourceContent.SetActive(showResources);
+            resourceContent.SetActive(showResources || showAll);
         if (equipmentContent)
             equipmentContent.SetActive(showEquipment);
         if (consumablesContent)
@@ -782,6 +826,7 @@ public sealed class DatabasePageUI : MonoBehaviour
         RebuildItemRows();
         RefreshItemSubtabButtonVisuals();
         RefreshSearchPanelVisibility();
+        RefreshListSortFilterVisibility();
         RefreshScrollContentLayout();
     }
 
@@ -824,14 +869,24 @@ public sealed class DatabasePageUI : MonoBehaviour
         sharedTooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
         DatabaseItemSourceCatalog.Invalidate();
 
-        List<ItemDefinition> items = DatabaseItemCatalog.CollectForSubtab(itemDatabase.GetAll(), _activeItemSubtab);
+        List<ItemDefinition> items = _activeItemSubtab == DatabaseItemSubtab.All
+            ? DatabaseItemCatalog.CollectAllListed(itemDatabase.GetAll(), _listSortMode, itemDatabase)
+            : DatabaseItemCatalog.CollectForSubtab(
+                itemDatabase.GetAll(),
+                _activeItemSubtab,
+                _listSortMode,
+                itemDatabase);
         for (int i = 0; i < items.Count; i++)
         {
             ItemDefinition item = items[i];
             if (!item)
                 continue;
 
-            if (!ItemPassesSearch(item, _activeItemSubtab))
+            DatabaseItemSubtab listingSubtab = _activeItemSubtab == DatabaseItemSubtab.All
+                ? DatabaseItemCatalog.ResolveListingSubtab(item)
+                : _activeItemSubtab;
+
+            if (!ItemPassesSearch(item, listingSubtab))
                 continue;
 
             GameObject rowGo = Instantiate(_itemRowTemplate, listRoot);
@@ -844,7 +899,7 @@ public sealed class DatabasePageUI : MonoBehaviour
                 row = rowGo.AddComponent<DatabaseItemEntryRowUI>();
             }
 
-            row.Bind(item, sharedTooltip, _activeItemSubtab);
+            row.Bind(item, sharedTooltip, listingSubtab);
         }
 
         EnsureItemListContentLayout(listRoot);
@@ -854,6 +909,7 @@ public sealed class DatabasePageUI : MonoBehaviour
     {
         GameObject panel = _activeItemSubtab switch
         {
+            DatabaseItemSubtab.All => resourceContent,
             DatabaseItemSubtab.Resources => resourceContent,
             DatabaseItemSubtab.Equipment => equipmentContent,
             DatabaseItemSubtab.Consumables => consumablesContent,
@@ -926,10 +982,41 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     private void RefreshItemSubtabButtonVisuals()
     {
+        ApplySectionButtonVisual(allTabButton, _activeItemSubtab == DatabaseItemSubtab.All);
         ApplySectionButtonVisual(resourceTabButton, _activeItemSubtab == DatabaseItemSubtab.Resources);
         ApplySectionButtonVisual(equipmentTabButton, _activeItemSubtab == DatabaseItemSubtab.Equipment);
         ApplySectionButtonVisual(consumablesTabButton, _activeItemSubtab == DatabaseItemSubtab.Consumables);
         ApplySectionButtonVisual(enhancementTabButton, _activeItemSubtab == DatabaseItemSubtab.Enhancement);
+    }
+
+    private void RefreshListSortFilterButtonVisuals()
+    {
+        ApplySectionButtonVisual(azFilterButton, _listSortMode == DatabaseListSortMode.Alphabetical);
+        ApplySectionButtonVisual(typeFilterButton, _listSortMode == DatabaseListSortMode.DefinitionOrder);
+    }
+
+    private void RefreshListSortFilterVisibility()
+    {
+        ResolveFilterReferences();
+
+        bool showForItems = _activeSection == DatabaseSection.Items;
+        bool showForEnemies = _activeSection == DatabaseSection.Enemies &&
+                              _activeEnemySubtab == DatabaseEnemySubtab.EnemyInformation;
+        bool show = showForItems || showForEnemies;
+
+        if (filterPanel)
+            filterPanel.SetActive(show);
+
+        if (azFilterButton)
+            azFilterButton.gameObject.SetActive(show);
+        if (typeFilterButton)
+            typeFilterButton.gameObject.SetActive(show);
+
+        if (allTabButton)
+            allTabButton.gameObject.SetActive(showForItems);
+
+        if (show)
+            RefreshListSortFilterButtonVisuals();
     }
 
     private RectTransform EnsureEnemyListContentRoot()
@@ -1575,6 +1662,8 @@ public sealed class DatabasePageUI : MonoBehaviour
         {
             if (!itemTabButtonRow)
                 itemTabButtonRow = itemTabRow.gameObject;
+            if (!allTabButton)
+                allTabButton = itemTabRow.Find("AllButton")?.GetComponent<Button>();
             if (!resourceTabButton)
                 resourceTabButton = itemTabRow.Find("ResourceButton")?.GetComponent<Button>();
             if (!equipmentTabButton)
@@ -1602,6 +1691,33 @@ public sealed class DatabasePageUI : MonoBehaviour
         }
 
         ResolveSearchReferences();
+        ResolveFilterReferences();
+    }
+
+    private void ResolveFilterReferences()
+    {
+        Transform sectionsGroup = transform.Find("SectionsGroup");
+        Transform rightPanel = sectionsGroup != null ? sectionsGroup.Find("RightPanel") : null;
+        if (!rightPanel)
+            return;
+
+        if (!filterPanel)
+            filterPanel = rightPanel.Find("FilterPanel")?.gameObject;
+
+        Transform filterRoot = filterPanel != null ? filterPanel.transform : rightPanel.Find("FilterPanel");
+        if (filterRoot != null)
+        {
+            if (!azFilterButton)
+                azFilterButton = filterRoot.Find("AZFilterButton")?.GetComponent<Button>();
+            if (!typeFilterButton)
+                typeFilterButton = filterRoot.Find("TypeFilterButton")?.GetComponent<Button>();
+        }
+
+        Transform itemTabRow = itemTabButtonRow != null
+            ? itemTabButtonRow.transform
+            : rightPanel.Find("ItemTabButtonRow");
+        if (itemTabRow != null && !allTabButton)
+            allTabButton = itemTabRow.Find("AllButton")?.GetComponent<Button>();
     }
 
     private static Button FindChildButton(Transform parent, string childName)

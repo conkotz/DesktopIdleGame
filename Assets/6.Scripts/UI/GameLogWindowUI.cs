@@ -26,7 +26,8 @@ public class GameLogWindowUI : MonoBehaviour
     private const float ActivityRowVerticalPadding = 16f;
     private const float ActivityMessageFontSize = 24f;
     private const float ActivityTimestampFontSize = 16f;
-    private static readonly Color ActivityTimestampColor = new Color32(43, 33, 24, 255);
+    private static readonly Color ActivityBodyTextColor = new Color32(43, 33, 24, 255);
+    private static readonly Color ActivityTimestampColor = ActivityBodyTextColor;
     private const int ActivityRowTextGroupLeftPadding = 10;
     private const float ActivityTimestampColumnWidth = 152f;
     private const float PinnedToBottomThreshold = 0.04f;
@@ -206,9 +207,10 @@ public class GameLogWindowUI : MonoBehaviour
         ActivityRow row = CreateRow();
         if (row.MessageText != null)
         {
+            Color displayColor = ResolveActivityDisplayColor(textColor);
             row.MessageText.text = message.Trim();
-            row.MessageText.color = textColor;
-            row.MessageText.faceColor = textColor;
+            row.MessageText.color = displayColor;
+            row.MessageText.faceColor = displayColor;
             row.MessageText.gameObject.SetActive(true);
         }
 
@@ -526,9 +528,10 @@ public class GameLogWindowUI : MonoBehaviour
         if (!msg)
             return false;
 
+        Color displayColor = ResolveActivityDisplayColor(entry.Color);
         msg.text = entry.Message.Trim();
-        msg.color = entry.Color;
-        msg.faceColor = entry.Color;
+        msg.color = displayColor;
+        msg.faceColor = displayColor;
 
         if (time)
         {
@@ -652,6 +655,7 @@ public class GameLogWindowUI : MonoBehaviour
         ConfigureScrollView();
         ConfigureContentLayout();
         EnsureScrollReceivesWheelEvents();
+        ApplyActivityWindowChromeTextColors();
 
         _configured = true;
     }
@@ -921,6 +925,20 @@ public class GameLogWindowUI : MonoBehaviour
         rowText.textWrappingMode = TextWrappingModes.Normal;
         rowText.overflowMode = TextOverflowModes.Overflow;
         rowText.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyActivityDisplayColorIfDefault(rowText);
+    }
+
+    private static void ApplyActivityDisplayColorIfDefault(TMP_Text rowText)
+    {
+        if (!rowText)
+            return;
+
+        Color current = rowText.color;
+        if (current.r > 0.99f && current.g > 0.99f && current.b > 0.99f)
+        {
+            rowText.color = ActivityBodyTextColor;
+            rowText.faceColor = ActivityBodyTextColor;
+        }
     }
 
     private static void ApplyActivityTimestampTypography(TMP_Text timeText)
@@ -944,6 +962,38 @@ public class GameLogWindowUI : MonoBehaviour
 
         timeText.color = ActivityTimestampColor;
         timeText.faceColor = ActivityTimestampColor;
+    }
+
+    private static Color ResolveActivityDisplayColor(Color storedColor)
+    {
+        if (storedColor.a <= 0.01f)
+            return ActivityBodyTextColor;
+
+        if (storedColor.r > 0.99f && storedColor.g > 0.99f && storedColor.b > 0.99f)
+            return ActivityBodyTextColor;
+
+        return storedColor;
+    }
+
+    private void ApplyActivityWindowChromeTextColors()
+    {
+        TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text text = texts[i];
+            if (!text)
+                continue;
+
+            if (text.name == "TimeStamp")
+                continue;
+
+            Color current = text.color;
+            if (current.r > 0.99f && current.g > 0.99f && current.b > 0.99f)
+            {
+                text.color = ActivityBodyTextColor;
+                text.faceColor = ActivityBodyTextColor;
+            }
+        }
     }
 
     private void KeepNewestVisible()

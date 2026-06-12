@@ -28,7 +28,20 @@ public static class ToggleSettingsStore
     private const string MoveWindowPivotsKey = "Settings.MoveWindowPivots";
     private const string ShowDevPanelKey = "Settings.ShowDevPanel";
 
+    private static bool _moveWindowPivotsSessionActive;
+
     public static event Action<ToggleSettingId, bool> Changed;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSessionOnlyToggles()
+    {
+        _moveWindowPivotsSessionActive = false;
+        if (PlayerPrefs.HasKey(MoveWindowPivotsKey))
+        {
+            PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
+            PlayerPrefs.Save();
+        }
+    }
 
     public static bool Get(ToggleSettingId setting)
     {
@@ -65,8 +78,7 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ShowIncomingDamageNumbersKey, 1) != 0,
             ToggleSettingId.ShowOutgoingDamageNumbers =>
                 PlayerPrefs.GetInt(ShowOutgoingDamageNumbersKey, 1) != 0,
-            ToggleSettingId.MoveWindowPivots =>
-                PlayerPrefs.GetInt(MoveWindowPivotsKey, 0) != 0,
+            ToggleSettingId.MoveWindowPivots => _moveWindowPivotsSessionActive,
             ToggleSettingId.ShowDevPanel =>
                 PlayerPrefs.GetInt(ShowDevPanelKey, 1) != 0,
             _ => false
@@ -166,7 +178,9 @@ public static class ToggleSettingsStore
                 PlayerPrefs.SetInt(ShowOutgoingDamageNumbersKey, value ? 1 : 0);
                 break;
             case ToggleSettingId.MoveWindowPivots:
-                PlayerPrefs.SetInt(MoveWindowPivotsKey, value ? 1 : 0);
+                _moveWindowPivotsSessionActive = value;
+                if (PlayerPrefs.HasKey(MoveWindowPivotsKey))
+                    PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
                 break;
             case ToggleSettingId.ShowDevPanel:
                 PlayerPrefs.SetInt(ShowDevPanelKey, value ? 1 : 0);
@@ -221,6 +235,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
         PlayerPrefs.DeleteKey(ShowDevPanelKey);
         PlayerPrefs.Save();
+
+        _moveWindowPivotsSessionActive = false;
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
         FullWindowBackgroundPresenter.RefreshAllFromSettings();
