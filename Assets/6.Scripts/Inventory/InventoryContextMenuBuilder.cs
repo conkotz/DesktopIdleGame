@@ -83,6 +83,9 @@ public static class InventoryContextMenuBuilder
 
         entries.Add(new ContextMenuEntry("Unequip", slot.PerformUnequipAction));
 
+        if (slot.CanIdentifyStats())
+            entries.Add(new ContextMenuEntry("Identify Stats", slot.PerformIdentifyStatsAction));
+
         if (CanUpgradeFromEquipment(slot))
             entries.Add(new ContextMenuEntry("Enhance", slot.PerformUpgradeAction));
 

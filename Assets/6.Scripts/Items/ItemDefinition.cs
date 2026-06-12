@@ -900,6 +900,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Equipment")]
     public EquipSlot equipSlot = EquipSlot.None;
 
+    [Tooltip("Rings only: only one of this exact ring item can be worn across both ring slots.")]
+    [SerializeField] private bool uniquelyEquipped;
+
     [Tooltip("Which hand visual this item represents (Weapon/Pickaxe/Axe/FishingRod).")]
     public ToolKey handVisualKey = ToolKey.None;
 
@@ -962,6 +965,14 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsArmor => itemKind == ItemKind.Armor;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
+
+    public const string UniquelyEquippedRingTooltipLine = "Uniquely equipped";
+
+    public const string UniquelyEquippedRingActivityLogMessage =
+        "This item is uniquely equipped — only one can be equipped at a time.";
+
+    public bool IsUniquelyEquippedRing =>
+        IsJewelry && equipSlot == EquipSlot.Ring && uniquelyEquipped;
 
     public EnhancementOptionEntry ResolveEnhancementOption()
     {

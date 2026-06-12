@@ -52,7 +52,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
     {
         if (Instance == this)
         {
-            MapCombatScalingSessionState.ClearSession();
+            MapEnhancementSessionState.ClearSession();
             Instance = null;
         }
     }
@@ -82,11 +82,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             !string.IsNullOrEmpty(node.nodeId) &&
             wmp.MarkNodeEntered(node.nodeId.Trim());
         ActiveLevelWasFirstVisit = markedNodeEntered;
-
-        int appliedSliderTier = node.IsMapCombatScalingEnabled() && wmp != null
-            ? wmp.GetCombatMapScalingSelectedTier(node.nodeId)
-            : MapCombatScaling.SliderMin;
-        MapCombatScalingSessionState.BeginSession(node.nodeId, appliedSliderTier);
+        MapEnhancementSessionState.BeginSession(node.nodeId);
 
         // Suppress startup spam logs during normal gameplay.
 

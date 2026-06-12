@@ -38,6 +38,7 @@ public class SharedTooltipUI : MonoBehaviour
     [SerializeField] private TMP_Text statsOnlyNameText;
 
     [SerializeField] private TMP_Text rarityText;
+    [SerializeField] private TMP_Text uniquelyEquippedTagText;
     [SerializeField] private TMP_Text valueEachText;
     [SerializeField] private TMP_Text stackValueText;
     [SerializeField] private TMP_Text descriptionText;
@@ -245,6 +246,8 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.gameObject.SetActive(true);
         }
 
+        BindUniquelyEquippedTag(def);
+
         bool isEquip = def.equipSlot != EquipSlot.None;
         bool showMaxStackSize =
             def.itemKind != ItemKind.Weapon &&
@@ -362,6 +365,8 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.gameObject.SetActive(true);
         }
 
+        BindUniquelyEquippedTag(def);
+
         BindTooltipStats(def, itemIdForHighlights: itemIdForHighlights);
         BindEnhancementDisplay(def);
 
@@ -433,6 +438,8 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.text = "";
             rarityText.gameObject.SetActive(false);
         }
+
+        ClearUniquelyEquippedTag();
 
         if (valueEachText)
         {
@@ -508,6 +515,53 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (!statsOnlyNameText && tooltipLayoutRoot)
             statsOnlyNameText = tooltipLayoutRoot.Find("StatsOnlyNameText")?.GetComponent<TMP_Text>();
+
+        if (!uniquelyEquippedTagText && tooltipLayoutRoot)
+            uniquelyEquippedTagText = tooltipLayoutRoot.Find("UniquelyEquippedTagText")?.GetComponent<TMP_Text>();
+
+        EnsureUniquelyEquippedTagText();
+    }
+
+    private void EnsureUniquelyEquippedTagText()
+    {
+        if (uniquelyEquippedTagText || !tooltipLayoutRoot || !rarityText)
+            return;
+
+        var go = new GameObject("UniquelyEquippedTagText", typeof(RectTransform));
+        var rt = go.GetComponent<RectTransform>();
+        rt.SetParent(tooltipLayoutRoot, false);
+        rt.SetSiblingIndex(rarityText.transform.GetSiblingIndex() + 1);
+
+        uniquelyEquippedTagText = go.AddComponent<TextMeshProUGUI>();
+        uniquelyEquippedTagText.font = rarityText.font;
+        uniquelyEquippedTagText.fontSharedMaterial = rarityText.fontSharedMaterial;
+        uniquelyEquippedTagText.fontSize = Mathf.Max(10f, rarityText.fontSize - 1f);
+        uniquelyEquippedTagText.fontStyle = FontStyles.Italic;
+        uniquelyEquippedTagText.color = new Color(0.85f, 0.82f, 0.76f, 1f);
+        uniquelyEquippedTagText.alignment = TextAlignmentOptions.TopLeft;
+        uniquelyEquippedTagText.textWrappingMode = TextWrappingModes.Normal;
+        uniquelyEquippedTagText.raycastTarget = false;
+        go.SetActive(false);
+    }
+
+    private void BindUniquelyEquippedTag(ItemDefinition def)
+    {
+        EnsureUniquelyEquippedTagText();
+        if (!uniquelyEquippedTagText)
+            return;
+
+        bool show = def != null && def.IsUniquelyEquippedRing;
+        uniquelyEquippedTagText.text = show ? ItemDefinition.UniquelyEquippedRingTooltipLine : string.Empty;
+        uniquelyEquippedTagText.gameObject.SetActive(show);
+    }
+
+    private void ClearUniquelyEquippedTag()
+    {
+        if (!uniquelyEquippedTagText)
+            return;
+
+        uniquelyEquippedTagText.text = string.Empty;
+        uniquelyEquippedTagText.gameObject.SetActive(false);
     }
 
     private void HideStatsOnlyNameHeader()
@@ -644,6 +698,8 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.text = "";
             rarityText.gameObject.SetActive(false);
         }
+
+        ClearUniquelyEquippedTag();
 
         if (valueEachText)
         {

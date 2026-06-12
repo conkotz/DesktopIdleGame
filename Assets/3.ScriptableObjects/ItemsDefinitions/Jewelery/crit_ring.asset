@@ -29,6 +29,7 @@ MonoBehaviour:
   rarity: 2
   value: 800
   equipSlot: 8
+  uniquelyEquipped: 1
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0

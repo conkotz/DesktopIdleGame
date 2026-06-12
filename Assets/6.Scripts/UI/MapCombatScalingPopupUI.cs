@@ -12,7 +12,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
     private const int TooltipSortOrder = CanvasSortOrder + 100;
-    private const int UiVersion = 10;
+    private const int UiVersion = 11;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
     private static MapCombatScalingPopupUI _instance;
@@ -40,6 +40,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
     private MapEnhancementScalingSlotUI[] _enhancementSlots;
     private TMP_Text _appliedEffectsText;
+    private TMP_Text _enhancementReloadWarningText;
     private SharedTooltipUI _sharedTooltip;
     private MapNodeDefinition _node;
     private WorldMapProgressManager _progress;
@@ -63,6 +64,18 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     {
         if (_instance != null && _instance._panelRoot != null && _instance._panelRoot.gameObject.activeSelf)
             _instance.RefreshEnhancementSlots();
+    }
+
+    public static void RefreshEnhancementReloadWarningIfOpen(string nodeId)
+    {
+        if (_instance == null || _instance._panelRoot == null || !_instance._panelRoot.gameObject.activeSelf)
+            return;
+        if (_instance._node == null || string.IsNullOrWhiteSpace(nodeId))
+            return;
+        if (!string.Equals(_instance._node.nodeId, nodeId.Trim(), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _instance.RefreshEnhancementReloadWarning();
     }
 
     /// <summary>Closes the popup without saving (same as Cancel).</summary>
@@ -153,7 +166,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         RefreshSliderVisuals();
         RefreshDetails(selected);
         StartCoroutine(CoRefreshDetailsScrollNextFrame());
-        RefreshReenterWarning(selected);
+        RefreshLockedTierWarning(selected);
         RefreshConfirmButtonState();
         RefreshEnhancementSlots();
         if (_panelRoot != null)
@@ -169,7 +182,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _currentSliderValue = sliderValue;
         RefreshSliderVisuals();
         RefreshDetails(sliderValue);
-        RefreshReenterWarning(sliderValue);
+        RefreshLockedTierWarning(sliderValue);
         RefreshConfirmButtonState();
     }
 
@@ -278,7 +291,6 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         {
             int value = Mathf.Clamp(Mathf.RoundToInt(_slider.value), MapCombatScaling.SliderMin, _maxSelectableSlider);
             _progress.SetCombatMapScalingSelectedTier(_node.nodeId, value);
-            MapCombatScalingSessionState.NotifySelectedTierChangedWhileInMap(_node.nodeId, value);
         }
 
         Action cb = _onClosed;
@@ -286,22 +298,15 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         cb?.Invoke();
     }
 
-    private void RefreshReenterWarning(int sliderValue)
+    private void RefreshLockedTierWarning(int sliderValue)
     {
-        if (_reenterWarningText == null || _node == null)
+        if (_reenterWarningText == null)
             return;
 
-        if (sliderValue > _maxSelectableSlider)
-        {
-            _reenterWarningText.gameObject.SetActive(true);
+        bool showLocked = sliderValue > _maxSelectableSlider;
+        _reenterWarningText.gameObject.SetActive(showLocked);
+        if (showLocked)
             _reenterWarningText.text = "SCALE LEVEL NOT YET UNLOCKED";
-            return;
-        }
-
-        bool show = MapCombatScalingSessionState.ShouldShowReenterWarningForSlider(_node.nodeId, sliderValue);
-        _reenterWarningText.gameObject.SetActive(show);
-        if (show)
-            _reenterWarningText.text = MapCombatScalingSessionState.ReenterWarningMessage;
     }
 
     private void HideImmediate()
@@ -341,6 +346,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _confirmButton = null;
         _appliedEffectsText = null;
         _enhancementSlots = null;
+        _enhancementReloadWarningText = null;
         _builtUiVersion = 0;
         BuildUi();
     }
@@ -458,7 +464,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         RectTransform section = CreateChild(parent, "MapEnhancementsSection");
         LayoutElement sectionLe = section.gameObject.AddComponent<LayoutElement>();
-        sectionLe.minHeight = 132f;
+        sectionLe.minHeight = 152f;
 
         VerticalLayoutGroup sectionVlg = section.gameObject.AddComponent<VerticalLayoutGroup>();
         sectionVlg.spacing = 8;
@@ -518,6 +524,16 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         helpText.color = new Color(0.82f, 0.78f, 0.72f, 1f);
         helpText.alignment = TextAlignmentOptions.TopLeft;
         helpText.textWrappingMode = TextWrappingModes.Normal;
+
+        RectTransform reloadWarningRt = CreateChild(slotsColumn, "EnhancementReloadWarning");
+        _enhancementReloadWarningText = reloadWarningRt.gameObject.AddComponent<TextMeshProUGUI>();
+        _enhancementReloadWarningText.text = string.Empty;
+        _enhancementReloadWarningText.fontSize = 11f;
+        _enhancementReloadWarningText.fontStyle = FontStyles.Bold;
+        _enhancementReloadWarningText.color = new Color(1f, 0.15f, 0.15f, 1f);
+        _enhancementReloadWarningText.alignment = TextAlignmentOptions.TopLeft;
+        _enhancementReloadWarningText.textWrappingMode = TextWrappingModes.Normal;
+        _enhancementReloadWarningText.gameObject.SetActive(false);
 
         RectTransform appliedColumn = CreateChild(contentRow, "AppliedEffectsColumn");
         LayoutElement appliedColumnLe = appliedColumn.gameObject.AddComponent<LayoutElement>();
@@ -597,6 +613,19 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         if (_appliedEffectsText != null)
             _appliedEffectsText.text = MapEnhancementService.BuildAggregateEffectsText(_node.nodeId);
+
+        RefreshEnhancementReloadWarning();
+    }
+
+    private void RefreshEnhancementReloadWarning()
+    {
+        if (_enhancementReloadWarningText == null || _node == null)
+            return;
+
+        bool show = MapEnhancementSessionState.ShouldShowReenterWarningForNode(_node.nodeId);
+        _enhancementReloadWarningText.gameObject.SetActive(show);
+        if (show)
+            _enhancementReloadWarningText.text = MapEnhancementSessionState.ReenterWarningMessage;
     }
 
     internal void ShowEnhancementSlotTooltip(int slotIndex, Transform anchor)
@@ -674,6 +703,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
             return;
 
         RefreshEnhancementSlots();
+        RefreshEnhancementReloadWarning();
     }
 
     private static void ApplySliderStepInsets(RectTransform rt)

@@ -54,11 +54,14 @@ public class EquipmentSlotUI : MonoBehaviour,
     [Header("Double Click")]
     [SerializeField] private float doubleClickSeconds = 0.30f;
 
+    private const float IdentifyGlowSeconds = 1.1f;
+
     [Header("Debug")]
     [SerializeField] private bool logDrops = false;
 
     private float _lastClickTime;
     private bool _isPointerOver;
+    private Coroutine _identifyRoutine;
 
     private bool _bound;
     private bool _subscribed;
@@ -551,6 +554,44 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     public void PerformUnequipAction() => DoubleClickReturnToInventory();
 
+    public bool CanIdentifyStats()
+    {
+        if (!HasItemContext || inventory == null)
+            return false;
+
+        return ItemRandomStatIdentification.IsPending(inventory.GetItemDatabase(), _itemId);
+    }
+
+    public void PerformIdentifyStatsAction()
+    {
+        if (!CanIdentifyStats())
+            return;
+
+        if (_identifyRoutine != null)
+            StopCoroutine(_identifyRoutine);
+
+        _identifyRoutine = StartCoroutine(IdentifyStatsRoutine());
+    }
+
+    private IEnumerator IdentifyStatsRoutine()
+    {
+        UIPulseGlowOverlay glow = UIPulseGlowOverlay.Show(transform as RectTransform);
+        yield return new WaitForSecondsRealtime(IdentifyGlowSeconds);
+        glow?.Clear();
+        _identifyRoutine = null;
+
+        if (!CanIdentifyStats())
+            yield break;
+
+        ItemDatabase db = inventory.GetItemDatabase();
+        if (!ItemRandomStatIdentification.TryIdentify(db, _itemId, out string activityMessage))
+            yield break;
+
+        GameLog.Add(activityMessage, ItemRandomStatIdentification.ActivityLogColor);
+        RefreshFromState();
+        RefreshTooltipIfHovered();
+    }
+
     public void PerformUpgradeAction()
     {
         if (!HasItemContext)
@@ -686,7 +727,10 @@ public class EquipmentSlotUI : MonoBehaviour,
         else if (slotType == EquipmentUISlotType.OffHand)
             accept = equipment.CanEquip(draggedId, EquipSlot.OffHand);
         else if (slotType == EquipmentUISlotType.Ring1 || slotType == EquipmentUISlotType.Ring2)
-            accept = equipment.CanEquip(draggedId, EquipSlot.Ring);
+        {
+            int ringIndex = slotType == EquipmentUISlotType.Ring1 ? 0 : 1;
+            accept = equipment.CanEquipRingToSlot(draggedId, ringIndex);
+        }
         else
         {
             int toolIndex = GetToolbeltIndex();
@@ -722,7 +766,16 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (!accept)
         {
-            LogRequirementBlockedDrop(draggedDef);
+            if (draggedDef.IsUniquelyEquippedRing &&
+                (slotType == EquipmentUISlotType.Ring1 || slotType == EquipmentUISlotType.Ring2))
+            {
+                GameLog.Add(ItemDefinition.UniquelyEquippedRingActivityLogMessage, GameLog.CannotMessageColor);
+            }
+            else
+            {
+                LogRequirementBlockedDrop(draggedDef);
+            }
+
             return;
         }
 

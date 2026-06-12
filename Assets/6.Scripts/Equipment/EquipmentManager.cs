@@ -1204,7 +1204,151 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             return false;
         }
 
+        if (slot == EquipSlot.Ring)
+        {
+            if (def.equipSlot != EquipSlot.Ring)
+                return false;
+            if (def.IsUniquelyEquippedRing && FindEquippedRingSlotWithSameUniquenessType(itemId) >= 0)
+                return false;
+            return true;
+        }
+
         return def.equipSlot == slot;
+    }
+
+    public bool CanEquipRingToSlot(string itemId, int ringIndex)
+    {
+        if (!inventory || ringIndex < 0 || ringIndex > 1)
+            return false;
+
+        var def = inventory.GetItemDef(itemId);
+        if (!def || def.equipSlot != EquipSlot.Ring)
+            return false;
+
+        if (!def.IsUniquelyEquippedRing)
+            return true;
+
+        return FindEquippedRingSlotWithSameUniquenessType(itemId, excludeRingIndex: ringIndex) < 0;
+    }
+
+    public int FindEquippedRingSlotWithSameUniquenessType(string itemId, int excludeRingIndex = -1)
+    {
+        if (!inventory || string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        var def = inventory.GetItemDef(itemId);
+        if (!def || !def.IsUniquelyEquippedRing)
+            return -1;
+
+        for (int i = 0; i < 2; i++)
+        {
+            if (i == excludeRingIndex)
+                continue;
+
+            string equipped = GetEquippedItemId(EquipSlot.Ring, i);
+            if (string.IsNullOrWhiteSpace(equipped))
+                continue;
+
+            if (SameRingUniquenessType(itemId, equipped))
+                return i;
+        }
+
+        return -1;
+    }
+
+    public int CountEquippedRingInstances(string itemId) =>
+        FindEquippedRingSlotWithSameUniquenessType(itemId) >= 0 ? 1 : 0;
+
+    public bool TryEquipRingFromInventorySlot(Inventory inv, int fromSlotIndex, int targetRingIndex = -1)
+    {
+        if (!inv || !inventory)
+            return false;
+
+        var slot = inv.GetSlot(fromSlotIndex);
+        if (slot.IsEmpty)
+            return false;
+
+        string itemId = slot.itemId;
+        var def = inv.GetItemDef(itemId);
+        if (!def || def.equipSlot != EquipSlot.Ring)
+            return false;
+
+        if (def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+            return false;
+
+        int equipIndex = ResolveRingEquipIndex(itemId, def, targetRingIndex);
+        if (equipIndex < 0)
+        {
+            GameLog.Add(ItemDefinition.UniquelyEquippedRingActivityLogMessage, GameLog.CannotMessageColor);
+            return false;
+        }
+
+        string prev = GetEquippedItemId(EquipSlot.Ring, equipIndex);
+        if (!string.IsNullOrWhiteSpace(prev) &&
+            string.Equals(prev, itemId, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (inv.RemoveAmountAtSlot(fromSlotIndex, 1) != 1)
+            return false;
+
+        EquipGear(EquipSlot.Ring, itemId, equipIndex);
+
+        if (!string.IsNullOrWhiteSpace(prev) &&
+            !string.Equals(prev, itemId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!inv.Add(prev, 1, null, notifyItemGainPopup: false))
+            {
+                EquipGear(EquipSlot.Ring, prev, equipIndex);
+                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private int ResolveRingEquipIndex(string itemId, ItemDefinition def, int targetRingIndex)
+    {
+        if (targetRingIndex >= 0 && targetRingIndex <= 1)
+            return CanEquipRingToSlot(itemId, targetRingIndex) ? targetRingIndex : -1;
+
+        if (def.IsUniquelyEquippedRing)
+        {
+            int conflict = FindEquippedRingSlotWithSameUniquenessType(itemId);
+            if (conflict >= 0)
+                return conflict;
+        }
+
+        if (string.IsNullOrWhiteSpace(GetEquippedItemId(EquipSlot.Ring, 0)))
+            return 0;
+
+        if (string.IsNullOrWhiteSpace(GetEquippedItemId(EquipSlot.Ring, 1)))
+            return 1;
+
+        return 0;
+    }
+
+    private string GetRingUniquenessKey(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        if (!inventory)
+            return itemId.Trim();
+
+        var db = inventory.GetItemDatabase();
+        return db != null ? db.GetBaseItemId(itemId) : itemId.Trim();
+    }
+
+    private bool SameRingUniquenessType(string itemIdA, string itemIdB)
+    {
+        if (string.IsNullOrWhiteSpace(itemIdA) || string.IsNullOrWhiteSpace(itemIdB))
+            return false;
+
+        string keyA = GetRingUniquenessKey(itemIdA);
+        string keyB = GetRingUniquenessKey(itemIdB);
+        return !string.IsNullOrWhiteSpace(keyA) &&
+               string.Equals(keyA, keyB, StringComparison.OrdinalIgnoreCase);
     }
 
     public string VisualMainHandItemId
@@ -1227,6 +1371,16 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         if (slot == EquipSlot.Ring)
         {
+            if (!string.IsNullOrWhiteSpace(next))
+            {
+                var def = inventory?.GetItemDef(next);
+                if (def?.IsUniquelyEquippedRing == true && !CanEquipRingToSlot(next, index))
+                {
+                    GameLog.Add(ItemDefinition.UniquelyEquippedRingActivityLogMessage, GameLog.CannotMessageColor);
+                    return;
+                }
+            }
+
             if (index == 0) SetRing1ForSet(activeWeaponSetIndex, next);
             else SetRing2ForSet(activeWeaponSetIndex, next);
 

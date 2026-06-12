@@ -321,7 +321,8 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         float scrollY = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scrollY) > 0.01f)
         {
-            if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
+            bool pointerOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (!pointerOverUi && IsScrollZoomAllowedAtPointer())
             {
                 if (scrollY > 0f && zoomIn.IsMouseScrollUp)
                 {
@@ -346,6 +347,35 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             _targetOrthoSize += change * zoomInput;
 
         ApplySmoothedOrthoZoom();
+    }
+
+    /// <summary>
+    /// Scroll zoom only when the cursor is inside the game window and over gameplay viewport empty space
+    /// (strip rect, or expand-background sky band above the strip). Matches desktop click-through regions.
+    /// </summary>
+    private bool IsScrollZoomAllowedAtPointer()
+    {
+        Vector2 mouse = Input.mousePosition;
+
+        if (mouse.x < 0f || mouse.y < 0f || mouse.x > Screen.width || mouse.y > Screen.height)
+            return false;
+
+        if (!stripCamera)
+            return false;
+
+        Rect stripRect = stripCamera.pixelRect;
+        if (stripRect.width <= 0f || stripRect.height <= 0f)
+            return false;
+
+        if (stripRect.Contains(mouse))
+            return true;
+
+        if (!ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return false;
+
+        return mouse.y > stripRect.yMax &&
+               mouse.x >= stripRect.xMin &&
+               mouse.x <= stripRect.xMax;
     }
 
     private void ApplySmoothedOrthoZoom()

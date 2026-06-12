@@ -45,7 +45,8 @@ MonoBehaviour:
   killProgressOnlyOnProgressMap: 1
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
-  prerequisiteRewardClaimedQuestIds: []
+  prerequisiteRewardClaimedQuestIds:
+  - greenlands_baby_bear_cull
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   recommendedLocationNode: {fileID: 11400000, guid: e78127e16d6bb394d9aee351d7dd847a, type: 2}

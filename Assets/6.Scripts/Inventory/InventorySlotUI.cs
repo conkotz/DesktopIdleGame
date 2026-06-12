@@ -541,28 +541,9 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (def.equipSlot != EquipSlot.None)
         {
-            // Rings are special (2 slots)
             if (def.equipSlot == EquipSlot.Ring)
             {
-                if (!equipment.CanEquip(slot.itemId, EquipSlot.Ring)) return;
-
-                if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
-
-                // if we replaced an existing ring, return it
-                // (we handle it by checking which slot got replaced)
-                string beforeR1 = equipment.GetEquippedItemId(EquipSlot.Ring, 0);
-                string beforeR2 = equipment.GetEquippedItemId(EquipSlot.Ring, 1);
-
-                TryAutoEquipRing(slot.itemId);
-
-                string afterR1 = equipment.GetEquippedItemId(EquipSlot.Ring, 0);
-                string afterR2 = equipment.GetEquippedItemId(EquipSlot.Ring, 1);
-
-                // If something got replaced, add it back
-                // (simple approach: if both were full, we replaced ring1)
-                if (!string.IsNullOrWhiteSpace(beforeR1) && beforeR1 != afterR1 && beforeR1 != slot.itemId)
-                    _inventory.Add(beforeR1, 1, null, notifyItemGainPopup: false);
-
+                equipment.TryEquipRingFromInventorySlot(_inventory, _slotIndex);
                 return;
             }
 
@@ -662,29 +643,6 @@ public class InventorySlotUI : MonoBehaviour,
         _tooltipAnchor = tooltipAnchor;
         _tooltipHeightRect = tooltipHeightRect;
         _preferredSide = preferredSide;
-    }
-
-    private bool TryAutoEquipRing(string itemId)
-    {
-        // Prefer empty ring slots
-        string r1 = equipment.GetEquippedItemId(EquipSlot.Ring, 0);
-        string r2 = equipment.GetEquippedItemId(EquipSlot.Ring, 1);
-
-        if (string.IsNullOrWhiteSpace(r1))
-        {
-            equipment.EquipGear(EquipSlot.Ring, itemId, 0);
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(r2))
-        {
-            equipment.EquipGear(EquipSlot.Ring, itemId, 1);
-            return true;
-        }
-
-        // both full -> replace ring1 (your choice)
-        equipment.EquipGear(EquipSlot.Ring, itemId, 0);
-        return true;
     }
 
     private bool TryEquipExactGearSlot(EquipSlot slot, string itemId)

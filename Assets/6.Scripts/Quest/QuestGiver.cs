@@ -182,6 +182,13 @@ public class QuestGiver : MonoBehaviour
         if (_manager == null)
             return null;
 
+        if (!string.IsNullOrWhiteSpace(locationId))
+        {
+            _manager.CollectClaimableQuestsAtLocation(locationId, _scratchClaimableQuests);
+            if (_scratchClaimableQuests.Count > 0)
+                return _scratchClaimableQuests[0];
+        }
+
         QuestDefinition q = FindClaimableQuestById(questId);
         if (q)
             return q;
@@ -194,13 +201,6 @@ public class QuestGiver : MonoBehaviour
                 if (q)
                     return q;
             }
-        }
-
-        if (!string.IsNullOrWhiteSpace(locationId))
-        {
-            _manager.CollectClaimableQuestsAtLocation(locationId, _scratchClaimableQuests);
-            if (_scratchClaimableQuests.Count > 0)
-                return _scratchClaimableQuests[0];
         }
 
         return null;

@@ -118,6 +118,7 @@ public static class MapEnhancementService
         }
 
         progress.NotifyProgressChangedAndSave();
+        MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
         return true;
     }
 
@@ -141,8 +142,13 @@ public static class MapEnhancementService
         }
 
         progress.NotifyProgressChangedAndSave();
+        MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
         return true;
     }
+
+    /// <summary>Only extra enemy spawns are baked into the initial level spawn pass.</summary>
+    public static bool ModTypeRequiresMapReentryToApply(MapEnhancementModType modType) =>
+        modType == MapEnhancementModType.ExtraEnemySpawns;
 
     public static MapEnhancementAggregate BuildAggregate(string nodeId)
     {
