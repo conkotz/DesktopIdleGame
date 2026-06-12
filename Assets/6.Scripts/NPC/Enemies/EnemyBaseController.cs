@@ -119,6 +119,7 @@ public class EnemyBaseController : MonoBehaviour
     private bool _provoked;
     private bool _playerDamagedThisEnemy;
     private bool _minionDamagedThisEnemy;
+    private bool _minionTauntLocked;
     private Transform _retaliationMinionTarget;
     private bool _mapAggroTriggeredForSession;
     private bool _engaged;
@@ -549,6 +550,7 @@ public class EnemyBaseController : MonoBehaviour
             _provoked = false;
             _playerDamagedThisEnemy = false;
             _minionDamagedThisEnemy = false;
+            _minionTauntLocked = false;
             _retaliationMinionTarget = null;
             EndAbilityCombat();
             ClearEngagement();
@@ -883,6 +885,7 @@ public class EnemyBaseController : MonoBehaviour
         if (mct == null || !mct.IsAlive)
         {
             _retaliationMinionTarget = null;
+            _minionTauntLocked = false;
             return false;
         }
 
@@ -894,6 +897,25 @@ public class EnemyBaseController : MonoBehaviour
         if (IsRetaliationMinionValidAlive())
             return true;
         return IsPlayerValidAlive();
+    }
+
+    /// <summary>
+    /// Forces this enemy to attack the minion (taunt). Overrides all prior hit-based aggro rules until the taunter dies.
+    /// </summary>
+    public void ForceTauntToMinion(Transform minionTransform)
+    {
+        if (!minionTransform || state == EnemyState.Dead)
+            return;
+
+        MinionCombatTarget mct = minionTransform.GetComponent<MinionCombatTarget>();
+        if (!mct)
+            mct = minionTransform.GetComponentInParent<MinionCombatTarget>();
+        if (mct == null || !mct.IsAlive)
+            return;
+
+        _retaliationMinionTarget = mct.transform;
+        _minionTauntLocked = true;
+        _provoked = true;
     }
 
     /// <summary>Enemy switches melee retaliation to a living minion that damaged it.</summary>
@@ -2077,6 +2099,7 @@ public class EnemyBaseController : MonoBehaviour
             _minionDamagedThisEnemy,
             IsRetaliationMinionValidAlive(),
             IsMinionActivelyStrikingThisEnemy(_retaliationMinionTarget),
+            _minionTauntLocked,
             minionAttacker,
             ref _retaliationMinionTarget);
     }

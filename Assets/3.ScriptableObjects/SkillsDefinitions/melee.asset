@@ -1510,14 +1510,16 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 48
-      title: Placeholder Enhancement A
-      description: Placeholder — enhancement details coming soon.
+      title: Furious Slam
+      description: Slams the ground in front (4 range), hitting all enemies for 150%
+        of the warrior's strike damage.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 48
-      title: Placeholder Enhancement B
-      description: Placeholder — enhancement details coming soon.
+      title: Taunting Shout
+      description: Warcry also taunts enemies within 8 range, forcing them to attack
+        the warrior.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

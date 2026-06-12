@@ -42,6 +42,9 @@ public class MinionUnit : MonoBehaviour
 
     public Animator Animator => _animator;
     public Transform VisualFlipRoot => _visualFlipRoot;
+    /// <summary>+1 when facing right, -1 when facing left.</summary>
+    public float FacingSignX =>
+        Mathf.Approximately(_visualFlipScaleX, 0f) ? 1f : -Mathf.Sign(_visualFlipScaleX);
     public bool IsAliveVisual => !_isDeadVisual;
     public bool IsMoving => _wantsMove;
 

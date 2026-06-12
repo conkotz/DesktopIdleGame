@@ -72,6 +72,26 @@ public static class MinionOwnerVisualSnapshot
         }
 
         HideEquipmentParts(minionSoldierRoot, "Helmet");
+        DisableLiveEquipmentBinding(minionSoldierRoot);
+    }
+
+    /// <summary>Prevents equipper scripts on the Soldier rig from tracking live owner gear swaps.</summary>
+    private static void DisableLiveEquipmentBinding(Transform minionSoldierRoot)
+    {
+        if (!minionSoldierRoot)
+            return;
+
+        MonoBehaviour[] behaviours = minionSoldierRoot.GetComponentsInChildren<MonoBehaviour>(true);
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            MonoBehaviour mb = behaviours[i];
+            if (!mb)
+                continue;
+
+            string typeName = mb.GetType().Name;
+            if (typeName.EndsWith("Equipper", System.StringComparison.Ordinal))
+                mb.enabled = false;
+        }
     }
 
     public static void HideEquipmentParts(Transform soldierRoot, params string[] partNames)

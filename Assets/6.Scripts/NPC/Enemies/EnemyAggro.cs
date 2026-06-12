@@ -95,9 +95,13 @@ public static class EnemyAggro
         bool minionDamagedThisEnemy,
         bool retaliationMinionValid,
         bool minionActivelyStrikingThisEnemy,
+        bool minionTauntLocked,
         MinionCombatTarget minionAttacker,
         ref Transform retaliationMinionTarget)
     {
+        if (minionTauntLocked && retaliationMinionValid)
+            return;
+
         if (IsDirectPlayerAttacker(attacker))
         {
             ResolvePlayerHitAggro(

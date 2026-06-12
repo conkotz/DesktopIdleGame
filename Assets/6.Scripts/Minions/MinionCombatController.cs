@@ -117,11 +117,9 @@ public class MinionCombatController : MonoBehaviour
         _ownerStats = ownerStats;
         _homeAnchor = homeAnchor ? homeAnchor : ownerStats.transform;
         _rangeOrigin = rangeOrigin ? rangeOrigin : _homeAnchor;
-        _ownerMeleeRange = Mathf.Max(0.5f, ownerStats.Range);
-        _moveSpeed = Mathf.Max(0.01f, ownerStats.FinalMoveSpeed * 0.85f);
     }
 
-    public void SnapBesideOwnerAfterSceneLoad()
+    public void ResetStateAfterSceneLoad()
     {
         if (!_initialized || !unit)
             return;
@@ -129,8 +127,76 @@ public class MinionCombatController : MonoBehaviour
         _strikeTarget = null;
         _state = CombatState.Idle;
         _recastReturnToPlayer = false;
+        _attackHitPending = false;
         unit.StopMovement();
         ResetIdleFollowState();
+    }
+
+    public bool TryApplyStrikeToEnemy(EnemyBaseController enemy, float damageMultiplier)
+    {
+        if (!_initialized || !enemy || enemy.IsDead || !_ownerStats)
+            return false;
+
+        SplitDamage d = _runtimeStats.FinalDamageSplitRange.RollBasicAttackDamage(
+            _runtimeStats.CritChance,
+            _runtimeStats.CritDamageMultiplier,
+            out bool crit);
+
+        float mult = Mathf.Max(0f, damageMultiplier);
+        d.physical *= mult;
+        d.magic *= mult;
+        d.corruptionDamage *= mult;
+
+        int ip = Mathf.RoundToInt(Mathf.Max(0f, d.physical));
+        int im = Mathf.RoundToInt(Mathf.Max(0f, d.magic));
+        int ic = Mathf.RoundToInt(Mathf.Max(0f, d.corruptionDamage));
+
+        Transform atk = transform;
+        if (ip > 0)
+            enemy.TakeDamage(ip, DamageType.Physical, crit, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: _outgoingDamageSourceLabel);
+        if (im > 0)
+            enemy.TakeDamage(im, DamageType.Magic, crit, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: _outgoingDamageSourceLabel);
+        if (ic > 0)
+            enemy.TakeDamage(ic, DamageType.Corruption, false, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: _outgoingDamageSourceLabel);
+
+        MinionHitEffects.ApplyAilmentsFromOwnerWeapon(
+            enemy,
+            _ownerWeaponSnapshot,
+            _runtimeStats,
+            ip,
+            im,
+            ic,
+            atk,
+            _outgoingDamageSourceLabel,
+            attributeOutgoingToMinion: true);
+
+        return ip + im + ic > 0;
+    }
+
+    public void CollectEnemiesInFrontArc(float range, System.Collections.Generic.List<EnemyBaseController> results)
+    {
+        results.Clear();
+        if (!_initialized || !unit)
+            return;
+
+        float myX = transform.position.x;
+        float faceSign = unit.FacingSignX;
+        float r = Mathf.Max(0.1f, range);
+        EnemyBaseController[] all = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            EnemyBaseController e = all[i];
+            if (!e || e.IsDead)
+                continue;
+
+            float dx = e.transform.position.x - myX;
+            if (Mathf.Abs(dx) > r)
+                continue;
+            if (dx * faceSign < -0.05f)
+                continue;
+
+            results.Add(e);
+        }
     }
 
     public void TryRecastRetargetOrReturn()
@@ -426,6 +492,7 @@ public class MinionCombatController : MonoBehaviour
             attributeOutgoingToMinion: true);
     }
 
+    /// <summary>Called once at summon; gear and owner stat changes do not affect this instance.</summary>
     private void RefreshCombatStats(float inheritedDamageMultiplier)
     {
         SplitDamageRange inheritedRange = default;

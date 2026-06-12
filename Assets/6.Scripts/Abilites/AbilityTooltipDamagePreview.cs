@@ -972,7 +972,7 @@ public static class AbilityTooltipDamagePreview
             }
 
             if (IsSoulforgedWarrior(def))
-                AppendSoulforgedWarriorEffectLines(body, O, def);
+                AppendSoulforgedWarriorEffectLines(body, O, def, skillsManager);
 
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
@@ -2090,7 +2090,8 @@ public static class AbilityTooltipDamagePreview
     private static void AppendSoulforgedWarriorEffectLines(
         StringBuilder body,
         System.Func<string, string> O,
-        AbilityDefinition def)
+        AbilityDefinition def,
+        SkillsManager skillsManager)
     {
         body.AppendLine(O("Summons a soulforged clone of your current appearance."));
         float hpFrac = def?.minionSpawnDefinition != null
@@ -2110,12 +2111,39 @@ public static class AbilityTooltipDamagePreview
         }
 
         body.AppendLine(O("Enemies struck by your warrior will attack it back."));
+        body.AppendLine(O(
+            $"Every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s (first after {AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds:0.#}s) releases a warcry granting nearby allies +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
+        AppendSoulforgedWarriorEnhancementLines(body, O, skillsManager);
         float dur = def?.minionSpawnDefinition != null
             ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
             : 30f;
         if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
             dur = def.tooltipBuffMinionDurationSeconds;
         body.AppendLine(O($"Duration: {dur:0.#}s"));
+    }
+
+    private static void AppendSoulforgedWarriorEnhancementLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return;
+
+        int sel = skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.SoulforgedWarriorEnhancementParentSpineNodeId,
+            -1);
+        if (sel == AbilityCombatPower.SoulforgedWarriorFuriousSlamChoiceIndex)
+        {
+            body.AppendLine(O(
+                $"Furious Slam: ground slam in front ({AbilityCombatPower.SoulforgedWarriorFuriousSlamRange:0.#} range) for {AbilityCombatPower.SoulforgedWarriorFuriousSlamDamageMultiplier * 100f:0.#}% minion strike damage."));
+        }
+        else if (sel == AbilityCombatPower.SoulforgedWarriorTauntingShoutChoiceIndex)
+        {
+            body.AppendLine(O(
+                $"Taunting Shout: warcry also taunts enemies within {AbilityCombatPower.SoulforgedWarriorTauntRange:0.#} range."));
+        }
     }
 
     private static void AppendSoulforgedEnhancementEffectLines(

@@ -568,21 +568,45 @@ public class PlayerAbilityController : MonoBehaviour
             _ownerStats = stats;
         if (!player)
             player = GetComponent<PlayerController>();
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
         if (!_ownerStats || !player)
             yield break;
 
-        CleanupSoulforgedWarriorList();
+        ReclaimPersistedSoulforgedWarriors();
         Transform ownerRoot = _ownerStats.transform;
         Transform rangeOrigin = _ownerTransform ? _ownerTransform : ownerRoot;
 
         for (int i = 0; i < _activeSoulforgedWarriorMinions.Count; i++)
         {
             SoulforgedWarriorMinion minion = _activeSoulforgedWarriorMinions[i];
-            if (!minion)
+            if (!minion || !minion.IsOperational)
                 continue;
 
-            minion.RebindOwnerAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
-            minion.SnapToOwnerAfterSceneLoad();
+            minion.RefreshAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
+        }
+
+        SyncSoulforgedWarriorHudBuff();
+    }
+
+    private void ReclaimPersistedSoulforgedWarriors()
+    {
+        CleanupSoulforgedWarriorList();
+        SoulforgedWarriorMinion[] found = FindObjectsByType<SoulforgedWarriorMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < found.Length; i++)
+        {
+            SoulforgedWarriorMinion minion = found[i];
+            if (!minion || !minion.IsOperational)
+                continue;
+
+            if (!_activeSoulforgedWarriorMinions.Contains(minion))
+            {
+                _activeSoulforgedWarriorMinions.Add(minion);
+                minion.BindReleasedCallback(HandleSoulforgedWarriorReleased);
+            }
         }
     }
 
@@ -8277,7 +8301,8 @@ public class PlayerAbilityController : MonoBehaviour
                 ownerRoot,
                 attacker,
                 HandleSoulforgedWarriorReleased,
-                duration))
+                duration,
+                skillsManager))
         {
             Destroy(go);
             return false;
