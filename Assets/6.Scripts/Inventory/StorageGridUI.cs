@@ -34,9 +34,14 @@ public class StorageGridUI : MonoBehaviour
     [SerializeField] private float minCellSize = 32f;
     [SerializeField] private int layoutRetryFrames = 3;
 
+    private const int PrewarmPoolBatchSize = 12;
+
     private readonly List<StorageSlotUI> _slotPool = new List<StorageSlotUI>(96);
     private GridLayoutGroup _grid;
     private bool _dirty;
+    private bool _poolPrewarmed;
+    private bool _displayPrewarmed;
+    private bool _layoutSettled;
     private Canvas _rootCanvas;
     private StorageTabKind _activeTab = StorageTabKind.Main;
 
@@ -86,7 +91,74 @@ public class StorageGridUI : MonoBehaviour
             _activeTab = tabBar.ActiveTab;
         }
 
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
+        if (TryShowPrewarmedWithoutRebuild())
+            return;
+
         StartCoroutine(DeferredRefresh());
+    }
+
+    public bool IsDisplayPrewarmed => _displayPrewarmed;
+
+    public IEnumerator CoPrewarmPool()
+    {
+        ResolveStorageRef();
+        EnsureTabBar();
+
+        if (_displayPrewarmed && _poolPrewarmed)
+            yield break;
+
+        if (storage)
+            storage.EnsureSlotCount(storage.ComputeTotalSlotCount());
+
+        StorageTabKind[] tabs = (StorageTabKind[])System.Enum.GetValues(typeof(StorageTabKind));
+        int maxVisibleSlots = 0;
+        for (int t = 0; t < tabs.Length; t++)
+        {
+            _activeTab = tabs[t];
+            maxVisibleSlots = Mathf.Max(maxVisibleSlots, TotalSlots);
+        }
+
+        yield return CoEnsurePoolSize(maxVisibleSlots, MainMenuUIPrewarm.UseBatchedInstantiation);
+
+        for (int i = 0; i < Mathf.Max(1, layoutRetryFrames); i++)
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            if (slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f)
+                break;
+        }
+
+        for (int t = 0; t < tabs.Length; t++)
+        {
+            _activeTab = tabs[t];
+            ApplyGridFit();
+            Rebuild();
+            yield return null;
+        }
+
+        if (tabBar != null)
+            _activeTab = tabBar.ActiveTab;
+        else
+            _activeTab = StorageTabKind.Main;
+
+        _poolPrewarmed = _slotPool.Count >= maxVisibleSlots;
+        _layoutSettled = slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f;
+        _displayPrewarmed = true;
+        _dirty = false;
+    }
+
+    private bool TryShowPrewarmedWithoutRebuild()
+    {
+        if (!_displayPrewarmed || !_poolPrewarmed || _dirty)
+            return false;
+
+        if (_slotPool.Count < TotalSlots)
+            return false;
+
+        return true;
     }
 
     private void OnDisable()
@@ -116,7 +188,11 @@ public class StorageGridUI : MonoBehaviour
             scroll.verticalNormalizedPosition = 1f;
     }
 
-    private void MarkDirty() => _dirty = true;
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _displayPrewarmed = false;
+    }
 
     public void RefreshNow()
     {
@@ -185,8 +261,36 @@ public class StorageGridUI : MonoBehaviour
 
         yield return null;
         Canvas.ForceUpdateCanvases();
-        if (slotsGrid)
+        if (slotsGrid && !_layoutSettled)
             LayoutRebuilder.ForceRebuildLayoutImmediate(slotsGrid);
+        _layoutSettled = slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f;
+    }
+
+    private IEnumerator CoEnsurePoolSize(int count, bool batched)
+    {
+        if (!batched)
+        {
+            EnsurePoolSize();
+            yield break;
+        }
+
+        while (_slotPool.Count < count)
+        {
+            int batchEnd = Mathf.Min(_slotPool.Count + PrewarmPoolBatchSize, count);
+            for (int i = _slotPool.Count; i < batchEnd; i++)
+            {
+                StorageSlotUI created = Instantiate(slotPrefab, slotsGrid, false);
+                _slotPool.Add(created);
+            }
+
+            for (int i = 0; i < _slotPool.Count; i++)
+            {
+                if (_slotPool[i] != null)
+                    _slotPool[i].gameObject.SetActive(i < count);
+            }
+
+            yield return null;
+        }
     }
 
     private void EnsurePoolSize()

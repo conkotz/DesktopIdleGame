@@ -74,9 +74,14 @@ public class InventoryGridUI : MonoBehaviour
     /// <summary>Fired whenever the active category filter changes. Listeners can recompute filter-aware UI (e.g. total value).</summary>
     public event Action OnFilterChanged;
 
+    private const int PrewarmPoolBatchSize = 12;
+
     private readonly List<InventorySlotUI> _slotPool = new List<InventorySlotUI>(64);
     private GridLayoutGroup _grid;
     private bool _dirty;
+    private bool _poolPrewarmed;
+    private bool _layoutSettled;
+    private bool _displayPrewarmed;
     /// <summary>Coalesce <see cref="OnInventoryChanged"/> into one <see cref="Rebuild"/> per frame (same frame as the change, after Update).</summary>
     private bool _pendingLateRebuild;
     private readonly List<int> _filteredSourceSlotScratch = new List<int>(128);
@@ -90,6 +95,7 @@ public class InventoryGridUI : MonoBehaviour
     private int[] _rebindCacheAmt;
     private string[] _rebindCacheItemId;
     private int[] _rebindCacheDefId;
+    private bool[] _rebindCacheIdentifyPending;
 
     private Canvas _rootCanvas;
     private RectTransform _resolvedViewport;
@@ -146,10 +152,51 @@ public class InventoryGridUI : MonoBehaviour
         BindFilterButtons();
         SetFilter(InventoryViewFilter.All, rebuildNow: false);
 
+        int totalSlots = TotalSlots;
+        if (_poolPrewarmed && _slotPool.Count < totalSlots)
+            _poolPrewarmed = false;
+
+        if (TryShowPrewarmedWithoutRebuild())
+            return;
+
         if (hideGridUntilReady)
             SetGridVisible(false);
 
         StartCoroutine(DeferredRefresh());
+    }
+
+    /// <summary>
+    /// After load-time prewarm, visuals and slot bindings are already current — skip the full deferred rebuild on first open.
+    /// </summary>
+    private bool TryShowPrewarmedWithoutRebuild()
+    {
+        if (!_displayPrewarmed || !_poolPrewarmed || _dirty)
+            return false;
+
+        int totalSlots = TotalSlots;
+        if (_slotPool.Count < totalSlots)
+            return false;
+
+        if (hideGridUntilReady)
+            SetGridVisible(true);
+
+        StartCoroutine(CoReflowAfterPrewarmedOpen());
+        return true;
+    }
+
+    private IEnumerator CoReflowAfterPrewarmedOpen()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        int totalSlots = TotalSlots;
+        int sig = ComputeInventoryGridLayoutSignature(totalSlots);
+        if (sig == _lastLayoutFitSignature)
+            yield break;
+
+        ApplyGridFit();
+        _lastLayoutFitSignature = sig;
+        Rebuild();
     }
 
     private void OnDisable()
@@ -171,6 +218,7 @@ public class InventoryGridUI : MonoBehaviour
     private void MarkDirty()
     {
         _dirty = true;
+        _displayPrewarmed = false;
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
             return;
         _pendingLateRebuild = true;
@@ -191,6 +239,9 @@ public class InventoryGridUI : MonoBehaviour
 
     private void OnRectTransformDimensionsChange()
     {
+        if (_displayPrewarmed && !_dirty)
+            return;
+
         _lastLayoutFitSignature = int.MinValue;
         ApplyGridFit();
     }
@@ -235,9 +286,57 @@ public class InventoryGridUI : MonoBehaviour
         return boundSlotsGrid != null && boundSlotPrefab != null;
     }
 
+    public bool IsPoolPrewarmed => _poolPrewarmed;
+    public bool IsDisplayPrewarmed => _displayPrewarmed;
+
+    public IEnumerator CoPrewarmPool()
+    {
+        int totalSlots = TotalSlots;
+        if (_displayPrewarmed && _poolPrewarmed && _slotPool.Count >= totalSlots)
+            yield break;
+
+        if (_poolPrewarmed && _slotPool.Count >= totalSlots)
+        {
+            FinalizePrewarmDisplayState();
+            yield break;
+        }
+
+        inventory?.EnsureSlotCount(totalSlots);
+        yield return CoEnsurePoolSize(totalSlots, MainMenuUIPrewarm.UseBatchedInstantiation);
+
+        for (int i = 0; i < Mathf.Max(1, layoutRetryFrames); i++)
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            if (slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f)
+                break;
+        }
+
+        ApplyGridFit();
+        Rebuild();
+        FinalizePrewarmDisplayState();
+    }
+
+    private void FinalizePrewarmDisplayState()
+    {
+        _poolPrewarmed = true;
+        _layoutSettled = slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f;
+        _displayPrewarmed = true;
+        _dirty = false;
+
+        if (hideGridUntilReady)
+            SetGridVisible(true);
+    }
+
     private IEnumerator DeferredRefresh()
     {
-        EnsurePoolSize(TotalSlots);
+        int totalSlots = TotalSlots;
+        if (_poolPrewarmed && _slotPool.Count >= totalSlots)
+            EnsurePoolSize(totalSlots);
+        else if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            yield return CoEnsurePoolSize(totalSlots, batched: true);
+        else
+            EnsurePoolSize(totalSlots);
 
         for (int i = 0; i < Mathf.Max(1, layoutRetryFrames); i++)
         {
@@ -255,9 +354,10 @@ public class InventoryGridUI : MonoBehaviour
         // Extra layout settle pass before showing (prevents 1-frame wrong positions).
         yield return null;
         Canvas.ForceUpdateCanvases();
-        if (slotsGrid)
+        if (slotsGrid && !_layoutSettled)
             LayoutRebuilder.ForceRebuildLayoutImmediate(slotsGrid);
         Canvas.ForceUpdateCanvases();
+        _layoutSettled = slotsGrid && slotsGrid.rect.width > 1f && slotsGrid.rect.height > 1f;
 
         if (hideGridUntilReady)
             SetGridVisible(true);
@@ -301,6 +401,41 @@ public class InventoryGridUI : MonoBehaviour
             if (_slotPool[i] != null)
                 _slotPool[i].gameObject.SetActive(i < needed);
         }
+
+        if (_slotPool.Count >= needed)
+            _poolPrewarmed = true;
+    }
+
+    private IEnumerator CoEnsurePoolSize(int needed, bool batched)
+    {
+        if (!slotsGrid || !slotPrefab)
+            yield break;
+
+        if (!batched)
+        {
+            EnsurePoolSize(needed);
+            yield break;
+        }
+
+        while (_slotPool.Count < needed)
+        {
+            int batchEnd = Mathf.Min(_slotPool.Count + PrewarmPoolBatchSize, needed);
+            for (int i = _slotPool.Count; i < batchEnd; i++)
+            {
+                var slot = Instantiate(slotPrefab, slotsGrid, false);
+                _slotPool.Add(slot);
+            }
+
+            for (int i = 0; i < _slotPool.Count; i++)
+            {
+                if (_slotPool[i] != null)
+                    _slotPool[i].gameObject.SetActive(i < needed);
+            }
+
+            yield return null;
+        }
+
+        _poolPrewarmed = true;
     }
 
     private void ApplyGridFit()
@@ -394,18 +529,22 @@ public class InventoryGridUI : MonoBehaviour
             string cacheId = hasMappedSource ? s.itemId : null;
 
             int defIdentity = 0;
+            bool identifyPending = false;
             ItemDefinition def = null;
             if (hasMappedSource && !s.IsEmpty)
             {
                 def = inventory.GetItemDef(s.itemId);
                 if (!def && itemDb) def = itemDb.Get(s.itemId);
                 defIdentity = def != null ? def.GetInstanceID() : 0;
+                ItemDatabase db = itemDb != null ? itemDb : inventory.GetItemDatabase();
+                identifyPending = ItemRandomStatIdentification.IsPending(db, s.itemId);
             }
 
             if (interactiveSlotIndex == _rebindCacheSrcIdx[i] &&
                 cacheAmt == _rebindCacheAmt[i] &&
                 GridItemIdEquals(cacheId, _rebindCacheItemId[i]) &&
-                defIdentity == _rebindCacheDefId[i])
+                defIdentity == _rebindCacheDefId[i] &&
+                identifyPending == _rebindCacheIdentifyPending[i])
             {
                 continue;
             }
@@ -414,6 +553,7 @@ public class InventoryGridUI : MonoBehaviour
             _rebindCacheAmt[i] = cacheAmt;
             _rebindCacheItemId[i] = cacheId;
             _rebindCacheDefId[i] = defIdentity;
+            _rebindCacheIdentifyPending[i] = identifyPending;
 
             if (hasMappedSource && !s.IsEmpty)
             {
@@ -452,6 +592,8 @@ public class InventoryGridUI : MonoBehaviour
             _rebindCacheAmt[i] = int.MinValue;
             _rebindCacheItemId[i] = null;
             _rebindCacheDefId[i] = 0;
+            if (_rebindCacheIdentifyPending != null)
+                _rebindCacheIdentifyPending[i] = false;
         }
     }
 
@@ -465,6 +607,7 @@ public class InventoryGridUI : MonoBehaviour
         var amt = new int[newCap];
         var ids = new string[newCap];
         var did = new int[newCap];
+        var identify = new bool[newCap];
         for (int i = 0; i < newCap; i++)
         {
             src[i] = int.MinValue;
@@ -479,12 +622,15 @@ public class InventoryGridUI : MonoBehaviour
             Array.Copy(_rebindCacheItemId, ids, copy);
             if (_rebindCacheDefId != null && _rebindCacheDefId.Length >= copy)
                 Array.Copy(_rebindCacheDefId, did, copy);
+            if (_rebindCacheIdentifyPending != null && _rebindCacheIdentifyPending.Length >= copy)
+                Array.Copy(_rebindCacheIdentifyPending, identify, copy);
         }
 
         _rebindCacheSrcIdx = src;
         _rebindCacheAmt = amt;
         _rebindCacheItemId = ids;
         _rebindCacheDefId = did;
+        _rebindCacheIdentifyPending = identify;
     }
 
     private static bool GridItemIdEquals(string a, string b) =>

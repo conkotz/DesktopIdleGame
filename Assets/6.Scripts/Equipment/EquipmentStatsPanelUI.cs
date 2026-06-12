@@ -9,6 +9,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private bool _refreshQueued;
     private bool _statsChangePending;
     private bool _statTooltipsWired;
+    private bool _displayPrewarmed;
     private float _nextStatsRefreshAllowedAt;
     private int _gatheringToolLiveStamp = int.MinValue;
     private int _livingInfernoLiveStamp = int.MinValue;
@@ -182,6 +183,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        ResolveRefsIfNeeded();
+    }
+
+    private void ResolveRefsIfNeeded()
+    {
         if (!player) player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
 
         // Prefer components from the player object so this panel never binds to enemy/NPC stats.
@@ -201,8 +207,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (!toolbelt) toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
     }
 
+    /// <summary>Builds stat lines and TMP meshes while the menu is hidden during load.</summary>
+    public void PrewarmForDisplay()
+    {
+        ResolveRefsIfNeeded();
+        WireStatTooltipsOnce();
+        _statsChangePending = false;
+        _nextStatsRefreshAllowedAt = 0f;
+        Refresh();
+        ForceMeshUpdateAllStatText();
+        _displayPrewarmed = true;
+    }
+
     private void OnEnable()
     {
+        ResolveRefsIfNeeded();
+
         if (equipment != null)
         {
             equipment.OnMainHandChanged += HandleRefresh;
@@ -226,7 +246,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         WireStatTooltipsOnce();
         _statsChangePending = false;
         _nextStatsRefreshAllowedAt = 0f;
-        Refresh();
+
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
+        if (!_displayPrewarmed)
+            Refresh();
+    }
+
+    private void ForceMeshUpdateAllStatText()
+    {
+        TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            if (texts[i])
+                texts[i].ForceMeshUpdate(true);
+        }
     }
 
     private void OnDisable()

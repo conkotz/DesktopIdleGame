@@ -306,6 +306,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::InventorySlotUI
   background: {fileID: 6533109376453645237}
   icon: {fileID: 2805236238557115013}
+  identifyIcon: {fileID: 0}
   countText: {fileID: 3326914715771268158}
   rarityOutline: {fileID: 0}
   idleColor: {r: 0.14338905, g: 0.15598601, b: 0.18490559, a: 1}
@@ -433,8 +434,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: -4, y: 0}
-  m_SizeDelta: {x: 10, y: 10}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 20, y: 20}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &2322634876647990012
 CanvasRenderer:

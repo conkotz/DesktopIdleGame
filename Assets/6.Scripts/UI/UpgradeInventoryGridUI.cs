@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -28,12 +29,16 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     public event Action<int, ItemDefinition, string> GearSelected;
 
+    private const int PrewarmPoolBatchSize = 12;
+
     private readonly List<InventorySlotUI> _slotPool = new(64);
     private GridLayoutGroup _grid;
     private Canvas _rootCanvas;
     private RectTransform _upgradeDropTarget;
     private int _selectedSourceSlot = -1;
     private bool _dirty = true;
+    private bool _poolPrewarmed;
+    private bool _displayPrewarmed;
 
     private void Awake()
     {
@@ -60,8 +65,14 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     {
         DisableLegacyInventoryGrid();
         TrySubscribeInventory();
+
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
+        if (_displayPrewarmed && _poolPrewarmed && !_dirty)
+            return;
+
         _dirty = true;
-        RebuildIfDirty();
     }
 
     private void OnDisable()
@@ -119,6 +130,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     private void OnInventoryChanged()
     {
         _dirty = true;
+        _displayPrewarmed = false;
         if (_selectedSourceSlot >= 0 && !IsUpgradableGearSlot(_selectedSourceSlot))
             SetSelectedSourceSlot(-1);
     }
@@ -167,6 +179,34 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
         _dirty = false;
         Rebuild();
+    }
+
+    public bool IsPoolPrewarmed => _poolPrewarmed;
+    public bool IsDisplayPrewarmed => _displayPrewarmed;
+
+    public IEnumerator CoPrewarmPool()
+    {
+        if (!inventory || !slotsGrid || !slotPrefab)
+            yield break;
+
+        int totalSlots = Mathf.Max(inventory.SlotCount, columns * minVisibleRows);
+        if (_displayPrewarmed && _poolPrewarmed && _slotPool.Count >= totalSlots)
+            yield break;
+
+        if (_poolPrewarmed && _slotPool.Count >= totalSlots)
+        {
+            _displayPrewarmed = true;
+            _dirty = false;
+            yield break;
+        }
+
+        inventory.EnsureSlotCount(inventory.SlotCount);
+        yield return CoEnsurePoolSize(totalSlots, MainMenuUIPrewarm.UseBatchedInstantiation);
+        ApplyContentHeight(totalSlots);
+        Rebuild();
+        _poolPrewarmed = true;
+        _displayPrewarmed = true;
+        _dirty = false;
     }
 
     public void Rebuild()
@@ -273,6 +313,36 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
         for (int i = 0; i < _slotPool.Count; i++)
             _slotPool[i].gameObject.SetActive(i < count);
+
+        if (_slotPool.Count >= count)
+            _poolPrewarmed = true;
+    }
+
+    private IEnumerator CoEnsurePoolSize(int count, bool batched)
+    {
+        if (!batched)
+        {
+            EnsurePoolSize(count);
+            yield break;
+        }
+
+        while (_slotPool.Count < count)
+        {
+            int batchEnd = Mathf.Min(_slotPool.Count + PrewarmPoolBatchSize, count);
+            for (int i = _slotPool.Count; i < batchEnd; i++)
+            {
+                InventorySlotUI created = Instantiate(slotPrefab, slotsGrid);
+                created.gameObject.SetActive(true);
+                _slotPool.Add(created);
+            }
+
+            for (int i = 0; i < _slotPool.Count; i++)
+                _slotPool[i].gameObject.SetActive(i < count);
+
+            yield return null;
+        }
+
+        _poolPrewarmed = true;
     }
 
     private void ApplyContentHeight(int slotCount)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -88,6 +89,9 @@ public sealed class UpgradePageUI : MonoBehaviour
     private UpgradeOptionFilter _activeFilter = UpgradeOptionFilter.None;
     private string _searchQuery = string.Empty;
     private bool _initialized;
+    private bool _displayPrewarmed;
+
+    private const int OptionRowPrewarmBatchSize = 8;
 
     private enum UpgradeOptionFilter
     {
@@ -130,7 +134,12 @@ public sealed class UpgradePageUI : MonoBehaviour
         TrySubscribeEquipment();
         TrySubscribeToolbelt();
         DisableLegacyInventoryGrids();
-        RefreshAll();
+
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
+        if (!_displayPrewarmed)
+            RefreshAll();
     }
 
     private void OnDisable()
@@ -143,6 +152,61 @@ public sealed class UpgradePageUI : MonoBehaviour
         UnsubscribeEquipment();
         UnsubscribeToolbelt();
         ClearSelectedOption();
+    }
+
+    /// <summary>Builds enhancement list rows, inventory grid bindings, and TMP meshes while the menu is hidden.</summary>
+    public IEnumerator CoPrewarmForDisplay()
+    {
+        WirePageWithoutRefresh();
+        yield return CoSpreadRefreshAll();
+        ForceMeshUpdateAllTmp();
+        _displayPrewarmed = true;
+    }
+
+    private void WirePageWithoutRefresh()
+    {
+        Initialize();
+        EnsureOptionDetailBarResolved();
+        ConfigureDetailBarInteraction();
+        WireCollapseButton();
+        ResolveSearchField();
+        WireSearchField();
+        HideLegacyListHeader();
+        ConfigureListLayout();
+        ConfigureUpgradeSectionListLayout();
+        ResolveFilterButtons();
+        WireFilterButtons();
+        RefreshFilterButtonVisuals();
+        ClearApplyError();
+        TrySubscribeInventory();
+        TrySubscribeEquipment();
+        TrySubscribeToolbelt();
+        DisableLegacyInventoryGrids();
+    }
+
+    private IEnumerator CoSpreadRefreshAll()
+    {
+        BuildDisplayRows();
+        yield return null;
+
+        RefreshInventoryGrid(rebuildNow: false);
+        yield return null;
+
+        yield return CoRefreshEnhancementOptionsListBatched();
+        RefreshSelectedGearSlot();
+        RefreshEnhancementSelectedLabel();
+        RefreshOptionDetailPanel();
+        RefreshSlotsAvailableLabel();
+    }
+
+    private void ForceMeshUpdateAllTmp()
+    {
+        TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            if (texts[i])
+                texts[i].ForceMeshUpdate(true);
+        }
     }
 
     private void Initialize()
@@ -904,7 +968,7 @@ public sealed class UpgradePageUI : MonoBehaviour
         RefreshSlotsAvailableLabel();
     }
 
-    private void RefreshInventoryGrid()
+    private void RefreshInventoryGrid(bool rebuildNow = true)
     {
         if (inventoryGrid == null)
             return;
@@ -914,7 +978,8 @@ public sealed class UpgradePageUI : MonoBehaviour
 
         inventoryGrid.MarkDirty();
         inventoryGrid.SetSelectedSourceSlot(_selectedGearSlotIndex);
-        inventoryGrid.Rebuild();
+        if (rebuildNow)
+            inventoryGrid.Rebuild();
     }
 
     private void OnGearSelected(int sourceSlotIndex, ItemDefinition def, string itemId)
@@ -1391,8 +1456,33 @@ public sealed class UpgradePageUI : MonoBehaviour
         if (_displayRows.Count == 0)
             BuildDisplayRows();
 
-        int optionNeeded = 0;
-        int sectionNeeded = 0;
+        CountVisibleEnhancementRows(out int optionNeeded, out int sectionNeeded);
+        EnsureSectionRowPool(sectionNeeded);
+        EnsureColumnHeaderPool(sectionNeeded);
+        EnsureOptionRowPool(optionNeeded);
+        BindVisibleEnhancementRows(optionNeeded, sectionNeeded, out int optionIndex);
+        RefreshTierTooLowLabel(optionIndex);
+    }
+
+    private IEnumerator CoRefreshEnhancementOptionsListBatched()
+    {
+        if (upgradeListContent == null || upgradeListEntryPrefab == null)
+            yield break;
+
+        if (_displayRows.Count == 0)
+            BuildDisplayRows();
+
+        CountVisibleEnhancementRows(out int optionNeeded, out int sectionNeeded);
+        EnsureSectionRowPool(sectionNeeded);
+        EnsureColumnHeaderPool(sectionNeeded);
+        yield return CoEnsureOptionRowPool(optionNeeded);
+        yield return CoBindVisibleEnhancementRows();
+    }
+
+    private void CountVisibleEnhancementRows(out int optionNeeded, out int sectionNeeded)
+    {
+        optionNeeded = 0;
+        sectionNeeded = 0;
         for (int i = 0; i < _displayRows.Count; i++)
         {
             UpgradeDisplayRow row = _displayRows[i];
@@ -1406,11 +1496,16 @@ public sealed class UpgradePageUI : MonoBehaviour
                 optionNeeded++;
             }
         }
+    }
 
-        EnsureSectionRowPool(sectionNeeded);
-        EnsureColumnHeaderPool(sectionNeeded);
-        EnsureOptionRowPool(optionNeeded);
+    private void BindVisibleEnhancementRows(int optionNeeded, int sectionNeeded, out int optionIndex)
+    {
+        BindVisibleEnhancementRowsCore(out optionIndex, out int sectionIndex, out int columnHeaderIndex);
+        HideUnusedEnhancementRows(optionIndex, sectionIndex, columnHeaderIndex);
+    }
 
+    private IEnumerator CoBindVisibleEnhancementRows()
+    {
         Inventory inv = ResolveInventory();
         PlayerStorage storage = ResolveStorage();
         ItemDefinition selectedGear = GetSelectedGearDefinition();
@@ -1419,6 +1514,68 @@ public sealed class UpgradePageUI : MonoBehaviour
         int sectionIndex = 0;
         int columnHeaderIndex = 0;
         int visibleChildIndex = 0;
+        int boundThisFrame = 0;
+
+        for (int i = 0; i < _displayRows.Count; i++)
+        {
+            UpgradeDisplayRow displayRow = _displayRows[i];
+            if (displayRow.IsSection)
+            {
+                if (!SectionHasVisibleOptions(i))
+                    continue;
+
+                UpgradeListSectionHeaderUI section = _sectionRows[sectionIndex++];
+                section.gameObject.SetActive(true);
+                section.SetTitle(displayRow.SectionTitle);
+                section.transform.SetSiblingIndex(visibleChildIndex++);
+
+                UpgradeListHeaderUI columnHeader = _columnHeaders[columnHeaderIndex++];
+                columnHeader.gameObject.SetActive(true);
+                columnHeader.BuildIfNeeded();
+                columnHeader.transform.SetSiblingIndex(visibleChildIndex++);
+                continue;
+            }
+
+            if (!OptionIsVisible(displayRow.Option))
+                continue;
+
+            UpgradeListEntryUI row = _optionRows[optionIndex++];
+            row.gameObject.SetActive(true);
+            row.transform.SetSiblingIndex(visibleChildIndex++);
+
+            EnhancementOptionEntry option = displayRow.Option;
+            bool canPay = selectedGear != null
+                ? EnhancementOptionPayment.HasAnyPayment(inv, storage, option, selectedGear)
+                : EnhancementOptionPayment.HasScrollPayment(inv, storage, option);
+            bool dimRow = !canPay;
+            bool selected = _selectedOption != null &&
+                            string.Equals(_selectedOption.optionId, option.optionId, StringComparison.OrdinalIgnoreCase);
+            row.BindOption(option, canPay, selected, dimRow, hasScrollSprite, missingScrollSprite,
+                OnEnhancementOptionSelected, selectedGear);
+
+            boundThisFrame++;
+            if (boundThisFrame >= OptionRowPrewarmBatchSize)
+            {
+                boundThisFrame = 0;
+                yield return null;
+            }
+        }
+
+        HideUnusedEnhancementRows(optionIndex, sectionIndex, columnHeaderIndex);
+        RefreshTierTooLowLabel(optionIndex);
+    }
+
+    private void BindVisibleEnhancementRowsCore(out int optionIndex, out int sectionIndex, out int columnHeaderIndex)
+    {
+        Inventory inv = ResolveInventory();
+        PlayerStorage storage = ResolveStorage();
+        ItemDefinition selectedGear = GetSelectedGearDefinition();
+
+        optionIndex = 0;
+        sectionIndex = 0;
+        columnHeaderIndex = 0;
+        int visibleChildIndex = 0;
+
         for (int i = 0; i < _displayRows.Count; i++)
         {
             UpgradeDisplayRow displayRow = _displayRows[i];
@@ -1456,15 +1613,32 @@ public sealed class UpgradePageUI : MonoBehaviour
             row.BindOption(option, canPay, selected, dimRow, hasScrollSprite, missingScrollSprite,
                 OnEnhancementOptionSelected, selectedGear);
         }
+    }
 
+    private void HideUnusedEnhancementRows(int optionIndex, int sectionIndex, int columnHeaderIndex)
+    {
         for (int i = optionIndex; i < _optionRows.Count; i++)
             _optionRows[i].gameObject.SetActive(false);
         for (int i = sectionIndex; i < _sectionRows.Count; i++)
             _sectionRows[i].gameObject.SetActive(false);
         for (int i = columnHeaderIndex; i < _columnHeaders.Count; i++)
             _columnHeaders[i].gameObject.SetActive(false);
+    }
 
-        RefreshTierTooLowLabel(optionIndex);
+    private IEnumerator CoEnsureOptionRowPool(int needed)
+    {
+        while (_optionRows.Count < needed)
+        {
+            int batchEnd = Mathf.Min(_optionRows.Count + OptionRowPrewarmBatchSize, needed);
+            for (int i = _optionRows.Count; i < batchEnd; i++)
+            {
+                UpgradeListEntryUI created = Instantiate(upgradeListEntryPrefab, upgradeListContent);
+                created.gameObject.SetActive(true);
+                _optionRows.Add(created);
+            }
+
+            yield return null;
+        }
     }
 
     private void RefreshTierTooLowLabel(int visibleOptionCount)

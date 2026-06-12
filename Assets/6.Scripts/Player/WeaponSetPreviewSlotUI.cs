@@ -39,6 +39,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
     private Action<EquipmentUISlotType, string> _uiSlotCb;
 
     private bool _subscribed;
+    private bool _bindingPrewarmed;
     private string _itemId;
     private ItemDefinition _def;
 
@@ -64,15 +65,28 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
 
     private void OnEnable()
     {
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
         TryBind();
         Subscribe();
-        Refresh();
+
+        if (!_bindingPrewarmed)
+            Refresh();
     }
 
     private void OnDisable()
     {
         Unsubscribe();
         tooltip?.Hide();
+    }
+
+    public void PrewarmBinding()
+    {
+        TryBind();
+        Subscribe();
+        Refresh();
+        _bindingPrewarmed = true;
     }
 
     private void TryBind()

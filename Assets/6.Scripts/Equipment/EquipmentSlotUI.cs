@@ -48,6 +48,12 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     [SerializeField] private RectTransform equipmentWindowRect;
     [SerializeField] private FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Left;
+
+    private static EquipmentManager s_sharedEquipment;
+    private static ToolbeltManager s_sharedToolbelt;
+    private static Inventory s_sharedInventory;
+    private static SharedTooltipUI s_sharedTooltip;
+    private static bool s_sharedRefsResolved;
     private RectTransform _tooltipHeightRect;
 
 
@@ -65,6 +71,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     private bool _bound;
     private bool _subscribed;
+    private bool _bindingPrewarmed;
 
     private string _itemId;
     private ItemDefinition _def;
@@ -165,9 +172,14 @@ public class EquipmentSlotUI : MonoBehaviour,
         _bound = false;
         _subscribed = false;
 
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
         TryBind();
         TrySubscribe();
-        RefreshFromState();
+
+        if (!_bindingPrewarmed)
+            RefreshFromState();
     }
 
     private void OnDisable()
@@ -188,8 +200,43 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
     }
 
+    public static void PrewarmSharedReferences()
+    {
+        if (s_sharedRefsResolved)
+            return;
+
+        s_sharedEquipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+        s_sharedToolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
+        s_sharedInventory = s_sharedEquipment != null
+            ? s_sharedEquipment.Inventory
+            : FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        s_sharedTooltip = ResolveSharedEquipmentTooltip();
+        s_sharedRefsResolved = s_sharedEquipment != null && s_sharedInventory != null;
+    }
+
+    public void PrewarmBinding()
+    {
+        PrewarmSharedReferences();
+        TryBind();
+        TrySubscribe();
+        RefreshFromState();
+        _bindingPrewarmed = true;
+    }
+
     private void TryBind()
     {
+        if (!equipment && s_sharedEquipment)
+            equipment = s_sharedEquipment;
+
+        if (!toolbelt && s_sharedToolbelt)
+            toolbelt = s_sharedToolbelt;
+
+        if (!inventory && s_sharedInventory)
+            inventory = s_sharedInventory;
+
+        if (!tooltip && s_sharedTooltip)
+            tooltip = s_sharedTooltip;
+
         if (!equipment)
             equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
 
@@ -208,18 +255,20 @@ public class EquipmentSlotUI : MonoBehaviour,
         _bound = (equipment != null && inventory != null);
     }
 
-    private SharedTooltipUI FindEquipmentTooltip()
+    private SharedTooltipUI FindEquipmentTooltip() => ResolveSharedEquipmentTooltip();
+
+    private static SharedTooltipUI ResolveSharedEquipmentTooltip()
     {
         SharedTooltipUI[] allTooltips =
             FindObjectsByType<SharedTooltipUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-        foreach (var t in allTooltips)
+        foreach (SharedTooltipUI t in allTooltips)
         {
             if (t != null && t.name == "SharedToolTipInfoPanel")
                 return t;
         }
 
-        foreach (var t in allTooltips)
+        foreach (SharedTooltipUI t in allTooltips)
         {
             if (t != null && t.name != "HUDToolInfoPanel")
                 return t;

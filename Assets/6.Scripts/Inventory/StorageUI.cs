@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -45,6 +46,33 @@ public class StorageUI : MonoBehaviour
             _instance = null;
     }
 
+    public IEnumerator CoPrewarmForLoad()
+    {
+        if (!grid)
+            yield break;
+
+        bool wasOpen = IsOpen;
+        if (panelRoot)
+            panelRoot.SetActive(true);
+
+        yield return null;
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        MainMenuUIPrewarm.UseBatchedInstantiation = true;
+        try
+        {
+            yield return grid.CoPrewarmPool();
+        }
+        finally
+        {
+            MainMenuUIPrewarm.UseBatchedInstantiation = false;
+        }
+
+        if (!wasOpen && panelRoot)
+            panelRoot.SetActive(false);
+    }
+
     public void Open()
     {
         if (panelRoot)
@@ -53,9 +81,10 @@ public class StorageUI : MonoBehaviour
             panelRoot.transform.SetAsLastSibling();
         }
 
-        grid?.RefreshNow();
-        // Bind immediately from the player's PlayerStorage; inspector reference can point at a wrong instance.
-        grid?.SyncRefreshDisplay();
+        if (grid != null && grid.IsDisplayPrewarmed)
+            grid.SyncRefreshDisplay();
+        else
+            grid?.RefreshNow();
     }
 
     public void Close()

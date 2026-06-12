@@ -70,6 +70,8 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private float shopMinCellSize = 48f;
     [SerializeField] private int shopGridLayoutRetryFrames = 3;
 
+    private const int ShopSlotPrewarmBatchSize = 6;
+
     private readonly List<ShopSlotUI> _spawned = new();
     private GridLayoutGroup _shopGrid;
     private Coroutine _shopGridLayoutRetry;
@@ -257,6 +259,90 @@ public class ShopUI : MonoBehaviour
         return null;
     }
 
+    public IEnumerator CoPrewarmForLoad(Merchant sampleMerchant)
+    {
+        TryResolveRefs();
+
+        if (!shopTooltip)
+            shopTooltip = FindShopTooltip();
+
+        if (!slotPrefab || !contentRoot)
+            yield break;
+
+        GameObject root = ResolveWindowRoot();
+        bool wasOpen = IsOpen;
+
+        if (root)
+            root.SetActive(true);
+        if (panelRoot && panelRoot != root)
+            panelRoot.SetActive(true);
+
+        yield return null;
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        GameObject prewarmRoot = root != null ? root : panelRoot;
+        MainMenuUIPrewarm.UseBatchedInstantiation = true;
+        try
+        {
+            if (prewarmRoot)
+            {
+                InventoryGridUI[] grids = prewarmRoot.GetComponentsInChildren<InventoryGridUI>(true);
+                for (int i = 0; i < grids.Length; i++)
+                {
+                    InventoryGridUI grid = grids[i];
+                    if (!grid || grid.IsDisplayPrewarmed)
+                        continue;
+
+                    yield return grid.CoPrewarmPool();
+                }
+            }
+
+            if (sampleMerchant != null && inventory != null)
+            {
+                int needed = CountValidStockEntries(sampleMerchant, inventory);
+                yield return CoEnsureShopSlotPoolSize(needed);
+                Rebuild(sampleMerchant);
+            }
+        }
+        finally
+        {
+            MainMenuUIPrewarm.UseBatchedInstantiation = false;
+        }
+
+        ApplyShopGridLayout();
+        ForceLayoutRefresh();
+        SetActiveShopSlotCount(0);
+
+        if (!wasOpen)
+        {
+            if (panelRoot && panelRoot != root)
+                panelRoot.SetActive(false);
+            if (root)
+                root.SetActive(false);
+        }
+    }
+
+    public static int CountValidStockEntries(Merchant merchant, Inventory inv)
+    {
+        if (merchant == null || merchant.Stock == null)
+            return 0;
+
+        int count = 0;
+        foreach (MerchantStock.Entry entry in merchant.Stock.Items)
+        {
+            if (string.IsNullOrWhiteSpace(entry.itemId))
+                continue;
+
+            if (inv != null && !inv.GetItemDef(entry.itemId))
+                continue;
+
+            count++;
+        }
+
+        return count;
+    }
+
     public void Open(Merchant merchant)
     {
         TryResolveRefs();
@@ -440,26 +526,30 @@ public class ShopUI : MonoBehaviour
     {
         shopTooltip?.Hide();
 
-        foreach (var s in _spawned)
-        {
-            if (s) Destroy(s.gameObject);
-        }
-        _spawned.Clear();
-
-        if (merchant == null || merchant.Stock == null)
+        if (!contentRoot || !slotPrefab)
             return;
 
-        foreach (var entry in merchant.Stock.Items)
+        if (merchant == null || merchant.Stock == null || inventory == null)
+        {
+            SetActiveShopSlotCount(0);
+            return;
+        }
+
+        int needed = CountValidStockEntries(merchant, inventory);
+        EnsureShopSlotPoolSize(needed);
+
+        int index = 0;
+        foreach (MerchantStock.Entry entry in merchant.Stock.Items)
         {
             if (string.IsNullOrWhiteSpace(entry.itemId))
                 continue;
 
-            var def = inventory.GetItemDef(entry.itemId);
+            ItemDefinition def = inventory.GetItemDef(entry.itemId);
             if (!def)
                 continue;
 
-            var slot = Instantiate(slotPrefab, contentRoot);
-
+            ShopSlotUI slot = _spawned[index++];
+            slot.gameObject.SetActive(true);
             slot.Bind(
                 this,
                 merchant,
@@ -467,16 +557,55 @@ public class ShopUI : MonoBehaviour
                 def,
                 shopTooltip,
                 shopWindowRect,
-                preferredSide
-            );
-
-            _spawned.Add(slot);
+                preferredSide);
         }
 
+        SetActiveShopSlotCount(index);
         RestoreSlotSelectionAfterRebuild(merchant);
         ForceLayoutRefresh();
         ScheduleShopGridLayout();
         RefreshShopRaycastTargets();
+    }
+
+    private void EnsureShopSlotPoolSize(int needed)
+    {
+        while (_spawned.Count < needed)
+        {
+            ShopSlotUI slot = Instantiate(slotPrefab, contentRoot);
+            _spawned.Add(slot);
+        }
+    }
+
+    private IEnumerator CoEnsureShopSlotPoolSize(int needed)
+    {
+        if (!MainMenuUIPrewarm.UseBatchedInstantiation)
+        {
+            EnsureShopSlotPoolSize(needed);
+            SetActiveShopSlotCount(needed);
+            yield break;
+        }
+
+        while (_spawned.Count < needed)
+        {
+            int batchEnd = Mathf.Min(_spawned.Count + ShopSlotPrewarmBatchSize, needed);
+            for (int i = _spawned.Count; i < batchEnd; i++)
+            {
+                ShopSlotUI slot = Instantiate(slotPrefab, contentRoot);
+                _spawned.Add(slot);
+            }
+
+            SetActiveShopSlotCount(_spawned.Count);
+            yield return null;
+        }
+    }
+
+    private void SetActiveShopSlotCount(int activeCount)
+    {
+        for (int i = 0; i < _spawned.Count; i++)
+        {
+            if (_spawned[i])
+                _spawned[i].gameObject.SetActive(i < activeCount);
+        }
     }
 
     public void RefreshShopRaycastTargets()

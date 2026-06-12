@@ -172,6 +172,8 @@ public class PlayerSpawnController : MonoBehaviour
             levelLoadScreenFadeSeconds > 0.001f;
 
         CanvasGroup loadFader = useScreenFade ? CreateOrResolveGameplayBlackFade() : null;
+        LevelLoadScreenUI loadScreenUi = null;
+        float blackScreenStartTime = Time.unscaledTime;
 
         try
         {
@@ -185,6 +187,8 @@ public class PlayerSpawnController : MonoBehaviour
             {
                 loadFader.alpha = 1f;
                 BringGameplayBlackFadeToFront(loadFader);
+                loadScreenUi = LevelLoadScreenUI.EnsureOn(loadFader);
+                loadScreenUi?.SetMapName(GameplayLoadDisplayNames.ResolveActiveMapDisplayName());
             }
 
             var combat = GetComponent<PlayerCombatController>();
@@ -385,8 +389,19 @@ public class PlayerSpawnController : MonoBehaviour
             if (loadFader != null)
             {
                 BringGameplayBlackFadeToFront(loadFader);
-                if (levelLoadBlackHoldSeconds > 0f)
-                    yield return new WaitForSecondsRealtime(levelLoadBlackHoldSeconds);
+
+                loadScreenUi?.SetMapName(GameplayLoadDisplayNames.ResolveActiveMapDisplayName());
+
+                if (isGameplayScene)
+                    yield return MainMenuUIPrewarm.CoWaitUntilComplete();
+
+                float elapsedBlack = Time.unscaledTime - blackScreenStartTime;
+                float targetBlackSeconds = Mathf.Max(levelLoadBlackHoldSeconds, elapsedBlack);
+                float remainingBlack = targetBlackSeconds - elapsedBlack;
+                if (remainingBlack > 0f)
+                    yield return new WaitForSecondsRealtime(remainingBlack);
+
+                loadScreenUi?.SetVisible(false);
                 yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);
             }
         }

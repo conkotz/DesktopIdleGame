@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
@@ -578,7 +579,6 @@ public class MainMenuWindowUI : MonoBehaviour
 
         EnsureWindowInteractable();
         HideAllPages();
-
         targetPage.SetActive(true);
         currentPage = targetPage;
 
@@ -852,6 +852,70 @@ public class MainMenuWindowUI : MonoBehaviour
 
         if (_windowRootImage)
             _windowRootImage.raycastTarget = false;
+    }
+
+    /// <summary>
+    /// Builds heavy tab UI (inventory grids, quest lists, etc.) while the menu shell stays hidden.
+    /// </summary>
+    public IEnumerator CoPrewarmHeavyPages()
+    {
+        if (!mainMenuWindow)
+            yield break;
+
+        bool wasOpen = IsOpen;
+        GameObject previousPage = currentPage;
+
+        mainMenuWindow.SetActive(true);
+        if (_hideWindowWithCanvasGroup)
+            ApplyWindowHiddenVisuals();
+
+        GameObject[] pages =
+        {
+            characterPage,
+            upgradePage,
+            skillsAbilitiesPage,
+            questPage,
+            fullMapPage,
+            databasePage,
+        };
+
+        MainMenuUIPrewarm.UseBatchedInstantiation = true;
+        try
+        {
+            for (int p = 0; p < pages.Length; p++)
+            {
+                GameObject page = pages[p];
+                if (!page)
+                    continue;
+
+                HideAllPages();
+                page.SetActive(true);
+                yield return null;
+
+                yield return MainMenuPagePrewarm.CoPrewarmPageContents(page);
+
+                page.SetActive(false);
+                yield return null;
+            }
+        }
+        finally
+        {
+            MainMenuUIPrewarm.UseBatchedInstantiation = false;
+        }
+
+        HideAllPages();
+        currentPage = null;
+
+        if (wasOpen && previousPage)
+        {
+            previousPage.SetActive(true);
+            currentPage = previousPage;
+            EnsureWindowInteractable();
+        }
+        else if (_hideWindowWithCanvasGroup)
+        {
+            ApplyWindowHiddenVisuals();
+        }
     }
 
     private void OnDestroy()

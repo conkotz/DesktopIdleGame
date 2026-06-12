@@ -54,6 +54,10 @@ public class InventoryTotalValueUI : MonoBehaviour
     {
         Subscribe();
         _valueLabelDirty = false;
+
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
         RefreshNow();
     }
 

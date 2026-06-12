@@ -28,6 +28,7 @@ public class InventorySlotUI : MonoBehaviour,
     [Header("UI")]
     [SerializeField] private Image background;
     [SerializeField] private Image icon;
+    [SerializeField] private Image identifyIcon;
     [SerializeField] private TMP_Text countText;
     [SerializeField] private Outline rarityOutline;
 
@@ -92,6 +93,7 @@ public class InventorySlotUI : MonoBehaviour,
     private RectTransform _upgradeDropTarget;
     private CanvasGroup _upgradeCanvasGroup;
     private bool _upgradeSelected;
+    private bool _identifyPendingCached;
     private Coroutine _identifyRoutine;
 
     private static readonly Color UpgradeDimIconColor = new(0.45f, 0.45f, 0.45f, 0.55f);
@@ -125,6 +127,15 @@ public class InventorySlotUI : MonoBehaviour,
             rarityOutline.enabled = false;
             rarityOutline.useGraphicAlpha = false;
             rarityOutline.effectDistance = rarityBorderThickness;
+        }
+
+        if (!identifyIcon)
+            identifyIcon = transform.Find("IdentifyIcon")?.GetComponent<Image>();
+
+        if (identifyIcon)
+        {
+            identifyIcon.raycastTarget = false;
+            identifyIcon.gameObject.SetActive(false);
         }
 
         if (icon) icon.raycastTarget = false;
@@ -185,12 +196,15 @@ public class InventorySlotUI : MonoBehaviour,
     RectTransform inventoryPanelRect,
     Canvas rootCanvas)
     {
+        bool identifyPending = IsIdentifyPending(def, amount, itemId, inventory);
+
         bool sameVisual =
             ReferenceEquals(_inventory, inventory) &&
             _slotIndex == slotIndex &&
             _amount == amount &&
             ReferenceEquals(_def, def) &&
-            ItemIdEquals(_itemId, itemId);
+            ItemIdEquals(_itemId, itemId) &&
+            _identifyPendingCached == identifyPending;
 
         _tooltip = tooltip;
         _inventory = inventory;
@@ -200,6 +214,7 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (sameVisual)
         {
+            RefreshIdentifyIcon(identifyPending);
             ApplySlotBackground();
             return;
         }
@@ -207,6 +222,7 @@ public class InventorySlotUI : MonoBehaviour,
         _def = def;
         _amount = amount;
         _itemId = itemId;
+        _identifyPendingCached = identifyPending;
 
         if (icon)
         {
@@ -226,7 +242,26 @@ public class InventorySlotUI : MonoBehaviour,
         if (def == null || amount <= 0 || string.IsNullOrEmpty(itemId))
             AutoBattleLootHighlight.ClearInventorySlot(slotIndex);
 
+        RefreshIdentifyIcon(identifyPending);
         ApplySlotBackground();
+    }
+
+    private static bool IsIdentifyPending(ItemDefinition def, int amount, string itemId, Inventory inventory)
+    {
+        if (def == null || amount <= 0 || string.IsNullOrWhiteSpace(itemId) || inventory == null)
+            return false;
+
+        return ItemRandomStatIdentification.IsPending(inventory.GetItemDatabase(), itemId);
+    }
+
+    private void RefreshIdentifyIcon(bool show)
+    {
+        if (!identifyIcon)
+            return;
+
+        identifyIcon.gameObject.SetActive(show);
+        if (show)
+            identifyIcon.enabled = true;
     }
 
     private static bool ItemIdEquals(string a, string b) =>
@@ -737,6 +772,9 @@ public class InventorySlotUI : MonoBehaviour,
             yield break;
 
         GameLog.Add(activityMessage, ItemRandomStatIdentification.ActivityLogColor);
+
+        _identifyPendingCached = false;
+        RefreshIdentifyIcon(false);
 
         if (_isPointerOver)
             ShowItemTooltip();
