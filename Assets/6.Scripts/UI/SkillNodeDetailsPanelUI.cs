@@ -1514,6 +1514,23 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                 && !string.IsNullOrWhiteSpace(meleeBody))
                 return meleeBody;
 
+            if (string.Equals(spineId, AbilityCombatPower.SoulforgedWeaponEnhancementParentSpineNodeId, StringComparison.Ordinal))
+            {
+                if (choiceIndex == AbilityCombatPower.SoulforgedWeaponSwarmChoiceIndex)
+                {
+                    return
+                        "Summons 3 soulforged weapons.\n" +
+                        "Each weapon 15% less damage.\n" +
+                        "Recast to collapse all weapons onto your current target, or find new targets if you don't have one.";
+                }
+
+                if (choiceIndex == AbilityCombatPower.SoulforgedWeaponExtendedDurationChoiceIndex)
+                {
+                    return
+                        $"Soulforged Weapon now lasts {AbilityCombatPower.SoulforgedWeaponExtendedDurationSeconds:0.#}s.";
+                }
+            }
+
             if (string.Equals(spineId, AbilityCombatPower.SoulforgedWarriorEnhancementParentSpineNodeId, StringComparison.Ordinal))
             {
                 if (choiceIndex == AbilityCombatPower.SoulforgedWarriorTauntingShoutChoiceIndex)

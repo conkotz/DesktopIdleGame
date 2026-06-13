@@ -4,13 +4,11 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Wires Aggressive / Assist / Passive minion commands on <see cref="ActionBarUI"/>.
-/// Shown while Soulforged Warrior is on the combat loadout or currently summoned.
+/// Shown only while Soulforged Warrior is on the combat action bar loadout.
 /// </summary>
 [DisallowMultipleComponent]
 public class ActionBarMinionControlUI : MonoBehaviour
 {
-    private const float VisibilityPollInterval = 0.25f;
-
     [SerializeField] private ActionBarUI actionBar;
     [SerializeField] private GameObject minionControlRow;
     [SerializeField] private Button aggressiveButton;
@@ -21,13 +19,13 @@ public class ActionBarMinionControlUI : MonoBehaviour
 
     private bool _wired;
     private bool _tooltipsConfigured;
-    private bool _lastVisible;
-    private float _nextVisibilityPollAt;
     private SharedTooltipUI _sharedTooltip;
 
     private void Awake()
     {
         ResolveRefs();
+        if (minionControlRow != null)
+            minionControlRow.SetActive(false);
     }
 
     private void Start()
@@ -50,23 +48,8 @@ public class ActionBarMinionControlUI : MonoBehaviour
         MinionControlService.OnStanceChanged -= HandleStanceChanged;
     }
 
-    private void Update()
-    {
-        if (Time.unscaledTime < _nextVisibilityPollAt)
-            return;
-
-        _nextVisibilityPollAt = Time.unscaledTime + VisibilityPollInterval;
-
-        bool visible = ShouldShowMinionControls();
-        if (visible == _lastVisible)
-            return;
-
-        RefreshFromActionBar();
-    }
-
     private IEnumerator CoDeferredRefresh()
     {
-        yield return null;
         yield return null;
         RefreshFromActionBar();
     }
@@ -75,7 +58,6 @@ public class ActionBarMinionControlUI : MonoBehaviour
     {
         ResolveRefs();
         bool show = ShouldShowMinionControls();
-        _lastVisible = show;
 
         if (minionControlRow != null)
             minionControlRow.SetActive(show);
@@ -83,11 +65,8 @@ public class ActionBarMinionControlUI : MonoBehaviour
 
     private bool ShouldShowMinionControls()
     {
-        if (actionBar != null &&
-            actionBar.HasAbilityOnLoadout(AbilityCombatPower.SoulforgedWarriorAbilityId))
-            return true;
-
-        return MinionControlVisibility.HasActiveSoulforgedWarrior();
+        return actionBar != null &&
+               actionBar.HasAbilityOnLoadout(AbilityCombatPower.SoulforgedWarriorAbilityId);
     }
 
     private void ResolveRefs()

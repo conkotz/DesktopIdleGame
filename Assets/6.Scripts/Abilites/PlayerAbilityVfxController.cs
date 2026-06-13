@@ -228,6 +228,16 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private int spectralAxeAreaIndicatorSortingOrder = 50;
     [SerializeField] private string spectralAxeAreaIndicatorSortingLayer = "";
 
+    [Header("Woodcutting tree range outlines (screen overlay setting)")]
+    [SerializeField] private bool woodcuttingTreeRangeOutlinesEnabled = true;
+    [SerializeField] private Color woodcuttingTreeOutlineInRangeColor = new Color(0.35f, 0.95f, 0.35f, 0.95f);
+    [SerializeField] private Color woodcuttingTreeOutlineOutOfRangeColor = new Color(1f, 1f, 1f, 0.55f);
+    [SerializeField, Min(0.002f)] private float woodcuttingTreeOutlineLineWidth = 0.035f;
+    [SerializeField] private int woodcuttingTreeOutlineSortingOrder = 55;
+    [SerializeField] private string woodcuttingTreeOutlineSortingLayer = "";
+    [Tooltip("Extra padding added when deciding which nearby trees get an outline.")]
+    [SerializeField, Min(0f)] private float woodcuttingTreeOutlineScanPadding = 2f;
+
     [Header("Avatar of the Forest (Woodcutting Lv45) VFX")]
     [SerializeField] private Vector3 avatarOfForestGlowLocalOffset = new Vector3(0f, 0.18f, 0f);
     [SerializeField] private Color avatarOfForestGlowColor = new Color(0.58f, 1f, 0.42f, 0.96f);
@@ -319,6 +329,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     private GameObject _spectralAxeAreaIndicatorRoot;
     private LineRenderer _spectralAxeAreaIndicatorLine;
+    private Transform _spectralAxeAreaIndicatorFollow;
+    private float _spectralAxeAreaIndicatorAppliedRadius = float.NaN;
+
+    private readonly Dictionary<ResourceNode, LineRenderer> _woodcuttingTreeOutlineByNode = new();
+    private readonly List<ResourceNode> _woodcuttingTreeOutlineScratch = new();
+    private readonly List<ResourceNode> _woodcuttingTreeOutlineRemoveScratch = new();
 
     private GameObject _lumberFrenzyAnchorRoot;
     private GameObject _lumberFrenzyOrbitVfxRoot;
@@ -398,6 +414,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     {
         DestroyLumberFrenzyOrbitVfx();
         DestroySpectralAxeAreaIndicator();
+        ClearWoodcuttingTreeRangeOutlines();
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
         DestroyBattleTranceGlowVfx();
@@ -2318,7 +2335,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    public void UpdateCleavingChopRangeIndicator(bool buffActive, float radiusWorld)
+    public void UpdateCleavingChopRangeIndicator(bool buffActive, float radiusWorld, Vector3? worldCenter)
     {
         if (!cleavingChopShowRangeIndicator || !AreAbilityRangeIndicatorsEnabled())
         {
@@ -2327,7 +2344,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
             return;
         }
 
-        if (!buffActive)
+        if (!buffActive || !worldCenter.HasValue || radiusWorld <= 0f)
         {
             if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
                 _cleavingChopIndicatorRoot.SetActive(false);
@@ -2342,12 +2359,261 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (!_cleavingChopIndicatorRoot.activeSelf)
             _cleavingChopIndicatorRoot.SetActive(true);
 
+        _cleavingChopIndicatorRoot.transform.position = worldCenter.Value;
+
         float radius = Mathf.Max(0f, radiusWorld);
         if (!Mathf.Approximately(_cleavingChopIndicatorAppliedRadius, radius))
         {
             RebuildCleavingChopIndicatorCircle(radius);
             _cleavingChopIndicatorAppliedRadius = radius;
         }
+    }
+
+    /// <summary>
+    /// Draws a small white/green outline on nearby woodcutting tree colliders while gathering buffs are active.
+    /// Green when the tree is inside Cleaving Chop, Spectral Axe, or Avatar of the Forest range.
+    /// </summary>
+    public void UpdateWoodcuttingTreeRangeOutlines(PlayerAbilityController abilities)
+    {
+        if (!woodcuttingTreeRangeOutlinesEnabled || !AreAbilityRangeIndicatorsEnabled() || abilities == null || player == null)
+        {
+            ClearWoodcuttingTreeRangeOutlines();
+            return;
+        }
+
+        bool cleavingActive = abilities.IsCleavingChopActive;
+        bool spectralActive = abilities.TryGetSpectralAxeGatherArea(out Vector3 spectralCenter, out float spectralRadius);
+        bool avatarActive = abilities.IsAvatarOfTheForestActive;
+        if (!cleavingActive && !spectralActive && !avatarActive)
+        {
+            ClearWoodcuttingTreeRangeOutlines();
+            return;
+        }
+
+        ResourceNode primaryTarget = player.CurrentTarget;
+        Vector3 cleavingOrigin = default;
+        float cleavingRange = 0f;
+        bool cleavingOriginReady = cleavingActive &&
+                                   primaryTarget != null &&
+                                   primaryTarget.ActionType == NodeAction.Woodcutting;
+        if (cleavingOriginReady)
+        {
+            cleavingOrigin = primaryTarget.transform.position;
+            cleavingRange = abilities.GetCleavingChopRange();
+        }
+
+        Vector3 avatarOrigin = player.transform.position;
+        float avatarRange = avatarActive ? abilities.GetAvatarOfTheForestReplenishRadiusWorld() : 0f;
+
+        float scanRadius = woodcuttingTreeOutlineScanPadding;
+        if (cleavingRange > 0f)
+            scanRadius = Mathf.Max(scanRadius, cleavingRange);
+        if (avatarRange > 0f)
+            scanRadius = Mathf.Max(scanRadius, avatarRange);
+        if (spectralActive)
+            scanRadius = Mathf.Max(scanRadius, Vector3.Distance(player.transform.position, spectralCenter) + spectralRadius);
+
+        Vector3 playerPos = player.transform.position;
+        float scanRadiusSqr = scanRadius * scanRadius;
+
+        _woodcuttingTreeOutlineScratch.Clear();
+        ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            ResourceNode node = all[i];
+            if (!ShouldDrawWoodcuttingTreeRangeOutline(node))
+                continue;
+
+            if (!TryGetResourceNodeColliderBounds(node, out Bounds bounds))
+                continue;
+
+            Vector3 boundsCenter = bounds.center;
+            float dx = boundsCenter.x - playerPos.x;
+            float dy = boundsCenter.y - playerPos.y;
+            if (dx * dx + dy * dy > scanRadiusSqr)
+                continue;
+
+            bool inRange = false;
+            if (cleavingOriginReady &&
+                node != primaryTarget &&
+                IsWoodcuttingNodeWithinPivotRange(node, cleavingOrigin, cleavingRange))
+            {
+                inRange = true;
+            }
+
+            if (spectralActive &&
+                IsWoodcuttingNodeWithinColliderEdgeRange(node, spectralCenter, spectralRadius))
+            {
+                inRange = true;
+            }
+
+            if (avatarActive &&
+                node.UsesDepletion &&
+                IsWoodcuttingNodeWithinPivotRange(node, avatarOrigin, avatarRange))
+            {
+                inRange = true;
+            }
+
+            Color color = inRange ? woodcuttingTreeOutlineInRangeColor : woodcuttingTreeOutlineOutOfRangeColor;
+            LineRenderer outline = EnsureWoodcuttingTreeOutline(node);
+            if (outline == null)
+                continue;
+
+            ApplyWoodcuttingTreeOutlineBounds(outline, bounds, color);
+            _woodcuttingTreeOutlineScratch.Add(node);
+        }
+
+        if (_woodcuttingTreeOutlineByNode.Count == 0)
+            return;
+
+        _woodcuttingTreeOutlineRemoveScratch.Clear();
+        foreach (KeyValuePair<ResourceNode, LineRenderer> pair in _woodcuttingTreeOutlineByNode)
+        {
+            if (pair.Key == null || !_woodcuttingTreeOutlineScratch.Contains(pair.Key))
+                _woodcuttingTreeOutlineRemoveScratch.Add(pair.Key);
+        }
+
+        for (int i = 0; i < _woodcuttingTreeOutlineRemoveScratch.Count; i++)
+            RemoveWoodcuttingTreeOutline(_woodcuttingTreeOutlineRemoveScratch[i]);
+    }
+
+    private void ClearWoodcuttingTreeRangeOutlines()
+    {
+        if (_woodcuttingTreeOutlineByNode.Count == 0)
+            return;
+
+        _woodcuttingTreeOutlineRemoveScratch.Clear();
+        foreach (KeyValuePair<ResourceNode, LineRenderer> pair in _woodcuttingTreeOutlineByNode)
+            _woodcuttingTreeOutlineRemoveScratch.Add(pair.Key);
+
+        for (int i = 0; i < _woodcuttingTreeOutlineRemoveScratch.Count; i++)
+            RemoveWoodcuttingTreeOutline(_woodcuttingTreeOutlineRemoveScratch[i]);
+    }
+
+    private static bool ShouldDrawWoodcuttingTreeRangeOutline(ResourceNode node)
+    {
+        if (node == null || node.ActionType != NodeAction.Woodcutting || node.IsDepleted)
+            return false;
+        return node.Definition != null && node.Definition.HasMainYield;
+    }
+
+    private static bool TryGetResourceNodeColliderBounds(ResourceNode node, out Bounds bounds)
+    {
+        bounds = default;
+        if (node == null)
+            return false;
+
+        Collider2D col = node.GetComponent<Collider2D>() ?? node.GetComponentInChildren<Collider2D>();
+        if (col == null || !col.enabled)
+            return false;
+
+        bounds = col.bounds;
+        return true;
+    }
+
+    private static bool IsWoodcuttingNodeWithinPivotRange(ResourceNode node, Vector3 origin, float radius)
+    {
+        if (node == null || radius <= 0f)
+            return false;
+
+        float dx = node.transform.position.x - origin.x;
+        float dy = node.transform.position.y - origin.y;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    private static bool IsWoodcuttingNodeWithinColliderEdgeRange(ResourceNode node, Vector3 origin, float radius)
+    {
+        if (node == null || radius <= 0f)
+            return false;
+
+        Vector3 measureFrom = ResolveResourceNodeMeasurePoint(node, origin);
+        float dx = measureFrom.x - origin.x;
+        float dy = measureFrom.y - origin.y;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    private static Vector3 ResolveResourceNodeMeasurePoint(ResourceNode node, Vector3 worldPos)
+    {
+        if (node == null)
+            return worldPos;
+
+        Collider2D col = node.GetComponent<Collider2D>() ?? node.GetComponentInChildren<Collider2D>();
+        if (col != null && col.enabled)
+        {
+            Vector2 cp = col.bounds.ClosestPoint(new Vector2(worldPos.x, worldPos.y));
+            return new Vector3(cp.x, cp.y, node.transform.position.z);
+        }
+
+        return node.transform.position;
+    }
+
+    private LineRenderer EnsureWoodcuttingTreeOutline(ResourceNode node)
+    {
+        if (node == null)
+            return null;
+
+        if (_woodcuttingTreeOutlineByNode.TryGetValue(node, out LineRenderer existing) && existing != null)
+            return existing;
+
+        var go = new GameObject("WoodcuttingRangeOutline");
+        go.transform.SetParent(node.transform, false);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.loop = true;
+        lr.alignment = LineAlignment.View;
+        lr.startWidth = woodcuttingTreeOutlineLineWidth;
+        lr.endWidth = woodcuttingTreeOutlineLineWidth;
+        lr.numCornerVertices = 2;
+        lr.numCapVertices = 0;
+        lr.positionCount = 5;
+        if (!string.IsNullOrWhiteSpace(woodcuttingTreeOutlineSortingLayer))
+        {
+            lr.sortingLayerName = woodcuttingTreeOutlineSortingLayer;
+            lr.sortingOrder = woodcuttingTreeOutlineSortingOrder;
+        }
+        else if (!TryApplyPlayerSpriteSortingToRenderer(lr, woodcuttingTreeOutlineSortingOrder))
+        {
+            lr.sortingOrder = woodcuttingTreeOutlineSortingOrder;
+        }
+
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            lr.material = new Material(spritesDefault) { color = Color.white };
+
+        _woodcuttingTreeOutlineByNode[node] = lr;
+        return lr;
+    }
+
+    private static void ApplyWoodcuttingTreeOutlineBounds(LineRenderer outline, Bounds bounds, Color color)
+    {
+        if (outline == null)
+            return;
+
+        float z = bounds.center.z;
+        Vector3 bl = new Vector3(bounds.min.x, bounds.min.y, z);
+        Vector3 br = new Vector3(bounds.max.x, bounds.min.y, z);
+        Vector3 tr = new Vector3(bounds.max.x, bounds.max.y, z);
+        Vector3 tl = new Vector3(bounds.min.x, bounds.max.y, z);
+        outline.SetPosition(0, bl);
+        outline.SetPosition(1, br);
+        outline.SetPosition(2, tr);
+        outline.SetPosition(3, tl);
+        outline.SetPosition(4, bl);
+        outline.startColor = color;
+        outline.endColor = color;
+    }
+
+    private void RemoveWoodcuttingTreeOutline(ResourceNode node)
+    {
+        if (node == null)
+            return;
+
+        if (!_woodcuttingTreeOutlineByNode.TryGetValue(node, out LineRenderer lr))
+            return;
+
+        _woodcuttingTreeOutlineByNode.Remove(node);
+        if (lr != null && lr.gameObject != null)
+            Destroy(lr.gameObject);
     }
 
     private void EnsureCleavingChopIndicatorBuilt()
@@ -2359,6 +2625,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (existing != null)
         {
             _cleavingChopIndicatorRoot = existing.gameObject;
+            _cleavingChopIndicatorRoot.transform.SetParent(null, true);
             _cleavingChopIndicatorLine = existing.GetComponent<LineRenderer>();
             if (_cleavingChopIndicatorLine == null)
                 _cleavingChopIndicatorLine = existing.gameObject.AddComponent<LineRenderer>();
@@ -2366,10 +2633,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         else
         {
             _cleavingChopIndicatorRoot = new GameObject("CleavingChopRangeIndicator");
-            _cleavingChopIndicatorRoot.transform.SetParent(transform, false);
-            _cleavingChopIndicatorRoot.transform.localPosition = Vector3.zero;
-            _cleavingChopIndicatorRoot.transform.localRotation = Quaternion.identity;
-            _cleavingChopIndicatorRoot.transform.localScale = Vector3.one;
+            _cleavingChopIndicatorRoot.transform.SetParent(null, true);
             _cleavingChopIndicatorLine = _cleavingChopIndicatorRoot.AddComponent<LineRenderer>();
         }
 
@@ -2487,7 +2751,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    public void EnsureSpectralAxeAreaIndicatorBuilt()
+    public void EnsureSpectralAxeAreaIndicatorBuilt(Transform followTransform = null)
     {
         if (!spectralAxeShowAreaIndicator || !AreAbilityRangeIndicatorsEnabled())
         {
@@ -2495,14 +2759,29 @@ public class PlayerAbilityVfxController : MonoBehaviour
             return;
         }
 
-        if (_spectralAxeAreaIndicatorRoot != null && _spectralAxeAreaIndicatorLine != null)
+        if (_spectralAxeAreaIndicatorRoot != null &&
+            _spectralAxeAreaIndicatorLine != null &&
+            _spectralAxeAreaIndicatorFollow == followTransform)
+        {
             return;
+        }
 
+        DestroySpectralAxeAreaIndicator();
+
+        _spectralAxeAreaIndicatorFollow = followTransform;
         _spectralAxeAreaIndicatorRoot = new GameObject("SpectralAxeAreaIndicator");
+        if (followTransform != null)
+        {
+            _spectralAxeAreaIndicatorRoot.transform.SetParent(followTransform, false);
+            _spectralAxeAreaIndicatorRoot.transform.localPosition = Vector3.zero;
+            _spectralAxeAreaIndicatorRoot.transform.localRotation = Quaternion.identity;
+            _spectralAxeAreaIndicatorRoot.transform.localScale = Vector3.one;
+        }
+
         _spectralAxeAreaIndicatorLine = _spectralAxeAreaIndicatorRoot.AddComponent<LineRenderer>();
 
         var lr = _spectralAxeAreaIndicatorLine;
-        lr.useWorldSpace = true;
+        lr.useWorldSpace = followTransform == null;
         lr.loop = true;
         lr.alignment = LineAlignment.View;
         lr.startWidth = spectralAxeAreaIndicatorLineWidth;
@@ -2522,9 +2801,59 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Shader spritesDefault = Shader.Find("Sprites/Default");
         if (spritesDefault != null)
             lr.material = new Material(spritesDefault) { color = Color.white };
+
+        _spectralAxeAreaIndicatorAppliedRadius = float.NaN;
     }
 
     public void UpdateSpectralAxeAreaIndicator(Vector3 axeCenter, float areaRadiusWorld)
+    {
+        if (_spectralAxeAreaIndicatorLine == null)
+            return;
+
+        if (_spectralAxeAreaIndicatorFollow != null)
+        {
+            RebuildSpectralAxeAreaIndicatorCircle(areaRadiusWorld);
+            return;
+        }
+
+        RebuildSpectralAxeAreaIndicatorCircleAtWorldCenter(axeCenter, areaRadiusWorld);
+    }
+
+    public void UpdateSpectralAxeAreaIndicator(float areaRadiusWorld)
+    {
+        if (_spectralAxeAreaIndicatorLine == null)
+            return;
+
+        RebuildSpectralAxeAreaIndicatorCircle(areaRadiusWorld);
+    }
+
+    private void RebuildSpectralAxeAreaIndicatorCircle(float radius)
+    {
+        if (_spectralAxeAreaIndicatorLine == null)
+            return;
+
+        int segs = Mathf.Clamp(spectralAxeAreaIndicatorSegments, 8, 256);
+        if (_spectralAxeAreaIndicatorLine.positionCount != segs)
+            _spectralAxeAreaIndicatorLine.positionCount = segs;
+
+        float clampedRadius = Mathf.Max(0.01f, radius);
+        if (Mathf.Approximately(_spectralAxeAreaIndicatorAppliedRadius, clampedRadius))
+            return;
+
+        float step = (Mathf.PI * 2f) / segs;
+        for (int i = 0; i < segs; i++)
+        {
+            float a = step * i;
+            _spectralAxeAreaIndicatorLine.SetPosition(i, new Vector3(
+                Mathf.Cos(a) * clampedRadius,
+                Mathf.Sin(a) * clampedRadius,
+                0f));
+        }
+
+        _spectralAxeAreaIndicatorAppliedRadius = clampedRadius;
+    }
+
+    private void RebuildSpectralAxeAreaIndicatorCircleAtWorldCenter(Vector3 axeCenter, float areaRadiusWorld)
     {
         if (_spectralAxeAreaIndicatorLine == null)
             return;
@@ -2543,10 +2872,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
                 axeCenter.y + Mathf.Sin(a) * radius,
                 axeCenter.z));
         }
+
+        _spectralAxeAreaIndicatorAppliedRadius = radius;
     }
 
     public void DestroySpectralAxeAreaIndicator()
     {
+        _spectralAxeAreaIndicatorFollow = null;
+        _spectralAxeAreaIndicatorAppliedRadius = float.NaN;
         if (_spectralAxeAreaIndicatorRoot != null)
         {
             Destroy(_spectralAxeAreaIndicatorRoot);

@@ -14,6 +14,7 @@ public class ToggleSettingsRowUI : MonoBehaviour
     [SerializeField] private Toggle toggle;
 
     private bool _refreshing;
+    private bool _tooltipConfigured;
 
     private void Awake()
     {
@@ -21,12 +22,16 @@ public class ToggleSettingsRowUI : MonoBehaviour
             settingNameText = transform.Find("SettingName")?.GetComponent<TMP_Text>();
         if (!toggle)
             toggle = GetComponentInChildren<Toggle>(true);
+
+        ConfigureTooltipIfNeeded();
     }
 
     private void OnEnable()
     {
         if (settingId == ToggleSettingId.ShowDevPanel)
             ShowDevPanelSettingsInstaller.ApplyRowStyle(this);
+
+        ConfigureTooltipIfNeeded();
 
         if (toggle)
             toggle.onValueChanged.AddListener(OnToggleChanged);
@@ -46,6 +51,8 @@ public class ToggleSettingsRowUI : MonoBehaviour
     public void ConfigureSetting(ToggleSettingId id)
     {
         settingId = id;
+        _tooltipConfigured = false;
+        ConfigureTooltipIfNeeded();
         RefreshDisplay();
     }
 
@@ -76,6 +83,41 @@ public class ToggleSettingsRowUI : MonoBehaviour
     {
         if (changedSetting == settingId)
             RefreshDisplay();
+    }
+
+    private void ConfigureTooltipIfNeeded()
+    {
+        if (_tooltipConfigured)
+            return;
+        if (!ToggleSettingsStore.TryGetTooltip(settingId, out string title, out string description))
+            return;
+
+        UIHoverTooltip hover = GetComponent<UIHoverTooltip>();
+        if (!hover)
+            hover = gameObject.AddComponent<UIHoverTooltip>();
+
+        hover.ConfigureForEquipmentStatsFixedCopy(ResolveSharedTooltip(), title, description);
+        _tooltipConfigured = true;
+    }
+
+    private static SharedTooltipUI ResolveSharedTooltip()
+    {
+        SharedTooltipUI[] allTooltips =
+            FindObjectsByType<SharedTooltipUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < allTooltips.Length; i++)
+        {
+            SharedTooltipUI t = allTooltips[i];
+            if (t != null && t.name == "SharedToolTipInfoPanel")
+                return t;
+        }
+
+        for (int i = 0; i < allTooltips.Length; i++)
+        {
+            if (allTooltips[i] != null)
+                return allTooltips[i];
+        }
+
+        return null;
     }
 
 #if UNITY_EDITOR

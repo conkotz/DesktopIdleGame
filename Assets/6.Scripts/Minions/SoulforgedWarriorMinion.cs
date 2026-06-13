@@ -231,8 +231,6 @@ public class SoulforgedWarriorMinion : MonoBehaviour
 
     private IEnumerator CoWarcryLoop()
     {
-        yield return new WaitForSeconds(AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds);
-
         while (IsOperational)
         {
             PerformWarcry();

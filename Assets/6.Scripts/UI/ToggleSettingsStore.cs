@@ -286,4 +286,23 @@ public static class ToggleSettingsStore
             _ => setting.ToString()
         };
     }
+
+    public static bool TryGetTooltip(ToggleSettingId setting, out string title, out string description)
+    {
+        title = null;
+        description = null;
+
+        switch (setting)
+        {
+            case ToggleSettingId.DisableScreenOverlayVisuals:
+                title = GetDisplayName(setting);
+                description =
+                    "Optional fullscreen overlay effects.\n\n" +
+                    "When enabled, shows woodcutting ability range indicators (e.g. Cleaving Chop), " +
+                    "Spectral Axe area indicators, nearby tree hitbox range highlights, and the cave biome screen flicker.";
+                return true;
+            default:
+                return false;
+        }
+    }
 }

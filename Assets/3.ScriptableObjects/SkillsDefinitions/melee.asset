@@ -1041,17 +1041,15 @@ MonoBehaviour:
     choices:
     - requiredLevel: 38
       title: Swarm
-      description: Summon 3 Soulforged Weapons for 20 seconds. Each weapon inherits
-        the original summon scaling, then further reduces inherited damage by 25%.
-        Recast to collapse them onto your current target, or find new targets if
-        you have none.
+      description: Summons 3 soulforged weapons. Each weapon 15% less damage. Recast
+        to collapse all weapons onto your current target, or find new targets if
+        you don't have one.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
-      title: Indefinite
-      description: 'Soulforged Weapon persists indefinitely, keeping its original
-        behavior. '
+      title: Extended Duration
+      description: Soulforged Weapon now lasts 90s.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

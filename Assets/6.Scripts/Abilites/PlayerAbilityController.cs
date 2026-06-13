@@ -155,12 +155,13 @@ public class PlayerAbilityController : MonoBehaviour
     private float _guardiansHammerProtectorResolveGuardExpiresAt;
     private const int GuardiansHammerBurningVerdictChoiceIndex = 1;
     private const string GuardiansHammerBurningVerdictOutgoingSourceLabel = "Burning Verdict";
-    private const int SoulforgedWeaponChoiceSourceLevel = 35;
-    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
-    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
-    private const int SoulforgedWeaponSwarmCount = 3;
-    private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
-    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
+    private const int SoulforgedWeaponChoiceSourceLevel = AbilityCombatPower.SoulforgedWeaponEnhancementSourceLevel;
+    private const int SoulforgedWeaponSwarmChoiceIndex = AbilityCombatPower.SoulforgedWeaponSwarmChoiceIndex;
+    private const int SoulforgedWeaponExtendedDurationChoiceIndex = AbilityCombatPower.SoulforgedWeaponExtendedDurationChoiceIndex;
+    private const int SoulforgedWeaponSwarmCount = AbilityCombatPower.SoulforgedWeaponSwarmCount;
+    private const float SoulforgedWeaponSwarmDamageMultiplier = AbilityCombatPower.SoulforgedWeaponSwarmDamageMultiplier;
+    private const float SoulforgedWeaponSwarmDurationSeconds = AbilityCombatPower.SoulforgedWeaponSwarmDurationSeconds;
+    private const float SoulforgedWeaponExtendedDurationSeconds = AbilityCombatPower.SoulforgedWeaponExtendedDurationSeconds;
     private const float SoulforgedWeaponSceneLoadActionBarGraceSeconds = 2f;
     private const int WhirlwindMaxChannelStacks = 5;
     private const int CrusaderStrikeFinalComboStep = 3;
@@ -240,6 +241,9 @@ public class PlayerAbilityController : MonoBehaviour
     private float _spectralAxeGatherAccum;
     private float _spectralAxeGatherNextInterval;
     private ResourceNode _spectralAxeGatherTarget;
+    /// <summary>World center of the parked Spectral Axe gather circle (lifted visual position).</summary>
+    private Vector3 _spectralAxeAreaCenterWorld;
+    private bool _spectralAxeAreaCenterValid;
     /// <summary>True when the axe parked but found no tree in its area → cooldown is overridden to <see cref="SpectralAxeMissedCastCooldownSeconds"/>.</summary>
     private bool _spectralAxeMissedCast;
 
@@ -317,7 +321,6 @@ public class PlayerAbilityController : MonoBehaviour
 
     private readonly List<SoulforgedWeaponMinion> _activeSoulforgedWeaponMinions = new();
     private readonly List<SoulforgedWarriorMinion> _activeSoulforgedWarriorMinions = new();
-    private bool _activeSoulforgedWeaponIsPersistent;
     private float _soulforgedAvailabilityCheckPausedUntil;
 
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
@@ -503,14 +506,29 @@ public class PlayerAbilityController : MonoBehaviour
         SyncFishingFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
-        abilityVfx?.UpdateCleavingChopRangeIndicator(IsCleavingChopActive, GetCleavingChopRange());
+        ResourceNode cleavingOriginNode = player != null ? player.CurrentTarget : null;
+        Vector3? cleavingIndicatorOrigin = null;
+        if (IsCleavingChopActive &&
+            cleavingOriginNode != null &&
+            cleavingOriginNode.ActionType == NodeAction.Woodcutting)
+        {
+            cleavingIndicatorOrigin = cleavingOriginNode.transform.position;
+        }
+
+        abilityVfx?.UpdateCleavingChopRangeIndicator(IsCleavingChopActive, GetCleavingChopRange(), cleavingIndicatorOrigin);
+        abilityVfx?.UpdateWoodcuttingTreeRangeOutlines(this);
+        if (TryGetSpectralAxeGatherArea(out Vector3 spectralAxeCenter, out float spectralAxeRadius))
+        {
+            Transform spectralFollow = _spectralAxeProjectile != null ? _spectralAxeProjectile.transform : null;
+            abilityVfx?.EnsureSpectralAxeAreaIndicatorBuilt(spectralFollow);
+            abilityVfx?.UpdateSpectralAxeAreaIndicator(spectralAxeCenter, spectralAxeRadius);
+        }
         CleanupAvatarOfTheForestIfExpired();
         abilityVfx?.UpdateAvatarOfTheForestGlowVfx(IsAvatarOfTheForestActive);
         SyncAvatarOfTheForestHudBuff();
         TickAvatarOfTheForestNearbyReplenish(Time.deltaTime);
         SyncSpectralAxeHudBuff();
-        CleanupSoulforgedWeaponIfUnavailable();
-        CleanupEnergyInfusionIfNotOnActionBar();
+        EndActiveLingeringAbilitiesNotOnActionBar();
         CleanupBattleTranceIfExpired();
         SyncBattleTranceHudBuff();
         TickHammerTempest();
@@ -834,6 +852,77 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         ForceEndGenericHudAbilityBuffWithCooldown(abilityId);
+    }
+
+    /// <summary>
+    /// Ends active minion summons, channeled abilities, and timed buffs when their ability is no longer on the visible action bar.
+    /// Called on slot assignment changes, loadout swaps, and each frame as a safety net.
+    /// </summary>
+    public void HandleActionBarAssignmentsChanged()
+    {
+        EndActiveLingeringAbilitiesNotOnActionBar();
+    }
+
+    private void EndActiveLingeringAbilitiesNotOnActionBar()
+    {
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (!actionBar)
+            return;
+
+        TryEndLingeringIfRemovedFromActionBar(CleavingStrikesId);
+        TryEndLingeringIfRemovedFromActionBar(LumberFrenzyId);
+        TryEndLingeringIfRemovedFromActionBar(FishingFrenzyId);
+        TryEndLingeringIfRemovedFromActionBar(CleavingChopId);
+        TryEndLingeringIfRemovedFromActionBar(AvatarOfTheForestId);
+        TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
+        TryEndLingeringIfRemovedFromActionBar(BattleTranceId);
+        TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
+        TryEndLingeringIfRemovedFromActionBar(CrusaderStrikeId);
+        TryEndLingeringIfRemovedFromActionBar(FlameChargeId);
+        TryEndLingeringIfRemovedFromActionBar(SpectralAxeId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.SoulforgedWeaponAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.SoulforgedWarriorAbilityId);
+
+        if (_whirlwindChanneling && !actionBar.HasAbilityOnLoadout(WhirlwindId))
+            ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: true);
+
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (buffController == null)
+            return;
+
+        IReadOnlyList<PlayerBuffController.ActiveBuff> hudBuffs = buffController.ActiveBuffs;
+        for (int i = 0; i < hudBuffs.Count; i++)
+        {
+            PlayerBuffController.ActiveBuff buff = hudBuffs[i];
+            if (buff.type != ConsumableEffectType.HudAbilityBuff || string.IsNullOrWhiteSpace(buff.id))
+                continue;
+            if (ShouldSkipActionBarRemovalForAbility(buff.id))
+                continue;
+            if (actionBar.HasAbilityOnLoadout(buff.id))
+                continue;
+
+            ForceEndLingeringAbilityForSkillTreeReset(buff.id);
+        }
+    }
+
+    private void TryEndLingeringIfRemovedFromActionBar(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId) || ShouldSkipActionBarRemovalForAbility(abilityId))
+            return;
+        if (actionBar.HasAbilityOnLoadout(abilityId))
+            return;
+        if (!IsAbilityBuffOrLingeringActive(abilityId))
+            return;
+
+        ForceEndLingeringAbilityForSkillTreeReset(abilityId);
+    }
+
+    private bool ShouldSkipActionBarRemovalForAbility(string abilityId)
+    {
+        return string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase) &&
+               Time.time < _soulforgedAvailabilityCheckPausedUntil;
     }
 
     /// <summary>Skill tree active overlay: only for finite-duration HUD buffs (not indefinite minion / until-dismissed).</summary>
@@ -3074,7 +3163,7 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinions.Count > 0)
+        if (def.minionSpawnDefinition && IsSoulforgedWeaponAbility(def) && _activeSoulforgedWeaponMinions.Count > 0)
         {
             if (!allowSoulforgedRecastWhileActive)
                 return false;
@@ -7256,9 +7345,11 @@ public class PlayerAbilityController : MonoBehaviour
         // region. Only the single CLOSEST overlapping tree is used.
         Vector3 axeCenter = destination + visualLift;
         projTr.position = axeCenter;
+        _spectralAxeAreaCenterWorld = axeCenter;
+        _spectralAxeAreaCenterValid = true;
 
-        abilityVfx?.EnsureSpectralAxeAreaIndicatorBuilt();
-        abilityVfx?.UpdateSpectralAxeAreaIndicator(axeCenter, SpectralAxeAreaRadius);
+        abilityVfx?.EnsureSpectralAxeAreaIndicatorBuilt(projTr);
+        abilityVfx?.UpdateSpectralAxeAreaIndicator(SpectralAxeAreaRadius);
 
         _spectralAxeGatherTarget = FindClosestWoodcuttingNodeInAxeArea(axeCenter);
 
@@ -7267,6 +7358,7 @@ public class PlayerAbilityController : MonoBehaviour
             // No tree under the axe → log, despawn, and apply the short missed-cast cooldown.
             GameLog.Add("No trees for spectral axe to gather from", GameLog.CannotMessageColor);
             _spectralAxeMissedCast = true;
+            _spectralAxeAreaCenterValid = false;
 
             abilityVfx?.DestroySpectralAxeAreaIndicator();
             if (projectile != null)
@@ -7295,7 +7387,8 @@ public class PlayerAbilityController : MonoBehaviour
 
             spinDeg += spinSign * spinRate * Time.deltaTime;
             projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
-            abilityVfx?.UpdateSpectralAxeAreaIndicator(axeCenter, SpectralAxeAreaRadius);
+            _spectralAxeAreaCenterWorld = axeCenter;
+            abilityVfx?.UpdateSpectralAxeAreaIndicator(SpectralAxeAreaRadius);
 
             AdvanceSpectralAxeGatherTimer(Time.deltaTime);
             yield return null;
@@ -7336,6 +7429,7 @@ public class PlayerAbilityController : MonoBehaviour
         _spectralAxeActive = false;
         _spectralAxeEndsAt = 0f;
         _spectralAxeDuration = 0f;
+        _spectralAxeAreaCenterValid = false;
         _spectralAxeGatherTarget = null;
         _spectralAxeGatherAccum = 0f;
         _spectralAxeGatherNextInterval = 0f;
@@ -7775,6 +7869,24 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>True while the buff window is open. Surface for tooltips / status checks.</summary>
     public bool IsSpectralAxeActive => _spectralAxeActive && Time.time < _spectralAxeEndsAt;
 
+    /// <summary>Spectral Axe gather circle radius in world units (matches the parked axe area scan).</summary>
+    public float SpectralAxeGatherAreaRadius => SpectralAxeAreaRadius;
+
+    /// <summary>When Spectral Axe is parked and chopping, returns the lifted visual center of its gather circle.</summary>
+    public bool TryGetSpectralAxeGatherArea(out Vector3 centerWorld, out float radiusWorld)
+    {
+        if (!IsSpectralAxeActive || !_spectralAxeAreaCenterValid)
+        {
+            centerWorld = default;
+            radiusWorld = 0f;
+            return false;
+        }
+
+        centerWorld = _spectralAxeAreaCenterWorld;
+        radiusWorld = SpectralAxeAreaRadius;
+        return true;
+    }
+
     /// <summary>
     /// Called on successful primary hit release. Returns whether cleaving is active and how many extra targets to attempt.
     /// Hit charges decrement until zero; after that, cleave continues until duration ends.
@@ -8019,7 +8131,6 @@ public class PlayerAbilityController : MonoBehaviour
 
             _activeSoulforgedWeaponMinions.Clear();
             _soulforgedWeaponCooldownAbilityDef = null;
-            _activeSoulforgedWeaponIsPersistent = false;
             _lastSyncedSoulforgedHudEnd = float.NaN;
             _lastSyncedSoulforgedHudStacks = int.MinValue;
             buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWeaponAbilityId);
@@ -8167,9 +8278,8 @@ public class PlayerAbilityController : MonoBehaviour
         Sprite weaponSprite = ResolveSoulforgedWeaponVisualSprite(md, def);
         int selectedChoice = GetSoulforgedWeaponSelectedChoice();
         bool swarm = selectedChoice == SoulforgedWeaponSwarmChoiceIndex;
-        bool indefinite = selectedChoice == SoulforgedWeaponIndefiniteChoiceIndex;
+        bool extendedDuration = selectedChoice == SoulforgedWeaponExtendedDurationChoiceIndex;
         int spawnCount = swarm ? SoulforgedWeaponSwarmCount : 1;
-        _activeSoulforgedWeaponIsPersistent = indefinite;
         CleanupSoulforgedWeaponList();
 
         float swarmDurationSeconds = SoulforgedWeaponSwarmDurationSeconds;
@@ -8191,6 +8301,12 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
             }
 
+            float durationOverride = -1f;
+            if (swarm)
+                durationOverride = swarmDurationSeconds;
+            else if (extendedDuration)
+                durationOverride = SoulforgedWeaponExtendedDurationSeconds;
+
             if (!minion.Initialize(
                     _ownerStats,
                     md,
@@ -8199,8 +8315,8 @@ public class PlayerAbilityController : MonoBehaviour
                     weaponSprite,
                     attacker,
                     HandleSoulforgedWeaponReleased,
-                    swarm ? swarmDurationSeconds : -1f,
-                    indefinite,
+                    durationOverride,
+                    neverExpires: false,
                     swarm ? SoulforgedWeaponSwarmDamageMultiplier : 1f,
                     homeOffset,
                     attachOffset))
@@ -8227,11 +8343,11 @@ public class PlayerAbilityController : MonoBehaviour
             _soulforgedHudBuffEndsAt = Time.time + swarmDurationSeconds;
             _soulforgedHudPersistOverlay = false;
         }
-        else if (indefinite)
+        else if (extendedDuration)
         {
-            _soulforgedHudBuffDuration = 0f;
-            _soulforgedHudBuffEndsAt = 0f;
-            _soulforgedHudPersistOverlay = true;
+            _soulforgedHudBuffDuration = SoulforgedWeaponExtendedDurationSeconds;
+            _soulforgedHudBuffEndsAt = Time.time + SoulforgedWeaponExtendedDurationSeconds;
+            _soulforgedHudPersistOverlay = false;
         }
         else
         {
@@ -8255,6 +8371,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         return true;
     }
+
+    private static bool IsSoulforgedWeaponAbility(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSoulforgedWarriorAbility(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase);
@@ -8408,14 +8527,16 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void EndSoulforgedWarriorAndStartCooldown()
     {
+        AbilityDefinition cooldownDef = _soulforgedWarriorCooldownAbilityDef;
+        bool hadActiveMinion = _activeSoulforgedWarriorMinions.Count > 0;
+
         CleanupSoulforgedWarriorSummonsWithoutCooldown();
-        if (_soulforgedWarriorCooldownAbilityDef)
-        {
-            StartCooldown(_soulforgedWarriorCooldownAbilityDef);
-            _soulforgedWarriorCooldownAbilityDef = null;
-        }
+
+        if (cooldownDef != null && hadActiveMinion)
+            StartCooldown(cooldownDef);
 
         buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
+        NotifyActionBarMinionControlChanged();
     }
 
     private void SyncSoulforgedWeaponHudBuff()
@@ -8503,7 +8624,6 @@ public class PlayerAbilityController : MonoBehaviour
         {
             StartCooldown(_soulforgedWeaponCooldownAbilityDef);
             _soulforgedWeaponCooldownAbilityDef = null;
-            _activeSoulforgedWeaponIsPersistent = false;
         }
     }
 
@@ -8556,62 +8676,6 @@ public class PlayerAbilityController : MonoBehaviour
         }
         _activeSoulforgedWeaponMinions.Clear();
         _soulforgedWeaponCooldownAbilityDef = null;
-        _activeSoulforgedWeaponIsPersistent = false;
-    }
-
-    private void CleanupSoulforgedWeaponIfUnavailable()
-    {
-        if (!_activeSoulforgedWeaponIsPersistent || _activeSoulforgedWeaponMinions.Count == 0)
-            return;
-
-        if (Time.time < _soulforgedAvailabilityCheckPausedUntil)
-            return;
-
-        AbilityDefinition def = _soulforgedWeaponCooldownAbilityDef;
-        if (!def)
-            return;
-
-        bool stillAvailable =
-            GetSoulforgedWeaponSelectedChoice() == SoulforgedWeaponIndefiniteChoiceIndex &&
-            IsAbilityAllowedBySkillProgress(def) &&
-            IsAbilityAssignedToActionBar(def.abilityId);
-        if (stillAvailable)
-            return;
-
-        EndSoulforgedAndStartCooldown();
-    }
-
-    private bool IsAbilityAssignedToActionBar(string abilityId)
-    {
-        if (string.IsNullOrWhiteSpace(abilityId))
-            return false;
-
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        if (!actionBar)
-            return true;
-
-        foreach (ActionBarSlotUI slot in actionBar.GetSlots())
-        {
-            ActionBarAssignment action = slot != null ? slot.AssignedAction : null;
-            if (action != null &&
-                action.IsAbility &&
-                string.Equals(action.id, abilityId, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    private void CleanupEnergyInfusionIfNotOnActionBar()
-    {
-        if (!_energyInfusionActive)
-            return;
-
-        if (IsAbilityAssignedToActionBar(EnergyInfusionId))
-            return;
-
-        ForceEndEnergyInfusionEarly(applyCooldown: true);
     }
 
     private void EndSoulforgedAndStartCooldown()
@@ -8632,7 +8696,6 @@ public class PlayerAbilityController : MonoBehaviour
             StartCooldown(cooldownDef);
 
         _soulforgedWeaponCooldownAbilityDef = null;
-        _activeSoulforgedWeaponIsPersistent = false;
     }
 
     /// <summary>
@@ -8656,7 +8719,6 @@ public class PlayerAbilityController : MonoBehaviour
             StartCooldown(cooldownDef);
 
         _soulforgedWeaponCooldownAbilityDef = null;
-        _activeSoulforgedWeaponIsPersistent = false;
 
         AbortSpectralAxe(awardCooldown: true);
     }

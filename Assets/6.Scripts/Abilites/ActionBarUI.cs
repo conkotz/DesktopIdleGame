@@ -241,30 +241,21 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateLoadoutAbilitySlots(5);
 
     /// <summary>
-    /// True when <paramref name="abilityId"/> is assigned to any combat loadout ability slot (1–10),
-    /// including the frozen combat row while the gathering strip is shown.
+    /// True when <paramref name="abilityId"/> is assigned to a visible combat loadout ability slot (1–10),
+    /// including the frozen combat row while the gathering strip is shown. Uses live slot assignments only.
+    /// While the gathering strip is active, live slots show gathering abilities; frozen combat slots are also
+    /// checked so combat abilities (e.g. minion controls) stay tied to the combat loadout.
     /// </summary>
     public bool HasAbilityOnLoadout(string abilityId)
     {
         if (string.IsNullOrWhiteSpace(abilityId))
             return false;
 
-        if (gatheringUiActive)
-        {
-            if (ContainsAbilityIdInSavedSlotList(frozenCombatLoadoutAbilities, abilityId, requireLoadoutAbilitySlot: true))
-                return true;
-
-            return false;
-        }
-
         if (ContainsAbilityIdInLiveLoadoutSlots(abilityId))
             return true;
 
-        if (ContainsAbilityIdInSavedSlotList(savedSlots, abilityId, requireLoadoutAbilitySlot: true))
-            return true;
-
-        if (ContainsAbilityIdInSavedSlotList(secondarySavedSlots, abilityId, requireLoadoutAbilitySlot: true))
-            return true;
+        if (gatheringUiActive)
+            return ContainsAbilityIdInSavedSlotList(frozenCombatLoadoutAbilities, abilityId, requireLoadoutAbilitySlot: true);
 
         return false;
     }
@@ -789,7 +780,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         ResolveExpandUiRefs();
         _secondaryRowExpanded = false;
         RefreshSecondaryRowVisibility();
-        RefreshMinionControlBar();
     }
 
     private void OnEnable()
@@ -1159,6 +1149,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             LoadFrom(data);
         }
 
+        TryApplyPendingSavedState();
+        RefreshMinionControlBar();
+        NotifyAbilityControllerOfAssignmentChange();
+
         SyncHotkeysFromManager();
         EquipmentManager equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
         if (equipment != null)
@@ -1348,6 +1342,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();
         RefreshMinionControlBar();
+        NotifyAbilityControllerOfAssignmentChange();
+    }
+
+    private void NotifyAbilityControllerOfAssignmentChange()
+    {
+        ResolveCoreRefs();
+        abilityController?.HandleActionBarAssignmentsChanged();
     }
 
     private void RefreshMinionControlBar()
@@ -1913,6 +1914,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             CaptureSlotsToSavedState();
             activeCombatLoadoutSetIndex = nextSet;
             RefreshMinionControlBar();
+            NotifyAbilityControllerOfAssignmentChange();
         }
         finally
         {
@@ -2344,6 +2346,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             NotifyPlayerStatsCombatPowerRelevantChange();
             RefreshSecondaryRowExpandedFromSavedState();
             RefreshMinionControlBar();
+            NotifyAbilityControllerOfAssignmentChange();
             return;
         }
 

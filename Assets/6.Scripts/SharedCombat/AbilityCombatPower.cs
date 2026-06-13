@@ -40,6 +40,15 @@ public static class AbilityCombatPower
     public const float SoulforgedWarriorFuriousSlamDamageMultiplier = 1.5f;
     public const float SoulforgedWarriorFuriousSlamCooldownSeconds = 8f;
     public const float SoulforgedWarriorMaxLeashDistance = 20f;
+
+    public const string SoulforgedWeaponEnhancementParentSpineNodeId = "Lv35_0";
+    public const int SoulforgedWeaponEnhancementSourceLevel = 35;
+    public const int SoulforgedWeaponSwarmChoiceIndex = 0;
+    public const int SoulforgedWeaponExtendedDurationChoiceIndex = 1;
+    public const int SoulforgedWeaponSwarmCount = 3;
+    public const float SoulforgedWeaponSwarmDurationSeconds = 30f;
+    public const float SoulforgedWeaponSwarmDamageMultiplier = 0.85f;
+    public const float SoulforgedWeaponExtendedDurationSeconds = 90f;
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
     public const string FishingFrenzyAbilityId = "fishing_frenzy";
     public const string CleavingChopAbilityId = "cleaving_chop";
@@ -423,12 +432,12 @@ public static class AbilityCombatPower
 
     /// <summary>Combat-power heuristic: extra enemies credited for Crimson Spread / Contagion full radial payloads.</summary>
     private const float AilmentRadialSpreadAssumedExtraTargets = 2.5f;
-    private const int SoulforgedWeaponChoiceSourceLevel = 35;
-    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
-    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
-    private const float SoulforgedWeaponSwarmCount = 3f;
-    private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
-    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
+    private const int SoulforgedWeaponChoiceSourceLevel = SoulforgedWeaponEnhancementSourceLevel;
+    private const int SoulforgedWeaponSwarmChoiceIndexLocal = SoulforgedWeaponSwarmChoiceIndex;
+    private const int SoulforgedWeaponExtendedDurationChoiceIndexLocal = SoulforgedWeaponExtendedDurationChoiceIndex;
+    private const float SoulforgedWeaponSwarmCountLocal = SoulforgedWeaponSwarmCount;
+    private const float SoulforgedWeaponSwarmDamageMultiplierLocal = SoulforgedWeaponSwarmDamageMultiplier;
+    private const float SoulforgedWeaponSwarmDurationSecondsLocal = SoulforgedWeaponSwarmDurationSeconds;
 
     private static int _slottedAbilityDpsCacheFrame = -1;
     private static CharacterStats _slottedAbilityDpsCacheStats;
@@ -643,16 +652,16 @@ public static class AbilityCombatPower
             if (string.Equals(def.abilityId, SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
             {
                 int selected = GetSoulforgedWeaponSelectedChoice();
-                if (selected == SoulforgedWeaponSwarmChoiceIndex)
+                if (selected == SoulforgedWeaponSwarmChoiceIndexLocal)
                 {
-                    mdps *= SoulforgedWeaponSwarmCount * SoulforgedWeaponSwarmDamageMultiplier;
-                    summonDur = SoulforgedWeaponSwarmDurationSeconds;
+                    mdps *= SoulforgedWeaponSwarmCountLocal * SoulforgedWeaponSwarmDamageMultiplierLocal;
+                    summonDur = SoulforgedWeaponSwarmDurationSecondsLocal;
                     if (def.tooltipBuffMinionDurationSeconds > 0.01f)
                         summonDur = def.tooltipBuffMinionDurationSeconds;
                 }
-                else if (selected == SoulforgedWeaponIndefiniteChoiceIndex)
+                else if (selected == SoulforgedWeaponExtendedDurationChoiceIndexLocal)
                 {
-                    return Mathf.Max(0f, mdps);
+                    summonDur = SoulforgedWeaponExtendedDurationSeconds;
                 }
             }
 

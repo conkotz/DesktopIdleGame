@@ -23,11 +23,13 @@ public static class AbilityTooltipDamagePreview
     private const string InheritMinionDealsBonusScalingLine =
         "Deals bonus damage from minion damage scaling (reduced for inherited minions)";
 
-    private const int SoulforgedWeaponChoiceSourceLevel = 35;
-    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
-    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
-    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
-    private const int SoulforgedWeaponSwarmCount = 3;
+    private const int SoulforgedWeaponChoiceSourceLevel = AbilityCombatPower.SoulforgedWeaponEnhancementSourceLevel;
+    private const int SoulforgedWeaponSwarmChoiceIndex = AbilityCombatPower.SoulforgedWeaponSwarmChoiceIndex;
+    private const int SoulforgedWeaponExtendedDurationChoiceIndex = AbilityCombatPower.SoulforgedWeaponExtendedDurationChoiceIndex;
+    private const int SoulforgedWeaponSwarmCount = AbilityCombatPower.SoulforgedWeaponSwarmCount;
+    private const float SoulforgedWeaponSwarmDamageMultiplier = AbilityCombatPower.SoulforgedWeaponSwarmDamageMultiplier;
+    private const float SoulforgedWeaponSwarmDurationSeconds = AbilityCombatPower.SoulforgedWeaponSwarmDurationSeconds;
+    private const float SoulforgedWeaponExtendedDurationSeconds = AbilityCombatPower.SoulforgedWeaponExtendedDurationSeconds;
 
     /// <summary>Rich-text tag line for ability category (prepend above description). Empty if not applicable.</summary>
     public static string BuildAbilityTooltipTagLine(AbilityDefinition def, bool orangeMarkup)
@@ -488,8 +490,8 @@ public static class AbilityTooltipDamagePreview
             float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, SoulforgedWeaponSwarmDurationSeconds, 0f);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
         }
-        else if (sel == SoulforgedWeaponIndefiniteChoiceIndex)
-            body.AppendLine(O("Duration: Until dismissed"));
+        else if (sel == SoulforgedWeaponExtendedDurationChoiceIndex)
+            body.AppendLine(O($"Duration: {SoulforgedWeaponExtendedDurationSeconds:0.#}s"));
         else
         {
             float fallback = def != null && def.minionSpawnDefinition != null
@@ -1734,7 +1736,7 @@ public static class AbilityTooltipDamagePreview
         AbilityDefinition def)
     {
         MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
-        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit && !IsSoulforgedWarrior(def))
             body.AppendLine(O(InheritMinionDamageRuleLine));
         else
             body.AppendLine(O("Minion source damage"));
@@ -1769,9 +1771,9 @@ public static class AbilityTooltipDamagePreview
         const float scalerEps = 0.05f;
         string dmgSuffix = DamageTimingSuffix();
 
-        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit && !IsSoulforgedWarrior(def))
             body.AppendLine(O(InheritMinionDamageRuleLine));
-        else
+        else if (cfg.damageSourceMode != MinionDamageSourceMode.InheritOwnerHitSplit)
         {
             SplitDamageRange basePre = cfg.pureMinionDamageSplitRange;
             float dmgMult = 1f + stats.FinalMinionDamagePercent;
@@ -2140,26 +2142,11 @@ public static class AbilityTooltipDamagePreview
         AbilityDefinition def,
         SkillsManager skillsManager)
     {
-        body.AppendLine(O("Summons a soulforged clone of your current appearance."));
-        float hpFrac = def?.minionSpawnDefinition != null
-            ? Mathf.Max(0f, def.minionSpawnDefinition.ownerMaxHealthFraction)
-            : 0.5f;
-        if (hpFrac > 0f)
-            body.AppendLine(O($"Max health: {hpFrac * 100f:0.#}% of your maximum life."));
-        MinionDefensiveInheritance defenses = def?.minionSpawnDefinition != null
-            ? def.minionSpawnDefinition.defensiveInheritance
-            : default;
-        if (defenses.inheritOwnerDefenses)
-        {
-            body.AppendLine(O(
-                $"Defenses: {FormatMinionDefenseFraction(defenses.ownerArmorFraction)} armour, " +
-                $"{FormatMinionDefenseFraction(defenses.ownerMagicResistFraction)} magic resist, " +
-                $"{FormatMinionDefenseFraction(defenses.ownerCorruptionResistFraction)} corruption resist."));
-        }
-
-        body.AppendLine(O("Enemies struck by your warrior will attack it back."));
+        body.AppendLine(O("This minion inherits a portion of your weapons stats."));
+        body.AppendLine(O("Inherits your maximum health and basic defences (armour, magic resist and corruption resist)."));
+        body.AppendLine(O("Summons a soulforged clone."));
         body.AppendLine(O(
-            $"Every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s (first after {AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds:0.#}s) releases a warcry granting allies within {AbilityCombatPower.SoulforgedWarriorWarcryAllyRange:0.#} range +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
+            $"Releases a warcry on summon, then every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s, granting allies within {AbilityCombatPower.SoulforgedWarriorWarcryAllyRange:0.#} range +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
         AppendSoulforgedWarriorEnhancementLines(body, O, skillsManager);
         float dur = def?.minionSpawnDefinition != null
             ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
@@ -2205,7 +2192,15 @@ public static class AbilityTooltipDamagePreview
         int sel = skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
         if (sel == SoulforgedWeaponSwarmChoiceIndex)
         {
-            body.AppendLine(O($"Summons {SoulforgedWeaponSwarmCount} soulforged weapons."));
+            body.AppendLine(O("Summons 3 soulforged weapons."));
+            body.AppendLine(O("Each weapon 15% less damage."));
+            body.AppendLine(O("Recast to collapse all weapons onto your current target, or find new targets if you don't have one."));
+            return;
+        }
+
+        if (sel == SoulforgedWeaponExtendedDurationChoiceIndex)
+        {
+            body.AppendLine(O($"Soulforged Weapon now lasts {SoulforgedWeaponExtendedDurationSeconds:0.#}s."));
             return;
         }
 
