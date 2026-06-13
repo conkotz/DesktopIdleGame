@@ -354,6 +354,13 @@ public class HotkeySettingsRowUI : MonoBehaviour
             actionNameText.text = HotkeyBindIds.GetSettingsRowLabel(bindId);
     }
 
+    public void SetBindId(HotkeyBindId id)
+    {
+        bindId = id;
+        ApplyActionLabelFromBindId();
+        RefreshDisplay();
+    }
+
     public void RefreshDisplay()
     {
         HotkeyBindingManager mgr = HotkeyBindingManager.Instance;

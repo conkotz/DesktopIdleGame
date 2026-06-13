@@ -712,7 +712,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         set => SetCombatStatAdditive(ref _combatFlatManaRegenPerSecond, value);
     }
 
-    /// <summary>Combat-only melee (physical) damage multiplier (e.g. Battle Trance +10%).</summary>
+    /// <summary>Combat-only global physical damage percent bonus (e.g. War Banner).</summary>
     public float CombatMeleeDamageMultiplier
     {
         get => _combatMeleeDamageMultiplier;
@@ -811,32 +811,45 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return true;
     }
 
-    /// <summary>Applies Battle Trance combat modifiers in one pass (single stats-changed notification).</summary>
-    public void ApplyBattleTranceCombatModifiers(
-        float meleeDamageMultiplier,
+    private float _combatGlobalPhysicalDamagePercentBonus;
+
+    /// <summary>Applies War Banner aura modifiers in one pass (single stats-changed notification).</summary>
+    public void ApplyWarBannerCombatModifiers(
         float attackSpeedPercentBonus,
+        float damageReductionFraction,
+        float globalPhysicalDamagePercentBonus,
         float abilityCooldownReductionFraction,
-        float damageTakenMultiplier,
         float moveSpeedPercentBonus)
     {
         bool changed = false;
-        changed |= SetCombatStatMultiplier(ref _combatMeleeDamageMultiplier, meleeDamageMultiplier, notify: false);
+        float damageTakenMultiplier = Mathf.Clamp(1f - Mathf.Max(0f, damageReductionFraction), 0.05f, 1f);
         changed |= SetCombatStatAdditive(ref _combatAttackSpeedPercentBonus, attackSpeedPercentBonus, notify: false);
-        changed |= SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, abilityCooldownReductionFraction, notify: false);
         changed |= SetCombatStatMultiplier(ref _combatDamageTakenMultiplier, damageTakenMultiplier, notify: false);
+        changed |= SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, abilityCooldownReductionFraction, notify: false);
         changed |= SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, moveSpeedPercentBonus, notify: false);
+        if (!Mathf.Approximately(_combatGlobalPhysicalDamagePercentBonus, globalPhysicalDamagePercentBonus))
+        {
+            _combatGlobalPhysicalDamagePercentBonus = globalPhysicalDamagePercentBonus;
+            changed = true;
+        }
+
         if (changed)
             NotifyStatsChanged();
     }
 
-    public void ClearBattleTranceCombatModifiers()
+    public void ClearWarBannerCombatModifiers()
     {
         bool changed = false;
-        changed |= SetCombatStatMultiplier(ref _combatMeleeDamageMultiplier, 1f, notify: false);
         changed |= SetCombatStatAdditive(ref _combatAttackSpeedPercentBonus, 0f, notify: false);
         changed |= SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, 0f, notify: false);
         changed |= SetCombatStatMultiplier(ref _combatDamageTakenMultiplier, 1f, notify: false);
         changed |= SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, 0f, notify: false);
+        if (_combatGlobalPhysicalDamagePercentBonus > 0.0001f)
+        {
+            _combatGlobalPhysicalDamagePercentBonus = 0f;
+            changed = true;
+        }
+
         if (changed)
             NotifyStatsChanged();
     }
@@ -4289,6 +4302,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         total += GetBloodbathPhysicalDamagePercent();
         total += GetWayOfTheSlayerBleedChancePhysicalConversionFraction();
+        total += _combatGlobalPhysicalDamagePercentBonus;
         return Mathf.Max(0f, total);
     }
 
@@ -5432,7 +5446,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         switch (type)
         {
             case DamageType.Typless:
-                // No armor/MR/block; still affected by shock + Battle Trance damage-taken multipliers.
+                // No armor/MR/block; still affected by shock + War Banner damage-reduction multipliers.
                 return ApplyFinalIncomingDamageMultipliers(rawDamage);
 
             case DamageType.Corruption:
@@ -5487,7 +5501,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>Shock (ailment) + combat buffs such as Battle Trance (+10% damage taken). Applied to all incoming damage.</summary>
+    /// <summary>Shock (ailment) + combat buffs such as War Banner damage reduction. Applied to all incoming damage.</summary>
     private float ApplyFinalIncomingDamageMultipliers(float mitigatedDamage)
     {
         if (mitigatedDamage <= 0f)

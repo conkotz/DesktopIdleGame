@@ -116,7 +116,7 @@ public class SoulforgedWarriorMinion : MonoBehaviour
         combatTarget.BindOwnerCombat(ownerCombat);
 
         SnapToSpawnPosition();
-        unit?.AlignFloorToOwnerSoldier(ownerStats.transform);
+        unit?.AlignToLaneFloor();
         _initialized = true;
         RestartWarcryRoutine();
         RestartFuriousSlamRoutine();
@@ -169,7 +169,7 @@ public class SoulforgedWarriorMinion : MonoBehaviour
         }
 
         SnapToSpawnPosition();
-        unit?.AlignFloorToOwnerSoldier(_homeAnchor);
+        unit?.AlignToLaneFloor();
     }
 
     private void Update()

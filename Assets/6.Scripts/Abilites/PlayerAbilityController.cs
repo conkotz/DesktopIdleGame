@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 /// Minimal implementation for "Power Slash" style abilities.
 /// </summary>
 [DisallowMultipleComponent]
-public class PlayerAbilityController : MonoBehaviour
+public partial class PlayerAbilityController : MonoBehaviour
 {
     [Header("Refs")]
     [SerializeField] private PlayerController player;
@@ -80,7 +80,6 @@ public class PlayerAbilityController : MonoBehaviour
     private const string BladestormId = "bladestorm";
     private const string ShadowStrikeId = "shadow_strike";
     private const string EnergyInfusionId = "energy_infusion";
-    private const string BattleTranceId = "battle_trance";
     private const string HammerTempestId = "hammer_tempest";
     private const int HammerTempestSacredArsenalChoiceIndex = AbilityCombatPower.HammerTempestSacredArsenalChoiceIndex;
     private const int HammerTempestCrushingMomentumChoiceIndex = AbilityCombatPower.HammerTempestCrushingMomentumChoiceIndex;
@@ -259,11 +258,6 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _guardiansHammerUsedEnergyInfusionMana;
     private bool _whirlwindUsedEnergyInfusionMana;
 
-    private bool _battleTranceActive;
-    private float _battleTranceEndsAt;
-    private float _battleTranceDuration;
-    private float _battleTranceMaxEndsAt;
-    private float _lastSyncedBattleTranceHudEnd = float.NaN;
     private bool _hammerTempestActive;
     private float _hammerTempestEndsAt;
     private float _hammerTempestDuration;
@@ -339,6 +333,8 @@ public class PlayerAbilityController : MonoBehaviour
     private int _lastSyncedSoulforgedHudStacks = int.MinValue;
 
     private static string s_pendingSoulforgedRestoreAbilityId;
+    private static string s_persistedSoulforgedWeaponCooldownAbilityId;
+    private static string s_persistedSoulforgedWarriorCooldownAbilityId;
 
     private enum QueuedHitEffect
     {
@@ -428,6 +424,29 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
         if (!actionBar) actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ReclaimPersistedSoulforgedMinionsFromScene();
+    }
+
+    private void ReclaimPersistedSoulforgedMinionsFromScene()
+    {
+        _soulforgedAvailabilityCheckPausedUntil = Time.time + SoulforgedWeaponSceneLoadActionBarGraceSeconds;
+
+        if (!string.IsNullOrWhiteSpace(s_persistedSoulforgedWeaponCooldownAbilityId))
+        {
+            _soulforgedWeaponCooldownAbilityDef =
+                GetAbilityDefinition(s_persistedSoulforgedWeaponCooldownAbilityId);
+            s_persistedSoulforgedWeaponCooldownAbilityId = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(s_persistedSoulforgedWarriorCooldownAbilityId))
+        {
+            _soulforgedWarriorCooldownAbilityDef =
+                GetAbilityDefinition(s_persistedSoulforgedWarriorCooldownAbilityId);
+            s_persistedSoulforgedWarriorCooldownAbilityId = null;
+        }
+
+        ReclaimPersistedSoulforgedWeapons();
+        ReclaimPersistedSoulforgedWarriors();
     }
 
     private void OnEnable()
@@ -482,7 +501,7 @@ public class PlayerAbilityController : MonoBehaviour
         abilityVfx?.DestroyLumberFrenzyOrbitVfx();
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
-        abilityVfx?.DestroyBattleTranceGlowVfx();
+        abilityVfx?.StopWarBannerVfx();
         abilityVfx?.DestroyHammerTempestOrbitVfx();
     }
 
@@ -529,8 +548,9 @@ public class PlayerAbilityController : MonoBehaviour
         TickAvatarOfTheForestNearbyReplenish(Time.deltaTime);
         SyncSpectralAxeHudBuff();
         EndActiveLingeringAbilitiesNotOnActionBar();
-        CleanupBattleTranceIfExpired();
-        SyncBattleTranceHudBuff();
+        CleanupWarBannerIfExpired();
+        TickWarBanner();
+        SyncWarBannerHudBuff();
         TickHammerTempest();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
@@ -542,7 +562,6 @@ public class PlayerAbilityController : MonoBehaviour
         SyncSoulforgedWeaponHudBuff();
         SyncSoulforgedWarriorHudBuff();
         abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
-        abilityVfx?.UpdateBattleTranceGlowVfx(IsBattleTranceActive);
     }
 
     private void LateUpdate()
@@ -553,31 +572,17 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        _soulforgedAvailabilityCheckPausedUntil = Time.time + SoulforgedWeaponSceneLoadActionBarGraceSeconds;
-
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
 
-        CleanupSoulforgedWeaponList();
-        for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
-        {
-            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
-            if (!minion)
-                continue;
+        ReclaimPersistedSoulforgedMinionsFromScene();
+        StartCoroutine(RefreshPersistedSoulforgedMinionsAfterSceneLoad());
 
-            minion.PersistAcrossSceneLoads();
-            minion.ReturnHomeAfterSceneLoad();
-        }
-
-        StartCoroutine(RebindSoulforgedWarriorsAfterSceneLoad());
-
-        // PlayerBuffController is fresh in the new scene — force the next Soulforged HUD sync to
-        // re-push the buff entry instead of skipping because the cached "last synced" values match.
         _lastSyncedSoulforgedHudEnd = float.NaN;
         _lastSyncedSoulforgedHudStacks = int.MinValue;
     }
 
-    private IEnumerator RebindSoulforgedWarriorsAfterSceneLoad()
+    private IEnumerator RefreshPersistedSoulforgedMinionsAfterSceneLoad()
     {
         for (int i = 0; i < 10; i++)
             yield return null;
@@ -586,14 +591,21 @@ public class PlayerAbilityController : MonoBehaviour
             _ownerStats = stats;
         if (!player)
             player = GetComponent<PlayerController>();
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
         if (!_ownerStats || !player)
             yield break;
 
-        ReclaimPersistedSoulforgedWarriors();
         Transform ownerRoot = _ownerStats.transform;
         Transform rangeOrigin = _ownerTransform ? _ownerTransform : ownerRoot;
+        Transform weaponHome = player.SoulforgedWeaponSpawnPoint;
+
+        for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+        {
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (!minion)
+                continue;
+
+            minion.RefreshAfterSceneLoad(_ownerStats, weaponHome, rangeOrigin, HandleSoulforgedWeaponReleased);
+        }
 
         for (int i = 0; i < _activeSoulforgedWarriorMinions.Count; i++)
         {
@@ -604,7 +616,29 @@ public class PlayerAbilityController : MonoBehaviour
             minion.RefreshAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
         }
 
+        SyncSoulforgedWeaponHudBuff();
         SyncSoulforgedWarriorHudBuff();
+    }
+
+    private void ReclaimPersistedSoulforgedWeapons()
+    {
+        CleanupSoulforgedWeaponList();
+        SoulforgedWeaponMinion[] found = FindObjectsByType<SoulforgedWeaponMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < found.Length; i++)
+        {
+            SoulforgedWeaponMinion minion = found[i];
+            if (!minion)
+                continue;
+
+            if (!_activeSoulforgedWeaponMinions.Contains(minion))
+            {
+                _activeSoulforgedWeaponMinions.Add(minion);
+                minion.BindReleasedCallback(HandleSoulforgedWeaponReleased);
+            }
+        }
     }
 
     private void ReclaimPersistedSoulforgedWarriors()
@@ -739,8 +773,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _cleavingBuffActive;
         if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
             return _energyInfusionActive;
-        if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
-            return IsBattleTranceActive;
+        if (IsWarBannerAbilityId(abilityId))
+            return IsWarBannerActive;
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -796,9 +830,9 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+        if (IsWarBannerAbilityId(abilityId))
         {
-            ForceEndBattleTranceEarly(applyCooldown: true);
+            ForceEndWarBannerEarly(applyCooldown: true);
             return;
         }
 
@@ -877,7 +911,7 @@ public class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(CleavingChopId);
         TryEndLingeringIfRemovedFromActionBar(AvatarOfTheForestId);
         TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
-        TryEndLingeringIfRemovedFromActionBar(BattleTranceId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.WarBannerAbilityId);
         TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
         TryEndLingeringIfRemovedFromActionBar(CrusaderStrikeId);
         TryEndLingeringIfRemovedFromActionBar(FlameChargeId);
@@ -901,6 +935,8 @@ public class PlayerAbilityController : MonoBehaviour
                 continue;
             if (ShouldSkipActionBarRemovalForAbility(buff.id))
                 continue;
+            if (IsWarBannerAbilityId(buff.id) && IsWarBannerOnActionBar())
+                continue;
             if (actionBar.HasAbilityOnLoadout(buff.id))
                 continue;
 
@@ -912,8 +948,16 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(abilityId) || ShouldSkipActionBarRemovalForAbility(abilityId))
             return;
-        if (actionBar.HasAbilityOnLoadout(abilityId))
+        if (IsWarBannerAbilityId(abilityId))
+        {
+            if (IsWarBannerOnActionBar())
+                return;
+        }
+        else if (actionBar.HasAbilityOnLoadout(abilityId))
+        {
             return;
+        }
+
         if (!IsAbilityBuffOrLingeringActive(abilityId))
             return;
 
@@ -922,8 +966,11 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool ShouldSkipActionBarRemovalForAbility(string abilityId)
     {
-        return string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase) &&
-               Time.time < _soulforgedAvailabilityCheckPausedUntil;
+        if (Time.time >= _soulforgedAvailabilityCheckPausedUntil)
+            return false;
+
+        return string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Skill tree active overlay: only for finite-duration HUD buffs (not indefinite minion / until-dismissed).</summary>
@@ -1221,149 +1268,6 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         stats?.NotifyStatsChanged();
-    }
-
-    public bool IsBattleTranceActive =>
-        _battleTranceActive && Time.time < _battleTranceEndsAt;
-
-    public static void NotifyBattleTranceKillFromEnemyDeath()
-    {
-        if (_instance == null || !_instance.IsBattleTranceActive)
-            return;
-
-        _instance.NotifyBattleTranceEnemyKilled();
-    }
-
-    private void NotifyBattleTranceEnemyKilled()
-    {
-        if (!IsBattleTranceActive)
-            return;
-
-        if (GetBattleTranceSelectedChoice() != 2)
-            return;
-
-        float newEnd = Mathf.Min(_battleTranceMaxEndsAt, _battleTranceEndsAt + AbilityCombatPower.BattleTranceEndlessAssaultKillExtensionSeconds);
-        if (newEnd <= _battleTranceEndsAt + 0.001f)
-            return;
-
-        _battleTranceEndsAt = newEnd;
-        _lastSyncedBattleTranceHudEnd = float.NaN;
-        SyncBattleTranceHudBuff();
-    }
-
-    private void ActivateBattleTranceBuff()
-    {
-        _battleTranceActive = true;
-        _battleTranceDuration = AbilityCombatPower.BattleTranceBaseDurationSeconds;
-        AbilityDefinition def = GetAbilityDefinition(BattleTranceId);
-        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
-            _battleTranceDuration = def.tooltipBuffMinionDurationSeconds;
-
-        _battleTranceEndsAt = Time.time + _battleTranceDuration;
-        _battleTranceMaxEndsAt = _battleTranceEndsAt + AbilityCombatPower.BattleTranceEndlessAssaultMaxBonusDurationSeconds;
-        ApplyBattleTranceCombatModifiers();
-        abilityVfx?.SpawnBattleTranceGlowVfx();
-        _lastSyncedBattleTranceHudEnd = float.NaN;
-        SyncBattleTranceHudBuff();
-    }
-
-    private void ForceEndBattleTranceEarly(bool applyCooldown)
-    {
-        if (!_battleTranceActive && !IsBattleTranceActive)
-            return;
-
-        _battleTranceActive = false;
-        _battleTranceEndsAt = 0f;
-        _battleTranceDuration = 0f;
-        _battleTranceMaxEndsAt = 0f;
-        abilityVfx?.DestroyBattleTranceGlowVfx();
-        stats?.ClearBattleTranceCombatModifiers();
-        _lastSyncedBattleTranceHudEnd = float.NaN;
-        SyncBattleTranceHudBuff();
-
-        if (applyCooldown)
-        {
-            AbilityDefinition def = GetAbilityDefinition(BattleTranceId);
-            if (def != null && def.cooldown > 0f)
-                StartCooldown(def);
-        }
-    }
-
-    private void CleanupBattleTranceIfExpired()
-    {
-        if (!_battleTranceActive)
-            return;
-
-        if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
-        {
-            ForceEndBattleTranceEarly(applyCooldown: false);
-            return;
-        }
-
-        if (Time.time < _battleTranceEndsAt)
-            return;
-
-        ForceEndBattleTranceEarly(applyCooldown: false);
-    }
-
-    private void SyncBattleTranceHudBuff()
-    {
-        if (!buffController)
-            return;
-
-        if (!IsBattleTranceActive)
-        {
-            if (buffController.IsHudAbilityBuffActive(BattleTranceId))
-                buffController.ClearHudAbilityBuff(BattleTranceId);
-            _lastSyncedBattleTranceHudEnd = float.NaN;
-            return;
-        }
-
-        if (Mathf.Approximately(_lastSyncedBattleTranceHudEnd, _battleTranceEndsAt))
-            return;
-
-        _lastSyncedBattleTranceHudEnd = _battleTranceEndsAt;
-        buffController.SetHudAbilityBuff(BattleTranceId, 1, _battleTranceEndsAt, _battleTranceDuration);
-    }
-
-    private void ApplyBattleTranceCombatModifiers()
-    {
-        if (stats == null)
-            return;
-
-        int choice = GetBattleTranceSelectedChoice();
-        float atkSpeed = AbilityCombatPower.BattleTranceBaseAttackSpeedBonus;
-        float cdr = AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction;
-        float meleeDamage = AbilityCombatPower.BattleTranceBaseMeleeDamageMultiplier;
-        float damageTaken = AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier;
-        float moveSpeed = 0f;
-
-        if (choice == 0)
-        {
-            atkSpeed += AbilityCombatPower.BattleTranceUnrelentingAttackSpeedBonus;
-            cdr += AbilityCombatPower.BattleTranceUnrelentingCooldownReductionBonus;
-            damageTaken = AbilityCombatPower.BattleTranceUnrelentingDamageTakenMultiplier;
-        }
-        else if (choice == 1)
-        {
-            damageTaken = AbilityCombatPower.BattleTranceControlledDamageTakenMultiplier;
-            moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
-        }
-
-        stats.ApplyBattleTranceCombatModifiers(meleeDamage, atkSpeed, cdr, damageTaken, moveSpeed);
-    }
-
-    private int GetBattleTranceSelectedChoice()
-    {
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
-        if (!skillsManager)
-            return -1;
-
-        return skillsManager.GetSkillChoiceSelection(
-            SkillType.Melee,
-            AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId,
-            -1);
     }
 
     public bool IsHammerTempestActive =>
@@ -3194,7 +3098,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase) && IsAvatarOfTheForestActive)
             return false;
 
-        if (string.Equals(def.abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase) && IsBattleTranceActive)
+        if (IsWarBannerAbilityId(def.abilityId) && (_warBannerCastRoutine != null || IsWarBannerActive))
             return false;
 
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
@@ -3294,10 +3198,9 @@ public class PlayerAbilityController : MonoBehaviour
             LogAbilityUsed(def);
             return true;
         }
-        if (string.Equals(def.abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+        if (IsWarBannerAbilityId(def.abilityId))
         {
-            ActivateBattleTranceBuff();
-            StartCooldown(def);
+            BeginWarBannerCast(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -8045,7 +7948,7 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         // Timed buff overlaps cast cooldown (same contract as Energy Infusion / Cleaving Strikes).
-        if (string.Equals(id, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+        if (IsWarBannerAbilityId(id))
             return;
 
         if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
@@ -8403,6 +8306,7 @@ public class PlayerAbilityController : MonoBehaviour
         Transform ownerRoot = _ownerStats.transform;
         Transform attacker = _ownerTransform ? _ownerTransform : ownerRoot;
         GameObject go = Instantiate(md.runtimePrefab, ownerRoot.position, Quaternion.identity);
+        LaneGroundEffectPlacement.AttachUnitToLane(go.transform);
         SoulforgedWarriorMinion minion = go.GetComponent<SoulforgedWarriorMinion>();
         if (!minion)
         {
@@ -9171,16 +9075,41 @@ public class PlayerAbilityController : MonoBehaviour
             _flameChargeRoutine = null;
         }
 
-        if (_activeSoulforgedWeaponMinions.Count > 0 && _soulforgedWeaponCooldownAbilityDef)
-            s_pendingSoulforgedRestoreAbilityId = _soulforgedWeaponCooldownAbilityDef.abilityId;
-
-        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+        if (_activeSoulforgedWeaponMinions.Count > 0)
         {
-            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
-            if (minion)
-                minion.CancelAndDestroy();
+            if (_soulforgedWeaponCooldownAbilityDef)
+                s_persistedSoulforgedWeaponCooldownAbilityId = _soulforgedWeaponCooldownAbilityDef.abilityId;
+
+            for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+            {
+                SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+                if (!minion)
+                    continue;
+
+                minion.BindReleasedCallback(null);
+                minion.PersistAcrossSceneLoads();
+            }
+
+            _activeSoulforgedWeaponMinions.Clear();
         }
-        _activeSoulforgedWeaponMinions.Clear();
+
+        if (_activeSoulforgedWarriorMinions.Count > 0)
+        {
+            if (_soulforgedWarriorCooldownAbilityDef)
+                s_persistedSoulforgedWarriorCooldownAbilityId = _soulforgedWarriorCooldownAbilityDef.abilityId;
+
+            for (int i = _activeSoulforgedWarriorMinions.Count - 1; i >= 0; i--)
+            {
+                SoulforgedWarriorMinion minion = _activeSoulforgedWarriorMinions[i];
+                if (!minion)
+                    continue;
+
+                minion.BindReleasedCallback(null);
+                minion.PersistAcrossSceneLoads();
+            }
+
+            _activeSoulforgedWarriorMinions.Clear();
+        }
     }
 }
 

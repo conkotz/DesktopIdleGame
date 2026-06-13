@@ -728,10 +728,10 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
-        if (string.Equals(def.abilityId, AbilityCombatPower.BattleTranceAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, AbilityCombatPower.WarBannerAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(
-                SkillType.Melee, AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId, -1);
+                SkillType.Melee, AbilityCombatPower.WarBannerEnhancementParentSpineNodeId, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

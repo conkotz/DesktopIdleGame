@@ -89,7 +89,7 @@ public class MinionUnit : MonoBehaviour
         visualsRoot.localScale = new Vector3(u, u, u);
         _visualFlipRoot.localScale = Vector3.one;
 
-        AlignFloorToOwnerSoldier(ownerRoot);
+        AlignToLaneFloor();
         PlayIdle();
         return _animator != null;
     }
@@ -104,25 +104,28 @@ public class MinionUnit : MonoBehaviour
 
     public void AlignFloorToOwnerSoldier(Transform ownerRoot)
     {
-        if (!ownerRoot)
-            return;
+        AlignToLaneFloor();
+    }
 
-        Transform ownerSoldier = MinionOwnerVisualSnapshot.FindSoldierRoot(ownerRoot);
-        Collider2D ownerCol = ownerSoldier ? ownerSoldier.GetComponent<Collider2D>() : null;
+    /// <summary>
+    /// Keeps the minion on the canonical lane floor (same line as player, merchants, and signposts).
+    /// </summary>
+    public void AlignToLaneFloor(float feetYOffset = 0f)
+    {
         Collider2D minionCol = GetSoldierCollider();
-        if (!ownerCol || !minionCol)
-            return;
+        if (minionCol != null)
+        {
+            LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(minionCol, transform, feetYOffset);
+        }
+        else
+        {
+            LaneGroundEffectPlacement.AttachUnitToLane(transform);
+            Vector3 pos = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(transform.position, feetYOffset);
+            transform.position = pos;
+        }
 
-        Physics2D.SyncTransforms();
-        float delta = ownerCol.bounds.min.y - minionCol.bounds.min.y;
-        if (Mathf.Abs(delta) <= 1e-5f)
-            return;
-
-        Vector3 pos = transform.position;
-        pos.y += delta;
-        transform.position = pos;
         if (_rb)
-            _rb.position = new Vector2(pos.x, pos.y);
+            _rb.position = new Vector2(transform.position.x, transform.position.y);
     }
 
     public void SyncGroundY(float worldY)

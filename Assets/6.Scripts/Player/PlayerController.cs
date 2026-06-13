@@ -581,6 +581,7 @@ public class PlayerController : MonoBehaviour
 
         PollKeyboardSteeringInput();
         TryInteractHotkey();
+        TryEnterAreaHotkey();
 
         TickStateMachine();
         ApplyActionPresentation();
@@ -1047,6 +1048,31 @@ public class PlayerController : MonoBehaviour
         WorldInteractRouter.RouteInteract(winner, this);
     }
 
+    private void TryEnterAreaHotkey()
+    {
+        if (!WasEnterAreaHotkeyPressedThisFrame())
+            return;
+
+        if (movementLocked || _isDead)
+            return;
+
+        if (!CanPollWorldInteractHotkey())
+            return;
+
+        float px = transform.position.x;
+        float py = transform.position.y;
+
+        if (!WorldInteractRouter.TryFindClosestEnterAreaCollider(
+                px,
+                py,
+                interactableMask,
+                WorldInteractRouter.InteractHotkeyHalfRangeX,
+                out Collider2D winner))
+            return;
+
+        WorldInteractRouter.RouteEnterArea(winner, this);
+    }
+
     private static bool CanPollKeyboardMovementInput()
     {
         if (HotkeySettingsRowUI.IsRebinding)
@@ -1099,11 +1125,17 @@ public class PlayerController : MonoBehaviour
         return key != KeyCode.None && Input.GetKey(key);
     }
 
-    private static bool WasInteractHotkeyPressedThisFrame()
+    private static bool WasInteractHotkeyPressedThisFrame() =>
+        WasHotkeyBindPressedThisFrame(HotkeyBindId.Interact);
+
+    private static bool WasEnterAreaHotkeyPressedThisFrame() =>
+        WasHotkeyBindPressedThisFrame(HotkeyBindId.EnterArea);
+
+    private static bool WasHotkeyBindPressedThisFrame(HotkeyBindId bindId)
     {
         KeyCode key = HotkeyBindingManager.Instance != null
-            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.Interact)
-            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.Interact);
+            ? HotkeyBindingManager.Instance.GetBinding(bindId)
+            : HotkeyBindingManager.GetDefaultKey(bindId);
         return key != KeyCode.None && Input.GetKeyDown(key);
     }
 

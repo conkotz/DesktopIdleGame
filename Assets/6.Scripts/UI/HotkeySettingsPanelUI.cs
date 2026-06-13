@@ -24,6 +24,7 @@ public class HotkeySettingsPanelUI : MonoBehaviour
     private void Awake()
     {
         EnsureMovementSectionHeaderDimming();
+        EnsureEnterAreaHotkeyRow();
         RebuildRowCache();
     }
 
@@ -126,4 +127,34 @@ public class HotkeySettingsPanelUI : MonoBehaviour
 
     /// <summary>Resolved rows after last <see cref="RebuildRowCache"/>.</summary>
     public HotkeySettingsRowUI[] CachedRows => _cachedRows;
+
+    private void EnsureEnterAreaHotkeyRow()
+    {
+        HotkeySettingsRowUI[] existing = GetComponentsInChildren<HotkeySettingsRowUI>(includeInactive);
+        for (int i = 0; i < existing.Length; i++)
+        {
+            if (existing[i] != null && existing[i].BindId == HotkeyBindId.EnterArea)
+                return;
+        }
+
+        HotkeySettingsRowUI template = null;
+        for (int i = 0; i < existing.Length; i++)
+        {
+            if (existing[i] != null && existing[i].BindId == HotkeyBindId.Interact)
+            {
+                template = existing[i];
+                break;
+            }
+        }
+
+        if (template == null)
+            return;
+
+        GameObject clone = Instantiate(template.gameObject, template.transform.parent);
+        clone.name = "HotkeyRowEnterArea";
+        HotkeySettingsRowUI row = clone.GetComponent<HotkeySettingsRowUI>();
+        if (row != null)
+            row.SetBindId(HotkeyBindId.EnterArea);
+        clone.transform.SetSiblingIndex(template.transform.GetSiblingIndex() + 1);
+    }
 }

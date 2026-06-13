@@ -102,6 +102,8 @@ public static class HotkeyBindIds
                 return "Move Right (keyboard)";
             case HotkeyBindId.Interact:
                 return "Interact";
+            case HotkeyBindId.EnterArea:
+                return "Enter area";
             case HotkeyBindId.OpenEnhancePage:
                 return "Open Enhance";
             case HotkeyBindId.OpenDatabasePage:

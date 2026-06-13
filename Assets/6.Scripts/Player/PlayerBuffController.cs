@@ -83,6 +83,22 @@ public class PlayerBuffController : MonoBehaviour
     }
 
     /// <summary>Registers or updates a timed ability buff for the HUD bar only (no consumable stat totals).</summary>
+    private static bool ShouldClearHudAbilityBuffRow(
+        int displayStacks,
+        float endTime,
+        float durationSeconds,
+        bool persistActiveOverlay)
+    {
+        if (displayStacks > 0)
+            return false;
+        if (persistActiveOverlay)
+            return false;
+        // Timed ability buffs may use 0 stacks while active (e.g. War Banner ramp).
+        if (durationSeconds > 0f && endTime > Time.time)
+            return false;
+        return true;
+    }
+
     public void SetHudAbilityBuff(
         string abilityId,
         int displayStacks,
@@ -100,7 +116,7 @@ public class PlayerBuffController : MonoBehaviour
                 !string.Equals(existing.id, abilityId, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (displayStacks <= 0)
+            if (ShouldClearHudAbilityBuffRow(displayStacks, endTime, durationSeconds, persistActiveOverlay))
             {
                 activeBuffs.RemoveAt(i);
                 NotifyChanged();
@@ -126,7 +142,7 @@ public class PlayerBuffController : MonoBehaviour
             b.type == ConsumableEffectType.HudAbilityBuff &&
             string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase));
 
-        if (displayStacks <= 0)
+        if (ShouldClearHudAbilityBuffRow(displayStacks, endTime, durationSeconds, persistActiveOverlay))
         {
             NotifyChanged();
             return;
@@ -180,7 +196,10 @@ public class PlayerBuffController : MonoBehaviour
             if (!string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (b.displayStacks <= 0)
-                continue;
+            {
+                if (!HasFiniteHudAbilityBuffDuration(b) || b.endTime <= Time.time)
+                    continue;
+            }
             buff = b;
             return true;
         }

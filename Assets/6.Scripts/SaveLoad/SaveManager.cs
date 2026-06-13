@@ -1522,6 +1522,32 @@ public class SaveManager : MonoBehaviour
             data.actionBarGatherFishing = new SaveData.GatheringActionBarSaveBlock();
 
         MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
+        MigrateLegacyBattleTranceAbilityIdsIfNeeded(data);
+    }
+
+    /// <summary>Renamed Battle Trance → War Banner; old saves may still reference <c>battle_trance</c> on the action bar.</summary>
+    private static void MigrateLegacyBattleTranceAbilityIdsIfNeeded(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        MigrateLegacyBattleTranceAbilityIdList(data.actionBarIds);
+        MigrateLegacyBattleTranceAbilityIdList(data.actionBarSecondaryIds);
+        MigrateLegacyBattleTranceAbilityIdList(data.actionBarGatherWoodcutting?.ids);
+        MigrateLegacyBattleTranceAbilityIdList(data.actionBarGatherMining?.ids);
+        MigrateLegacyBattleTranceAbilityIdList(data.actionBarGatherFishing?.ids);
+    }
+
+    private static void MigrateLegacyBattleTranceAbilityIdList(List<string> ids)
+    {
+        if (ids == null)
+            return;
+
+        for (int i = 0; i < ids.Count; i++)
+        {
+            if (string.Equals(ids[i], "battle_trance", StringComparison.OrdinalIgnoreCase))
+                ids[i] = AbilityCombatPower.WarBannerAbilityId;
+        }
     }
 
     /// <summary>

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
-  m_Name: Presentation_ability_battle_trance
+  m_Name: Presentation_ability_war_banner
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
-  notes: Presentation for battle_trance
-  displayNameOverride: Battle Trance
-  icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
-  shortDescription: Enter a heightened combat state for 10 seconds.
+  notes: Presentation for war_banner
+  displayNameOverride: War Banner
+  icon: {fileID: -7337498092964062457, guid: 16518615f4dd08d47906676b4b02704e, type: 3}
+  shortDescription: Drop a war banner granting a buff to allies in the area for 20 seconds.
   primaryDescriptionOverride: 
   flavourText: 
-  tooltipCategoryTagOverride: 
+  tooltipCategoryTagOverride: "Buff \u2022 Banner"

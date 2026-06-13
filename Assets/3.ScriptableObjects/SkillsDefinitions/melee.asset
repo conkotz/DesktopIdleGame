@@ -1054,9 +1054,9 @@ MonoBehaviour:
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 35
-    title: Battle Trance
-    description: Enter a heightened combat state for 10 seconds.
-    icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
+    title: War Banner
+    description: Drop a war banner granting a buff to allies in the area for 20 seconds.
+    icon: {fileID: -7337498092964062457, guid: 16518615f4dd08d47906676b4b02704e, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -1070,23 +1070,20 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 38
-      title: Unrelenting
-      description: +10% attack speed and +5% cooldown reduction while active. Damage
-        taken increases to +15%.
+      title: War Drums
+      description: +15% cooldown reduction
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
-      title: Controlled Aggression
-      description: Damage taken is only +5% while active. Additionally gain +10%
-        movement speed.
+      title: Triumphant Rally
+      description: Heal 15% max health and gain 15% movement speed at max stacks.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
-      title: Endless Assault
-      description: Killing an enemy extends Battle Trance duration by 1 second (up
-        to +10 seconds).
+      title: Bloodied Banner
+      description: Kills extend banner duration and max stacks.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

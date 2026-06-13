@@ -81,6 +81,65 @@ public static class WorldInteractRouter
         return winner != null;
     }
 
+    public static bool IsEnterAreaCollider(Collider2D col) =>
+        col != null && col.GetComponentInParent<MapNodePortalTeleporter>() != null;
+
+    /// <summary>
+    /// Closest map portal / cave entrance / signpost teleporter within horizontal range (enter-area hotkey only).
+    /// </summary>
+    public static bool TryFindClosestEnterAreaCollider(
+        float playerX,
+        float playerY,
+        LayerMask mask,
+        float halfRangeX,
+        out Collider2D winner)
+    {
+        winner = null;
+        float bestDx = float.PositiveInfinity;
+
+        Vector2 center = new(playerX, playerY);
+        Vector2 size = new(halfRangeX * 2f, 12f);
+        ContactFilter2D filter = new()
+        {
+            useLayerMask = true,
+            layerMask = mask,
+            useTriggers = true
+        };
+
+        int count = Physics2D.OverlapBox(center, size, 0f, filter, s_overlapScratch);
+        if (count <= 0)
+            return false;
+
+        for (int i = 0; i < count; i++)
+        {
+            Collider2D c = s_overlapScratch[i];
+            if (!c || !IsEnterAreaCollider(c))
+                continue;
+
+            float targetX = GetRoutableCenterX(c);
+            float dx = Mathf.Abs(targetX - playerX);
+            if (dx > halfRangeX + 0.0001f)
+                continue;
+
+            if (dx < bestDx - 0.0001f)
+            {
+                bestDx = dx;
+                winner = c;
+            }
+            else if (Mathf.Approximately(dx, bestDx) && winner != null)
+            {
+                Collider2D alt = WorldClickPicker2D.PickTopmostAtPoint(new Vector2(targetX, playerY), mask);
+                if (alt != null && IsEnterAreaCollider(alt))
+                    winner = alt;
+            }
+        }
+
+        return winner != null;
+    }
+
+    public static void RouteEnterArea(Collider2D winnerCol, PlayerController player) =>
+        RouteContextPortalEnter(winnerCol, player);
+
     public static void RouteInteract(Collider2D winnerCol, PlayerController player)
     {
         if (!winnerCol || !player)

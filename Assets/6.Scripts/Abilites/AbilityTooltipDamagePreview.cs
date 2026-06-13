@@ -370,8 +370,8 @@ public static class AbilityTooltipDamagePreview
     private static bool IsEnergyInfusion(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.EnergyInfusionAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsBattleTrance(AbilityDefinition def) =>
-        def && string.Equals(def.abilityId, AbilityCombatPower.BattleTranceAbilityId, System.StringComparison.OrdinalIgnoreCase);
+    private static bool IsWarBanner(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.WarBannerAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsHammerTempest(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HammerTempestAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -575,13 +575,13 @@ public static class AbilityTooltipDamagePreview
         return 0f;
     }
 
-    private static int GetBattleTranceBranchChoice(SkillsManager skillsManager)
+    private static int GetWarBannerBranchChoice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
             return -1;
 
         return skillsManager.GetSkillChoiceSelection(
-            SkillType.Melee, AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId, -1);
+            SkillType.Melee, AbilityCombatPower.WarBannerEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetFlameChargeBranchChoice(SkillsManager skillsManager)
@@ -948,13 +948,13 @@ public static class AbilityTooltipDamagePreview
             return body.ToString().TrimEnd();
         }
 
-        if (IsBattleTrance(def))
+        if (IsWarBanner(def))
         {
             if (includeEnhancementEffects)
-                AppendBattleTranceTooltipEffects(body, O, skillsManager);
+                AppendWarBannerTooltipEffects(body, O, skillsManager);
             else
-                AppendBattleTranceBaseTooltipEffects(body, O);
-            float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.BattleTranceBaseDurationSeconds, 0f);
+                AppendWarBannerBaseTooltipEffects(body, O);
+            float dur = GetWarBannerTooltipDurationSeconds(def, skillsManager);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
             body.AppendLine(string.Empty);
@@ -1426,6 +1426,22 @@ public static class AbilityTooltipDamagePreview
         if (abilityDatabase == null)
             return false;
 
+        if (string.Equals(buffId, AbilityCombatPower.WarBannerAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            AbilityDefinition warBannerDef = abilityDatabase.Get(buffId);
+            if (warBannerDef == null)
+                return false;
+
+            title = SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(warBannerDef);
+            if (string.IsNullOrWhiteSpace(title))
+                title = buffId;
+
+            body = CombineShortDescriptionWithBody(
+                warBannerDef,
+                BuildWarBannerHudActiveEffectsBody(displayStacks, skillsManager));
+            return !string.IsNullOrWhiteSpace(body);
+        }
+
         AbilityDefinition def = abilityDatabase.Get(buffId);
         if (def == null)
             return false;
@@ -1506,6 +1522,9 @@ public static class AbilityTooltipDamagePreview
     {
         if (def == null)
             return string.Empty;
+
+        if (IsWarBanner(def))
+            return BuildWarBannerCompactEffectsBody(def, skillsManager, includeDuration, displayStacks, includeEnhancementEffects);
 
         CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
@@ -1589,68 +1608,127 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O(line));
     }
 
-    private static void AppendBattleTranceTooltipEffects(
+    private static float GetWarBannerTooltipDurationSeconds(AbilityDefinition def, SkillsManager skillsManager)
+    {
+        float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.WarBannerBaseDurationSeconds, 0f);
+        if (GetWarBannerBranchChoice(skillsManager) == 2)
+        {
+            dur += AbilityCombatPower.WarBannerEnh3MaxKillProcs
+                   * AbilityCombatPower.WarBannerEnh3KillDurationExtensionSeconds;
+        }
+
+        return dur;
+    }
+
+    private static float GetWarBannerTotalStatPercent(int stacks)
+    {
+        return (AbilityCombatPower.WarBannerBaseAttackSpeedBonus
+                + stacks * AbilityCombatPower.WarBannerStackBonusPerStat) * 100f;
+    }
+
+    private static void AppendWarBannerBaseStatLines(StringBuilder body, System.Func<string, string> O, int stacks)
+    {
+        float totalPct = stacks > 0
+            ? GetWarBannerTotalStatPercent(stacks)
+            : AbilityCombatPower.WarBannerBaseAttackSpeedBonus * 100f;
+
+        body.AppendLine(O($"+{totalPct:0.#}% attack speed"));
+        body.AppendLine(O($"+{totalPct:0.#}% damage reduction"));
+        body.AppendLine(O($"+{totalPct:0.#}% global physical damage"));
+    }
+
+    private static string BuildWarBannerHudActiveEffectsBody(int displayStacks, SkillsManager skillsManager)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        AppendWarBannerBaseStatLines(body, O, displayStacks);
+
+        int enhance = GetWarBannerBranchChoice(skillsManager);
+        if (enhance == 0)
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"+{AbilityCombatPower.WarBannerEnh1CooldownReduction * 100f:0.#}% cooldown reduction"));
+        }
+        else if (enhance == 1)
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O(
+                $"Heal {AbilityCombatPower.WarBannerEnh2MaxStacksHealFraction * 100f:0.#}% max health and gain {AbilityCombatPower.WarBannerEnh2MoveSpeedBonus * 100f:0.#}% movement speed at max stacks."));
+        }
+
+        return body.ToString().TrimEnd();
+    }
+
+    private static string BuildWarBannerCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool includeDuration,
+        int displayStacks,
+        bool includeEnhancementEffects)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+
+        if (displayStacks > 0)
+        {
+            AppendWarBannerBaseStatLines(body, O, displayStacks);
+        }
+        else
+        {
+            AppendWarBannerSkillTreeEffectLines(body, O, skillsManager, includeEnhancementEffects);
+        }
+
+        if (includeDuration)
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"Duration: {GetWarBannerTooltipDurationSeconds(def, skillsManager):0.#}s"));
+        }
+
+        return body.ToString().TrimEnd();
+    }
+
+    private static void AppendWarBannerSkillTreeEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        bool includeEnhancementEffects)
+    {
+        float basePct = AbilityCombatPower.WarBannerBaseAttackSpeedBonus * 100f;
+        body.AppendLine(O($"+{basePct:0.#}% attack speed"));
+        body.AppendLine(O($"+{AbilityCombatPower.WarBannerBaseDamageReductionFraction * 100f:0.#}% damage reduction"));
+        body.AppendLine(O($"+{AbilityCombatPower.WarBannerBaseGlobalPhysicalDamageBonus * 100f:0.#}% global physical damage"));
+        body.AppendLine(string.Empty);
+        body.AppendLine(O(
+            $"Every {AbilityCombatPower.WarBannerStackIntervalSeconds:0.#}s gain a stack (max {AbilityCombatPower.WarBannerBaseMaxStacks} stacks)."));
+
+        if (!includeEnhancementEffects)
+            return;
+
+        int enhance = GetWarBannerBranchChoice(skillsManager);
+        if (enhance == 0)
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"+{AbilityCombatPower.WarBannerEnh1CooldownReduction * 100f:0.#}% cooldown reduction"));
+        }
+        else if (enhance == 1)
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O(
+                "At max banner stacks, allies in range heal 15% max health and gain 15% movement speed for the remainder of the banner duration."));
+        }
+    }
+
+    private static void AppendWarBannerTooltipEffects(
         StringBuilder body,
         System.Func<string, string> O,
         SkillsManager skillsManager)
     {
-        int enhance = GetBattleTranceBranchChoice(skillsManager);
-
-        float atkSpeed = AbilityCombatPower.BattleTranceBaseAttackSpeedBonus;
-        float cdr = AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction;
-        float damageTaken = AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier;
-        float moveSpeed = 0f;
-
-        if (enhance == 0)
-        {
-            atkSpeed += AbilityCombatPower.BattleTranceUnrelentingAttackSpeedBonus;
-            cdr += AbilityCombatPower.BattleTranceUnrelentingCooldownReductionBonus;
-            damageTaken = AbilityCombatPower.BattleTranceUnrelentingDamageTakenMultiplier;
-        }
-        else if (enhance == 1)
-        {
-            damageTaken = AbilityCombatPower.BattleTranceControlledDamageTakenMultiplier;
-            moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
-        }
-
-        AppendBattleTranceEffectLines(body, O, cdr, atkSpeed, damageTaken, moveSpeed, enhance);
+        AppendWarBannerSkillTreeEffectLines(body, O, skillsManager, includeEnhancementEffects: true);
     }
 
-    private static void AppendBattleTranceBaseTooltipEffects(StringBuilder body, System.Func<string, string> O)
+    private static void AppendWarBannerBaseTooltipEffects(StringBuilder body, System.Func<string, string> O)
     {
-        AppendBattleTranceEffectLines(
-            body,
-            O,
-            AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction,
-            AbilityCombatPower.BattleTranceBaseAttackSpeedBonus,
-            AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier,
-            0f,
-            enhancePick: -1);
-    }
-
-    private static void AppendBattleTranceEffectLines(
-        StringBuilder body,
-        System.Func<string, string> O,
-        float cdr,
-        float atkSpeed,
-        float damageTakenMultiplier,
-        float moveSpeed,
-        int enhancePick)
-    {
-        body.AppendLine(O($"+{cdr * 100f:0.#}% ability cooldown reduction"));
-        body.AppendLine(O($"+{atkSpeed * 100f:0.#}% attack speed"));
-        body.AppendLine(O(
-            $"+{(AbilityCombatPower.BattleTranceBaseMeleeDamageMultiplier - 1f) * 100f:0.#}% melee damage"));
-        body.AppendLine(O($"+{(damageTakenMultiplier - 1f) * 100f:0.#}% damage taken"));
-
-        if (moveSpeed > 0.001f)
-            body.AppendLine(O($"+{moveSpeed * 100f:0.#}% movement speed"));
-
-        if (enhancePick == 2)
-        {
-            body.AppendLine(O(
-                $"Killing an enemy extends duration by {AbilityCombatPower.BattleTranceEndlessAssaultKillExtensionSeconds:0.#}s (up to +{AbilityCombatPower.BattleTranceEndlessAssaultMaxBonusDurationSeconds:0.#}s)."));
-        }
+        AppendWarBannerSkillTreeEffectLines(body, O, skillsManager: null, includeEnhancementEffects: false);
     }
 
     /// <summary>Legacy hook — ability combat stats belong in the details panel Effect column.</summary>

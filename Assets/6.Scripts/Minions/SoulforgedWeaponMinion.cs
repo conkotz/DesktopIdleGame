@@ -221,6 +221,33 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    public void BindReleasedCallback(Action<SoulforgedWeaponMinion> onDespawned) => _onDespawned = onDespawned;
+
+    public void RefreshAfterSceneLoad(
+        CharacterStats ownerStats,
+        Transform homeAnchor,
+        Transform attackerTransform,
+        Action<SoulforgedWeaponMinion> onDespawned)
+    {
+        if (!ownerStats || !homeAnchor)
+            return;
+
+        gameObject.SetActive(true);
+        _ownerStats = ownerStats;
+        _homeAnchor = homeAnchor;
+        _attackerTransform = attackerTransform ? attackerTransform : ownerStats.transform;
+        if (onDespawned != null)
+            _onDespawned = onDespawned;
+
+        _strikeTarget = null;
+        _cachedBoundsEnemy = null;
+        _cachedEnemyColliders = null;
+        _cachedEnemySpriteRenderers = null;
+        _attachFrozenHorizontalValid = false;
+        _returnFlipLocked = false;
+        ReturnHomeAfterSceneLoad();
+    }
+
     public void ReturnHomeAfterSceneLoad()
     {
         _strikeTarget = null;

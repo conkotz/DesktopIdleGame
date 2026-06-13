@@ -86,4 +86,36 @@ public static class LaneGroundEffectPlacement
 
         effectTransform.position = snapped;
     }
+
+    /// <summary>
+    /// Parents a unit under the lane hierarchy so <see cref="WorldFloorToUIEdge"/> zoom keeps it on the floor line.
+    /// </summary>
+    public static void AttachUnitToLane(Transform unitTransform)
+    {
+        if (!unitTransform)
+            return;
+
+        Transform lane = ResolveLaneFloorTransform();
+        if (lane != null && unitTransform.parent != lane)
+            unitTransform.SetParent(lane, true);
+    }
+
+    /// <summary>Aligns a collider's bottom edge to the lane floor top (+ optional offset).</summary>
+    public static void AlignColliderBottomToLaneFloor(Collider2D col, Transform rootTransform, float yOffset = 0f)
+    {
+        if (!col || !rootTransform)
+            return;
+
+        AttachUnitToLane(rootTransform);
+        Physics2D.SyncTransforms();
+
+        float floorTop = GetLaneFloorTopWorldY() + yOffset;
+        float delta = floorTop - col.bounds.min.y;
+        if (Mathf.Abs(delta) <= 1e-5f)
+            return;
+
+        Vector3 pos = rootTransform.position;
+        pos.y += delta;
+        rootTransform.position = pos;
+    }
 }

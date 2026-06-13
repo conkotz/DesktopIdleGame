@@ -194,14 +194,18 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "soulforgedWeaponMinionPresentation"
     };
 
-    private static readonly string[] BattleTranceVfxFieldNames =
+    private static readonly string[] WarBannerVfxFieldNames =
     {
-        "battleTranceGlowLocalOffset",
-        "battleTranceGlowColor",
-        "battleTranceGlowSphereRadius",
-        "battleTranceGlowEmissionRate",
-        "battleTranceParticleStartSizeMin",
-        "battleTranceParticleStartSizeMax"
+        "warBannerSprite",
+        "warBannerTint",
+        "warBannerWorldScale",
+        "warBannerSpawnHeightAboveTarget",
+        "warBannerSpawnHoldSeconds",
+        "warBannerMinimumHeightAboveTarget",
+        "warBannerGroundYOffset",
+        "warBannerSortingLayer",
+        "warBannerSortingOrderOffsetFromPlayer",
+        "warBannerSortingOrder"
     };
 
     private static readonly string[] HammerTempestVfxFieldNames =
@@ -387,7 +391,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
         new(VfxSkillTab.Melee, "EnergyInfusionVfx", 25, "Energy Infusion / Arcane Battery", EnergyInfusionVfxFieldNames),
         new(VfxSkillTab.Melee, "FlameChargeVfx", 25, "Flame Charge", FlameChargeVfxFieldNames),
         new(VfxSkillTab.Melee, "SoulforgedWeaponMinionVfx", 35, "Soulforged Weapon", SoulforgedWeaponFieldNames),
-        new(VfxSkillTab.Melee, "BattleTranceVfx", 35, "Battle Trance", BattleTranceVfxFieldNames),
+        new(VfxSkillTab.Melee, "WarBannerVfx", 35, "War Banner", WarBannerVfxFieldNames),
         new(VfxSkillTab.Melee, "HammerTempestVfx", 35, "Hammer Tempest", HammerTempestVfxFieldNames),
         new(VfxSkillTab.Melee, "AshenRebirthVfx", 40, "Phoenix Soul — Ashen Rebirth", AshenRebirthVfxFieldNames),
         new(VfxSkillTab.Melee, "FinalSeveranceVfx", 45, "Final Severance", FinalSeveranceVfxFieldNames),

@@ -60,7 +60,30 @@ public static class AbilityCombatPower
     public const string ShadowStrikeAbilityId = "shadow_strike";
     public const string EnergyInfusionAbilityId = "energy_infusion";
     public const string FlameChargeAbilityId = "flame_charge";
-    public const string BattleTranceAbilityId = "battle_trance";
+    public const string WarBannerAbilityId = "war_banner";
+
+    public const float WarBannerBaseDurationSeconds = 20f;
+    public const float WarBannerAllyRange = 15f;
+    public const float WarBannerBaseAttackSpeedBonus = 0.05f;
+    public const float WarBannerBaseDamageReductionFraction = 0.05f;
+    public const float WarBannerBaseGlobalPhysicalDamageBonus = 0.05f;
+    public const float WarBannerStackIntervalSeconds = 1f;
+    public const int WarBannerBaseMaxStacks = 10;
+    public const float WarBannerStackBonusPerStat = 0.01f;
+    public const float WarBannerDescentSeconds = 1f;
+    public const float WarBannerSpawnHeightAboveTarget = 6f;
+    public const float WarBannerMinimumHeightAboveTarget = 0f;
+    public const float WarBannerSpawnHoldSeconds = 0f;
+
+    public const float WarBannerEnh1CooldownReduction = 0.15f;
+    public const float WarBannerEnh2MaxStacksHealFraction = 0.15f;
+    public const float WarBannerEnh2MoveSpeedBonus = 0.15f;
+    public const int WarBannerEnh3KillMaxStackBonus = 1;
+    public const float WarBannerEnh3KillDurationExtensionSeconds = 3f;
+    public const int WarBannerEnh3MaxKillProcs = 5;
+
+    /// <summary>Enhancement choices for War Banner (Melee Lv35 slot 1).</summary>
+    public const string WarBannerEnhancementParentSpineNodeId = "Lv35_1";
     public const string HammerTempestAbilityId = "hammer_tempest";
 
     public const float HammerTempestBaseDurationSeconds = 25f;
@@ -98,21 +121,6 @@ public static class AbilityCombatPower
         return Mathf.RoundToInt((GetHammerTempestWeaponSpeedHitDamageMultiplier(attacksPerSecond) - 1f) * 100f);
     }
 
-    public const float BattleTranceBaseDurationSeconds = 10f;
-    public const float BattleTranceBaseAttackSpeedBonus = 0.15f;
-    public const float BattleTranceBaseAbilityCooldownReduction = 0.15f;
-    public const float BattleTranceBaseMeleeDamageMultiplier = 1.10f;
-    public const float BattleTranceBaseDamageTakenMultiplier = 1.10f;
-
-    public const float BattleTranceUnrelentingAttackSpeedBonus = 0.10f;
-    public const float BattleTranceUnrelentingCooldownReductionBonus = 0.05f;
-    public const float BattleTranceUnrelentingDamageTakenMultiplier = 1.15f;
-
-    public const float BattleTranceControlledDamageTakenMultiplier = 1.05f;
-    public const float BattleTranceControlledMoveSpeedBonus = 0.10f;
-
-    public const float BattleTranceEndlessAssaultKillExtensionSeconds = 1f;
-    public const float BattleTranceEndlessAssaultMaxBonusDurationSeconds = 10f;
 
     /// <summary>Melee Lv30 major passive — Battle Engine.</summary>
     public const int BattleEngineMajorPassiveLevel = 30;
@@ -263,9 +271,6 @@ public static class AbilityCombatPower
     public const float WayOfTheBerserkerLowHpLeechFraction = 0.25f;
     public const float WayOfTheBerserkerLowHpLeechDurationSeconds = 15f;
     public const float WayOfTheBerserkerLowHpLeechCooldownSeconds = 120f;
-
-    /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
-    public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
 
     /// <summary>Enhancement choices for Hammer Tempest (Melee Lv35 slot 2).</summary>
     public const string HammerTempestEnhancementParentSpineNodeId = "Lv35_2";

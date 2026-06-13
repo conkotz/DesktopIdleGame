@@ -5862,6 +5862,13 @@ MonoBehaviour:
   spectralAxeAreaIndicatorLineWidth: 0.12
   spectralAxeAreaIndicatorSortingOrder: 50
   spectralAxeAreaIndicatorSortingLayer: 
+  woodcuttingTreeRangeOutlinesEnabled: 1
+  woodcuttingTreeOutlineInRangeColor: {r: 0.35, g: 0.95, b: 0.35, a: 0.95}
+  woodcuttingTreeOutlineOutOfRangeColor: {r: 1, g: 1, b: 1, a: 0.55}
+  woodcuttingTreeOutlineLineWidth: 0.035
+  woodcuttingTreeOutlineSortingOrder: 55
+  woodcuttingTreeOutlineSortingLayer: 
+  woodcuttingTreeOutlineScanPadding: 2
   avatarOfForestGlowLocalOffset: {x: -0.2, y: 0.6, z: 0}
   avatarOfForestGlowColor: {r: 0.38384187, g: 0.8037735, b: 0.2229334, a: 0.96}
   avatarOfForestGlowSphereRadius: 1.3
@@ -5877,12 +5884,16 @@ MonoBehaviour:
   energyInfusionGlowEmissionRate: 38
   energyInfusionParticleStartSizeMin: 0.032
   energyInfusionParticleStartSizeMax: 0.058
-  battleTranceGlowLocalOffset: {x: 0, y: 1, z: 0}
-  battleTranceGlowColor: {r: 1, g: 0.18, b: 0.12, a: 0.92}
-  battleTranceGlowSphereRadius: 2
-  battleTranceGlowEmissionRate: 38
-  battleTranceParticleStartSizeMin: 0.032
-  battleTranceParticleStartSizeMax: 0.058
+  warBannerSprite: {fileID: 4575528367620855910, guid: 0c3dc46a851bd6d4992b9004c635a15c, type: 3}
+  warBannerTint: {r: 1, g: 1, b: 1, a: 1}
+  warBannerWorldScale: 2
+  warBannerSpawnHeightAboveTarget: 6
+  warBannerSpawnHoldSeconds: 0
+  warBannerGroundYOffset: 0
+  warBannerMinimumHeightAboveTarget: 0
+  warBannerSortingLayer: Foreground
+  warBannerSortingOrderOffsetFromPlayer: -5
+  warBannerSortingOrder: 10
   hammerTempestHammerSprite: {fileID: 4687727764133868624, guid: a6c8e023557d16f4c8968c13917dd559, type: 3}
   hammerTempestHammerTint: {r: 1, g: 0.92, b: 0.35, a: 1}
   hammerTempestCenterOffset: {x: 0, y: 0.75, z: 0}
@@ -6115,7 +6126,9 @@ MonoBehaviour:
   autoAbilityInterval: 0.1
   autoUseAbilities: 1
   xpPerDamage: 0.1
+  enduranceXpFromDamageDealtFraction: 0.33333334
   combatXpSource: Combat
+  enduranceOffenceXpSource: Offence
   debugLogs: 1
   dpsResetOutOfCombatSeconds: 5
 --- !u!114 &4615812802344899198
@@ -6607,6 +6620,10 @@ MonoBehaviour:
   iconWorldScale: 0.15
   enemyOverheadIconExtraOffset: 0.15
   sortingOrder: 120
+  iconPulseMinAlpha: 0.05
+  iconPulseMaxAlpha: 1
+  iconFadeSeconds: 0.75
+  iconHoldAtPeakSeconds: 1.5
   player: {fileID: 0}
   combat: {fileID: 0}
   interactFocus: {fileID: 5922623881930885248}

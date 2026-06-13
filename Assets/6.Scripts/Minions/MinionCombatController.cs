@@ -334,7 +334,6 @@ public class MinionCombatController : MonoBehaviour
             _pendingHitTarget = null;
         }
 
-        SyncGroundToOwner();
         TickMinionStanceRules();
 
         switch (_state)
@@ -359,6 +358,7 @@ public class MinionCombatController : MonoBehaviour
         if (!_initialized || !_def || !_ownerStats || !unit.IsAliveVisual)
             return;
 
+        SyncGroundToOwner();
         EnforceLeashTeleport();
     }
 
@@ -619,10 +619,10 @@ public class MinionCombatController : MonoBehaviour
 
     private void SyncGroundToOwner()
     {
-        if (!_homeAnchor || !unit)
+        if (!unit)
             return;
 
-        unit.AlignFloorToOwnerSoldier(_homeAnchor);
+        unit.AlignToLaneFloor();
     }
 
     private float GetFollowStopWorldX(Vector3 playerPos)

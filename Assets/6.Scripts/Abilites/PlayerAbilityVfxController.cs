@@ -261,13 +261,20 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMax = 0.058f;
 
-    [Header("Battle Trance (Melee Lv35) VFX")]
-    [SerializeField] private Vector3 battleTranceGlowLocalOffset = new Vector3(0f, 0.12f, 0f);
-    [SerializeField] private Color battleTranceGlowColor = new Color(1f, 0.18f, 0.12f, 0.92f);
-    [SerializeField, Min(0.02f)] private float battleTranceGlowSphereRadius = 0.42f;
-    [SerializeField, Min(4f)] private float battleTranceGlowEmissionRate = 38f;
-    [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMin = 0.032f;
-    [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMax = 0.058f;
+    [Header("War Banner (Melee Lv35) VFX")]
+    [SerializeField] private Sprite warBannerSprite;
+    [SerializeField] private Color warBannerTint = Color.white;
+    [SerializeField, Min(0.5f)] private float warBannerWorldScale = 2f;
+    [Tooltip("World Y above the anchor where the banner first appears.")]
+    [SerializeField, Min(0.1f)] private float warBannerSpawnHeightAboveTarget = 6f;
+    [SerializeField, Min(0f)] private float warBannerSpawnHoldSeconds = 0f;
+    [SerializeField, Min(0f)] private float warBannerGroundYOffset = 0.08f;
+    [Tooltip("Extra lift applied to the sprite bottom after lane-floor snap (use if the pole clips into the ground).")]
+    [SerializeField, Min(0f)] private float warBannerMinimumHeightAboveTarget = 0f;
+    [SerializeField] private string warBannerSortingLayer = "Foreground";
+    [Tooltip("Sorting order relative to the player sprite. Negative = behind the player.")]
+    [SerializeField] private int warBannerSortingOrderOffsetFromPlayer = -5;
+    [SerializeField] private int warBannerSortingOrder = 10;
 
     [Header("Hammer Tempest (Melee Lv35) VFX")]
     [Tooltip("Sprite for each orbiting hammer (e.g. SmallGoldenHammer). Uses Guardian's Hammer sprite if empty.")]
@@ -342,8 +349,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
-    private GameObject _battleTranceGlowRoot;
-    private ParticleSystem _battleTranceGlowParticles;
+    private GameObject _warBannerVisualRoot;
+    private SpriteRenderer _warBannerRenderer;
+    private float _warBannerDescentTotalSeconds;
+    private bool _warBannerAnchored;
     private GameObject _hammerTempestOrbitRoot;
     private Coroutine _hammerTempestOrbitRoutine;
     private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
@@ -417,7 +426,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ClearWoodcuttingTreeRangeOutlines();
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
-        DestroyBattleTranceGlowVfx();
+        StopWarBannerVfx();
         DestroyHammerTempestOrbitVfx();
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
@@ -3327,132 +3336,170 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    public void SpawnBattleTranceGlowVfx()
+    public void BeginWarBannerDescent(Vector3 targetWorld, float descentSeconds)
     {
-        Transform parent = player != null ? player.transform : transform;
-        if (parent == null)
-            return;
-
-        if (_battleTranceGlowRoot == null || _battleTranceGlowParticles == null)
-            CreateBattleTranceGlowVfx(parent);
-
-        if (_battleTranceGlowRoot == null || _battleTranceGlowParticles == null)
-            return;
-
-        _battleTranceGlowRoot.transform.SetParent(parent, false);
-        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
-        _battleTranceGlowRoot.transform.localRotation = Quaternion.identity;
-        _battleTranceGlowRoot.transform.localScale = Vector3.one;
-        _battleTranceGlowRoot.SetActive(true);
-        _battleTranceGlowParticles.Play(true);
+        _warBannerAnchored = false;
+        _warBannerDescentTotalSeconds = Mathf.Max(0.1f, descentSeconds);
+        EnsureWarBannerVisuals();
+        ApplyWarBannerVisualSettings();
+        EnsureWarBannerParentedToWorldContent();
+        UpdateWarBannerDescentPose(targetWorld, 0f);
     }
 
-    public void UpdateBattleTranceGlowVfx(bool buffActive)
+    public void UpdateWarBannerDescent(Vector3 targetWorld, float elapsedSeconds)
     {
-        if (!buffActive || _battleTranceGlowRoot == null)
+        if (_warBannerVisualRoot == null || _warBannerAnchored)
             return;
-        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
+
+        UpdateWarBannerDescentPose(targetWorld, elapsedSeconds);
     }
 
-    public void DestroyBattleTranceGlowVfx()
+    public void AnchorWarBannerAt(Vector3 impactWorldPosition)
     {
-        if (_battleTranceGlowRoot != null)
+        if (_warBannerVisualRoot == null)
         {
-            if (_battleTranceGlowParticles != null)
-                _battleTranceGlowParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            _battleTranceGlowRoot.SetActive(false);
+            EnsureWarBannerVisuals();
+            ApplyWarBannerVisualSettings();
+            EnsureWarBannerParentedToWorldContent();
+        }
+
+        _warBannerAnchored = true;
+        SnapWarBannerSpriteBottomToWorldY(impactWorldPosition.x, GetWarBannerLandingBottomWorldY());
+        EnsureWarBannerRendererVisible();
+    }
+
+    public void MaintainWarBannerAt(Vector3 worldPoint)
+    {
+        if (!_warBannerAnchored || _warBannerVisualRoot == null)
+            return;
+
+        EnsureWarBannerParentedToWorldContent();
+        SnapWarBannerSpriteBottomToWorldY(worldPoint.x, GetWarBannerLandingBottomWorldY());
+        if (_warBannerRenderer != null)
+            ApplyWarBannerSorting(_warBannerRenderer);
+        EnsureWarBannerRendererVisible();
+    }
+
+    /// <summary>Destroys the planted banner. Only call when the War Banner buff ends — not on landing.</summary>
+    public void StopWarBannerVfx()
+    {
+        _warBannerAnchored = false;
+        if (_warBannerVisualRoot != null)
+        {
+            Destroy(_warBannerVisualRoot);
+            _warBannerVisualRoot = null;
+            _warBannerRenderer = null;
         }
     }
 
-    private void CreateBattleTranceGlowVfx(Transform parent)
+    private void EnsureWarBannerVisuals()
     {
-        _battleTranceGlowRoot = new GameObject("BattleTranceGlow");
-        _battleTranceGlowRoot.transform.SetParent(parent, false);
-        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
-        _battleTranceGlowRoot.transform.localRotation = Quaternion.identity;
-        _battleTranceGlowRoot.transform.localScale = Vector3.one;
+        if (_warBannerVisualRoot != null)
+            return;
 
-        GameObject emitterGO = new GameObject("BattleTranceEmitter");
-        emitterGO.transform.SetParent(_battleTranceGlowRoot.transform, false);
-        emitterGO.transform.localPosition = Vector3.zero;
+        _warBannerVisualRoot = new GameObject("WarBannerVisual");
+        _warBannerRenderer = _warBannerVisualRoot.AddComponent<SpriteRenderer>();
+        _warBannerRenderer.sprite = warBannerSprite;
+        _warBannerRenderer.color = warBannerTint;
+        ApplyWarBannerSorting(_warBannerRenderer);
+    }
 
-        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
-        _battleTranceGlowParticles = ps;
-        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+    private void ApplyWarBannerVisualSettings()
+    {
+        if (_warBannerRenderer == null || _warBannerVisualRoot == null)
+            return;
 
-        var main = ps.main;
-        main.playOnAwake = false;
-        main.loop = true;
-        main.duration = 1f;
-        main.startLifetime = new ParticleSystem.MinMaxCurve(0.55f, 0.82f);
-        main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.12f);
-        float sizeMin = Mathf.Max(0.001f, Mathf.Min(battleTranceParticleStartSizeMin, battleTranceParticleStartSizeMax));
-        float sizeMax = Mathf.Max(sizeMin, Mathf.Max(battleTranceParticleStartSizeMin, battleTranceParticleStartSizeMax));
-        main.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax);
-        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-        main.startColor = battleTranceGlowColor;
-        main.simulationSpace = ParticleSystemSimulationSpace.Local;
-        main.gravityModifier = 0f;
-        main.maxParticles = 360;
-        main.simulationSpeed = 1f;
+        _warBannerRenderer.sprite = warBannerSprite;
+        _warBannerRenderer.color = warBannerTint;
+        _warBannerVisualRoot.transform.localScale = Vector3.one * warBannerWorldScale;
+        EnsureWarBannerRendererVisible();
+    }
 
-        var emission = ps.emission;
-        emission.rateOverTime = battleTranceGlowEmissionRate;
+    private void EnsureWarBannerRendererVisible()
+    {
+        if (_warBannerRenderer == null)
+            return;
 
-        var shape = ps.shape;
-        shape.enabled = true;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = Mathf.Max(0.08f, battleTranceGlowSphereRadius * 0.55f);
-        shape.radiusThickness = 1f;
-        shape.randomDirectionAmount = 0.35f;
+        _warBannerRenderer.enabled = warBannerSprite != null;
+    }
 
-        var vel = ps.velocityOverLifetime;
-        vel.enabled = true;
-        vel.space = ParticleSystemSimulationSpace.Local;
-        AnimationCurve pulseOut = new AnimationCurve(
-            new Keyframe(0f, 0f, 0f, 0f),
-            new Keyframe(0.35f, 0.18f, 0.6f, 0.6f),
-            new Keyframe(1f, 0.08f, -0.2f, 0f));
-        AnimationCurve pulseIn = new AnimationCurve(
-            new Keyframe(0f, 0f, 0f, 0f),
-            new Keyframe(0.35f, -0.18f, -0.6f, -0.6f),
-            new Keyframe(1f, -0.08f, 0.2f, 0f));
-        vel.x = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
-        vel.y = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
-        vel.z = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+    private void EnsureWarBannerParentedToWorldContent()
+    {
+        if (_warBannerVisualRoot == null)
+            return;
 
-        var sol = ps.sizeOverLifetime;
-        sol.enabled = true;
-        AnimationCurve breathe = new AnimationCurve(
-            new Keyframe(0f, 0.85f, 0f, 0f),
-            new Keyframe(0.5f, 1.05f, 0f, 0f),
-            new Keyframe(1f, 0.75f, 0f, 0f));
-        sol.size = new ParticleSystem.MinMaxCurve(1f, breathe);
+        Transform parent = null;
+        WorldFloorToUIEdge edge = WorldFloorToUIEdge.Active;
+        if (edge != null)
+            parent = edge.WorldContentRoot;
 
-        var col = ps.colorOverLifetime;
-        col.enabled = true;
-        Color c = battleTranceGlowColor;
-        Gradient g = new Gradient();
-        g.SetKeys(
-            new[]
-            {
-                new GradientColorKey(Color.Lerp(c, Color.white, 0.35f), 0f),
-                new GradientColorKey(c, 0.4f),
-                new GradientColorKey(Color.Lerp(c, new Color(0.55f, 0.05f, 0.05f), 0.35f), 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(Mathf.Clamp01(c.a), 0f),
-                new GradientAlphaKey(Mathf.Clamp01(c.a * 0.65f), 0.55f),
-                new GradientAlphaKey(0f, 1f)
-            });
-        col.color = new ParticleSystem.MinMaxGradient(g);
+        if (parent == null)
+            parent = LaneGroundEffectPlacement.ResolveLaneFloorTransform();
 
-        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
-        renderer.renderMode = ParticleSystemRenderMode.Billboard;
-        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 12))
-            renderer.sortingOrder = 24;
-        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+        if (parent != null && _warBannerVisualRoot.transform.parent != parent)
+            _warBannerVisualRoot.transform.SetParent(parent, true);
+    }
+
+    private void SnapWarBannerSpriteBottomToWorldY(float worldX, float bottomWorldY)
+    {
+        if (_warBannerVisualRoot == null || _warBannerRenderer == null)
+            return;
+
+        Vector3 pos = _warBannerVisualRoot.transform.position;
+        pos.x = worldX;
+        pos.z = 0f;
+        _warBannerVisualRoot.transform.position = pos;
+
+        float deltaY = bottomWorldY - _warBannerRenderer.bounds.min.y;
+        if (Mathf.Abs(deltaY) > 1e-5f)
+            _warBannerVisualRoot.transform.position += new Vector3(0f, deltaY, 0f);
+    }
+
+    private void UpdateWarBannerDescentPose(Vector3 targetWorld, float elapsedSeconds)
+    {
+        if (_warBannerVisualRoot == null)
+            return;
+
+        float landingBottomY = GetWarBannerLandingBottomWorldY();
+        float spawnHeight = Mathf.Max(0.1f, warBannerSpawnHeightAboveTarget);
+        float spawnBottomY = landingBottomY + spawnHeight;
+
+        float holdSeconds = Mathf.Clamp(warBannerSpawnHoldSeconds, 0f, _warBannerDescentTotalSeconds);
+        float dropDuration = Mathf.Max(0.01f, _warBannerDescentTotalSeconds - holdSeconds);
+
+        float bottomY;
+        if (elapsedSeconds <= holdSeconds)
+        {
+            bottomY = spawnBottomY;
+        }
+        else
+        {
+            float dropElapsed = elapsedSeconds - holdSeconds;
+            float dropT = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dropElapsed / dropDuration));
+            bottomY = Mathf.Lerp(spawnBottomY, landingBottomY, dropT);
+        }
+
+        SnapWarBannerSpriteBottomToWorldY(targetWorld.x, bottomY);
+        EnsureWarBannerRendererVisible();
+    }
+
+    private float GetWarBannerLandingBottomWorldY()
+    {
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        return floorTop + warBannerGroundYOffset + Mathf.Max(0f, warBannerMinimumHeightAboveTarget);
+    }
+
+    private void ApplyWarBannerSorting(SpriteRenderer renderer)
+    {
+        if (!renderer)
+            return;
+
+        if (TryApplyPlayerSpriteSortingToRenderer(renderer, warBannerSortingOrderOffsetFromPlayer))
+            return;
+
+        if (!string.IsNullOrWhiteSpace(warBannerSortingLayer))
+            renderer.sortingLayerName = warBannerSortingLayer;
+        renderer.sortingOrder = warBannerSortingOrder;
     }
 
     public void SpawnHammerTempestOrbitVfx(float durationSeconds, int hammerCount)

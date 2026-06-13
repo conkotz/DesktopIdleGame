@@ -1555,7 +1555,7 @@ public class EnemyBaseController : MonoBehaviour
         string eid = EnemyId;
         QuestProgressManager.Instance?.NotifyEnemyKilledForActiveMap(eid);
 
-        PlayerAbilityController.NotifyBattleTranceKillFromEnemyDeath();
+        PlayerAbilityController.NotifyWarBannerKillFromEnemyDeath();
 
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance;
         if (wmp != null)

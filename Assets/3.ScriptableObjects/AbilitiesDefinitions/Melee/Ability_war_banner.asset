@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_battle_trance
+  m_Name: Ability_war_banner
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: battle_trance
-  displayName: Battle Trance
+  abilityId: war_banner
+  displayName: War Banner
   tag: 3
-  tooltipBuffMinionDurationSeconds: 10
+  tooltipBuffMinionDurationSeconds: 20
   presentation: {fileID: 11400000, guid: c58b8f51d1bc4820a9c8d7e6f5a40202, type: 2}
   cooldown: 30
-  energyCost: 0
+  energyCost: 10
   manaCost: 0
-  healthCost: 15
+  healthCost: 0
   weaponDamageMultiplier: 0
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
