@@ -792,7 +792,7 @@ public class MapNodeDefinition : ScriptableObject
             MapCombatScalingSpecialDropDefaults.CollectLegacyIndividualScrollEntries(sliderValue, results);
     }
 
-    public const string EnterConditionTeleportAvailable = "Teleport to map available";
+    public const string EnterConditionTeleportAvailable = "Teleport to area available";
     public const string EnterConditionUnavailable = "Unavailable until requirements are met";
     public const string EnterConditionEntranceOnly =
         "Access to map available only from entrance (teleport unavailable)";

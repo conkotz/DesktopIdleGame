@@ -218,7 +218,13 @@ public class EnemyBaseController : MonoBehaviour
     /// Applies identity and combat values from <paramref name="def"/>; behaviour and visuals stay on the prefab.
     /// Call immediately after spawning if you assign the definition from code (after Awake has run without a definition).
     /// </summary>
-    public void InitializeFromDefinition(EnemyDefinition def, bool spawnAsElite = false)
+    /// <param name="applyActiveMapModifiers">
+    /// When false, skips active-map HP scaling and enhancement damage reduction (used for base database previews).
+    /// </param>
+    public void InitializeFromDefinition(
+        EnemyDefinition def,
+        bool spawnAsElite = false,
+        bool applyActiveMapModifiers = true)
     {
         if (def == null)
         {
@@ -240,8 +246,11 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         stats.ApplyEnemyDefinition(def);
-        ApplyActiveMapCombatScaling();
-        ApplyActiveMapEnhancementModifiers();
+        if (applyActiveMapModifiers)
+        {
+            ApplyActiveMapCombatScaling();
+            ApplyActiveMapEnhancementModifiers();
+        }
         if (spawnAsElite)
         {
             stats.ApplyEliteEnemyScaling();

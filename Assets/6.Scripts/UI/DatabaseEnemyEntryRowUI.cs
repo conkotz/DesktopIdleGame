@@ -7,14 +7,20 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 {
+    private const float IconColumnWidth = 200f;
+    private const float RowLabelWidth = 200f;
+    private const float RowContentSpacing = 6f;
+    private const float LootIconSize = 50f;
+    private const float LootDropTextHeight = 18f;
     private const float NameBandHeight = 50f;
-    private const float LootBandHeight = 50f;
+    private const float LootBandHeight = LootIconSize + LootDropTextHeight;
     private const float LocationsBandHeight = 50f;
     private const float AbilityBandHeight = 50f;
-    private const float RowHeightWithoutAbilities = NameBandHeight + LootBandHeight + LocationsBandHeight;
     private const string BossNamePrefixRichText = "<size=60%><color=#FF2B2B>- Boss -</color></size> ";
 
     [SerializeField] private TMP_Text nameText;
+    [SerializeField] private TMP_Text combatProfileLabel;
+    [SerializeField] private Image enemyIcon;
     [SerializeField] private Transform lootRow;
     [SerializeField] private Transform locationsRow;
     [SerializeField] private TMP_Text locationsText;
@@ -51,6 +57,10 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
                     ? $"{BossNamePrefixRichText}{enemy.displayName}"
                     : enemy.displayName;
         }
+
+        ApplyEnemyIcon(enemy);
+        WireEnemyIconTooltip(enemy, tooltip);
+        ApplyCombatProfileLabel(enemy);
 
         if (locationsText)
         {
@@ -96,11 +106,67 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 
         EnsureGoldLootEntryIsFirst();
         lootEntryBackgroundTemplate.transform.SetAsLastSibling();
+        LayoutLootRowIcons();
+        LayoutAbilityRowIcons();
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(transform as RectTransform);
+    }
+
+    private static float ComputeRowHeight(bool showAbilityRow)
+    {
+        float contentHeight = NameBandHeight + LootBandHeight + LocationsBandHeight;
+        if (showAbilityRow)
+            contentHeight += AbilityBandHeight;
+        return Mathf.Max(IconColumnWidth, contentHeight);
+    }
+
+    private void ApplyEnemyIcon(EnemyDefinition enemy)
+    {
+        if (!enemyIcon)
+            return;
+
+        Sprite sprite = DatabaseEnemyAvatarLookup.ResolveAvatarSprite(enemy);
+        if (!sprite && enemy != null && enemy.icon)
+            sprite = enemy.icon;
+
+        enemyIcon.sprite = sprite;
+        enemyIcon.preserveAspect = true;
+        enemyIcon.color = Color.white;
+        enemyIcon.enabled = sprite != null;
+        enemyIcon.gameObject.SetActive(true);
+    }
+
+    private void WireEnemyIconTooltip(EnemyDefinition enemy, SharedTooltipUI tooltip)
+    {
+        if (!enemyIcon)
+            return;
+
+        if (!enemyIcon.TryGetComponent(out DatabaseEnemyIconTooltipUI tooltipUi))
+            tooltipUi = enemyIcon.gameObject.AddComponent<DatabaseEnemyIconTooltipUI>();
+
+        tooltipUi.Bind(enemy, tooltip);
+    }
+
+    private void ApplyCombatProfileLabel(EnemyDefinition enemy)
+    {
+        if (!combatProfileLabel)
+            return;
+
+        if (enemy == null)
+        {
+            combatProfileLabel.text = string.Empty;
+            return;
+        }
+
+        string label = EnduranceTrialUIHelpers.GetEnemyCombatProfileLabel(enemy);
+        combatProfileLabel.text = label;
+        combatProfileLabel.color = CombatProfileDisplay.GetColorForDisplayLabel(label);
+        combatProfileLabel.raycastTarget = false;
     }
 
     private void EnsureRowLayout(bool showAbilityRow)
     {
-        float rowHeight = RowHeightWithoutAbilities + (showAbilityRow ? AbilityBandHeight : 0f);
+        float rowHeight = ComputeRowHeight(showAbilityRow);
 
         RectTransform row = transform as RectTransform;
         if (row)
@@ -121,6 +187,26 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         rowElement.preferredHeight = rowHeight;
         rowElement.flexibleWidth = 1f;
 
+        RectTransform iconBorder = transform.Find("IconBorder") as RectTransform;
+        if (iconBorder)
+        {
+            iconBorder.anchorMin = new Vector2(0f, 1f);
+            iconBorder.anchorMax = new Vector2(0f, 1f);
+            iconBorder.pivot = new Vector2(0f, 1f);
+            iconBorder.anchoredPosition = Vector2.zero;
+            iconBorder.sizeDelta = new Vector2(IconColumnWidth, rowHeight);
+        }
+
+        RectTransform rightArea = transform.Find("RightArea") as RectTransform;
+        if (rightArea)
+        {
+            rightArea.anchorMin = new Vector2(0f, 1f);
+            rightArea.anchorMax = new Vector2(1f, 1f);
+            rightArea.pivot = new Vector2(0f, 1f);
+            rightArea.anchoredPosition = new Vector2(IconColumnWidth, 0f);
+            rightArea.sizeDelta = new Vector2(-IconColumnWidth, rowHeight);
+        }
+
         ConfigureTopBand(nameText ? nameText.rectTransform : null, 0f, NameBandHeight);
         ConfigureTopBand(lootRow as RectTransform, NameBandHeight, LootBandHeight);
         ConfigureTopBand(locationsRow as RectTransform, NameBandHeight + LootBandHeight, LocationsBandHeight);
@@ -129,33 +215,297 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         {
             abilityRow.gameObject.SetActive(showAbilityRow);
             if (showAbilityRow)
-                ConfigureTopBand(abilityRow as RectTransform, RowHeightWithoutAbilities, AbilityBandHeight);
+                ConfigureTopBand(abilityRow as RectTransform, NameBandHeight + LootBandHeight + LocationsBandHeight, AbilityBandHeight);
+        }
+
+        ConfigureEnemyIconRect();
+        ConfigureLabeledRow(locationsRow as RectTransform, LocationsBandHeight);
+        ConfigureLabeledRow(lootRow as RectTransform, LootBandHeight);
+        if (showAbilityRow)
+            ConfigureLabeledRow(abilityRow as RectTransform, AbilityBandHeight);
+
+        if (locationsText)
+        {
+            locationsText.enableWordWrapping = true;
+            locationsText.overflowMode = TextOverflowModes.Overflow;
+            locationsText.horizontalAlignment = HorizontalAlignmentOptions.Left;
         }
     }
 
-    private static void ConfigureAbilityBackground(RectTransform background)
+    private void ConfigureEnemyIconRect()
     {
-        if (!background)
+        if (!enemyIcon)
             return;
 
-        background.anchorMin = new Vector2(0f, 0.5f);
-        background.anchorMax = new Vector2(0f, 0.5f);
-        background.pivot = new Vector2(0.5f, 0.5f);
-        background.anchoredPosition = Vector2.zero;
-        background.sizeDelta = new Vector2(50f, 50f);
+        RectTransform iconRect = enemyIcon.rectTransform;
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.pivot = new Vector2(0.5f, 0.5f);
+        iconRect.offsetMin = new Vector2(12f, 12f);
+        iconRect.offsetMax = new Vector2(-12f, -12f);
     }
 
-    private static void ConfigureLootBackground(RectTransform background)
+    private static void DisableRowLayoutGroup(RectTransform row)
     {
-        if (!background)
+        if (row != null && row.TryGetComponent(out HorizontalLayoutGroup layoutGroup))
+            layoutGroup.enabled = false;
+    }
+
+    private static void ConfigureLabeledRow(RectTransform row, float bandHeight)
+    {
+        if (!row)
             return;
 
-        background.anchorMin = new Vector2(0f, 0.5f);
-        background.anchorMax = new Vector2(0f, 0.5f);
-        background.pivot = new Vector2(0.5f, 0.5f);
-        background.anchoredPosition = Vector2.zero;
-        background.sizeDelta = new Vector2(50f, 50f);
+        DisableRowLayoutGroup(row);
+
+        for (int i = 0; i < row.childCount; i++)
+        {
+            Transform child = row.GetChild(i);
+            if (child == null || !child.gameObject.activeSelf)
+                continue;
+
+            RectTransform childRect = child as RectTransform;
+            if (!childRect)
+                continue;
+
+            string childName = child.name;
+            if (childName.StartsWith("LootTableBackground", System.StringComparison.Ordinal) ||
+                childName.StartsWith("AbilityBackground", System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (childName.EndsWith("Label", System.StringComparison.OrdinalIgnoreCase))
+            {
+                ConfigureRowLabel(childRect, bandHeight);
+                continue;
+            }
+
+            if (childName.EndsWith("Text", System.StringComparison.OrdinalIgnoreCase))
+                ConfigureRowValueText(childRect, bandHeight);
+        }
     }
+
+    private static void ConfigureRowLabel(RectTransform labelRect, float bandHeight)
+    {
+        labelRect.anchorMin = new Vector2(0f, 0f);
+        labelRect.anchorMax = new Vector2(0f, 1f);
+        labelRect.pivot = new Vector2(0f, 0.5f);
+        labelRect.anchoredPosition = Vector2.zero;
+        labelRect.sizeDelta = new Vector2(RowLabelWidth, 0f);
+
+        if (!labelRect.TryGetComponent(out LayoutElement layoutElement))
+            layoutElement = labelRect.gameObject.AddComponent<LayoutElement>();
+        layoutElement.minWidth = RowLabelWidth;
+        layoutElement.preferredWidth = RowLabelWidth;
+        layoutElement.minHeight = bandHeight;
+        layoutElement.preferredHeight = bandHeight;
+    }
+
+    private static void ConfigureRowValueText(RectTransform textRect, float bandHeight)
+    {
+        textRect.anchorMin = new Vector2(0f, 0f);
+        textRect.anchorMax = new Vector2(1f, 1f);
+        textRect.pivot = new Vector2(0f, 0.5f);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = Vector2.zero;
+        textRect.offsetMin = new Vector2(RowLabelWidth + RowContentSpacing, 0f);
+        textRect.offsetMax = Vector2.zero;
+
+        if (textRect.TryGetComponent(out ContentSizeFitter fitter))
+            fitter.enabled = false;
+
+        if (textRect.TryGetComponent(out LayoutElement layoutElement))
+        {
+            layoutElement.minWidth = -1f;
+            layoutElement.preferredWidth = -1f;
+            layoutElement.flexibleWidth = 1f;
+        }
+    }
+
+    private void LayoutLootRowIcons()
+    {
+        if (!lootRow)
+            return;
+
+        float x = RowLabelWidth + RowContentSpacing;
+        Transform label = lootRow.Find("LootTableLabel");
+        int startIndex = label != null ? label.GetSiblingIndex() + 1 : 0;
+
+        for (int i = startIndex; i < lootRow.childCount; i++)
+        {
+            Transform child = lootRow.GetChild(i);
+            if (child == null || !child.gameObject.activeSelf)
+                continue;
+            if (!child.name.StartsWith("LootTableBackground", System.StringComparison.Ordinal))
+                continue;
+
+            ConfigureLootIconSlot(child as RectTransform, x);
+            x += LootIconSize + RowContentSpacing;
+        }
+    }
+
+    private void LayoutAbilityRowIcons()
+    {
+        if (!abilityRow || !abilityRow.gameObject.activeSelf)
+            return;
+
+        float x = RowLabelWidth + RowContentSpacing;
+        Transform label = abilityRow.Find("LootTableLabel");
+        int startIndex = label != null ? label.GetSiblingIndex() + 1 : 0;
+
+        for (int i = startIndex; i < abilityRow.childCount; i++)
+        {
+            Transform child = abilityRow.GetChild(i);
+            if (child == null || !child.gameObject.activeSelf)
+                continue;
+            if (!child.name.StartsWith("AbilityBackground", System.StringComparison.Ordinal))
+                continue;
+
+            ConfigureIconSlot(child as RectTransform, x, AbilityBandHeight, LootIconSize);
+            x += LootIconSize + RowContentSpacing;
+        }
+    }
+
+    private static void ConfigureLootSlotDropChance(Transform lootBackground)
+    {
+        if (!lootBackground)
+            return;
+
+        Transform dropChance = lootBackground.Find("DropChanceText");
+        if (!dropChance)
+        {
+            Transform entryItem = lootBackground.Find("LootTableEntryItem");
+            if (entryItem)
+                dropChance = entryItem.Find("DropChanceText");
+        }
+
+        if (!dropChance)
+            return;
+
+        if (dropChance.parent != lootBackground)
+            dropChance.SetParent(lootBackground, false);
+
+        RectTransform dropRect = dropChance as RectTransform;
+        if (!dropRect)
+            return;
+
+        dropRect.anchorMin = new Vector2(0.5f, 1f);
+        dropRect.anchorMax = new Vector2(0.5f, 1f);
+        dropRect.pivot = new Vector2(0.5f, 1f);
+        dropRect.anchoredPosition = Vector2.zero;
+        dropRect.sizeDelta = new Vector2(LootIconSize, LootDropTextHeight);
+        dropChance.SetAsLastSibling();
+    }
+
+    private static void ConfigureIconSlot(RectTransform slot, float x, float bandHeight, float size)
+    {
+        if (!slot)
+            return;
+
+        slot.anchorMin = new Vector2(0f, 0f);
+        slot.anchorMax = new Vector2(0f, 0f);
+        slot.pivot = new Vector2(0.5f, 0f);
+        slot.anchoredPosition = new Vector2(x + size * 0.5f, 0f);
+        slot.sizeDelta = new Vector2(size, size);
+
+        if (!slot.TryGetComponent(out LayoutElement layoutElement))
+            layoutElement = slot.gameObject.AddComponent<LayoutElement>();
+        layoutElement.minWidth = size;
+        layoutElement.preferredWidth = size;
+        layoutElement.minHeight = size;
+        layoutElement.preferredHeight = size;
+    }
+
+    private static void ConfigureLootIconSlot(RectTransform slot, float x)
+    {
+        if (!slot)
+            return;
+
+        slot.anchorMin = new Vector2(0f, 0f);
+        slot.anchorMax = new Vector2(0f, 0f);
+        slot.pivot = new Vector2(0.5f, 0f);
+        slot.anchoredPosition = new Vector2(x + LootIconSize * 0.5f, 0f);
+        slot.sizeDelta = new Vector2(LootIconSize, LootBandHeight);
+
+        if (!slot.TryGetComponent(out LayoutElement layoutElement))
+            layoutElement = slot.gameObject.AddComponent<LayoutElement>();
+        layoutElement.minWidth = LootIconSize;
+        layoutElement.preferredWidth = LootIconSize;
+        layoutElement.minHeight = LootBandHeight;
+        layoutElement.preferredHeight = LootBandHeight;
+
+        ConfigureLootIconBackgroundFill(slot);
+
+        Transform entryItem = slot.Find("LootTableEntryItem");
+        if (entryItem is RectTransform entryRect)
+        {
+            ConfigureLootEntryItemIcon(entryRect);
+            entryItem.SetSiblingIndex(1);
+        }
+
+        ConfigureLootSlotDropChance(slot);
+    }
+
+    private const float LootIconPadding = 4f;
+
+    private static void ConfigureLootEntryItemIcon(RectTransform entryRect)
+    {
+        if (!entryRect)
+            return;
+
+        float iconBoxSize = LootIconSize - LootIconPadding * 2f;
+        entryRect.anchorMin = new Vector2(0.5f, 0f);
+        entryRect.anchorMax = new Vector2(0.5f, 0f);
+        entryRect.pivot = new Vector2(0.5f, 0.5f);
+        entryRect.anchoredPosition = new Vector2(0f, LootIconSize * 0.5f);
+        entryRect.sizeDelta = new Vector2(iconBoxSize, iconBoxSize);
+
+        if (entryRect.TryGetComponent(out Image iconImage))
+        {
+            iconImage.preserveAspect = true;
+            iconImage.raycastTarget = true;
+        }
+    }
+
+    private static void ConfigureLootIconBackgroundFill(RectTransform slot)
+    {
+        slot.TryGetComponent(out Image rootImage);
+        Color backgroundColor = rootImage != null
+            ? rootImage.color
+            : DefaultLootBackgroundColor;
+
+        Transform fill = slot.Find("IconBackgroundFill");
+        if (fill == null)
+        {
+            var fillGo = new GameObject("IconBackgroundFill", typeof(RectTransform), typeof(Image));
+            fill = fillGo.transform;
+            fill.SetParent(slot, false);
+            fillGo.GetComponent<Image>().raycastTarget = false;
+        }
+
+        if (fill is RectTransform fillRect)
+        {
+            fillRect.anchorMin = new Vector2(0f, 0f);
+            fillRect.anchorMax = new Vector2(1f, 0f);
+            fillRect.pivot = new Vector2(0.5f, 0f);
+            fillRect.anchoredPosition = Vector2.zero;
+            fillRect.sizeDelta = new Vector2(0f, LootIconSize);
+        }
+
+        if (fill.TryGetComponent(out Image fillImage))
+        {
+            fillImage.color = backgroundColor;
+            fillImage.raycastTarget = false;
+        }
+
+        if (rootImage != null)
+            rootImage.enabled = false;
+
+        fill.SetSiblingIndex(0);
+    }
+
+    private static readonly Color DefaultLootBackgroundColor = new Color(0.9547169f, 0.8938162f, 0.8268209f, 1f);
 
     private static void ConfigureTopBand(RectTransform band, float yOffsetFromTop, float height)
     {
@@ -172,17 +522,24 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
     private void ResolveReferences()
     {
         if (!nameText)
-            nameText = transform.Find("NameText")?.GetComponent<TMP_Text>();
+            nameText = transform.Find("RightArea/NameText")?.GetComponent<TMP_Text>()
+                       ?? transform.Find("NameText")?.GetComponent<TMP_Text>();
+        if (!combatProfileLabel)
+            combatProfileLabel = transform.Find("CombatProfileLabel")?.GetComponent<TMP_Text>();
+        if (!enemyIcon)
+            enemyIcon = transform.Find("IconBorder/EnemyIcon")?.GetComponent<Image>()
+                        ?? transform.Find("EnemyIcon")?.GetComponent<Image>();
         if (!lootRow)
-            lootRow = transform.Find("LootRow");
+            lootRow = transform.Find("RightArea/LootRow") ?? transform.Find("LootRow");
         if (!locationsRow)
-            locationsRow = transform.Find("LocationsRow");
+            locationsRow = transform.Find("RightArea/LocationsRow") ?? transform.Find("LocationsRow");
         if (!locationsText)
-            locationsText = transform.Find("LocationsRow/LocationsText")?.GetComponent<TMP_Text>();
+            locationsText = transform.Find("RightArea/LocationsRow/LocationsText")?.GetComponent<TMP_Text>()
+                            ?? transform.Find("LocationsRow/LocationsText")?.GetComponent<TMP_Text>();
         if (!lootEntryBackgroundTemplate && lootRow != null)
             lootEntryBackgroundTemplate = lootRow.Find("LootTableBackground")?.gameObject;
         if (!abilityRow)
-            abilityRow = transform.Find("AbilityRow");
+            abilityRow = transform.Find("RightArea/AbilityRow") ?? transform.Find("AbilityRow");
         if (!abilityEntryBackgroundTemplate && abilityRow != null)
             abilityEntryBackgroundTemplate = abilityRow.Find("AbilityBackground")?.gameObject;
     }
@@ -228,7 +585,6 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         GameObject backgroundGo = Instantiate(lootEntryBackgroundTemplate, lootRow);
         backgroundGo.SetActive(true);
         backgroundGo.name = backgroundName;
-        ConfigureLootBackground(backgroundGo.transform as RectTransform);
 
         iconTransform = backgroundGo.transform.Find("LootTableEntryItem");
         if (!iconTransform)
@@ -297,7 +653,6 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         backgroundGo = Instantiate(abilityEntryBackgroundTemplate, abilityRow);
         backgroundGo.SetActive(true);
         backgroundGo.name = backgroundName;
-        ConfigureAbilityBackground(backgroundGo.transform as RectTransform);
         return true;
     }
 

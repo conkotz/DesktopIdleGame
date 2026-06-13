@@ -1594,7 +1594,8 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (combatProfileText != null)
         {
-            if (characterStats == null || isAllyMinion)
+            bool showCombatProfile = enemy != null && characterStats != null && !isAllyMinion;
+            if (!showCombatProfile)
             {
                 combatProfileText.text = string.Empty;
                 combatProfileText.color = Color.white;
@@ -1603,11 +1604,9 @@ public class UnitOverheadUI : MonoBehaviour
             else
             {
                 combatProfileText.gameObject.SetActive(true);
-                CombatPowerBreakdown breakdown = characterStats.GetCombatPowerBreakdown();
-                CombatProfileDefenseHints defenseHints = characterStats.GetCombatProfileDefenseHints();
-                string profileLabel = CombatProfileClassifier.Classify(breakdown, defenseHints);
-                combatProfileText.text = profileLabel;
-                combatProfileText.color = CombatProfileClassifier.GetColorForLabel(profileLabel);
+                combatProfileText.richText = true;
+                combatProfileText.text = characterStats.GetCombatProfileRichTextLabel();
+                combatProfileText.color = Color.white;
             }
         }
     }

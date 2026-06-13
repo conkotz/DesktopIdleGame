@@ -148,6 +148,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     [SerializeField, HideInInspector] private int _enemyDefinitionFlatGuard;
     [SerializeField, HideInInspector] private float _enemyDefinitionMaxGuardPercent;
+    /// <summary>Enemy max HP for Tank profile identity; excludes map combat scaling only.</summary>
+    private int _combatProfileIdentityMaxHp;
 
     /// <summary>Enemy guard regen: no regen/decay until this many seconds after last damage to guard or HP.</summary>
     private float _lastIncomingDamageTimeForGuard = -999f;
@@ -1772,6 +1774,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public int CombatPowerRounded => Mathf.RoundToInt(CombatPower);
 
+    /// <summary>
+    /// CP breakdown for combat profile labels. Map combat scaling inflates Max HP but not offense,
+    /// so live <see cref="GetCombatPowerBreakdown"/> defense share is scaled down to identity HP.
+    /// </summary>
+    public CombatPowerBreakdown GetCombatProfileBreakdown()
+    {
+        CombatPowerBreakdown breakdown = GetCombatPowerBreakdown();
+        ResolveOwnerEnemy();
+        if (_ownerEnemy == null || _combatProfileIdentityMaxHp <= 0 || MaxHP <= 0)
+            return breakdown;
+
+        if (_combatProfileIdentityMaxHp == MaxHP)
+            return breakdown;
+
+        float defenseScale = _combatProfileIdentityMaxHp / (float)MaxHP;
+        return new CombatPowerBreakdown(
+            breakdown.Offense,
+            breakdown.Defense * defenseScale,
+            breakdown.Sustain,
+            breakdown.Mobility);
+    }
+
     public CombatProfileDefenseHints GetCombatProfileDefenseHints()
     {
         return new CombatProfileDefenseHints(
@@ -1782,21 +1806,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
             MagicResist,
             CorruptionResist,
             MaxHP,
+            GetCombatProfileIdentityMaxHp(),
             GetMoveSpeedForCombatPower());
     }
 
-    public string GetCombatProfileLabel()
+    private int GetCombatProfileIdentityMaxHp()
     {
-        CombatPowerBreakdown b = GetCombatPowerBreakdown();
-        return CombatProfileClassifier.Classify(b, GetCombatProfileDefenseHints());
+        ResolveOwnerEnemy();
+        if (_ownerEnemy != null && _combatProfileIdentityMaxHp > 0)
+            return _combatProfileIdentityMaxHp;
+
+        return MaxHP;
     }
 
-    public Color GetCombatProfileColor()
-    {
-        CombatPowerBreakdown b = GetCombatPowerBreakdown();
-        CombatProfileDefenseHints hints = GetCombatProfileDefenseHints();
-        return CombatProfileClassifier.GetColorForLabel(CombatProfileClassifier.Classify(b, hints));
-    }
+    public string GetCombatProfileLabel() => CombatProfileDisplay.BuildLabel(this);
+
+    public string GetCombatProfileRichTextLabel() => CombatProfileDisplay.BuildRichTextLabel(this);
+
+    public Color GetCombatProfileColor() => CombatProfileDisplay.GetColorForStats(this);
 
     public string GetCombatProfileDebugSummary()
     {
@@ -4643,6 +4670,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         unitDisplayName = string.IsNullOrWhiteSpace(def.displayName) ? "Enemy" : def.displayName.Trim();
 
         baseMaxHP = Mathf.Max(1, def.maxHealth);
+        _combatProfileIdentityMaxHp = baseMaxHP;
         baseMaxEnergy = Mathf.Max(0, def.maxEnergy);
         baseMaxMana = Mathf.Max(0, def.maxMana);
         baseArmor = Mathf.Max(0, def.armor);
@@ -4795,6 +4823,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         const float dmgMult = 1.25f;
 
         baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * hpMult));
+        _combatProfileIdentityMaxHp = Mathf.Max(1, Mathf.RoundToInt(_combatProfileIdentityMaxHp * hpMult));
 
         unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * dmgMult));
         unarmedMaxPhysicalDamage = Mathf.Max(
@@ -4837,6 +4866,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         armorMrMult = Mathf.Max(0.01f, armorMrMult);
 
         baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * healthMult));
+        _combatProfileIdentityMaxHp = Mathf.Max(1, Mathf.RoundToInt(_combatProfileIdentityMaxHp * healthMult));
         baseArmor = Mathf.Max(0, Mathf.RoundToInt(baseArmor * armorMrMult));
         baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armorMrMult));
         baseCorruptionResist = CombatResistRules.ClampRating(Mathf.RoundToInt(baseCorruptionResist * armorMrMult));

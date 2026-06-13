@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: EnemyAbility_archer_disengage
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAbilityDefinition
   abilityId: archer_disengage
-  displayName: Archer Disengage
+  displayName: Disengage
   description: On the first melee hit within 3 units, 65% chance to hop backward 10 units at speed 5.
   kind: 1
   shadowDashFirstDelayMinSeconds: 3

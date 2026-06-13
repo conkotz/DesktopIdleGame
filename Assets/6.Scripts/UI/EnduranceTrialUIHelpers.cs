@@ -8,6 +8,8 @@ using UnityEngine;
 /// </summary>
 public static class EnduranceTrialUIHelpers
 {
+    private static readonly Dictionary<int, string> CombatProfileLabelCache = new();
+
     /// <summary>Active playable map if it is an endurance trial; otherwise null.</summary>
     public static MapNodeDefinition TryGetActiveEnduranceMapNode()
     {
@@ -68,17 +70,83 @@ public static class EnduranceTrialUIHelpers
         if (def == null)
             return 0;
 
-        var go = new GameObject("TempEnemyCombatPower");
-        go.hideFlags = HideFlags.HideAndDontSave;
-        go.AddComponent<Rigidbody2D>();
-        go.AddComponent<CharacterStats>();
-        go.AddComponent<Animator>();
-        var enemy = go.AddComponent<EnemyBaseController>();
-        enemy.InitializeFromDefinition(def);
-        var stats = go.GetComponent<CharacterStats>();
-        int cp = stats != null ? stats.CombatPowerRounded : 0;
+        if (!TryCreateTempEnemyStats(def, applyActiveMapModifiers: true, out GameObject go, out CharacterStats stats))
+            return 0;
+
+        int cp = stats.CombatPowerRounded;
         UnityEngine.Object.Destroy(go);
         return cp;
+    }
+
+    /// <summary>
+    /// Combat profile label for an <see cref="EnemyDefinition"/> (same rules as overhead UI / live enemies).
+    /// </summary>
+    public static string GetEnemyCombatProfileLabel(EnemyDefinition def)
+    {
+        if (def == null)
+            return string.Empty;
+
+        int id = def.GetInstanceID();
+        if (CombatProfileLabelCache.TryGetValue(id, out string cached))
+            return cached;
+
+        if (!TryCreateTempEnemyStats(def, applyActiveMapModifiers: false, out GameObject go, out CharacterStats stats))
+        {
+            cached = string.Empty;
+        }
+        else
+        {
+            cached = stats.GetCombatProfileLabel();
+            UnityEngine.Object.Destroy(go);
+        }
+
+        CombatProfileLabelCache[id] = cached;
+        return cached;
+    }
+
+    private static bool TryCreateTempEnemyStats(
+        EnemyDefinition def,
+        bool applyActiveMapModifiers,
+        out GameObject go,
+        out CharacterStats stats)
+    {
+        go = null;
+        stats = null;
+        if (def == null)
+            return false;
+
+        EnemyBaseController enemy = null;
+
+        if (def.prefab != null)
+        {
+            go = UnityEngine.Object.Instantiate(def.prefab);
+            go.hideFlags = HideFlags.HideAndDontSave;
+            go.SetActive(false);
+
+            enemy = go.GetComponent<EnemyBaseController>()
+                    ?? go.GetComponentInChildren<EnemyBaseController>(true);
+            stats = enemy != null ? enemy.Stats : go.GetComponent<CharacterStats>();
+        }
+
+        if (enemy == null || stats == null)
+        {
+            if (go != null)
+            {
+                UnityEngine.Object.Destroy(go);
+                go = null;
+            }
+
+            go = new GameObject("TempEnemyStats");
+            go.hideFlags = HideFlags.HideAndDontSave;
+            go.AddComponent<Rigidbody2D>();
+            stats = go.AddComponent<CharacterStats>();
+            go.AddComponent<Animator>();
+            enemy = go.AddComponent<EnemyBaseController>();
+        }
+
+        enemy.InitializeFromDefinition(def, spawnAsElite: false, applyActiveMapModifiers: applyActiveMapModifiers);
+        stats = enemy.Stats ?? stats;
+        return stats != null;
     }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 /// <summary>
@@ -46,6 +48,8 @@ public readonly struct CombatProfileDefenseHints
     public int MagicResist { get; }
     public int CorruptionResist { get; }
     public int MaxHP { get; }
+    /// <summary>Max HP used for Tank identity (definition base for enemies; excludes map combat scaling).</summary>
+    public int IdentityMaxHp { get; }
     /// <summary>Same value as CP mobility input (<see cref="CharacterStats.GetMoveSpeedForCombatPower"/>).</summary>
     public float FinalMoveSpeed { get; }
 
@@ -57,6 +61,7 @@ public readonly struct CombatProfileDefenseHints
         int magicResist,
         int corruptionResist,
         int maxHp,
+        int identityMaxHp,
         float finalMoveSpeed)
     {
         EffectiveHpVsPhysical = effectiveHpVsPhysical;
@@ -66,6 +71,7 @@ public readonly struct CombatProfileDefenseHints
         MagicResist = magicResist;
         CorruptionResist = corruptionResist;
         MaxHP = maxHp;
+        IdentityMaxHp = identityMaxHp;
         FinalMoveSpeed = finalMoveSpeed;
     }
 }
@@ -84,6 +90,158 @@ public static class CombatProfileLabel
     public const string Nimble = "Nimble";
     public const string Bruiser = "Bruiser";
     public const string Balanced = "Balanced";
+}
+
+/// <summary>Ailment tags appended to combat profiles when apply chance is at or above 1%.</summary>
+public static class CombatProfileAilmentLabel
+{
+    public const float MinApplyChance = 0.01f;
+
+    public const string Poisonous = "Poisonous";
+    public const string Sanguine = "Sanguine";
+    public const string Electrified = "Electrified";
+    public const string Fiery = "Fiery";
+    public const string Frosted = "Frosted";
+}
+
+/// <summary>Builds display labels like "Deadly - Poisonous" for UI and database rows.</summary>
+public static class CombatProfileDisplay
+{
+    private static readonly List<string> AilmentSuffixScratch = new List<string>(5);
+
+    public static string FormatWithAilments(string baseProfile, IReadOnlyList<string> ailmentSuffixes)
+    {
+        if (string.IsNullOrWhiteSpace(baseProfile))
+            return string.Empty;
+
+        if (ailmentSuffixes == null || ailmentSuffixes.Count == 0)
+            return baseProfile.Trim();
+
+        var parts = new System.Collections.Generic.List<string>(1 + ailmentSuffixes.Count) { baseProfile.Trim() };
+        for (int i = 0; i < ailmentSuffixes.Count; i++)
+        {
+            string suffix = ailmentSuffixes[i];
+            if (!string.IsNullOrWhiteSpace(suffix))
+                parts.Add(suffix.Trim());
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    public static string BuildLabel(CharacterStats stats)
+    {
+        if (stats == null)
+            return string.Empty;
+
+        string baseProfile = CombatProfileClassifier.Classify(
+            stats.GetCombatProfileBreakdown(),
+            stats.GetCombatProfileDefenseHints());
+
+        AilmentSuffixScratch.Clear();
+        CollectAilmentSuffixes(stats, AilmentSuffixScratch);
+        return FormatWithAilments(baseProfile, AilmentSuffixScratch);
+    }
+
+    /// <summary>Overhead UI: base profile and each ailment suffix use their own TMP color tags.</summary>
+    public static string BuildRichTextLabel(CharacterStats stats)
+    {
+        if (stats == null)
+            return string.Empty;
+
+        string baseProfile = CombatProfileClassifier.Classify(
+            stats.GetCombatProfileBreakdown(),
+            stats.GetCombatProfileDefenseHints());
+
+        AilmentSuffixScratch.Clear();
+        CollectAilmentSuffixes(stats, AilmentSuffixScratch);
+
+        if (AilmentSuffixScratch.Count == 0)
+            return WrapRichTextSegment(baseProfile, CombatProfileClassifier.GetColorForLabel(baseProfile));
+
+        var sb = new StringBuilder(baseProfile.Length + AilmentSuffixScratch.Count * 32);
+        sb.Append(WrapRichTextSegment(baseProfile, CombatProfileClassifier.GetColorForLabel(baseProfile)));
+        for (int i = 0; i < AilmentSuffixScratch.Count; i++)
+        {
+            string suffix = AilmentSuffixScratch[i];
+            sb.Append(" - ");
+            sb.Append(WrapRichTextSegment(suffix, CombatProfileClassifier.GetColorForLabel(suffix)));
+        }
+
+        return sb.ToString();
+    }
+
+    private static string WrapRichTextSegment(string text, Color color)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        string hex = ColorUtility.ToHtmlStringRGB(color);
+        return $"<color=#{hex}>{text}</color>";
+    }
+
+    public static Color GetColorForStats(CharacterStats stats) =>
+        GetColorForDisplayLabel(BuildLabel(stats));
+
+    public static string GetBaseProfileLabel(string displayLabel)
+    {
+        if (string.IsNullOrWhiteSpace(displayLabel))
+            return string.Empty;
+
+        int separator = displayLabel.IndexOf(" - ", System.StringComparison.Ordinal);
+        return separator < 0 ? displayLabel.Trim() : displayLabel.Substring(0, separator).Trim();
+    }
+
+    public static Color GetColorForDisplayLabel(string displayLabel) =>
+        CombatProfileClassifier.GetColorForLabel(GetBaseProfileLabel(displayLabel));
+
+    public static void CollectAilmentSuffixes(CharacterStats stats, System.Collections.Generic.List<string> dest)
+    {
+        if (stats == null || dest == null)
+            return;
+
+        if (stats.BleedChance >= CombatProfileAilmentLabel.MinApplyChance)
+            dest.Add(CombatProfileAilmentLabel.Sanguine);
+        if (stats.PoisonChance >= CombatProfileAilmentLabel.MinApplyChance)
+            dest.Add(CombatProfileAilmentLabel.Poisonous);
+        if (GetBurnApplyChanceForProfile(stats) >= CombatProfileAilmentLabel.MinApplyChance)
+            dest.Add(CombatProfileAilmentLabel.Fiery);
+        if (GetShockApplyChanceForProfile(stats) >= CombatProfileAilmentLabel.MinApplyChance)
+            dest.Add(CombatProfileAilmentLabel.Electrified);
+        if (GetChillApplyChanceForProfile(stats) >= CombatProfileAilmentLabel.MinApplyChance)
+            dest.Add(CombatProfileAilmentLabel.Frosted);
+    }
+
+    private static float GetShockApplyChanceForProfile(CharacterStats stats)
+    {
+        if (stats.MaxSplitDamage.magic > 0f
+            && stats.CurrentMagicAttackType == MagicAttackType.Lightning)
+            return stats.MagicAilmentApplyChance;
+
+        return stats.MeleeShockChance;
+    }
+
+    private static float GetChillApplyChanceForProfile(CharacterStats stats)
+    {
+        if (stats.MaxSplitDamage.magic > 0f
+            && stats.CurrentMagicAttackType == MagicAttackType.Ice)
+            return stats.MagicAilmentApplyChance;
+
+        return 0f;
+    }
+
+    private static float GetBurnApplyChanceForProfile(CharacterStats stats)
+    {
+        if (stats.MaxSplitDamage.magic > 0f
+            && stats.CurrentMagicAttackType == MagicAttackType.Fire)
+            return stats.MagicAilmentApplyChance;
+
+        // Enemies only roll burn on fire magic; BurnApplyChance returns MagicAilmentApplyChance for all enemy magic types.
+        if (stats.GetComponent<EnemyBaseController>() != null
+            || stats.GetComponentInParent<EnemyBaseController>() != null)
+            return 0f;
+
+        return stats.BurnApplyChance;
+    }
 }
 
 /// <summary>Tunable thresholds for <see cref="CombatProfileClassifier.Classify"/>.</summary>
@@ -121,6 +279,12 @@ public static class CombatProfileThresholds
     public const float ShroudedCorruptionEhpOverOtherMin = 1.12f;
 
     public const int TankMinMaxHp = 35;
+
+    /// <summary>
+    /// Minimum Max HP per point of offense CP before a unit is treated as an HP-pool Tank.
+    /// Prevents ailment-heavy strikers with modest HP from reading as Tank when offense CP share is low.
+    /// </summary>
+    public const float TankMinMaxHpPerOffensePoint = 22f;
 
     /// <summary>
     /// Max ratio of physical (or magic) effective HP vs corruption EHP for "low mitigation" Tank identity.
@@ -206,7 +370,7 @@ public static class CombatProfileClassifier
             bool lowMitigation = physOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax
                                  && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
             if (lowMitigation
-                && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
+                && QualifiesAsHpPoolTank(b, d)
                 && d.Armor < CombatProfileThresholds.ArmouredMinArmor
                 && d.MagicResist < CombatProfileThresholds.WardedMinMagicResist
                 && d.CorruptionResist < CombatProfileThresholds.ShroudedMinCorruptionResist
@@ -241,7 +405,7 @@ public static class CombatProfileClassifier
             bool lowMitigation = physOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax
                                  && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
             if (lowMitigation
-                && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
+                && QualifiesAsHpPoolTank(b, d)
                 && d.CorruptionResist < CombatProfileThresholds.ShroudedMinCorruptionResist
                 && !(corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
                      && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin))
@@ -266,8 +430,18 @@ public static class CombatProfileClassifier
         return CombatProfileLabel.Balanced;
     }
 
+    private static bool QualifiesAsHpPoolTank(CombatPowerBreakdown b, CombatProfileDefenseHints d)
+    {
+        if (d.IdentityMaxHp < CombatProfileThresholds.TankMinMaxHp)
+            return false;
+
+        float offense = Mathf.Max(b.Offense, 0.75f);
+        return d.IdentityMaxHp / offense >= CombatProfileThresholds.TankMinMaxHpPerOffensePoint;
+    }
+
     public static Color GetColorForLabel(string label)
     {
+        label = CombatProfileDisplay.GetBaseProfileLabel(label);
         if (label == CombatProfileLabel.Deadly)
             return new Color(0.95f, 0.22f, 0.22f);
 
@@ -297,6 +471,21 @@ public static class CombatProfileClassifier
 
         if (label == CombatProfileLabel.Bruiser)
             return new Color(1f, 0.58f, 0.18f);
+
+        if (label == CombatProfileAilmentLabel.Poisonous)
+            return new Color(0.42f, 0.82f, 0.36f);
+
+        if (label == CombatProfileAilmentLabel.Sanguine)
+            return new Color(0.82f, 0.18f, 0.22f);
+
+        if (label == CombatProfileAilmentLabel.Electrified)
+            return new Color(0.95f, 0.86f, 0.28f);
+
+        if (label == CombatProfileAilmentLabel.Fiery)
+            return new Color(1f, 0.45f, 0.12f);
+
+        if (label == CombatProfileAilmentLabel.Frosted)
+            return new Color(0.55f, 0.82f, 0.98f);
 
         return Color.white;
     }

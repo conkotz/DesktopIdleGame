@@ -27,7 +27,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
-  entranceOnlyAccess: 1
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0

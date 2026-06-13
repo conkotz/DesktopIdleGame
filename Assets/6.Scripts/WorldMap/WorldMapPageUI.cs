@@ -50,7 +50,7 @@ public class WorldMapPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeEnterConditionText;
     [SerializeField] private Button enterNodeButton;
     [SerializeField] private TMP_Text enterNodeButtonLabel;
-    [SerializeField] private string enterNodeEnabledText = "Enter map \u2192";
+    [SerializeField] private string enterNodeEnabledText = "Enter area \u2192";
     [SerializeField] private string enterNodeBlockedText = "Cant Teleport";
     [Header("Details layout (dynamic height)")]
     [SerializeField] private float minDescriptionHeight = 24f;
@@ -129,6 +129,8 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void Awake()
     {
+        enterNodeEnabledText = WorldMapUiTextMigration.MigrateEnterNodeEnabledText(enterNodeEnabledText);
+
         if (returnToListButton)
         {
             returnToListButton.onClick.RemoveAllListeners();

@@ -59,11 +59,11 @@ MonoBehaviour:
   shockChance: 0
   chillDuration: 5
   chillMaxStacks: 6
-  chillSlowPerStack: 0.15
+  chillSlowPerStack: 0
   burnHitsToExplode: 4
-  burnExplosionMultiplier: 0.5
+  burnExplosionMultiplier: 0
   shockDuration: 5
-  shockDamageTakenMultiplier: 0.15
+  shockDamageTakenMultiplier: 0
   deadlyAtCloseRange: 0
   deadlyCloseRangeDistance: 3
   deadlyCloseRangeTyplessDamage: 0

@@ -50,9 +50,10 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 4
+      count: 5
       portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: 
@@ -60,9 +61,10 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 3
+      count: 6
       portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
   requiredPreviousMapCompletions:

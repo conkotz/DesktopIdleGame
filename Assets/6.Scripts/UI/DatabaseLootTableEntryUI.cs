@@ -32,12 +32,23 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
     private int _goldMin;
     private int _goldMax;
 
+    private void ResolveDropChanceText()
+    {
+        if (dropChanceText)
+            return;
+
+        if (transform.parent != null)
+            dropChanceText = transform.parent.Find("DropChanceText")?.GetComponent<TMP_Text>();
+
+        if (!dropChanceText)
+            dropChanceText = transform.Find("DropChanceText")?.GetComponent<TMP_Text>();
+    }
+
     private void Awake()
     {
         if (!iconImage)
             iconImage = GetComponent<Image>();
-        if (!dropChanceText)
-            dropChanceText = transform.Find("DropChanceText")?.GetComponent<TMP_Text>();
+        ResolveDropChanceText();
     }
 
     public void Bind(
@@ -58,8 +69,7 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
 
         if (!iconImage)
             iconImage = GetComponent<Image>();
-        if (!dropChanceText)
-            dropChanceText = transform.Find("DropChanceText")?.GetComponent<TMP_Text>();
+        ResolveDropChanceText();
 
         Sprite sprite = item != null ? item.icon : null;
         iconImage.sprite = sprite;
@@ -67,8 +77,7 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
         iconImage.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0.25f);
         iconImage.raycastTarget = item != null;
 
-        if (transform.parent != null && transform.parent.TryGetComponent(out Image backgroundImage))
-            backgroundImage.color = isEliteDrop ? EliteLootBackgroundColor : DefaultLootBackgroundColor;
+        ApplyLootBackgroundColor(isEliteDrop ? EliteLootBackgroundColor : DefaultLootBackgroundColor);
 
         if (dropChanceText)
         {
@@ -90,8 +99,7 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
 
         if (!iconImage)
             iconImage = GetComponent<Image>();
-        if (!dropChanceText)
-            dropChanceText = transform.Find("DropChanceText")?.GetComponent<TMP_Text>();
+        ResolveDropChanceText();
 
         Sprite sprite = goldIcon != null ? goldIcon : ResolveGoldIconSprite();
         iconImage.sprite = sprite;
@@ -99,8 +107,7 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
         iconImage.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0.25f);
         iconImage.raycastTarget = true;
 
-        if (transform.parent != null && transform.parent.TryGetComponent(out Image backgroundImage))
-            backgroundImage.color = DefaultLootBackgroundColor;
+        ApplyLootBackgroundColor(DefaultLootBackgroundColor);
 
         if (dropChanceText)
             dropChanceText.gameObject.SetActive(false);
@@ -138,6 +145,22 @@ public sealed class DatabaseLootTableEntryUI : MonoBehaviour,
         }
 
         return null;
+    }
+
+    private void ApplyLootBackgroundColor(Color color)
+    {
+        if (transform.parent == null)
+            return;
+
+        Transform fill = transform.parent.Find("IconBackgroundFill");
+        if (fill != null && fill.TryGetComponent(out Image fillImage))
+        {
+            fillImage.color = color;
+            return;
+        }
+
+        if (transform.parent.TryGetComponent(out Image backgroundImage))
+            backgroundImage.color = color;
     }
 
     public void OnPointerEnter(PointerEventData eventData)

@@ -49,6 +49,26 @@ public static class DatabaseCombatProfileCatalog
             CombatProfileLabel.Balanced,
             "No single extreme strength. Their stats are spread evenly without one sharp specialty."
         ),
+        (
+            CombatProfileAilmentLabel.Poisonous,
+            "Applies poison on hit. Expect stacking poison damage over time if you let procs build up."
+        ),
+        (
+            CombatProfileAilmentLabel.Sanguine,
+            "Applies bleed on hit. Sustained bleed pressure adds up during longer trades."
+        ),
+        (
+            CombatProfileAilmentLabel.Electrified,
+            "Applies shock on hit. Shocked targets take increased damage from follow-up hits."
+        ),
+        (
+            CombatProfileAilmentLabel.Fiery,
+            "Applies burn on hit. Burn stacks build toward burst damage if left unchecked."
+        ),
+        (
+            CombatProfileAilmentLabel.Frosted,
+            "Applies chill on hit. Chill slows movement and attack speed as stacks build."
+        ),
     };
 
     public static IReadOnlyList<(string Label, string Description)> GetAllEntries() => Entries;

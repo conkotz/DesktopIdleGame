@@ -300,7 +300,7 @@ public static class WorldMapGraphNodeContextMenu
         var entries = new List<ContextMenuEntry>
         {
             new ContextMenuEntry(
-                canTeleport ? "Enter map" : "Can't Teleport",
+                canTeleport ? "Enter area" : "Can't Teleport",
                 canTeleport ? () => TryEnterMap(node, progress, skills) : static () => { },
                 disabled: !canTeleport)
         };
