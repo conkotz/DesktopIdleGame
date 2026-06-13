@@ -226,7 +226,7 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 
         if (locationsText)
         {
-            locationsText.enableWordWrapping = true;
+            locationsText.textWrappingMode = TextWrappingModes.Normal;
             locationsText.overflowMode = TextOverflowModes.Overflow;
             locationsText.horizontalAlignment = HorizontalAlignmentOptions.Left;
         }

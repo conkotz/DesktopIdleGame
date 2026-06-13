@@ -1,13 +1,10 @@
 fileFormatVersion: 2
-guid: 0c3dc46a851bd6d4992b9004c635a15c
+guid: 16518615f4dd08d47906676b4b02704e
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -9161188019061428514
-    second: WarBanner_0
-  - first:
-      213: 4575528367620855910
-    second: WarBanner_1
+      213: -7337498092964062457
+    second: WarBannerIcon_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -54,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 650
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -103,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: WarBanner_1
+      name: WarBannerIcon_0
       rect:
         serializedVersion: 2
-        x: 102
-        y: 144
-        width: 790
-        height: 1381
+        x: 0
+        y: 0
+        width: 1254
+        height: 1254
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 66893c3eeca8f7f30800000000000000
-      internalID: 4575528367620855910
+      spriteID: 70b55c43c58fb2a90800000000000000
+      internalID: -7337498092964062457
       vertices: []
       indices: 
       edges: []
@@ -128,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 1c9217d2c31d2e240b0f3c823a0e6ed7
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -138,8 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      WarBanner_0: -9161188019061428514
-      WarBanner_1: 4575528367620855910
+      WarBannerIcon_0: -7337498092964062457
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
