@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
   notes: Presentation for soulforged_warrior
   displayNameOverride: Soulforged Warrior
-  icon: {fileID: 2127427094619477876, guid: a311d655e950d354a9c1c011aaaeb036, type: 3}
-  shortDescription: Summon a soulforged clone of yourself to fight at your side. Enemies that it strikes will fight it back.
+  icon: {fileID: -5622108092151275203, guid: fcfc3bbe1470ba04b9ce3fe30ed79ddc, type: 3}
+  shortDescription: Summon a soulforged clone of yourself to fight at your side.
+    Enemies that it strikes will fight it back.
   primaryDescriptionOverride: 
   flavourText: 
-  abilityEffectLines: []
   tooltipCategoryTagOverride: 

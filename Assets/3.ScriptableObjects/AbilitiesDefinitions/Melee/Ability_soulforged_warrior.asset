@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityId: soulforged_warrior
   displayName: Soulforged Warrior
   tag: 2
-  tooltipBuffMinionDurationSeconds: 0
+  tooltipBuffMinionDurationSeconds: 120
   presentation: {fileID: 11400000, guid: a090a6f32be0a03f96ea27353445aa6c, type: 2}
   cooldown: 45
   energyCost: 35
@@ -30,7 +30,7 @@ MonoBehaviour:
   bleedDamageMultiplier: 0
   requiredWeaponType: 1
   sourceSkill: 3
-  unlockLevel: 40
+  unlockLevel: 45
   requireRangeCheckToActivate: 0
   setsTargetOnHit: 0
   minionSpawnDefinition: {fileID: 11400000, guid: 54189b21d95af83599f4f0fef85548ee, type: 2}

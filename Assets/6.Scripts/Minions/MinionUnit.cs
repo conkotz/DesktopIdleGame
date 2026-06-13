@@ -23,10 +23,6 @@ public class MinionUnit : MonoBehaviour
     [SerializeField] private string dieTriggerName = "Die";
     [SerializeField] private string dieStateName = "die";
 
-    [Header("Movement")]
-    [SerializeField] private bool xOnly = true;
-    [SerializeField] private float moveArrivalThreshold = 0.05f;
-
     private Rigidbody2D _rb;
     private Transform _visualFlipRoot;
     private Animator _animator;

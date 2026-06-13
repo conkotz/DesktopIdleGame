@@ -85,6 +85,9 @@ public static class AbilityTooltipDamagePreview
         if (!string.IsNullOrEmpty(fromPresentation))
             return fromPresentation;
 
+        if (IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def))
+            return "Minion (Inherited)";
+
         switch (def.tag)
         {
             case AbilityTag.Active:
@@ -108,13 +111,47 @@ public static class AbilityTooltipDamagePreview
         var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player != null)
         {
-            var s = player.GetComponent<CharacterStats>();
-            if (s != null)
+            CharacterStats s = player.GetComponent<CharacterStats>();
+            if (s != null && !IsMinionCharacterStats(s))
                 return s;
+
+            CharacterStats[] children = player.GetComponentsInChildren<CharacterStats>(true);
+            for (int i = 0; i < children.Length; i++)
+            {
+                CharacterStats candidate = children[i];
+                if (!candidate || IsMinionCharacterStats(candidate))
+                    continue;
+                return candidate;
+            }
         }
 
-        return UnityEngine.Object.FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
+        CharacterStats[] all = UnityEngine.Object.FindObjectsByType<CharacterStats>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            CharacterStats candidate = all[i];
+            if (!candidate || IsMinionCharacterStats(candidate))
+                continue;
+            if (candidate.GetComponent<PlayerController>() != null ||
+                candidate.GetComponentInParent<PlayerController>() != null)
+                return candidate;
+        }
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            CharacterStats candidate = all[i];
+            if (!candidate || IsMinionCharacterStats(candidate))
+                continue;
+            return candidate;
+        }
+
+        return null;
     }
+
+    private static bool IsMinionCharacterStats(CharacterStats stats) =>
+        stats.GetComponent<MinionCombatTarget>() != null ||
+        stats.GetComponentInParent<MinionCombatTarget>() != null;
 
     public static PlayerAbilityController FindLocalPlayerAbilityController()
     {
@@ -1801,7 +1838,7 @@ public static class AbilityTooltipDamagePreview
         if (!def || def.minionSpawnDefinition == null || !stats)
             return 0;
 
-        MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
+        MinionCombatConfig cfg = MinionCombatConfig.AfterDeserialize(def.minionSpawnDefinition.combatConfig);
         float scale = cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit
             ? MinionRuntimeStatsCalculator.InheritMinionOwnerBonusScale
             : 1f;
@@ -1809,16 +1846,18 @@ public static class AbilityTooltipDamagePreview
 
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
-            float coeff = Mathf.Max(0f, cfg.inheritDamageCoefficient);
-            SplitDamageRange preBonus = new SplitDamageRange
+            SplitDamageRange inheritedRange = new SplitDamageRange
             {
-                min = stats.MinSplitDamage * coeff,
-                max = stats.MaxSplitDamage * coeff
+                min = stats.MinSplitDamage,
+                max = stats.MaxSplitDamage
             };
-            float avgPhys = (preBonus.min.physical + preBonus.max.physical) * 0.5f;
-            float avgMag = (preBonus.min.magic + preBonus.max.magic) * 0.5f;
-            float avgCorr = (preBonus.min.corruptionDamage + preBonus.max.corruptionDamage) * 0.5f;
-            float preTotal = avgPhys + avgMag + avgCorr;
+            MinionRuntimeCombatStats runtime =
+                MinionRuntimeStatsCalculator.Compute(stats, cfg, inheritedRange);
+            float avgTotal = AverageSplitRangeTotal(runtime.FinalDamageSplitRange);
+            if (effectivePct <= 0f || avgTotal <= 0f)
+                return 0;
+
+            float preTotal = avgTotal / (1f + effectivePct);
             return Mathf.RoundToInt(preTotal * effectivePct);
         }
 
@@ -1828,6 +1867,14 @@ public static class AbilityTooltipDamagePreview
         float c = (basePre.min.corruptionDamage + basePre.max.corruptionDamage) * 0.5f;
         float preTotalPure = p + m + c;
         return Mathf.RoundToInt(preTotalPure * Mathf.Max(0f, stats.FinalMinionDamagePercent));
+    }
+
+    private static float AverageSplitRangeTotal(SplitDamageRange range)
+    {
+        float avgPhys = (range.min.physical + range.max.physical) * 0.5f;
+        float avgMag = (range.min.magic + range.max.magic) * 0.5f;
+        float avgCorr = (range.min.corruptionDamage + range.max.corruptionDamage) * 0.5f;
+        return avgPhys + avgMag + avgCorr;
     }
 
     private static void AppendMinionModifierStatLines(
@@ -2112,7 +2159,7 @@ public static class AbilityTooltipDamagePreview
 
         body.AppendLine(O("Enemies struck by your warrior will attack it back."));
         body.AppendLine(O(
-            $"Every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s (first after {AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds:0.#}s) releases a warcry granting nearby allies +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
+            $"Every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s (first after {AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds:0.#}s) releases a warcry granting allies within {AbilityCombatPower.SoulforgedWarriorWarcryAllyRange:0.#} range +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
         AppendSoulforgedWarriorEnhancementLines(body, O, skillsManager);
         float dur = def?.minionSpawnDefinition != null
             ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
@@ -2142,7 +2189,7 @@ public static class AbilityTooltipDamagePreview
         else if (sel == AbilityCombatPower.SoulforgedWarriorTauntingShoutChoiceIndex)
         {
             body.AppendLine(O(
-                $"Taunting Shout: warcry also taunts enemies within {AbilityCombatPower.SoulforgedWarriorTauntRange:0.#} range."));
+                $"Taunting Shout: warcry also taunts enemies within {AbilityCombatPower.SoulforgedWarriorTauntRange:0.#} range. Taunted enemies deal {AbilityCombatPower.SoulforgedWarriorTauntingShoutOutgoingDamageReduction * 100f:0.#}% reduced damage for {AbilityCombatPower.SoulforgedWarriorTauntingShoutDebuffDurationSeconds:0.#}s."));
         }
     }
 

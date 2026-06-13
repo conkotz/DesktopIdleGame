@@ -8322,7 +8322,15 @@ public class PlayerAbilityController : MonoBehaviour
             combat?.RecordOutgoingSourceUse(AbilityCombatPower.SoulforgedWarriorOutgoingSourceLabel);
         }
 
+        NotifyActionBarMinionControlChanged();
         return true;
+    }
+
+    private static void NotifyActionBarMinionControlChanged()
+    {
+        ActionBarUI[] bars = FindObjectsByType<ActionBarUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < bars.Length; i++)
+            bars[i]?.NotifyMinionControlBarChanged();
     }
 
     private void SyncSoulforgedWarriorHudBuff()
@@ -8365,6 +8373,8 @@ public class PlayerAbilityController : MonoBehaviour
             _soulforgedWarriorCooldownAbilityDef = null;
             buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
         }
+
+        NotifyActionBarMinionControlChanged();
     }
 
     private void RecastActiveSoulforgedWarriors()

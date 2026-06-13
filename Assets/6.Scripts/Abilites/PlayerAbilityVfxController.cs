@@ -685,6 +685,20 @@ public class PlayerAbilityVfxController : MonoBehaviour
         StartCoroutine(CoGuardiansHammerSlam(center, Mathf.Max(0.5f, reach), sign));
     }
 
+    /// <summary>Ground shockwave only (e.g. Soulforged Warrior Furious Slam at minion position).</summary>
+    public void SpawnGuardiansHammerShockwaveAt(Vector3 worldOrigin, float reach, float combatFacingSign)
+    {
+        SpawnGuardiansHammerShockwaveAt(worldOrigin, reach, combatFacingSign, null);
+    }
+
+    /// <summary>Ground shockwave with optional color override (warrior furious slam uses bright red).</summary>
+    public void SpawnGuardiansHammerShockwaveAt(Vector3 worldOrigin, float reach, float combatFacingSign, Color? shockwaveColorOverride)
+    {
+        float sign = Mathf.Approximately(combatFacingSign, 0f) ? 1f : Mathf.Sign(combatFacingSign);
+        Color color = shockwaveColorOverride ?? guardiansHammerShockwaveColor;
+        StartCoroutine(CoGuardiansHammerShockwave(worldOrigin, Mathf.Max(0.5f, reach), sign, color));
+    }
+
     public void SpawnGuardiansHammerBurnFlare(Vector3 worldPosition)
     {
         StartCoroutine(CoGuardiansHammerBurningVerdictBurst(
@@ -747,13 +761,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(hammerGo);
 
         Vector3 shockwaveOrigin = center != null ? center.position : Vector3.zero;
-        yield return CoGuardiansHammerShockwave(shockwaveOrigin, reach, sign);
+        yield return CoGuardiansHammerShockwave(shockwaveOrigin, reach, sign, guardiansHammerShockwaveColor);
 
         if (root != null)
             Destroy(root);
     }
 
-    private IEnumerator CoGuardiansHammerShockwave(Vector3 playerWorld, float reach, float sign)
+    private IEnumerator CoGuardiansHammerShockwave(Vector3 playerWorld, float reach, float sign, Color shockwaveColor)
     {
         GameObject ringRoot = new GameObject("GuardiansHammerShockwave");
         LineRenderer ring = ringRoot.AddComponent<LineRenderer>();
@@ -762,8 +776,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ring.positionCount = 18;
         ring.widthMultiplier = guardiansHammerShockwaveLineWidth;
         ring.material = new Material(Shader.Find("Sprites/Default"));
-        ring.startColor = guardiansHammerShockwaveColor;
-        ring.endColor = guardiansHammerShockwaveColor;
+        ring.startColor = shockwaveColor;
+        ring.endColor = shockwaveColor;
         if (!TryApplyPlayerSpriteSortingToRenderer(ring, 16))
             ring.sortingOrder = 26;
 
@@ -774,8 +788,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float radius = Mathf.Max(0.1f, reach) * t;
-            float alpha = guardiansHammerShockwaveColor.a * (1f - t);
-            RebuildGuardiansHammerShockwave(ring, playerWorld, radius, sign, alpha);
+            float alpha = shockwaveColor.a * (1f - t);
+            RebuildGuardiansHammerShockwave(ring, playerWorld, radius, sign, alpha, shockwaveColor);
             yield return null;
         }
 
@@ -783,12 +797,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(ringRoot);
     }
 
-    private void RebuildGuardiansHammerShockwave(LineRenderer ring, Vector3 playerWorld, float radius, float sign, float alpha)
+    private void RebuildGuardiansHammerShockwave(LineRenderer ring, Vector3 playerWorld, float radius, float sign, float alpha, Color shockwaveColor)
     {
         if (ring == null)
             return;
 
-        Color c = guardiansHammerShockwaveColor;
+        Color c = shockwaveColor;
         c.a = alpha;
         ring.startColor = c;
         ring.endColor = c;

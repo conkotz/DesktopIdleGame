@@ -120,6 +120,7 @@ public class EnemyBaseController : MonoBehaviour
     private bool _playerDamagedThisEnemy;
     private bool _minionDamagedThisEnemy;
     private bool _minionTauntLocked;
+    private float _warriorTauntShoutDamageReductionUntil;
     private Transform _retaliationMinionTarget;
     private bool _mapAggroTriggeredForSession;
     private bool _engaged;
@@ -551,6 +552,7 @@ public class EnemyBaseController : MonoBehaviour
             _playerDamagedThisEnemy = false;
             _minionDamagedThisEnemy = false;
             _minionTauntLocked = false;
+            _warriorTauntShoutDamageReductionUntil = 0f;
             _retaliationMinionTarget = null;
             EndAbilityCombat();
             ClearEngagement();
@@ -902,7 +904,7 @@ public class EnemyBaseController : MonoBehaviour
     /// <summary>
     /// Forces this enemy to attack the minion (taunt). Overrides all prior hit-based aggro rules until the taunter dies.
     /// </summary>
-    public void ForceTauntToMinion(Transform minionTransform)
+    public void ForceTauntToMinion(Transform minionTransform, bool applyTauntingShoutDamageReduction = false)
     {
         if (!minionTransform || state == EnemyState.Dead)
             return;
@@ -916,6 +918,12 @@ public class EnemyBaseController : MonoBehaviour
         _retaliationMinionTarget = mct.transform;
         _minionTauntLocked = true;
         _provoked = true;
+
+        if (applyTauntingShoutDamageReduction)
+        {
+            _warriorTauntShoutDamageReductionUntil = Time.time +
+                AbilityCombatPower.SoulforgedWarriorTauntingShoutDebuffDurationSeconds;
+        }
     }
 
     /// <summary>Enemy switches melee retaliation to a living minion that damaged it.</summary>
@@ -1109,6 +1117,7 @@ public class EnemyBaseController : MonoBehaviour
         float neurotoxinMult = _ailments != null ? _ailments.GetOutgoingDamageMultiplier() : 1f;
         if (neurotoxinMult < 0.999f)
             totalMult *= neurotoxinMult;
+        totalMult *= GetWarriorTauntShoutOutgoingDamageMultiplier();
 
         if (totalMult < 0.999f || totalMult > 1.001f)
         {
@@ -1121,6 +1130,14 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         mct.TakeDamageFromEnemy(hit, wasCrit, transform, this);
+    }
+
+    private float GetWarriorTauntShoutOutgoingDamageMultiplier()
+    {
+        if (Time.time >= _warriorTauntShoutDamageReductionUntil)
+            return 1f;
+
+        return 1f - AbilityCombatPower.SoulforgedWarriorTauntingShoutOutgoingDamageReduction;
     }
 
     private void ApplyEnemyHitToPlayer(float damageMultiplier = 1f)
@@ -1137,6 +1154,7 @@ public class EnemyBaseController : MonoBehaviour
         float neurotoxinMult = _ailments != null ? _ailments.GetOutgoingDamageMultiplier() : 1f;
         if (neurotoxinMult < 0.999f)
             totalMult *= neurotoxinMult;
+        totalMult *= GetWarriorTauntShoutOutgoingDamageMultiplier();
 
         if (totalMult < 0.999f || totalMult > 1.001f)
         {

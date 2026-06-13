@@ -178,16 +178,17 @@ MonoBehaviour:
   unit: {fileID: 7123456789012345690}
   meleeHitImpactDelay: 0.12
   meleeRangePadding: 0.15
+  stopSlack: 0.04
+  localEngageRange: 12
   homeSideOffsetX: 0.65
-  followLeashDistance: 5
   followStopDistance: 3
-  followChaseDelaySeconds: 1
   maxWanderRadiusFromPlayer: 5
   idleWanderDelaySeconds: 5
   wanderDistanceMin: 1
   wanderDistanceMax: 3
   wanderMoveSpeedMultiplier: 0.65
   homeArrivalDistance: 0.12
+  maxLeashDistanceFromPlayer: 20
   debugLogs: 0
 --- !u!114 &7123456789012345684
 MonoBehaviour:

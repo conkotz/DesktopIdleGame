@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -1512,6 +1513,21 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                 && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
                 && !string.IsNullOrWhiteSpace(meleeBody))
                 return meleeBody;
+
+            if (string.Equals(spineId, AbilityCombatPower.SoulforgedWarriorEnhancementParentSpineNodeId, StringComparison.Ordinal))
+            {
+                if (choiceIndex == AbilityCombatPower.SoulforgedWarriorTauntingShoutChoiceIndex)
+                {
+                    return
+                        $"Warcry also taunts enemies within {AbilityCombatPower.SoulforgedWarriorTauntRange:0.#} range, forcing them to attack the warrior. Taunted enemies deal {AbilityCombatPower.SoulforgedWarriorTauntingShoutOutgoingDamageReduction * 100f:0.#}% reduced damage for {AbilityCombatPower.SoulforgedWarriorTauntingShoutDebuffDurationSeconds:0.#}s.";
+                }
+
+                if (choiceIndex == AbilityCombatPower.SoulforgedWarriorFuriousSlamChoiceIndex)
+                {
+                    return
+                        $"Slams the ground in front ({AbilityCombatPower.SoulforgedWarriorFuriousSlamRange:0.#} range), hitting all enemies for {AbilityCombatPower.SoulforgedWarriorFuriousSlamDamageMultiplier * 100f:0.#}% of the warrior's strike damage.";
+                }
+            }
         }
 
         return fallbackDescription ?? string.Empty;

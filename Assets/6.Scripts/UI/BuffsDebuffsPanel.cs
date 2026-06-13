@@ -644,10 +644,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
             }
         }
 
-        // HUD ability buff ids are not inventory items (e.g. capstone kill-crit windows).
+        // Only resolve inventory icons when the buff id is a real item id (consumables set effectId to itemId).
+        // Ability/stat buffs with no effectId use ConsumableEffectType.ToString() and are not in ItemDatabase.
         if (buff.type != ConsumableEffectType.HudAbilityBuff &&
             inventory != null &&
-            !string.IsNullOrWhiteSpace(buff.id))
+            !string.IsNullOrWhiteSpace(buff.id) &&
+            !string.Equals(buff.id, buff.type.ToString(), StringComparison.Ordinal))
         {
             ItemDefinition def = inventory.GetItemDef(buff.id);
             if (def != null && def.icon != null)

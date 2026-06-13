@@ -61,10 +61,21 @@ public class MinionCombatTarget : MonoBehaviour
         {
             unit?.TriggerHurt();
             if (sourceEnemy != null)
+            {
                 sourceEnemy.NotifyRetaliationAgainstMinion(transform);
+                NotifyMinionCombatControllerStruck(sourceEnemy);
+            }
         }
 
         return total;
+    }
+
+    private void NotifyMinionCombatControllerStruck(EnemyBaseController sourceEnemy)
+    {
+        MinionCombatController combat = GetComponent<MinionCombatController>();
+        if (!combat)
+            combat = GetComponentInParent<MinionCombatController>();
+        combat?.NotifyStruckByEnemy(sourceEnemy);
     }
 
     private int ApplyTypedDamage(float amount, DamageType type, bool wasCrit, Transform attacker)

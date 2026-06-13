@@ -132,6 +132,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         ApplyGatheringStripTheme(skillType);
         RefreshSecondaryRowExpandedFromAssignments();
         NotifyPlayerStatsCombatPowerRelevantChange();
+        RefreshMinionControlBar();
     }
 
     /// <summary>
@@ -152,6 +153,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         RestoreGatheringStripCombatTheme();
         RefreshSecondaryRowExpandedFromSavedState();
         NotifyPlayerStatsCombatPowerRelevantChange();
+        RefreshMinionControlBar();
     }
 
     private void CacheGatheringStripVisualDefaults()
@@ -237,6 +239,82 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     /// <summary>First five combat ability loadout slots used for CP / DPS breakdown.</summary>
     public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateLoadoutAbilitySlots(5);
+
+    /// <summary>
+    /// True when <paramref name="abilityId"/> is assigned to any combat loadout ability slot (1–10),
+    /// including the frozen combat row while the gathering strip is shown.
+    /// </summary>
+    public bool HasAbilityOnLoadout(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        if (gatheringUiActive)
+        {
+            if (ContainsAbilityIdInSavedSlotList(frozenCombatLoadoutAbilities, abilityId, requireLoadoutAbilitySlot: true))
+                return true;
+
+            return false;
+        }
+
+        if (ContainsAbilityIdInLiveLoadoutSlots(abilityId))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(savedSlots, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(secondarySavedSlots, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        return false;
+    }
+
+    private bool ContainsAbilityIdInLiveLoadoutSlots(string abilityId)
+    {
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
+        {
+            ActionBarAssignment action = slot != null ? slot.AssignedAction : null;
+            if (action == null || !action.IsAssigned || !action.IsAbility)
+                continue;
+            if (string.Equals(action.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool ContainsAbilityIdInSavedSlotList(
+        System.Collections.Generic.List<SavedSlotState> list,
+        string abilityId,
+        bool requireLoadoutAbilitySlot)
+    {
+        if (list == null)
+            return false;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            SavedSlotState st = list[i];
+            if (st == null || string.IsNullOrWhiteSpace(st.id))
+                continue;
+            if (st.kind != (int)ActionBarAssignmentKind.Ability)
+                continue;
+            if (!string.Equals(st.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!requireLoadoutAbilitySlot)
+                return true;
+
+            ActionBarSlotUI slot = GetSlotByIndex(st.slotIndex);
+            if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+                continue;
+            if (GetLoadoutAbilityOrdinal(slot) < 0)
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Ability ids on the combat loadout used for CP / DPS breakdown. While the gathering strip is shown, uses the
@@ -711,6 +789,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         ResolveExpandUiRefs();
         _secondaryRowExpanded = false;
         RefreshSecondaryRowVisibility();
+        RefreshMinionControlBar();
     }
 
     private void OnEnable()
@@ -1268,7 +1347,17 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();
+        RefreshMinionControlBar();
     }
+
+    private void RefreshMinionControlBar()
+    {
+        ActionBarMinionControlUI minionControl = GetComponentInChildren<ActionBarMinionControlUI>(true);
+        minionControl?.RefreshFromActionBar();
+    }
+
+    /// <summary>Called after bar slots finish loading or when loadout/minion eligibility changes.</summary>
+    public void NotifyMinionControlBarChanged() => RefreshMinionControlBar();
 
     /// <summary>
     /// Used when multiple <see cref="ActionBarUI"/> instances exist (DDOL + scene HUD): <see cref="SaveManager"/>
@@ -1823,6 +1912,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
             CaptureSlotsToSavedState();
             activeCombatLoadoutSetIndex = nextSet;
+            RefreshMinionControlBar();
         }
         finally
         {
@@ -2253,6 +2343,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             pendingSavedStateApply = false;
             NotifyPlayerStatsCombatPowerRelevantChange();
             RefreshSecondaryRowExpandedFromSavedState();
+            RefreshMinionControlBar();
             return;
         }
 
