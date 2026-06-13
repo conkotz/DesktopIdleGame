@@ -379,9 +379,10 @@ public class SkillChoiceGroupUI : MonoBehaviour
             float nodeCenterX = nodeBounds.center.x;
             bool isSelected = selectedIndex == i;
             float nodeAttachY = nodeBounds.max.y - GetNodeConnectorReachIntoNode(isSelected) - nodeConnectorEndInset;
-            float dropHeight = branchY - nodeAttachY;
-            float branchHalfThickness = (isSelected ? SkillTimelineLineStyle.ProgressThickness : SkillTimelineLineStyle.LineThickness) * 0.5f;
-            float topOverlap = branchHalfThickness + connectorTopOverlap + (isSelected ? selectedConnectorTopExtraOverlap : 0f);
+            float blackHalf = SkillTimelineLineStyle.LineThickness * 0.5f;
+            float branchTopY = branchY + blackHalf;
+            float dropTopY = branchTopY - connectorTopOverlap;
+            float dropHeight = dropTopY - nodeAttachY;
 
             RectTransform drop = _choiceConnectorLines[i];
             bool showDrop = dropHeight > 0.5f;
@@ -389,12 +390,22 @@ public class SkillChoiceGroupUI : MonoBehaviour
             if (!showDrop)
                 continue;
 
+            float topExtend = 0f;
+            float bottomExtend = 0f;
+            if (isSelected)
+            {
+                topExtend = SkillTimelineLineStyle.GoldVerticalExtendTop + selectedConnectorTopExtraOverlap;
+                bottomExtend = SkillTimelineLineStyle.GoldVerticalExtendBottom;
+            }
+
             SkillTimelineLineStyle.ApplyVerticalBar(
                 drop,
                 nodeCenterX,
-                branchY + topOverlap,
-                dropHeight + topOverlap,
-                isSelected);
+                dropTopY,
+                dropHeight,
+                isSelected,
+                topExtend,
+                bottomExtend);
         }
 
         ApplySelectedPathHorizontal(nodeBoundsList, branchY, junctionX, selectedIndex);
@@ -435,17 +446,18 @@ public class SkillChoiceGroupUI : MonoBehaviour
         if (Mathf.Abs(selectedX - junctionX) <= SkillTimelineLineStyle.LineThickness * 0.5f)
             return;
 
-        float selectedHalfThickness = SkillTimelineLineStyle.ProgressThickness * 0.5f;
+        float selectedHalfThickness = SkillTimelineLineStyle.LineThickness * 0.5f;
+        float junctionOverlap = connectorCornerOverlap + selectedConnectorExtraJunctionOverlap;
         float x0;
         float x1;
         if (selectedX < junctionX)
         {
             x0 = selectedX + selectedHalfThickness - connectorCornerOverlap;
-            x1 = junctionX + connectorCornerOverlap + selectedConnectorExtraJunctionOverlap;
+            x1 = junctionX + junctionOverlap;
         }
         else
         {
-            x0 = junctionX - connectorCornerOverlap - selectedConnectorExtraJunctionOverlap;
+            x0 = junctionX - junctionOverlap;
             x1 = selectedX - selectedHalfThickness + connectorCornerOverlap;
         }
 
@@ -453,7 +465,13 @@ public class SkillChoiceGroupUI : MonoBehaviour
             return;
 
         stemLine.gameObject.SetActive(true);
-        SkillTimelineLineStyle.ApplyHorizontalBarBetween(stemLine, x0, x1, branchY, useProgressColor: true);
+        SkillTimelineLineStyle.ApplyHorizontalBarBetween(
+            stemLine,
+            x0,
+            x1,
+            branchY,
+            useProgressColor: true,
+            thicknessOverride: SkillTimelineLineStyle.LineThickness);
         stemLine.SetAsLastSibling();
     }
 

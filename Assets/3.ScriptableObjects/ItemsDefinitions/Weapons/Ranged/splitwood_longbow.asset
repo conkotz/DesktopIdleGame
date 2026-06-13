@@ -30,13 +30,14 @@ MonoBehaviour:
   rarity: 1
   value: 150
   equipSlot: 1
+  uniquelyEquipped: 0
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
   weaponStats:
-    minPhysicalDamage: 25
-    maxPhysicalDamage: 45
+    minPhysicalDamage: 12
+    maxPhysicalDamage: 25
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -193,6 +194,7 @@ MonoBehaviour:
     secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

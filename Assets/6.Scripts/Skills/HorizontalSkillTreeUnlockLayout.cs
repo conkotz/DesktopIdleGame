@@ -9,6 +9,30 @@ public static class HorizontalSkillTreeUnlockLayout
 {
     public const float SameLevelSlotSpacing = 28f;
 
+    public enum UnlockLabelPlacement
+    {
+        CenterAbove,
+        LeftSide,
+        RightSide
+    }
+
+    /// <summary>Side labels when multiple above-spine unlocks share a level.</summary>
+    public static UnlockLabelPlacement ResolveUnlockLabelPlacement(int slot, int slotCount)
+    {
+        if (slotCount <= 1)
+            return UnlockLabelPlacement.CenterAbove;
+
+        if (slotCount == 2)
+            return slot == 0 ? UnlockLabelPlacement.LeftSide : UnlockLabelPlacement.RightSide;
+
+        if (slot == 0)
+            return UnlockLabelPlacement.LeftSide;
+        if (slot == slotCount - 1)
+            return UnlockLabelPlacement.RightSide;
+
+        return UnlockLabelPlacement.CenterAbove;
+    }
+
     public readonly struct SortedUnlock
     {
         public readonly SkillUnlockDefinition Unlock;

@@ -101,6 +101,18 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     private Color _baseIconColor = Color.white;
     private Color _baseNameLabelColor = Color.white;
     private Color _baseNameLabelUnlocksColor = Color.white;
+    private bool _unlockLabelLayoutCached;
+    private Vector2 _defaultUnlockLabelAnchorMin;
+    private Vector2 _defaultUnlockLabelAnchorMax;
+    private Vector2 _defaultUnlockLabelPivot;
+    private Vector2 _defaultUnlockLabelAnchoredPosition;
+    private Vector2 _defaultUnlockLabelSizeDelta;
+    private TextAlignmentOptions _defaultUnlockLabelAlignment;
+    private float _defaultUnlockLabelFontSize = 13f;
+    private bool _unlockIconOffsetCached;
+    private Vector2 _defaultRootButtonAnchoredPosition;
+    private const float UnlockIconVisualOffsetY = 8f;
+    private const float UnlockLabelFontSizeDelta = 1f;
 
 #if UNITY_EDITOR
     private bool _deferredPreviewQueued;
@@ -556,9 +568,14 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     /// <summary>Unlock-only milestone row node: label above icon, centered on milestone X.</summary>
     public void ApplyUnlockTimelinePreview(
         string displayName,
-        SkillTimelineNodeState state = SkillTimelineNodeState.Available)
+        SkillTimelineNodeState state = SkillTimelineNodeState.Available,
+        HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement labelPlacement =
+            HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement.CenterAbove)
     {
         ApplyPreview(SkillTimelineNodeType.Unlock, state, displayName, minorPassiveLayout: false, hideNameLabel: true);
+        ApplyUnlockLabelLayout(labelPlacement);
+        ApplyUnlockIconVerticalOffset();
+        ApplyUnlockLabelFontSize();
     }
 
     /// <summary>Updates lock/available visuals in place (no destroy/instantiate).</summary>
@@ -1024,6 +1041,95 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
                     : _baseNameLabelUnlocksColor;
             }
         }
+    }
+
+    private void ApplyUnlockLabelLayout(HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement placement)
+    {
+        if (nameLabelUnlocks == null)
+            return;
+
+        CacheDefaultUnlockLabelLayout();
+
+        RectTransform labelRt = nameLabelUnlocks.rectTransform;
+        switch (placement)
+        {
+            case HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement.LeftSide:
+                labelRt.anchorMin = labelRt.anchorMax = new Vector2(0.5f, 0.5f);
+                labelRt.pivot = new Vector2(1f, 0.5f);
+                labelRt.anchoredPosition = new Vector2(-22f, 11f);
+                labelRt.sizeDelta = new Vector2(96f, 14f);
+                nameLabelUnlocks.alignment = TextAlignmentOptions.MidlineRight;
+                nameLabelUnlocks.textWrappingMode = TextWrappingModes.NoWrap;
+                break;
+
+            case HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement.RightSide:
+                labelRt.anchorMin = labelRt.anchorMax = new Vector2(0.5f, 0.5f);
+                labelRt.pivot = new Vector2(0f, 0.5f);
+                labelRt.anchoredPosition = new Vector2(22f, 11f);
+                labelRt.sizeDelta = new Vector2(96f, 14f);
+                nameLabelUnlocks.alignment = TextAlignmentOptions.MidlineLeft;
+                nameLabelUnlocks.textWrappingMode = TextWrappingModes.NoWrap;
+                break;
+
+            default:
+                labelRt.anchorMin = _defaultUnlockLabelAnchorMin;
+                labelRt.anchorMax = _defaultUnlockLabelAnchorMax;
+                labelRt.pivot = _defaultUnlockLabelPivot;
+                labelRt.anchoredPosition = _defaultUnlockLabelAnchoredPosition;
+                labelRt.sizeDelta = _defaultUnlockLabelSizeDelta;
+                nameLabelUnlocks.alignment = _defaultUnlockLabelAlignment;
+                break;
+        }
+    }
+
+    private void CacheDefaultUnlockLabelLayout()
+    {
+        if (_unlockLabelLayoutCached || nameLabelUnlocks == null)
+            return;
+
+        RectTransform labelRt = nameLabelUnlocks.rectTransform;
+        _defaultUnlockLabelAnchorMin = labelRt.anchorMin;
+        _defaultUnlockLabelAnchorMax = labelRt.anchorMax;
+        _defaultUnlockLabelPivot = labelRt.pivot;
+        _defaultUnlockLabelAnchoredPosition = labelRt.anchoredPosition;
+        _defaultUnlockLabelSizeDelta = labelRt.sizeDelta;
+        _defaultUnlockLabelAlignment = nameLabelUnlocks.alignment;
+        _defaultUnlockLabelFontSize = nameLabelUnlocks.fontSize;
+        _unlockLabelLayoutCached = true;
+    }
+
+    private void ApplyUnlockLabelFontSize()
+    {
+        if (nameLabelUnlocks == null)
+            return;
+
+        CacheDefaultUnlockLabelLayout();
+        nameLabelUnlocks.fontSize = Mathf.Max(1f, _defaultUnlockLabelFontSize - UnlockLabelFontSizeDelta);
+    }
+
+    private void ApplyUnlockIconVerticalOffset()
+    {
+        EnsureReferences();
+        if (rootButton == null)
+            return;
+
+        CacheDefaultRootButtonLayout();
+        RectTransform buttonRt = rootButton.transform as RectTransform;
+        if (buttonRt == null)
+            return;
+
+        buttonRt.anchoredPosition = _defaultRootButtonAnchoredPosition + new Vector2(0f, UnlockIconVisualOffsetY);
+    }
+
+    private void CacheDefaultRootButtonLayout()
+    {
+        if (_unlockIconOffsetCached || rootButton == null)
+            return;
+
+        RectTransform buttonRt = rootButton.transform as RectTransform;
+        if (buttonRt != null)
+            _defaultRootButtonAnchoredPosition = buttonRt.anchoredPosition;
+        _unlockIconOffsetCached = true;
     }
 
     private Color GetTypeColor(SkillTimelineNodeType nodeType)

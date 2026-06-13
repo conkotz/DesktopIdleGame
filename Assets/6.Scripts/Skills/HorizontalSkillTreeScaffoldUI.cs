@@ -95,6 +95,9 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         EnsureDetailsPanelReference();
         CacheRowContainers();
 
+        if (HasSpawnedTimelineContent())
+            BringSpineMinorNodesToFront();
+
         // SkillsAbilityPageNewUI drives open refresh and scroll restore; skip connector pass here (causes scroll jiggle).
         if (GetComponentInParent<SkillsAbilityPageNewUI>(true) != null)
             return;
@@ -162,6 +165,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             SkillTimelineNodeBinding restoreDetailsBinding = CaptureOpenDetailsBinding();
             EnsureTimelineReady();
             ClearSpawnedContent(dismissDetailsPanel: restoreDetailsBinding == null);
+            RefreshSpineRowChrome();
             if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             {
                 _builtSkill = skill;
@@ -189,6 +193,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
             RefreshSkillLevelLabel(skill, playerLevel);
             RefreshSpineProgress(playerLevel);
+            RefreshMinorTickVisibility();
             BringSpineMinorNodesToFront();
             RefreshRowSelectionVisuals();
             _scrollRestoreAfterLayout = savedScroll;
@@ -430,6 +435,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         _builtSkill = null;
         EnsureTimelineReady();
         ClearSpawnedContent();
+        RefreshSpineRowChrome();
 
         SpawnMinorPassive(1, 0, 1);
         SpawnMinorPassive(2, 0, 1);
@@ -444,6 +450,9 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         LogBuildHeader(null, 0, 0, 1);
 
+        RefreshSpineProgress(1);
+        RefreshMinorTickVisibility();
+        BringSpineMinorNodesToFront();
         QueueDeferredConnectorRefresh();
     }
 
@@ -529,6 +538,9 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         var majorEntries = new List<HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry>();
         var capstoneEntries = new List<HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry>();
 
+        int spineMinorSlot = 0;
+        int aboveSpineSlot = 0;
+
         for (int i = 0; i < group.Unlocks.Count; i++)
         {
             HorizontalSkillTreeUnlockLayout.SortedUnlock entry = group.Unlocks[i];
@@ -542,15 +554,18 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (HorizontalSkillTreeUnlockLayout.IsSpineMinorType(type))
             {
                 int count = spineSlotCounts.TryGetValue(level, out int c) ? c : 1;
-                float x = HorizontalSkillTreeUnlockLayout.SlotAnchoredX(milestoneX, entry.SlotAtLevel, count);
+                float x = HorizontalSkillTreeUnlockLayout.SlotAnchoredX(milestoneX, spineMinorSlot, count);
+                spineMinorSlot++;
                 SpawnMinorPassive(level, entry, x, state);
             }
             else if (HorizontalSkillTreeUnlockLayout.IsAboveSpineType(type))
             {
                 int count = aboveSlotCounts.TryGetValue(level, out int c) ? c : 1;
-                float x = HorizontalSkillTreeUnlockLayout.SlotAnchoredX(milestoneX, entry.SlotAtLevel, count);
+                float x = HorizontalSkillTreeUnlockLayout.SlotAnchoredX(milestoneX, aboveSpineSlot, count);
                 string title = SkillsAbilityPresentationResolver.ResolveTreeUnlockTitle(unlock);
-                SpawnUnlock(level, entry, count, title, x, state);
+                var labelPlacement = HorizontalSkillTreeUnlockLayout.ResolveUnlockLabelPlacement(aboveSpineSlot, count);
+                aboveSpineSlot++;
+                SpawnUnlock(level, entry, count, title, x, state, labelPlacement);
             }
         }
 
@@ -640,6 +655,13 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         CacheRowContainers();
     }
 
+    private void RefreshSpineRowChrome()
+    {
+        CacheRowContainers();
+        if (timelineScaffold != null && _spineRow != null)
+            timelineScaffold.RefreshSpineChrome(_spineRow);
+    }
+
     private void CacheRowContainers()
     {
         if (timelineContent == null)
@@ -698,7 +720,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RefreshChoiceGroupLayouts();
 
         float spine = ResolveSpineConnectorY();
-        ConnectAllUnlockNodes(connectors, spine);
         ConnectChoiceGroupsToSpine(connectors, spine);
         ConnectSingleChoiceRowNodesToSpine(connectors, spine);
     }
@@ -731,13 +752,12 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 continue;
 
             bool highlightSpineStem = TryGetCommittedChoiceSlotIndex(group, out _);
-            float extendEnd = group.GetConnectorCornerOverlap();
             timelineScaffold.DrawConnector(
                 connectors,
                 spineAttach,
                 branchAttach,
-                extendBeyondStart: SkillTimelineScaffoldUI.ConnectorSpineOverlap,
-                extendBeyondEnd: extendEnd,
+                extendBeyondStart: 0f,
+                extendBeyondEnd: highlightSpineStem ? SkillTimelineScaffoldUI.GoldSpineConnectorExtendPastBranch : 0f,
                 useProgressColor: highlightSpineStem);
         }
     }
@@ -768,31 +788,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 spineAttach,
                 nodeAttach,
                 extendBeyondStart: SkillTimelineScaffoldUI.ConnectorSpineOverlap,
-                extendBeyondEnd: 0f,
+                extendBeyondEnd: highlight ? SkillTimelineScaffoldUI.GoldSpineConnectorExtendPastBranch : 0f,
                 useProgressColor: highlight);
-        }
-    }
-
-    private void ConnectAllUnlockNodes(RectTransform connectors, float spineY)
-    {
-        if (_unlockRow == null || timelineContent == null)
-            return;
-
-        for (int i = 0; i < _unlockRow.childCount; i++)
-        {
-            Transform child = _unlockRow.GetChild(i);
-            if (!child.TryGetComponent(out SkillTimelineNodeUI _))
-                continue;
-
-            if (TryGetUnlockConnectorPoints(child.name, spineY, out Vector2 spineAttach, out Vector2 nodeAttach))
-            {
-                timelineScaffold.DrawConnector(
-                    connectors,
-                    spineAttach,
-                    nodeAttach,
-                    extendBeyondStart: SkillTimelineScaffoldUI.ConnectorSpineOverlap,
-                    extendBeyondEnd: 0f);
-            }
         }
     }
 
@@ -814,30 +811,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (child.GetComponent<SkillTimelineNodeUI>() != null ||
                 child.GetComponent<SkillChoiceGroupUI>() != null)
                 return true;
-        }
-
-        return false;
-    }
-
-    private bool TryGetUnlockConnectorPoints(string objectName, float spineY, out Vector2 spineAttach, out Vector2 nodeAttach)
-    {
-        spineAttach = default;
-        nodeAttach = default;
-        if (_unlockRow == null || timelineContent == null || string.IsNullOrEmpty(objectName))
-            return false;
-
-        for (int i = 0; i < _unlockRow.childCount; i++)
-        {
-            Transform child = _unlockRow.GetChild(i);
-            if (child.name != objectName || !child.TryGetComponent(out SkillTimelineNodeUI _))
-                continue;
-
-            Transform rootButton = child.Find("RootButton");
-            RectTransform measureRt = rootButton != null ? rootButton as RectTransform : (RectTransform)child;
-            Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(timelineContent, measureRt);
-            nodeAttach = new Vector2(bounds.center.x, bounds.min.y);
-            spineAttach = new Vector2(nodeAttach.x, spineY);
-            return true;
         }
 
         return false;
@@ -1081,32 +1054,43 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         BringSpineMinorNodesToFront();
     }
 
-    /// <summary>Keeps spine minor gems above spine line / progress chrome (stable sibling order).</summary>
+    /// <summary>Keeps spine minor gems above spine progress and minor level ticks.</summary>
     private void BringSpineMinorNodesToFront()
     {
+        if (_spineRow == null && timelineContent != null)
+            CacheRowContainers();
         if (_spineRow == null)
             return;
 
-        Transform spineLine = _spineRow.Find("SpineLine");
-        Transform progress = _spineRow.Find("SpineProgressLine");
-        Transform ticks = _spineRow.Find("LevelTicks");
+        SkillTimelineScaffoldUI.ApplySpineRowDrawOrder(_spineRow);
+    }
 
-        int index = 0;
-        if (spineLine != null)
-            spineLine.SetSiblingIndex(index++);
-        if (progress != null)
-            progress.SetSiblingIndex(index++);
-        if (ticks != null)
-            ticks.SetSiblingIndex(index++);
+    /// <summary>Hides level ticks on non-milestone levels that have a spine minor node.</summary>
+    private void RefreshMinorTickVisibility()
+    {
+        if (_spineRow == null)
+            CacheRowContainers();
+        if (_spineRow == null)
+            return;
 
-        for (int i = 0; i < _spineRow.childCount; i++)
+        var levelsWithMinors = new HashSet<int>();
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
         {
-            Transform child = _spineRow.GetChild(i);
-            if (child == spineLine || child == progress || child == ticks)
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            SkillTimelineNodeBinding binding = node != null ? node.Binding : null;
+            if (binding == null)
                 continue;
-            if (child.GetComponent<SkillTimelineNodeUI>() != null)
-                child.SetSiblingIndex(index++);
+
+            if (binding.TimelineNodeType != SkillTimelineNodeUI.SkillTimelineNodeType.MinorPassive)
+                continue;
+
+            if (SkillTimelineScaffoldUI.IsLabeledMilestoneLevel(binding.Level))
+                continue;
+
+            levelsWithMinors.Add(binding.Level);
         }
+
+        SkillTimelineScaffoldUI.HideMinorTicksForLevels(_spineRow, levelsWithMinors);
     }
 
     private static SkillTimelineNodeUI.SkillTimelineNodeState ResolveDisplayState(int unlockLevel, int playerLevel) =>
@@ -1179,11 +1163,13 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         int slotCount,
         string label,
         float x,
-        SkillTimelineNodeUI.SkillTimelineNodeState state)
+        SkillTimelineNodeUI.SkillTimelineNodeState state,
+        HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement labelPlacement =
+            HorizontalSkillTreeUnlockLayout.UnlockLabelPlacement.CenterAbove)
     {
         SpawnNodeInRow(_unlockRow, new Vector2(x, -4f), $"Unlock_Lv{level}_{entry.SlotAtLevel}", node =>
         {
-            node.ApplyUnlockTimelinePreview(label, state);
+            node.ApplyUnlockTimelinePreview(label, state, labelPlacement);
             BindTimelineNode(node, entry.Unlock, null, -1, level, entry.SlotAtLevel,
                 SkillTimelineNodeUI.SkillTimelineNodeType.Unlock, state);
         });
@@ -1502,6 +1488,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RefreshStandaloneChoiceRowNodes();
         RefreshRowSelectionButtons();
         RefreshConnectorSelectionHighlights();
+        BringSpineMinorNodesToFront();
     }
 
     private void RefreshConnectorSelectionHighlights()
@@ -1532,7 +1519,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         float spineY = ResolveSpineConnectorY();
         SkillTimelineScaffoldUI.ClearConnectorChildren(connectors);
-        ConnectAllUnlockNodes(connectors, spineY);
         ConnectChoiceGroupsToSpine(connectors, spineY);
         ConnectSingleChoiceRowNodesToSpine(connectors, spineY);
     }

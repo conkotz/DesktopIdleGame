@@ -10,6 +10,10 @@ public static class SkillTimelineLineStyle
     /// <summary>Gold progress overlay on the spine — slightly thicker than <see cref="LineThickness"/>.</summary>
     public const float ProgressThickness = 5f;
 
+    /// <summary>Extra length on gold vertical connectors so they fully cover the black line underneath.</summary>
+    public const float GoldVerticalExtendTop = 1f;
+    public const float GoldVerticalExtendBottom = 1f;
+
     /// <summary>Really dark brown — all dark timeline lines use this.</summary>
     public static readonly Color LineColor = new(0.1f, 0.075f, 0.055f, 1f);
 
@@ -59,14 +63,20 @@ public static class SkillTimelineLineStyle
     }
 
     /// <summary>Horizontal segment clipped exactly between two X positions (no center-pivot overhang).</summary>
-    public static void ApplyHorizontalBarBetween(RectTransform rt, float x0, float x1, float centerY, bool useProgressColor = false)
+    public static void ApplyHorizontalBarBetween(
+        RectTransform rt,
+        float x0,
+        float x1,
+        float centerY,
+        bool useProgressColor = false,
+        float? thicknessOverride = null)
     {
         if (rt == null)
             return;
 
         float left = Mathf.Min(x0, x1);
         float right = Mathf.Max(x0, x1);
-        float thickness = useProgressColor ? ProgressThickness : LineThickness;
+        float thickness = thicknessOverride ?? (useProgressColor ? ProgressThickness : LineThickness);
         float width = Mathf.Max(thickness, right - left);
 
         rt.localScale = Vector3.one;
@@ -78,7 +88,14 @@ public static class SkillTimelineLineStyle
         Apply(rt.GetComponent<Image>(), useProgressColor ? ProgressColor : null);
     }
 
-    public static void ApplyVerticalBar(RectTransform rt, float centerX, float topY, float height, bool useProgressColor = false)
+    public static void ApplyVerticalBar(
+        RectTransform rt,
+        float centerX,
+        float topY,
+        float height,
+        bool useProgressColor = false,
+        float extraTopExtend = 0f,
+        float extraBottomExtend = 0f)
     {
         if (rt == null)
             return;
@@ -88,8 +105,8 @@ public static class SkillTimelineLineStyle
         rt.localRotation = Quaternion.identity;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(centerX, topY);
-        rt.sizeDelta = new Vector2(thickness, Mathf.Max(thickness, height));
+        rt.anchoredPosition = new Vector2(centerX, topY + extraTopExtend);
+        rt.sizeDelta = new Vector2(thickness, Mathf.Max(thickness, height + extraTopExtend + extraBottomExtend));
         Apply(rt.GetComponent<Image>(), useProgressColor ? ProgressColor : null);
     }
 

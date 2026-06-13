@@ -22,7 +22,25 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Low Tier Trees
+    title: T1 Axes
+    description: 'Can equip tier 1 axes:
+
+      Stone Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Splitwood Trees
     description: Can chop Splitwood trees
     icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
     unlockType: 2
@@ -170,6 +188,24 @@ MonoBehaviour:
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 51
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: T2 Axes
+    description: 'Can equip tier 2 axes:
+
+      Iron Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -416,8 +452,26 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
-    title: Medium Tier Trees
-    description: Can chop Wildwood trees
+    title: T3 Axes
+    description: 'Can equip tier 3 axes:
+
+      Steel Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
+    title: Hardwood Trees
+    description: Can chop Hardwood Trees
     icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -611,6 +665,24 @@ MonoBehaviour:
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 2
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: T4 Axes
+    description: 'Can equip tier 4 axes:
+
+      Gold Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -821,8 +893,26 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 40
-    title: Chop High Tier Trees
-    description: Can chop Hardwood Trees
+    title: T5 Axes
+    description: 'Can equip tier 5 axes:
+
+      ??'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: Wildwood Trees
+    description: Can chop Wildwood Trees
     icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -1002,96 +1092,6 @@ MonoBehaviour:
       not apply to cleaved chops or logs gained from Spectral Axe).
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 1
-    title: Tier 1 Axes
-    description: 'Can equip tier 1 axes:
-
-      Stone Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 10
-    title: Tier 2 Axes
-    description: 'Can equip tier 2 axes:
-
-      Iron Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 20
-    title: Tier 3 Axes
-    description: 'Can equip tier 3 axes:
-
-      Steel Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 30
-    title: Tier 4 Axes
-    description: 'Can equip tier 4 axes:
-
-      Gold Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 40
-    title: Tier 5 Axes
-    description: 'Can equip tier 5 axes:
-
-      ??'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
-    unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0

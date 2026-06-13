@@ -276,6 +276,75 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return false;
     }
 
+    /// <summary>
+    /// True when Soulforged Weapon or Warrior is on combat action-bar set 1 or 2 (saved loadouts).
+    /// Does not use live slot paint while saved state is still applying — avoids stale UI on load.
+    /// </summary>
+    public bool HasMinionAbilityOnCombatLoadouts()
+    {
+        if (ContainsMinionAbilityInSavedCombatSet(savedSlots))
+            return true;
+
+        if (ContainsMinionAbilityInSavedCombatSet(secondarySavedSlots))
+            return true;
+
+        if (gatheringUiActive && ContainsMinionAbilityInSavedCombatSet(frozenCombatLoadoutAbilities))
+            return true;
+
+        if (IsSavedStateApplyPending)
+            return false;
+
+        return ContainsMinionAbilityInLiveLoadoutSlots();
+    }
+
+    private static bool IsMinionCombatAbilityId(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        return string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool ContainsMinionAbilityInSavedCombatSet(List<SavedSlotState> list)
+    {
+        if (list == null)
+            return false;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            SavedSlotState st = list[i];
+            if (st == null || st.kind != (int)ActionBarAssignmentKind.Ability)
+                continue;
+            if (!IsMinionCombatAbilityId(st.id))
+                continue;
+
+            ActionBarSlotUI slot = GetSlotByIndex(st.slotIndex);
+            if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+                continue;
+            if (GetLoadoutAbilityOrdinal(slot) < 0)
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool ContainsMinionAbilityInLiveLoadoutSlots()
+    {
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
+        {
+            ActionBarAssignment action = slot != null ? slot.AssignedAction : null;
+            if (action == null || !action.IsAssigned || !action.IsAbility)
+                continue;
+            if (IsMinionCombatAbilityId(action.id))
+                return true;
+        }
+
+        return false;
+    }
+
     private bool ContainsAbilityIdInLiveLoadoutSlots(string abilityId)
     {
         foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())

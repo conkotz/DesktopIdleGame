@@ -37,6 +37,40 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 1
+    title: T1 Fishing Rods
+    description: 'Can equip tier 1 fishing rods:
+
+      Wooden Rod'
+    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Fish
+    description: "Can catch fish in ponds \n-Common-"
+    icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
   - requiredLevel: 2
     title: Fishing Speed 1
     description: +2% Fishing Speed
@@ -47,6 +81,22 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 10
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Perch
+    description: "Can catch perch in ponds \n-Common-"
+    icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
@@ -172,6 +222,40 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 30
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: T2 Fishing Rods
+    description: 'Can equip tier 2 fishing rods:
+
+      Sturdy Rod'
+    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: Pike
+    description: "Can catch Pike in ponds \n-Uncommon-"
+    icon: {fileID: -1286585359, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
@@ -415,6 +499,24 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
+    title: T2 Fishing Rods
+    description: 'Can equip tier 3 fishing rods:
+
+      Advanced Rod'
+    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
     title: Fishing Efficiency 4
     description: -2% Fishing Stamina Cost
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -575,6 +677,24 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 30
+    title: T4 Fishing Rods
+    description: 'Can equip tier 4 fishing rods:
+
+      Perfect Rod'
+    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
     title: Fishing Bonus Find 5
     description: +3% Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -713,6 +833,24 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 32
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: T5 Fishing Rods
+    description: 'Can equip tier 5 fishing rods:
+
+      ??'
+    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
@@ -869,144 +1007,6 @@ MonoBehaviour:
     description: Placeholder capstone row for fishing.
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 1
-    title: Fish
-    description: "Can catch fish in ponds \n-Common-"
-    icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
-    unlockType: 5
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 3
-    title: Perch
-    description: "Can catch perch in ponds \n-Common-"
-    icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
-    unlockType: 5
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 10
-    title: Pike
-    description: "Can catch Pike in ponds \n-Uncommon-"
-    icon: {fileID: -1286585359, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
-    unlockType: 5
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 1
-    title: Tier 1 Fishing Rods
-    description: 'Can equip tier 1 fishing rods:
-
-      Wooden Rod'
-    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 10
-    title: Tier 2 Fishing Rods
-    description: 'Can equip tier 2 fishing rods:
-
-      Sturdy Rod'
-    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 20
-    title: Tier 3 Fishing Rods
-    description: 'Can equip tier 3 fishing rods:
-
-      Advanced Rod'
-    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 30
-    title: Tier 4 Fishing Rods
-    description: 'Can equip tier 4 fishing rods:
-
-      Perfect Rod'
-    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 40
-    title: Tier 5 Fishing Rods
-    description: 'Can equip tier 5 fishing rods:
-
-      ??'
-    icon: {fileID: 5268473884595868589, guid: 6e557fed70d9a81469c2f138f3c9c0d4, type: 3}
-    unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0

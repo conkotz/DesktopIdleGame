@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Wires Aggressive / Assist / Passive minion commands on <see cref="ActionBarUI"/>.
-/// Shown only while Soulforged Warrior is on the combat action bar loadout.
+/// Shown only while Soulforged Weapon or Warrior is on combat action-bar set 1 or 2.
 /// </summary>
 [DisallowMultipleComponent]
 public class ActionBarMinionControlUI : MonoBehaviour
@@ -50,6 +50,16 @@ public class ActionBarMinionControlUI : MonoBehaviour
 
     private IEnumerator CoDeferredRefresh()
     {
+        const float savedStateTimeoutSeconds = 15f;
+        float waitStart = Time.unscaledTime;
+
+        while (actionBar != null &&
+               actionBar.IsSavedStateApplyPending &&
+               Time.unscaledTime - waitStart < savedStateTimeoutSeconds)
+        {
+            yield return null;
+        }
+
         yield return null;
         RefreshFromActionBar();
     }
@@ -65,8 +75,7 @@ public class ActionBarMinionControlUI : MonoBehaviour
 
     private bool ShouldShowMinionControls()
     {
-        return actionBar != null &&
-               actionBar.HasAbilityOnLoadout(AbilityCombatPower.SoulforgedWarriorAbilityId);
+        return actionBar != null && actionBar.HasMinionAbilityOnCombatLoadouts();
     }
 
     private void ResolveRefs()

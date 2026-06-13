@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler, IItemTooltipHoverSource
 {
     [Header("UI")]
     [SerializeField] private Image icon;
@@ -113,11 +113,13 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private void OnDisable()
     {
         _isPointerOver = false;
+        ItemTooltipHoverRegistry.SetHovered(this, false);
         tooltip?.Hide();
     }
 
     private void OnDestroy()
     {
+        ItemTooltipHoverRegistry.SetHovered(this, false);
         if (_isPointerOver)
             tooltip?.Hide();
     }
@@ -328,14 +330,18 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
+        ItemTooltipHoverRegistry.SetHovered(this, true);
         ShowTooltip();
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         _isPointerOver = false;
+        ItemTooltipHoverRegistry.SetHovered(this, false);
         tooltip?.Hide();
     }
+
+    public void RefreshTooltipIfHovered() => RefreshHoveredTooltip();
 
     private bool CanShowTooltip()
     {
@@ -380,6 +386,8 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     ? _merchant.GetPriceTooltipText(_entry)
     : null;
 
+        bool showRandomStatPool = ItemTooltipAdvancedInput.IsHeld && _def.HasRandomStatPool;
+
         tooltip.ShowAt(
             transform,
             _def,
@@ -388,7 +396,8 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             valueOverride: null,
             valueLabelOverride: "Cost",
             customValueOverride: customPrice,
-            maskUnrolledRandomStats: _def != null && _def.HasRandomStatPool
+            maskUnrolledRandomStats: !showRandomStatPool && _def.HasRandomStatPool,
+            showRandomStatPoolOptions: showRandomStatPool
         );
     }
 }
