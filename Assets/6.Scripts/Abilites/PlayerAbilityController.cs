@@ -855,8 +855,9 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Ends active minion summons, channeled abilities, and timed buffs when their ability is no longer on the visible action bar.
-    /// Called on slot assignment changes, loadout swaps, and each frame as a safety net.
+    /// Ends active minion summons, channeled abilities, and timed buffs when their ability is no longer
+    /// assigned to any loadout slot (combat set 1/2 or any gathering strip). Set swaps alone do not count
+    /// as removal. Called on slot assignment changes and each frame as a safety net.
     /// </summary>
     public void HandleActionBarAssignmentsChanged()
     {
@@ -7373,11 +7374,8 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (projectile == null) yield break;
 
-            // Re-acquire only if the locked-in target depleted or got destroyed. We don't widen the
-            // search — the axe is fixed at this destination, so we only ever consider trees still
-            // inside its area.
+            // Re-acquire only if the locked-in target was destroyed. Depleted trees keep gathering at the depleted rate.
             if (_spectralAxeGatherTarget == null ||
-                _spectralAxeGatherTarget.IsDepleted ||
                 _spectralAxeGatherTarget.Definition == null)
             {
                 _spectralAxeGatherTarget = FindClosestWoodcuttingNodeInAxeArea(axeCenter);
@@ -7886,6 +7884,9 @@ public class PlayerAbilityController : MonoBehaviour
         radiusWorld = SpectralAxeAreaRadius;
         return true;
     }
+
+    /// <summary>Woodcutting tree the parked Spectral Axe is currently gathering from (null when inactive).</summary>
+    public ResourceNode SpectralAxeGatherTarget => IsSpectralAxeActive ? _spectralAxeGatherTarget : null;
 
     /// <summary>
     /// Called on successful primary hit release. Returns whether cleaving is active and how many extra targets to attempt.

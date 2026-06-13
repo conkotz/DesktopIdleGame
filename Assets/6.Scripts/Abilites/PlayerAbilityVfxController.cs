@@ -2370,8 +2370,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
     }
 
     /// <summary>
-    /// Draws a small white/green outline on nearby woodcutting tree colliders while gathering buffs are active.
-    /// Green when the tree is inside Cleaving Chop, Spectral Axe, or Avatar of the Forest range.
+    /// Draws green/white outlines on woodcutting tree colliders while gathering buffs are active.
+    /// Spectral Axe: green box only on its locked gather target (including when depleted).
+    /// Avatar of the Forest: green on the tree the player is actively cutting; other trees use replenish range.
+    /// Cleaving Chop: green in range, white on other nearby trees.
     /// </summary>
     public void UpdateWoodcuttingTreeRangeOutlines(PlayerAbilityController abilities)
     {
@@ -2382,15 +2384,46 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         bool cleavingActive = abilities.IsCleavingChopActive;
-        bool spectralActive = abilities.TryGetSpectralAxeGatherArea(out Vector3 spectralCenter, out float spectralRadius);
+        ResourceNode spectralTarget = abilities.SpectralAxeGatherTarget;
+        bool spectralActive = spectralTarget != null;
         bool avatarActive = abilities.IsAvatarOfTheForestActive;
+        ResourceNode primaryTarget = player.CurrentTarget;
+        bool avatarPrimaryGatherActive = avatarActive && IsPlayerWoodcuttingTarget(primaryTarget);
         if (!cleavingActive && !spectralActive && !avatarActive)
         {
             ClearWoodcuttingTreeRangeOutlines();
             return;
         }
 
-        ResourceNode primaryTarget = player.CurrentTarget;
+        _woodcuttingTreeOutlineScratch.Clear();
+
+        if (spectralActive && TryGetResourceNodeColliderBounds(spectralTarget, out Bounds spectralBounds))
+        {
+            LineRenderer spectralOutline = EnsureWoodcuttingTreeOutline(spectralTarget);
+            if (spectralOutline != null)
+            {
+                ApplyWoodcuttingTreeOutlineBounds(spectralOutline, spectralBounds, woodcuttingTreeOutlineInRangeColor);
+                _woodcuttingTreeOutlineScratch.Add(spectralTarget);
+            }
+        }
+
+        if (avatarPrimaryGatherActive &&
+            TryGetResourceNodeColliderBounds(primaryTarget, out Bounds avatarPrimaryBounds))
+        {
+            LineRenderer avatarPrimaryOutline = EnsureWoodcuttingTreeOutline(primaryTarget);
+            if (avatarPrimaryOutline != null)
+            {
+                ApplyWoodcuttingTreeOutlineBounds(avatarPrimaryOutline, avatarPrimaryBounds, woodcuttingTreeOutlineInRangeColor);
+                _woodcuttingTreeOutlineScratch.Add(primaryTarget);
+            }
+        }
+
+        if (!cleavingActive && !avatarActive)
+        {
+            RemoveStaleWoodcuttingTreeOutlines();
+            return;
+        }
+
         Vector3 cleavingOrigin = default;
         float cleavingRange = 0f;
         bool cleavingOriginReady = cleavingActive &&
@@ -2410,18 +2443,27 @@ public class PlayerAbilityVfxController : MonoBehaviour
             scanRadius = Mathf.Max(scanRadius, cleavingRange);
         if (avatarRange > 0f)
             scanRadius = Mathf.Max(scanRadius, avatarRange);
-        if (spectralActive)
-            scanRadius = Mathf.Max(scanRadius, Vector3.Distance(player.transform.position, spectralCenter) + spectralRadius);
 
         Vector3 playerPos = player.transform.position;
         float scanRadiusSqr = scanRadius * scanRadius;
 
-        _woodcuttingTreeOutlineScratch.Clear();
         ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
         for (int i = 0; i < all.Length; i++)
         {
             ResourceNode node = all[i];
             if (!ShouldDrawWoodcuttingTreeRangeOutline(node))
+                continue;
+
+            if (spectralActive && node == spectralTarget)
+                continue;
+
+            if (avatarPrimaryGatherActive && node == primaryTarget)
+                continue;
+
+            if (spectralActive &&
+                spectralTarget != null &&
+                node == primaryTarget &&
+                node != spectralTarget)
                 continue;
 
             if (!TryGetResourceNodeColliderBounds(node, out Bounds bounds))
@@ -2437,12 +2479,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
             if (cleavingOriginReady &&
                 node != primaryTarget &&
                 IsWoodcuttingNodeWithinPivotRange(node, cleavingOrigin, cleavingRange))
-            {
-                inRange = true;
-            }
-
-            if (spectralActive &&
-                IsWoodcuttingNodeWithinColliderEdgeRange(node, spectralCenter, spectralRadius))
             {
                 inRange = true;
             }
@@ -2463,6 +2499,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
             _woodcuttingTreeOutlineScratch.Add(node);
         }
 
+        RemoveStaleWoodcuttingTreeOutlines();
+    }
+
+    private void RemoveStaleWoodcuttingTreeOutlines()
+    {
         if (_woodcuttingTreeOutlineByNode.Count == 0)
             return;
 
@@ -2488,6 +2529,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         for (int i = 0; i < _woodcuttingTreeOutlineRemoveScratch.Count; i++)
             RemoveWoodcuttingTreeOutline(_woodcuttingTreeOutlineRemoveScratch[i]);
+    }
+
+    private bool IsPlayerWoodcuttingTarget(ResourceNode node)
+    {
+        if (player == null || node == null || node.ActionType != NodeAction.Woodcutting)
+            return false;
+
+        return player.CurrentAction == PlayerController.PlayerAction.Woodcutting && player.CurrentTarget == node;
     }
 
     private static bool ShouldDrawWoodcuttingTreeRangeOutline(ResourceNode node)

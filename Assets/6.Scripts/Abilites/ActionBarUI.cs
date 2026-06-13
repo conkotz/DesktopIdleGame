@@ -241,10 +241,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateLoadoutAbilitySlots(5);
 
     /// <summary>
-    /// True when <paramref name="abilityId"/> is assigned to a visible combat loadout ability slot (1–10),
-    /// including the frozen combat row while the gathering strip is shown. Uses live slot assignments only.
-    /// While the gathering strip is active, live slots show gathering abilities; frozen combat slots are also
-    /// checked so combat abilities (e.g. minion controls) stay tied to the combat loadout.
+    /// True when <paramref name="abilityId"/> is assigned to any action-bar loadout ability slot (1–10)
+    /// across combat set 1, combat set 2, and all three gathering skill strips — not only the row
+    /// currently painted on the bar. Set swaps (combat 1/2, W/M/F, combat ↔ gathering) therefore
+    /// do not count as removing an ability; only clearing/replacing a slot does.
     /// </summary>
     public bool HasAbilityOnLoadout(string abilityId)
     {
@@ -254,8 +254,24 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (ContainsAbilityIdInLiveLoadoutSlots(abilityId))
             return true;
 
-        if (gatheringUiActive)
-            return ContainsAbilityIdInSavedSlotList(frozenCombatLoadoutAbilities, abilityId, requireLoadoutAbilitySlot: true);
+        if (ContainsAbilityIdInSavedSlotList(savedSlots, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(secondarySavedSlots, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(gatheringSlotsWoodcutting, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(gatheringSlotsMining, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (ContainsAbilityIdInSavedSlotList(gatheringSlotsFishing, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
+
+        if (gatheringUiActive &&
+            ContainsAbilityIdInSavedSlotList(frozenCombatLoadoutAbilities, abilityId, requireLoadoutAbilitySlot: true))
+            return true;
 
         return false;
     }
