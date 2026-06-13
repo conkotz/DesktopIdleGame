@@ -303,6 +303,10 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
         if (IsActionBarWindow(memoryKey))
             ActionBarUI.SyncWindowOnPivotLayoutApplied(windowRect);
+
+        UIWindowCornerResize resize = windowRect.GetComponent<UIWindowCornerResize>();
+        if (resize != null)
+            resize.ApplyLayoutScaleFromSnapshot(windowRect.localScale);
     }
 
     private void EnsureQuestTrackerTopAnchoredLayout()
@@ -326,6 +330,32 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
     public UIWindowLayoutPrefs.Snapshot GetCurrentSnapshot() =>
         windowRect ? UIWindowLayoutPrefs.Capture(windowRect) : default;
+
+    /// <summary>Saved pivot layout for move-pivots ghosts — never the player's in-session window position.</summary>
+    public UIWindowLayoutPrefs.Snapshot GetSavedPivotSnapshotForEditing()
+    {
+        if (UIWindowLayoutPrefs.TryLoad(memoryKey, out UIWindowLayoutPrefs.Snapshot snapshot))
+            return snapshot;
+
+        CaptureFactoryIfNeeded();
+        if (_factoryCaptured)
+            return _factorySnapshot;
+
+        return default;
+    }
+
+    /// <summary>Where the window actually is this play session (for align-pivots-to-current).</summary>
+    public UIWindowLayoutPrefs.Snapshot GetSessionLayoutSnapshotForAlign()
+    {
+        string key = memoryKey;
+        if (UIWindowSessionLayoutMemory.TryGet(key, out UIWindowLayoutPrefs.Snapshot session))
+            return session;
+
+        if (windowRect != null)
+            return GetCurrentSnapshot();
+
+        return GetSavedPivotSnapshotForEditing();
+    }
 
     public void ResetToFactory()
     {

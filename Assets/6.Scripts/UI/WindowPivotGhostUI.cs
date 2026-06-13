@@ -119,12 +119,23 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
     public UIWindowLayoutPrefs.Snapshot GetCurrentSnapshot() =>
         _rect ? UIWindowLayoutPrefs.Capture(_rect) : default;
 
-    public void ApplyToBindingAndSave()
+    public void ApplyLayoutSnapshot(in UIWindowLayoutPrefs.Snapshot snapshot)
+    {
+        ApplySnapshot(snapshot);
+        RefreshPivotChrome();
+    }
+
+    public void ApplyToBindingOnly()
     {
         if (!_binding || !_rect)
             return;
 
         _binding.ApplySnapshot(GetCurrentSnapshot());
+    }
+
+    public void ApplyToBindingAndSave()
+    {
+        ApplyToBindingOnly();
         _binding.SaveCurrentLayout();
     }
 
@@ -184,9 +195,11 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         if (MovePivotsModeController.IsTestViewActive)
             return;
 
-        ApplyToBindingAndSave();
+        ApplyToBindingOnly();
+        MovePivotsModeController.NotifyGhostLayoutEdited(_binding?.MemoryKey, GetCurrentSnapshot());
         ClampToScreen();
-        ApplyToBindingAndSave();
+        ApplyToBindingOnly();
+        MovePivotsModeController.NotifyGhostLayoutEdited(_binding?.MemoryKey, GetCurrentSnapshot());
         RefreshInteractionChrome();
     }
 
@@ -525,7 +538,11 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         if (resize == null)
             return;
 
-        resize.SetPersistCornerScaleToPlayerPrefs(false);
+        if (_binding != null)
+            resize.ConfigureForPivotGhost(_binding.MemoryKey);
+        else
+            resize.SetPersistCornerScaleToPlayerPrefs(false);
+
         resize.ForcePivotGhostHandlesVisible = true;
         resize.ResizeEnded -= OnGhostResizeEnded;
         resize.ResizeEnded += OnGhostResizeEnded;
@@ -535,7 +552,8 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
 
     private void OnGhostResizeEnded()
     {
-        ApplyToBindingAndSave();
+        ApplyToBindingOnly();
+        MovePivotsModeController.NotifyGhostLayoutEdited(_binding?.MemoryKey, GetCurrentSnapshot());
         RefreshInteractionChrome();
     }
 

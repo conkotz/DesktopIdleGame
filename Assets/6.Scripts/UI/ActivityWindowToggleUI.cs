@@ -25,9 +25,6 @@ public class ActivityWindowToggleUI : MonoBehaviour
             return;
         }
 
-        if (window.activeSelf && UIWindowCloseButton.BlocksClose(window))
-            return;
-
         window.SetActive(!window.activeSelf);
         if (window.activeSelf)
         {

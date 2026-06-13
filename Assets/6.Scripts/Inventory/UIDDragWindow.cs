@@ -74,8 +74,9 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     private void OnEnable()
     {
-        RestoreRememberedPosition();
-        if (clampOnEnable)
+        if (!MovePivotsModeController.IsTestViewActive)
+            RestoreRememberedPosition();
+        if (clampOnEnable && !MovePivotsModeController.IsTestViewActive)
             ClampNow();
     }
 
@@ -250,6 +251,9 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
                 UIWindowLayoutBinding.EnsureQuestTrackerTopAnchoredLayout(window);
             return;
         }
+
+        if (MovePivotsModeController.IsPivotModeActive || MovePivotsModeController.IsTestViewActive)
+            return;
 
         if (UIWindowLayoutPrefs.HasSaved(memoryKey))
         {

@@ -232,6 +232,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (!ownerStats || !homeAnchor)
             return;
 
+        PersistAcrossSceneLoads();
         gameObject.SetActive(true);
         _ownerStats = ownerStats;
         _homeAnchor = homeAnchor;

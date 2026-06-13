@@ -115,17 +115,38 @@ public class MinionUnit : MonoBehaviour
         Collider2D minionCol = GetSoldierCollider();
         if (minionCol != null)
         {
-            LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(minionCol, transform, feetYOffset);
+            if (ShouldPreserveLaneHierarchy())
+                SnapColliderBottomToLaneFloor(minionCol, feetYOffset);
+            else
+                LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(minionCol, transform, feetYOffset);
         }
         else
         {
-            LaneGroundEffectPlacement.AttachUnitToLane(transform);
+            if (!ShouldPreserveLaneHierarchy())
+                LaneGroundEffectPlacement.AttachUnitToLane(transform);
+
             Vector3 pos = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(transform.position, feetYOffset);
             transform.position = pos;
         }
 
         if (_rb)
             _rb.position = new Vector2(transform.position.x, transform.position.y);
+    }
+
+    private bool ShouldPreserveLaneHierarchy() =>
+        gameObject.scene.name == "DontDestroyOnLoad";
+
+    private void SnapColliderBottomToLaneFloor(Collider2D minionCol, float feetYOffset)
+    {
+        Physics2D.SyncTransforms();
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + feetYOffset;
+        float delta = floorTop - minionCol.bounds.min.y;
+        if (Mathf.Abs(delta) <= 1e-5f)
+            return;
+
+        Vector3 pos = transform.position;
+        pos.y += delta;
+        transform.position = pos;
     }
 
     public void SyncGroundY(float worldY)

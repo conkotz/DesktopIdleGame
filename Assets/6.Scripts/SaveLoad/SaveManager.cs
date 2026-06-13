@@ -262,6 +262,7 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLayoutBinding.RestoreAllPivotLayoutsForGameLoad();
+        UIWindowLockStore.RestoreAfterSceneLayout();
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         _ = player;
@@ -285,7 +286,25 @@ public class SaveManager : MonoBehaviour
         IsGameFullyLoaded = true;
         _gameplayReadyRoutine = null;
 
+        RestoreHudWindowsAfterSceneLoad();
+
         OnGameplayReady();
+    }
+
+    /// <summary>
+    /// Map travel reloads GamePlay; restore session window layout and locked-window open state once HUD exists.
+    /// </summary>
+    private static void RestoreHudWindowsAfterSceneLoad()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid() || !scene.name.Equals("GamePlay", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (MovePivotsModeController.IsPivotModeActive)
+            return;
+
+        UIWindowLayoutBinding.RestoreSessionLayoutsForSceneChange();
+        UIWindowLockStore.RestoreAfterSceneLayout();
     }
 
     /// <summary>
@@ -1998,6 +2017,7 @@ public class SaveManager : MonoBehaviour
             NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
+            UIWindowLockStore.RestoreAfterSceneLayout();
         }
         finally
         {

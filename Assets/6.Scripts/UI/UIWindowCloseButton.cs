@@ -13,13 +13,12 @@ public class UIWindowCloseButton : MonoBehaviour
     [SerializeField] private bool disableInsteadOfHide = false;
 
     [Header("Optional window lock")]
-    [Tooltip("When locked, this close button and ESC / toggle-close paths cannot dismiss the target window.")]
+    [Tooltip("When locked, the window reopens after scene changes and game loads. ESC still cannot dismiss locked windows.")]
     [SerializeField] private Button lockButton;
     [Tooltip("Save-slot key for lock state. Empty = target window name (e.g. GameActivityWindow, MainMenuWindow).")]
     [SerializeField] private string persistenceWindowId;
     [SerializeField] private GameObject iconUnlocked;
     [SerializeField] private GameObject iconLocked;
-    [SerializeField, Range(0.05f, 1f)] private float closeButtonLockedAlpha = 0.35f;
 
     private readonly Dictionary<Graphic, float> _closeGraphicFullAlphas = new Dictionary<Graphic, float>();
     private Button _closeButton;
@@ -29,7 +28,7 @@ public class UIWindowCloseButton : MonoBehaviour
     /// <summary>Key used in <see cref="SaveData.uiWindowLockKeys"/> for this window.</summary>
     public string PersistenceWindowId => ResolvePersistenceWindowId();
 
-    /// <summary>True when a <see cref="UIWindowCloseButton"/> for this window has lock engaged.</summary>
+    /// <summary>True when a locked window should ignore ESC / bulk-close paths (close button still works).</summary>
     public static bool BlocksClose(GameObject windowRoot)
     {
         if (!windowRoot)
@@ -122,9 +121,6 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
-        if (IsLocked)
-            return;
-
         MainMenuWindowUI menuUi = targetWindow.GetComponent<MainMenuWindowUI>();
         if (menuUi != null)
         {
@@ -162,10 +158,6 @@ public class UIWindowCloseButton : MonoBehaviour
                 return;
             }
         }
-
-        QuestTrackerWindowUI questTracker = targetWindow.GetComponent<QuestTrackerWindowUI>();
-        if (questTracker != null)
-            questTracker.RememberWindowClosedByUser();
 
         targetWindow.SetActive(false);
     }
@@ -270,7 +262,7 @@ public class UIWindowCloseButton : MonoBehaviour
         if (!_closeButton)
             return;
 
-        _closeButton.interactable = !IsLocked;
+        _closeButton.interactable = true;
 
         Graphic[] graphics = _closeButton.GetComponentsInChildren<Graphic>(true);
         for (int i = 0; i < graphics.Length; i++)
@@ -286,22 +278,19 @@ public class UIWindowCloseButton : MonoBehaviour
             }
 
             Color c = g.color;
-            c.a = IsLocked ? closeButtonLockedAlpha : fullAlpha;
+            c.a = fullAlpha;
             g.color = c;
         }
 
-        if (!IsLocked)
+        ColorBlock colors = _closeButton.colors;
+        _closeButton.colors = colors;
+        if (_closeButton.targetGraphic != null)
         {
-            ColorBlock colors = _closeButton.colors;
-            _closeButton.colors = colors;
-            if (_closeButton.targetGraphic != null)
-            {
-                _closeButton.targetGraphic.CrossFadeColor(
-                    colors.normalColor,
-                    colors.fadeDuration,
-                    true,
-                    true);
-            }
+            _closeButton.targetGraphic.CrossFadeColor(
+                colors.normalColor,
+                colors.fadeDuration,
+                true,
+                true);
         }
     }
 }

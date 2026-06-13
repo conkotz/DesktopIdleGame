@@ -316,6 +316,8 @@ public partial class PlayerAbilityController : MonoBehaviour
     private readonly List<SoulforgedWeaponMinion> _activeSoulforgedWeaponMinions = new();
     private readonly List<SoulforgedWarriorMinion> _activeSoulforgedWarriorMinions = new();
     private float _soulforgedAvailabilityCheckPausedUntil;
+    private float _nextLingeringActionBarCheckAt;
+    private float _nextSoulforgedOrphanScanAt;
 
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
@@ -476,11 +478,27 @@ public partial class PlayerAbilityController : MonoBehaviour
         return count;
     }
 
-    private void EnsureSoulforgedMinionsReclaimedIfNeeded()
+    private void MaybeReclaimOrphanedSoulforgedMinions()
     {
+        if (Time.time >= _soulforgedAvailabilityCheckPausedUntil)
+            return;
+        if (Time.time < _nextSoulforgedOrphanScanAt)
+            return;
+
+        _nextSoulforgedOrphanScanAt = Time.time + 0.5f;
         if (CountSoulforgedWeaponMinionsInScene() > _activeSoulforgedWeaponMinions.Count
             || CountSoulforgedWarriorMinionsInScene() > _activeSoulforgedWarriorMinions.Count)
             ReclaimPersistedSoulforgedMinionsFromScene();
+    }
+
+    private void TickLingeringActionBarRemovalIfDue()
+    {
+        if (Time.time < _nextLingeringActionBarCheckAt)
+            return;
+
+        _nextLingeringActionBarCheckAt = Time.time + 0.25f;
+        MaybeReclaimOrphanedSoulforgedMinions();
+        EndActiveLingeringAbilitiesNotOnActionBar();
     }
 
     private void ReclaimPersistedSoulforgedMinionsFromScene()
@@ -609,7 +627,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncAvatarOfTheForestHudBuff();
         TickAvatarOfTheForestNearbyReplenish(Time.deltaTime);
         SyncSpectralAxeHudBuff();
-        EndActiveLingeringAbilitiesNotOnActionBar();
+        TickLingeringActionBarRemovalIfDue();
         CleanupWarBannerIfExpired();
         TickWarBanner();
         SyncWarBannerHudBuff();
@@ -637,6 +655,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         ResolveActionBarReference();
 
         ReclaimPersistedSoulforgedMinionsFromScene();
+        _nextSoulforgedOrphanScanAt = 0f;
+        _nextLingeringActionBarCheckAt = 0f;
         StartCoroutine(RefreshPersistedSoulforgedMinionsAfterSceneLoad());
 
         _lastSyncedSoulforgedHudEnd = float.NaN;
@@ -839,9 +859,20 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
-            return _activeSoulforgedWeaponMinions.Count > 0 || CountSoulforgedWeaponMinionsInScene() > 0;
+        {
+            if (_activeSoulforgedWeaponMinions.Count > 0)
+                return true;
+            return Time.time < _soulforgedAvailabilityCheckPausedUntil
+                   && CountSoulforgedWeaponMinionsInScene() > 0;
+        }
+
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase))
-            return _activeSoulforgedWarriorMinions.Count > 0 || CountSoulforgedWarriorMinionsInScene() > 0;
+        {
+            if (_activeSoulforgedWarriorMinions.Count > 0)
+                return true;
+            return Time.time < _soulforgedAvailabilityCheckPausedUntil
+                   && CountSoulforgedWarriorMinionsInScene() > 0;
+        }
 
         return false;
     }
@@ -956,12 +987,13 @@ public partial class PlayerAbilityController : MonoBehaviour
     /// </summary>
     public void HandleActionBarAssignmentsChanged()
     {
+        _nextLingeringActionBarCheckAt = 0f;
+        MaybeReclaimOrphanedSoulforgedMinions();
         EndActiveLingeringAbilitiesNotOnActionBar();
     }
 
     private void EndActiveLingeringAbilitiesNotOnActionBar()
     {
-        EnsureSoulforgedMinionsReclaimedIfNeeded();
         ResolveActionBarReference();
         if (!actionBar)
             return;

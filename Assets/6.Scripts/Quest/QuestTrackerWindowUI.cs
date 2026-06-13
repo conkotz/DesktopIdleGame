@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -21,9 +20,6 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private const string RowNameTextChild = "QuestTrackerListName";
     private const string RowProgressTextChild = "QuestTrackerProgress";
     private static readonly Color TrackerDefaultTextColor = new Color(0.16f, 0.13f, 0.1f, 1f);
-    private static bool s_hasRememberedWindowActiveState;
-    private static bool s_rememberedWindowActive = true;
-    private static bool s_hooksRegistered;
 
     [SerializeField] private RectTransform trackerContentRoot;
     [SerializeField] private TMP_Text trackerTitleText;
@@ -65,52 +61,21 @@ public class QuestTrackerWindowUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoAttachToTrackerWindow()
     {
-        EnsureSceneLoadedHook();
-        TryRestoreTrackerForCurrentScene();
-    }
-
-    private static void EnsureSceneLoadedHook()
-    {
-        if (s_hooksRegistered)
-            return;
-        s_hooksRegistered = true;
-        SceneManager.sceneLoaded -= OnSceneLoadedRestoreTracker;
-        SceneManager.sceneLoaded += OnSceneLoadedRestoreTracker;
-    }
-
-    private static void OnSceneLoadedRestoreTracker(Scene scene, LoadSceneMode mode)
-    {
-        TryRestoreTrackerForCurrentScene();
-    }
-
-    /// <summary>Re-show the tracker after a scene change when the player still has tracked quests (state is static; the window is recreated per scene).</summary>
-    private static void TryRestoreTrackerForCurrentScene()
-    {
-        if (QuestTrackerState.TrackedCount <= 0)
-            return;
-
         GameObject window = FindSceneObjectByName(TrackerWindowName);
-        if (!window)
+        if (!window || window.GetComponent<QuestTrackerWindowUI>())
             return;
 
-        if (!window.GetComponent<QuestTrackerWindowUI>())
-            window.AddComponent<QuestTrackerWindowUI>();
-
-        if (!window.activeSelf)
-            window.SetActive(true);
+        window.AddComponent<QuestTrackerWindowUI>();
     }
 
     private void Awake()
     {
-        EnsureSceneLoadedHook();
         ResolveReferences();
         EnsureCanvasGroup();
-        ApplyRememberedWindowActiveState();
     }
 
     private void OnEnable()
     {
-        RememberWindowActiveState(true);
         ResolveReferences();
         QuestTrackerState.Changed += QueueTrackerStructureRefresh;
 
@@ -519,6 +484,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
         }
 
         RebuildTrackerLayoutImmediate();
+        if (MovePivotsModeController.IsTestViewActive)
+        {
+            MovePivotsModeController.TryReapplyGhostLayoutForWindow(TrackerWindowName);
+            yield break;
+        }
+
         SyncSavedPivotLayoutAfterContentChange();
     }
 
@@ -589,31 +560,6 @@ public class QuestTrackerWindowUI : MonoBehaviour
         _canvasGroup.alpha = visible ? 1f : 0f;
         _canvasGroup.interactable = visible;
         _canvasGroup.blocksRaycasts = visible;
-    }
-
-    private void ApplyRememberedWindowActiveState()
-    {
-        if (QuestTrackerState.TrackedCount > 0)
-        {
-            gameObject.SetActive(true);
-            return;
-        }
-
-        if (!s_hasRememberedWindowActiveState || s_rememberedWindowActive)
-            return;
-
-        gameObject.SetActive(false);
-    }
-
-    private void RememberWindowActiveState(bool active)
-    {
-        s_hasRememberedWindowActiveState = true;
-        s_rememberedWindowActive = active;
-    }
-
-    public void RememberWindowClosedByUser()
-    {
-        RememberWindowActiveState(false);
     }
 
     private static GameObject FindSceneObjectByName(string objectName)

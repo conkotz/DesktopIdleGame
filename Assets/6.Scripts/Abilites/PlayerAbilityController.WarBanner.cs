@@ -17,6 +17,7 @@ public partial class PlayerAbilityController
     private bool _warBannerEnh2MoveSpeedActive;
     private float _warBannerNextStackTickAt;
     private float _warBannerEnh2NextHealTickAt;
+    private float _warBannerNextAllyRefreshAt;
     private float _lastSyncedWarBannerHudEnd = float.NaN;
     private int _lastSyncedWarBannerHudStacks = int.MinValue;
     private Coroutine _warBannerCastRoutine;
@@ -122,6 +123,7 @@ public partial class PlayerAbilityController
         _warBannerEnh2MoveSpeedActive = false;
         _warBannerNextStackTickAt = Time.time + AbilityCombatPower.WarBannerStackIntervalSeconds;
         _warBannerEnh2NextHealTickAt = 0f;
+        _warBannerNextAllyRefreshAt = Time.time;
         _lastSyncedWarBannerHudEnd = float.NaN;
         _lastSyncedWarBannerHudStacks = int.MinValue;
 
@@ -226,7 +228,11 @@ public partial class PlayerAbilityController
             TickWarBannerEnh2Heal();
         }
 
-        RefreshWarBannerAllies();
+        if (Time.time >= _warBannerNextAllyRefreshAt)
+        {
+            _warBannerNextAllyRefreshAt = Time.time + AbilityCombatPower.WarBannerStackIntervalSeconds;
+            RefreshWarBannerAllies();
+        }
     }
 
     private void ActivateWarBannerEnh2AfterTenStacks()

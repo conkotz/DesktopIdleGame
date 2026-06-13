@@ -90,7 +90,9 @@ public class UIWindowManager : MonoBehaviour
         if (MerchantClick.IsShopOpen)
             MerchantClick.ForceCloseMerchantMode();
 
-        MainMenuWindowUI.Resolve()?.Close();
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu != null && menu.WindowRoot != null && !UIWindowCloseButton.BlocksClose(menu.WindowRoot))
+            menu.Close();
 
         // Snapshot first — closing the menu (or any window) runs UIWindow.OnDisable → Unregister,
         // which must not shrink _openWindows while we index into it.

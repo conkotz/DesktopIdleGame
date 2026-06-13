@@ -3,10 +3,14 @@ using UnityEngine;
 
 /// <summary>
 /// Updates a TMP label with the current in-game frame rate when <see cref="ToggleSettingId.ShowFps"/> is on.
+/// Uses a nested overlay canvas on the FPS panel only — never mutates the parent FullWindowCanvas sort order.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class FpsDisplayText : MonoBehaviour
 {
+    /// <summary>Above windows (~10000) and tooltips (~10200); below level-load fader (32767 / short.MaxValue).</summary>
+    private const int OverlaySortOrder = 32000;
+
     [SerializeField] private TMP_Text label;
     [Tooltip("Hidden when Show FPS is off. Defaults to parent when named FPSTextPanel, otherwise this object.")]
     [SerializeField] private GameObject visibilityRoot;
@@ -15,6 +19,7 @@ public sealed class FpsDisplayText : MonoBehaviour
 
     private float _accumUnscaledTime;
     private int _frameCount;
+    private bool _overlayConfigured;
 
     private void Awake()
     {
@@ -32,12 +37,15 @@ public sealed class FpsDisplayText : MonoBehaviour
                 ? parent.gameObject
                 : gameObject;
         }
+
+        EnsureTopmostOverlayCanvas();
     }
 
     private void OnEnable()
     {
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
         ApplyVisibilityFromSettings();
+        EnsureTopmostOverlayCanvas();
     }
 
     private void OnDisable()
@@ -61,6 +69,16 @@ public sealed class FpsDisplayText : MonoBehaviour
             if (list[i])
                 list[i].ApplyVisibilityFromSettings();
         }
+    }
+
+    private void EnsureTopmostOverlayCanvas()
+    {
+        if (_overlayConfigured)
+            return;
+
+        GameObject root = visibilityRoot ? visibilityRoot : gameObject;
+        GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(root, OverlaySortOrder);
+        _overlayConfigured = true;
     }
 
     private void ApplyVisibilityFromSettings()

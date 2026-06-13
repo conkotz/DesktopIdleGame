@@ -152,6 +152,7 @@ public class SoulforgedWarriorMinion : MonoBehaviour
         if (!ownerStats || !ownerAnchor)
             return;
 
+        PersistAcrossSceneLoads();
         gameObject.SetActive(true);
         _ownerStats = ownerStats;
         _homeAnchor = ownerAnchor;
@@ -170,6 +171,8 @@ public class SoulforgedWarriorMinion : MonoBehaviour
 
         SnapToSpawnPosition();
         unit?.AlignToLaneFloor();
+        RestartWarcryRoutine();
+        RestartFuriousSlamRoutine();
     }
 
     private void Update()

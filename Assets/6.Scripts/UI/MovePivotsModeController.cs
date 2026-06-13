@@ -12,14 +12,22 @@ public sealed class MovePivotsModeController : MonoBehaviour
     private const int OverlayCanvasSortOrder = 10005;
     private const float OverlayButtonHeight = 40f;
     private const float OverlaySaveButtonWidth = 280f;
+    private const float OverlayWideButtonWidth = 340f;
     private const float OverlaySaveButtonHeight = 48f;
     private const float OverlayButtonStackGap = 8f;
     private const float OverlayTopInset = 12f;
+
+    private static readonly Color OverlayButtonDefaultColor = new(0.22f, 0.2f, 0.16f, 0.92f);
+    private static readonly Color OverlayButtonSaveColor = new(0.2f, 0.42f, 0.28f, 0.92f);
+    private static readonly Color OverlayButtonCancelColor = new(0.48f, 0.22f, 0.22f, 0.92f);
 
     private static MovePivotsModeController _instance;
 
     public static bool IsTestViewActive =>
         _instance != null && _instance._testViewActive;
+
+    public static bool IsPivotModeActive =>
+        _instance != null && _instance._active;
 
     public static void NotifyGhostBroughtToFront(WindowPivotGhostUI ghost)
     {
@@ -51,8 +59,29 @@ public sealed class MovePivotsModeController : MonoBehaviour
         return false;
     }
 
+    /// <summary>Re-applies the ghost placeholder layout onto the real window (e.g. after quest tracker content rebuild in test view).</summary>
+    public static bool TryReapplyGhostLayoutForWindow(string memoryKey)
+    {
+        if (!TryGetPivotGhost(memoryKey, out WindowPivotGhostUI ghost) || ghost?.Binding == null)
+            return false;
+
+        ghost.Binding.ApplySnapshot(ghost.GetCurrentSnapshot());
+        return true;
+    }
+
+    public static void NotifyGhostLayoutEdited(string memoryKey, in UIWindowLayoutPrefs.Snapshot snapshot)
+    {
+        if (_instance == null || string.IsNullOrWhiteSpace(memoryKey))
+            return;
+
+        _instance.RecordGhostSnapshot(memoryKey, snapshot);
+    }
+
     private readonly List<UIWindowLayoutBinding> _bindings = new(8);
     private readonly List<UIWindowLayoutPrefs.Snapshot> _ghostSnapshots = new(8);
+    private readonly List<UIWindowLayoutPrefs.Snapshot> _preEditBindingSnapshots = new(8);
+    private readonly List<UIWindowLayoutPrefs.Snapshot> _entrySavedPivotSnapshots = new(8);
+    private readonly List<bool> _entryHadSavedPivot = new(8);
     private readonly Dictionary<string, Rect[]> _actionBarSlotHintRects = new(1);
     private readonly List<WindowPivotGhostUI> _ghosts = new(8);
     private readonly List<PivotGhostBringToFrontOverlayButton> _bringToFrontOverlayButtons = new(8);
@@ -64,7 +93,10 @@ public sealed class MovePivotsModeController : MonoBehaviour
     private bool _testViewActive;
     private bool _restoreMainMenuSettingsOnExit;
     private bool _userFinishedArranging;
+    private bool _commitOnExit;
     private Button _testViewButton;
+    private Button _alignButton;
+    private Button _cancelButton;
     private TMP_Text _testViewButtonLabel;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -116,8 +148,6 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
     private static void EnsureBindingsInScene()
     {
-        UIWindowLayoutBinding.RestoreSessionLayoutsForSceneChange();
-
         Transform windowsArea = FindWindowsArea();
         if (!windowsArea)
             return;
@@ -195,6 +225,9 @@ public sealed class MovePivotsModeController : MonoBehaviour
         if (!_active)
             return;
 
+        if (!_testViewActive)
+            EnforceBoundWindowsHidden();
+
         if (!IsConflictingWindowOpen())
             return;
 
@@ -258,9 +291,21 @@ public sealed class MovePivotsModeController : MonoBehaviour
             if (_testViewActive)
                 ExitTestView(restoreWindowVisibility: false);
             MerchantClick.ForceCloseMerchantMode();
-            CommitAllGhostLayoutsAndSave();
+
+            if (_commitOnExit)
+            {
+                CommitAllGhostLayoutsAndSave();
+                ApplySavedPivotsAsLiveLayout();
+            }
+            else
+            {
+                RestorePreEditBindingSnapshots();
+                RestoreEntrySavedPivotSnapshots();
+            }
+
+            _commitOnExit = false;
             DestroyGhosts();
-            RestoreWindowVisibility();
+            RestoreWindowVisibility(reloadPivotLayoutFromPrefs: false);
             RestoreMainMenuSettingsIfNeeded();
             if (_overlayRoot)
                 _overlayRoot.gameObject.SetActive(false);
@@ -282,16 +327,19 @@ public sealed class MovePivotsModeController : MonoBehaviour
             return;
         }
 
+        CaptureEntrySavedPivotSnapshots();
+        CapturePreEditBindingSnapshots();
         CaptureGhostSnapshots();
         CloseMenuMerchantAndStorage();
         HideAllBoundWindows();
+        EnforceBoundWindowsHidden();
         EnsureOverlay();
         RebuildGhosts();
 
         if (_ghosts.Count == 0)
         {
             _active = false;
-            RestoreWindowVisibility();
+            RestoreWindowVisibility(reloadPivotLayoutFromPrefs: true);
             Debug.LogWarning("[MovePivotsModeController] Failed to create pivot placeholders.");
             GameLog.Add("Move pivots could not start — failed to create placeholders.", GameLog.CannotMessageColor);
             ToggleSettingsStore.Set(ToggleSettingId.MoveWindowPivots, false);
@@ -356,6 +404,49 @@ public sealed class MovePivotsModeController : MonoBehaviour
         }
     }
 
+    private void CaptureEntrySavedPivotSnapshots()
+    {
+        _entrySavedPivotSnapshots.Clear();
+        _entryHadSavedPivot.Clear();
+
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null)
+            {
+                _entrySavedPivotSnapshots.Add(default);
+                _entryHadSavedPivot.Add(false);
+                continue;
+            }
+
+            _entryHadSavedPivot.Add(UIWindowLayoutPrefs.HasSaved(binding.MemoryKey));
+            _entrySavedPivotSnapshots.Add(binding.GetSavedPivotSnapshotForEditing());
+        }
+    }
+
+    private void CapturePreEditBindingSnapshots()
+    {
+        _preEditBindingSnapshots.Clear();
+
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null)
+            {
+                _preEditBindingSnapshots.Add(default);
+                continue;
+            }
+
+            string key = binding.MemoryKey;
+            if (UIWindowSessionLayoutMemory.TryGet(key, out UIWindowLayoutPrefs.Snapshot session))
+                _preEditBindingSnapshots.Add(session);
+            else if (binding.WindowRect != null)
+                _preEditBindingSnapshots.Add(binding.GetCurrentSnapshot());
+            else
+                _preEditBindingSnapshots.Add(binding.GetSessionLayoutSnapshotForAlign());
+        }
+    }
+
     private void CaptureGhostSnapshots()
     {
         _ghostSnapshots.Clear();
@@ -367,17 +458,151 @@ public sealed class MovePivotsModeController : MonoBehaviour
             if (binding == null)
                 continue;
 
-            if (UIWindowLayoutBinding.IsActionBarWindow(binding.MemoryKey) && binding.WindowRect)
-            {
-                _actionBarSlotHintRects[binding.MemoryKey] =
-                    ActionBarUI.CapturePivotSlotRects(binding.WindowRect);
-            }
+            _ghostSnapshots.Add(binding.GetSavedPivotSnapshotForEditing());
 
-            _ghostSnapshots.Add(binding.GetCurrentSnapshot());
+            if (UIWindowLayoutBinding.IsActionBarWindow(binding.MemoryKey))
+                CaptureActionBarSlotHintsFromSnapshot(binding, _ghostSnapshots[_ghostSnapshots.Count - 1]);
         }
     }
 
+    private void CaptureActionBarSlotHintsFromSnapshot(
+        UIWindowLayoutBinding binding,
+        in UIWindowLayoutPrefs.Snapshot snapshot)
+    {
+        if (binding?.WindowRect == null || !UIWindowLayoutBinding.IsActionBarWindow(binding.MemoryKey))
+            return;
+
+        RectTransform rect = binding.WindowRect;
+        UIWindowLayoutPrefs.Snapshot previous = UIWindowLayoutPrefs.Capture(rect);
+        UIWindowLayoutPrefs.Apply(rect, snapshot);
+        ActionBarUI.SyncWindowOnPivotLayoutApplied(rect);
+        _actionBarSlotHintRects[binding.MemoryKey] = ActionBarUI.CapturePivotSlotRects(rect);
+        UIWindowLayoutPrefs.Apply(rect, previous);
+        ActionBarUI.SyncWindowOnPivotLayoutApplied(rect);
+    }
+
+    private UIWindowLayoutPrefs.Snapshot ResolveSessionLayoutSnapshot(UIWindowLayoutBinding binding, int bindingIndex)
+    {
+        if (binding == null)
+            return default;
+
+        if (bindingIndex >= 0 && bindingIndex < _preEditBindingSnapshots.Count)
+            return _preEditBindingSnapshots[bindingIndex];
+
+        return binding.GetSessionLayoutSnapshotForAlign();
+    }
+
+    private void RestoreEntrySavedPivotSnapshots()
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null || string.IsNullOrWhiteSpace(binding.MemoryKey))
+                continue;
+
+            if (i >= _entrySavedPivotSnapshots.Count)
+                continue;
+
+            UIWindowLayoutPrefs.Snapshot snapshot = _entrySavedPivotSnapshots[i];
+            if (i < _entryHadSavedPivot.Count && _entryHadSavedPivot[i])
+                UIWindowLayoutPrefs.Save(binding.MemoryKey, snapshot);
+            else
+                UIWindowLayoutPrefs.Delete(binding.MemoryKey);
+        }
+
+        PlayerPrefs.Save();
+    }
+
+    private void RecordGhostSnapshot(string memoryKey, in UIWindowLayoutPrefs.Snapshot snapshot)
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null || binding.MemoryKey != memoryKey)
+                continue;
+
+            while (_ghostSnapshots.Count <= i)
+                _ghostSnapshots.Add(default);
+
+            _ghostSnapshots[i] = snapshot;
+            return;
+        }
+    }
+
+    private void RestorePreEditBindingSnapshots()
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null || i >= _preEditBindingSnapshots.Count)
+                continue;
+
+            binding.ApplySnapshot(_preEditBindingSnapshots[i]);
+        }
+    }
+
+    private void ApplySavedPivotsAsLiveLayout()
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding?.WindowRect == null || string.IsNullOrWhiteSpace(binding.MemoryKey))
+                continue;
+
+            string key = binding.MemoryKey;
+            UIWindowSessionLayoutMemory.ForgetKey(key);
+            UIWindowPositionMemory.ForgetKey(key);
+            UIWindowSessionLayoutMemory.Capture(binding.WindowRect, key);
+            UIWindowPositionMemory.Save(key, binding.WindowRect.anchoredPosition);
+        }
+    }
+
+    private void AlignGhostsWithCurrentWindowPositions()
+    {
+        if (_testViewActive)
+            ExitTestView(restoreWindowVisibility: true);
+
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null)
+                continue;
+
+            UIWindowLayoutPrefs.Snapshot snapshot = ResolveSessionLayoutSnapshot(binding, i);
+
+            if (i < _ghosts.Count && _ghosts[i] != null)
+                _ghosts[i].ApplyLayoutSnapshot(snapshot);
+
+            RecordGhostSnapshot(binding.MemoryKey, snapshot);
+
+            if (UIWindowLayoutBinding.IsActionBarWindow(binding.MemoryKey))
+                CaptureActionBarSlotHintsFromSnapshot(binding, snapshot);
+        }
+
+        RefreshAllGhostChrome();
+        GameLog.Add("Pivots aligned with current window positions");
+    }
+
+    private void ExitWithoutSaving()
+    {
+        _commitOnExit = false;
+        ToggleSettingsStore.Set(ToggleSettingId.MoveWindowPivots, false);
+    }
+
+    private void SaveLayoutAndExit()
+    {
+        _commitOnExit = true;
+        _userFinishedArranging = true;
+        ToggleSettingsStore.Set(ToggleSettingId.MoveWindowPivots, false);
+    }
+
     private void HideAllBoundWindows()
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+            HideBoundWindow(_bindings[i]);
+    }
+
+    private void EnforceBoundWindowsHidden()
     {
         for (int i = 0; i < _bindings.Count; i++)
         {
@@ -385,12 +610,21 @@ public sealed class MovePivotsModeController : MonoBehaviour
             if (binding == null || !binding.WindowRect)
                 continue;
 
-            GameObject go = binding.WindowRect.gameObject;
-            if (!_rememberedActive.ContainsKey(go))
-                _rememberedActive[go] = go.activeSelf;
-
-            go.SetActive(false);
+            if (binding.WindowRect.gameObject.activeSelf)
+                HideBoundWindow(binding);
         }
+    }
+
+    private void HideBoundWindow(UIWindowLayoutBinding binding)
+    {
+        if (binding == null || !binding.WindowRect)
+            return;
+
+        GameObject go = binding.WindowRect.gameObject;
+        if (!_rememberedActive.ContainsKey(go))
+            _rememberedActive[go] = go.activeSelf;
+
+        go.SetActive(false);
     }
 
     private static Transform FindWindowsArea()
@@ -438,7 +672,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         return null;
     }
 
-    private void RestoreWindowVisibility()
+    private void RestoreWindowVisibility(bool reloadPivotLayoutFromPrefs)
     {
         foreach (KeyValuePair<GameObject, bool> pair in _rememberedActive)
         {
@@ -449,7 +683,29 @@ public sealed class MovePivotsModeController : MonoBehaviour
         _rememberedActive.Clear();
 
         for (int i = 0; i < _bindings.Count; i++)
-            _bindings[i]?.RestoreSavedLayout();
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null)
+                continue;
+
+            if (reloadPivotLayoutFromPrefs)
+            {
+                binding.RestoreSavedLayout();
+                continue;
+            }
+
+            SyncCornerResizeFromBindingLayout(binding);
+        }
+    }
+
+    private static void SyncCornerResizeFromBindingLayout(UIWindowLayoutBinding binding)
+    {
+        if (binding?.WindowRect == null)
+            return;
+
+        UIWindowCornerResize resize = binding.WindowRect.GetComponent<UIWindowCornerResize>();
+        if (resize != null)
+            resize.ApplyLayoutScaleFromSnapshot(binding.WindowRect.localScale);
     }
 
     private void CommitAllGhostLayoutsAndSave()
@@ -524,25 +780,46 @@ public sealed class MovePivotsModeController : MonoBehaviour
                 : null;
         }
 
-        ApplySaveLayoutButtonChrome();
+        if (!_overlayRoot.Find("MovePivotsAlignButton"))
+            CreateAlignButton(_overlayRoot);
+        else if (!_alignButton)
+            _alignButton = _overlayRoot.Find("MovePivotsAlignButton")?.GetComponent<Button>();
+
+        if (!_overlayRoot.Find("MovePivotsCancelButton"))
+            CreateCancelButton(_overlayRoot);
+        else if (!_cancelButton)
+            _cancelButton = _overlayRoot.Find("MovePivotsCancelButton")?.GetComponent<Button>();
+
+        ApplyOverlayButtonChrome();
         LayoutOverlayButtons();
         UpdateTestViewButtonLabel();
     }
 
-    private void ApplySaveLayoutButtonChrome()
+    private void ApplyOverlayButtonChrome()
     {
         if (!_overlayRoot)
             return;
 
-        Transform doneTransform = _overlayRoot.Find("MovePivotsDoneButton");
-        if (doneTransform is not RectTransform doneRt)
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsDoneButton"), "Save layout", OverlayButtonSaveColor);
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsTestViewButton"), "Test View", OverlayButtonDefaultColor);
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsAlignButton"), "Align pivots with current positions", OverlayButtonDefaultColor, 15f);
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsCancelButton"), "Exit and don't save", OverlayButtonCancelColor, 15f);
+    }
+
+    private static void StyleOverlayButton(Transform buttonTransform, string labelText, Color backgroundColor, float fontSize = 18f)
+    {
+        if (!buttonTransform)
             return;
 
-        doneRt.sizeDelta = new Vector2(OverlaySaveButtonWidth, OverlaySaveButtonHeight);
+        if (buttonTransform.TryGetComponent(out Image image))
+            image.color = backgroundColor;
 
-        TMP_Text label = doneRt.GetComponentInChildren<TMP_Text>(true);
+        TMP_Text label = buttonTransform.GetComponentInChildren<TMP_Text>(true);
         if (label)
-            label.text = "Save layout";
+        {
+            label.text = labelText;
+            label.fontSize = fontSize;
+        }
     }
 
     private void LayoutOverlayButtons()
@@ -550,19 +827,35 @@ public sealed class MovePivotsModeController : MonoBehaviour
         if (!_overlayRoot)
             return;
 
-        float doneY = -OverlayTopInset;
-        float testViewY = doneY - OverlaySaveButtonHeight - OverlayButtonStackGap;
+        const float y = -OverlayTopInset;
+        float gap = OverlayButtonStackGap;
+        float wSave = OverlaySaveButtonWidth;
+        float wTest = OverlaySaveButtonWidth;
+        float wAlign = OverlayWideButtonWidth;
+        float wCancel = OverlaySaveButtonWidth;
+        float totalWidth = wSave + wTest + wAlign + wCancel + gap * 3f;
+        float x = -totalWidth * 0.5f;
 
-        Transform doneTransform = _overlayRoot.Find("MovePivotsDoneButton");
-        if (doneTransform is RectTransform doneRt)
-            doneRt.anchoredPosition = new Vector2(0f, doneY);
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsDoneButton") as RectTransform, ref x, wSave, y);
+        x += gap;
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsTestViewButton") as RectTransform, ref x, wTest, y);
+        x += gap;
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsAlignButton") as RectTransform, ref x, wAlign, y);
+        x += gap;
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsCancelButton") as RectTransform, ref x, wCancel, y);
+    }
 
-        if (_testViewButton)
-        {
-            RectTransform testRt = _testViewButton.transform as RectTransform;
-            if (testRt)
-                testRt.anchoredPosition = new Vector2(0f, testViewY);
-        }
+    private static void PositionOverlayButtonHorizontal(RectTransform buttonRect, ref float x, float width, float y)
+    {
+        if (!buttonRect)
+            return;
+
+        buttonRect.anchorMin = new Vector2(0.5f, 1f);
+        buttonRect.anchorMax = new Vector2(0.5f, 1f);
+        buttonRect.pivot = new Vector2(0f, 1f);
+        buttonRect.anchoredPosition = new Vector2(x, y);
+        buttonRect.sizeDelta = new Vector2(width, OverlaySaveButtonHeight);
+        x += width;
     }
 
     private void CreateDoneButton(RectTransform parent)
@@ -574,23 +867,46 @@ public sealed class MovePivotsModeController : MonoBehaviour
             new Vector2(0f, -OverlayTopInset),
             OverlaySaveButtonWidth,
             OverlaySaveButtonHeight);
-        button.onClick.AddListener(() =>
-        {
-            _userFinishedArranging = true;
-            ToggleSettingsStore.Set(ToggleSettingId.MoveWindowPivots, false);
-        });
+        button.onClick.AddListener(SaveLayoutAndExit);
     }
 
     private void CreateTestViewButton(RectTransform parent)
     {
-        float testViewY = -OverlayTopInset - OverlaySaveButtonHeight - OverlayButtonStackGap;
         _testViewButton = CreateOverlayButton(
             parent,
             "MovePivotsTestViewButton",
             "Test View",
-            new Vector2(0f, testViewY));
+            new Vector2(0f, -OverlayTopInset),
+            OverlaySaveButtonWidth,
+            OverlaySaveButtonHeight);
         _testViewButtonLabel = _testViewButton.GetComponentInChildren<TMP_Text>(true);
         _testViewButton.onClick.AddListener(ToggleTestView);
+    }
+
+    private void CreateAlignButton(RectTransform parent)
+    {
+        _alignButton = CreateOverlayButton(
+            parent,
+            "MovePivotsAlignButton",
+            "Align pivots with current positions",
+            new Vector2(0f, -OverlayTopInset),
+            OverlayWideButtonWidth,
+            OverlaySaveButtonHeight,
+            15f);
+        _alignButton.onClick.AddListener(AlignGhostsWithCurrentWindowPositions);
+    }
+
+    private void CreateCancelButton(RectTransform parent)
+    {
+        _cancelButton = CreateOverlayButton(
+            parent,
+            "MovePivotsCancelButton",
+            "Exit and don't save",
+            new Vector2(0f, -OverlayTopInset),
+            OverlaySaveButtonWidth,
+            OverlaySaveButtonHeight,
+            15f);
+        _cancelButton.onClick.AddListener(ExitWithoutSaving);
     }
 
     private static Button CreateOverlayButton(
@@ -599,7 +915,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
         string labelText,
         Vector2 anchoredPosition,
         float width = 220f,
-        float height = 40f)
+        float height = 40f,
+        float fontSize = 18f)
     {
         GameObject buttonGo = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
         buttonGo.layer = parent.gameObject.layer;
@@ -626,7 +943,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         TextMeshProUGUI label = textGo.GetComponent<TextMeshProUGUI>();
         label.text = labelText;
         label.alignment = TextAlignmentOptions.Center;
-        label.fontSize = 18f;
+        label.fontSize = fontSize;
         label.color = new Color(0.95f, 0.9f, 0.82f, 1f);
         label.raycastTarget = false;
 
@@ -646,7 +963,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         if (_testViewActive || _ghosts.Count == 0)
             return;
 
-        ApplyAllGhostLayoutsToBindings();
+        _testViewActive = true;
 
         for (int i = 0; i < _ghosts.Count; i++)
         {
@@ -661,8 +978,9 @@ public sealed class MovePivotsModeController : MonoBehaviour
             ghost.gameObject.SetActive(false);
         }
 
-        _testViewActive = true;
+        ApplyAllGhostLayoutsToBindings();
         ShowRealWindowsForTestView();
+        ApplyAllGhostLayoutsToBindings();
         SetTestViewInteractionEnabled(false);
         UpdateTestViewButtonLabel();
     }
@@ -784,7 +1102,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
             UIWindowLayoutPrefs.Snapshot snapshot = i < _ghostSnapshots.Count
                 ? _ghostSnapshots[i]
-                : binding.GetCurrentSnapshot();
+                : binding.GetSavedPivotSnapshotForEditing();
 
             GameObject ghostGo = new GameObject(
                 $"PivotGhost_{binding.MemoryKey}",
@@ -885,10 +1203,16 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
         Transform done = _overlayRoot.Find("MovePivotsDoneButton");
         Transform testView = _overlayRoot.Find("MovePivotsTestViewButton");
+        Transform align = _overlayRoot.Find("MovePivotsAlignButton");
+        Transform cancel = _overlayRoot.Find("MovePivotsCancelButton");
         if (done)
             done.SetAsLastSibling();
         if (testView)
             testView.SetAsLastSibling();
+        if (align)
+            align.SetAsLastSibling();
+        if (cancel)
+            cancel.SetAsLastSibling();
     }
 
     private void DestroyBringToFrontOverlayButtons()

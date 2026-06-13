@@ -108,6 +108,9 @@ public class SharedTooltipUI : MonoBehaviour
 
     private bool _overlaySortActive;
 
+    /// <summary>Above FullWindowCanvas windows (~10000); below level-load fader (32767).</summary>
+    private const int TooltipOverlaySortOrder = 10200;
+
     private void Awake()
     {
         _rt = transform as RectTransform;
@@ -335,6 +338,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         RebuildTooltipLayoutNow();
 
+        PushOverlaySortOrder(TooltipOverlaySortOrder);
         canvasGroup.alpha = 1f;
     }
 
@@ -387,6 +391,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         RebuildTooltipLayoutNow();
 
+        PushOverlaySortOrder(TooltipOverlaySortOrder);
         canvasGroup.alpha = 1f;
     }
 
@@ -484,6 +489,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         RebuildTooltipLayoutNow();
 
+        PushOverlaySortOrder(TooltipOverlaySortOrder);
         canvasGroup.alpha = 1f;
     }
 

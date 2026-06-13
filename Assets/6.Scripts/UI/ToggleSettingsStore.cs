@@ -301,6 +301,14 @@ public static class ToggleSettingsStore
                     "When enabled, shows woodcutting ability range indicators (e.g. Cleaving Chop), " +
                     "Spectral Axe area indicators, nearby tree hitbox range highlights, and the cave biome screen flicker.";
                 return true;
+            case ToggleSettingId.MoveWindowPivots:
+                title = GetDisplayName(setting);
+                description =
+                    "Reposition HUD windows using colored placeholders instead of the live UI.\n\n" +
+                    "Saved pivot positions apply the next time you load the game. " +
+                    "Dragging a window during normal play keeps its position for the rest of the session only — " +
+                    "it returns to the saved pivot on reload unless you update pivots here.";
+                return true;
             default:
                 return false;
         }

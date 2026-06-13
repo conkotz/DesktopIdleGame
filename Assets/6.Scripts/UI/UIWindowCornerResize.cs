@@ -47,6 +47,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     private bool _subscribedHudSlider;
     private bool _forcePivotGhostHandlesVisible;
+    private bool _isPivotGhostResize;
 
     public event Action ResizeEnded;
 
@@ -101,6 +102,15 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     public void SetPersistCornerScaleToPlayerPrefs(bool persist) =>
         persistCornerScaleToPlayerPrefs = persist;
 
+    /// <summary>Pivot ghost placeholders resize the real window's saved layout via <see cref="WindowPivotGhostUI"/>.</summary>
+    public void ConfigureForPivotGhost(string bindingMemoryKey)
+    {
+        _isPivotGhostResize = true;
+        if (!string.IsNullOrWhiteSpace(bindingMemoryKey))
+            memoryKey = bindingMemoryKey.Trim();
+        persistCornerScaleToPlayerPrefs = false;
+    }
+
     /// <summary>
     /// Parents bottom corner hit targets under <paramref name="parent"/> so they track that rect's bottom edge (see <see cref="bottomResizeHandleParent"/>).
     /// Pass null to parent them back on <see cref="targetWindow"/>.
@@ -144,7 +154,8 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     private void OnEnable()
     {
         ResolveTarget();
-        RestoreRememberedScale();
+        if (!MovePivotsModeController.IsTestViewActive)
+            RestoreRememberedScale();
         EnsureHandles();
         RefreshHandlesActive();
         SubscribeHudResizeIfNeeded();
@@ -295,7 +306,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     {
         RememberCurrentScale();
         ClampDragWindows();
-        if (targetWindow && UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey))
+        if (!_isPivotGhostResize &&
+            targetWindow &&
+            UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey))
             UIWindowSessionLayoutMemory.Capture(targetWindow, memoryKey);
         ResizeEnded?.Invoke();
     }

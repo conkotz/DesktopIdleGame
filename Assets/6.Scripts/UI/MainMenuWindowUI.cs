@@ -117,6 +117,8 @@ public class MainMenuWindowUI : MonoBehaviour
         }
     }
 
+    public GameObject WindowRoot => mainMenuWindow;
+
     public GameObject CurrentPage => currentPage;
 
     public bool IsSettingsPageOpen =>
@@ -378,9 +380,6 @@ public class MainMenuWindowUI : MonoBehaviour
 
     private void CloseInternal(bool closeMerchantAndStorage)
     {
-        if (mainMenuWindow && UIWindowCloseButton.BlocksClose(mainMenuWindow))
-            return;
-
         s_restoreOpen = false;
         s_restorePage = PersistedPage.None;
 
