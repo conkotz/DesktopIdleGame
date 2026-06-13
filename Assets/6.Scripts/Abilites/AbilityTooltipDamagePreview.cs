@@ -1653,7 +1653,7 @@ public static class AbilityTooltipDamagePreview
         {
             body.AppendLine(string.Empty);
             body.AppendLine(O(
-                $"Heal {AbilityCombatPower.WarBannerEnh2MaxStacksHealFraction * 100f:0.#}% max health and gain {AbilityCombatPower.WarBannerEnh2MoveSpeedBonus * 100f:0.#}% movement speed at max stacks."));
+                $"{AbilityCombatPower.WarBannerEnh2MaxStacksHealPerSecondFraction * 100f:0.#}% HP regen per second after {AbilityCombatPower.WarBannerBaseMaxStacks} stacks."));
         }
 
         return body.ToString().TrimEnd();
@@ -1714,7 +1714,7 @@ public static class AbilityTooltipDamagePreview
         {
             body.AppendLine(string.Empty);
             body.AppendLine(O(
-                "At max banner stacks, allies in range heal 15% max health and gain 15% movement speed for the remainder of the banner duration."));
+                $"At {AbilityCombatPower.WarBannerBaseMaxStacks} stacks, all allies regenerate {AbilityCombatPower.WarBannerEnh2MaxStacksHealPerSecondFraction * 100f:0.#}% max health per second and gain {AbilityCombatPower.WarBannerEnh2MoveSpeedBonus * 100f:0.#}% movement speed while banner persists."));
         }
     }
 

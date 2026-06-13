@@ -16,6 +16,7 @@ public partial class PlayerAbilityController
     private bool _warBannerEnh2Triggered;
     private bool _warBannerEnh2MoveSpeedActive;
     private float _warBannerNextStackTickAt;
+    private float _warBannerEnh2NextHealTickAt;
     private float _lastSyncedWarBannerHudEnd = float.NaN;
     private int _lastSyncedWarBannerHudStacks = int.MinValue;
     private Coroutine _warBannerCastRoutine;
@@ -120,6 +121,7 @@ public partial class PlayerAbilityController
         _warBannerEnh2Triggered = false;
         _warBannerEnh2MoveSpeedActive = false;
         _warBannerNextStackTickAt = Time.time + AbilityCombatPower.WarBannerStackIntervalSeconds;
+        _warBannerEnh2NextHealTickAt = 0f;
         _lastSyncedWarBannerHudEnd = float.NaN;
         _lastSyncedWarBannerHudStacks = int.MinValue;
 
@@ -158,6 +160,7 @@ public partial class PlayerAbilityController
         _warBannerEnh3KillProcs = 0;
         _warBannerEnh2Triggered = false;
         _warBannerEnh2MoveSpeedActive = false;
+        _warBannerEnh2NextHealTickAt = 0f;
 
         ClearWarBannerAllies();
         abilityVfx?.StopWarBannerVfx();
@@ -207,8 +210,9 @@ public partial class PlayerAbilityController
             if (_warBannerStacks < _warBannerMaxStacks)
             {
                 _warBannerStacks++;
-                if (!_warBannerEnh2Triggered && _warBannerStacks >= _warBannerMaxStacks)
-                    TriggerWarBannerEnh2MaxStackBurst();
+                if (!_warBannerEnh2Triggered
+                    && _warBannerStacks >= AbilityCombatPower.WarBannerBaseMaxStacks)
+                    ActivateWarBannerEnh2AfterTenStacks();
                 _lastSyncedWarBannerHudEnd = float.NaN;
                 _lastSyncedWarBannerHudStacks = int.MinValue;
                 SyncWarBannerHudBuff();
@@ -216,31 +220,43 @@ public partial class PlayerAbilityController
             }
         }
 
+        if (_warBannerEnh2Triggered && Time.time >= _warBannerEnh2NextHealTickAt)
+        {
+            _warBannerEnh2NextHealTickAt = Time.time + AbilityCombatPower.WarBannerStackIntervalSeconds;
+            TickWarBannerEnh2Heal();
+        }
+
         RefreshWarBannerAllies();
     }
 
-    private void TriggerWarBannerEnh2MaxStackBurst()
+    private void ActivateWarBannerEnh2AfterTenStacks()
     {
         if (GetWarBannerSelectedChoice() != 1)
             return;
 
         _warBannerEnh2Triggered = true;
         _warBannerEnh2MoveSpeedActive = true;
+        _warBannerEnh2NextHealTickAt = Time.time + AbilityCombatPower.WarBannerStackIntervalSeconds;
+        RefreshWarBannerAllies();
+    }
 
-        float rangeSq = AbilityCombatPower.WarBannerAllyRange * AbilityCombatPower.WarBannerAllyRange;
+    private void TickWarBannerEnh2Heal()
+    {
+        if (GetWarBannerSelectedChoice() != 1)
+            return;
+
         _warBannerRemoveScratch.Clear();
-        CollectWarBannerAlliesInRange(rangeSq, _warBannerRemoveScratch);
+        CollectWarBannerAllies(_warBannerRemoveScratch);
+        float healFraction = AbilityCombatPower.WarBannerEnh2MaxStacksHealPerSecondFraction;
         for (int i = 0; i < _warBannerRemoveScratch.Count; i++)
         {
             CharacterStats allyStats = _warBannerRemoveScratch[i];
             if (!allyStats)
                 continue;
 
-            int healAmount = Mathf.Max(1, Mathf.RoundToInt(allyStats.MaxHP * AbilityCombatPower.WarBannerEnh2MaxStacksHealFraction));
+            int healAmount = Mathf.Max(1, Mathf.RoundToInt(allyStats.MaxHP * healFraction));
             allyStats.Heal(healAmount, "War Banner");
         }
-
-        RefreshWarBannerAllies();
     }
 
     private void RefreshWarBannerAllies()
@@ -248,9 +264,8 @@ public partial class PlayerAbilityController
         if (!_warBannerDeployed)
             return;
 
-        float rangeSq = AbilityCombatPower.WarBannerAllyRange * AbilityCombatPower.WarBannerAllyRange;
         _warBannerRemoveScratch.Clear();
-        CollectWarBannerAlliesInRange(rangeSq, _warBannerRemoveScratch);
+        CollectWarBannerAllies(_warBannerRemoveScratch);
 
         _warBannerBuffedAlliesScratch.Clear();
         foreach (CharacterStats previouslyBuffed in _warBannerCurrentlyBuffed)
@@ -271,12 +286,12 @@ public partial class PlayerAbilityController
         }
     }
 
-    private void CollectWarBannerAlliesInRange(float rangeSq, List<CharacterStats> dest)
+    private void CollectWarBannerAllies(List<CharacterStats> dest)
     {
         dest.Clear();
-        if (stats != null)
+        if (stats != null && !stats.IsDead)
         {
-            if (GetWarBannerHorizontalDistanceSq(stats.transform.position, _warBannerAnchor) <= rangeSq)
+            if (!dest.Contains(stats))
                 dest.Add(stats);
         }
 
@@ -287,18 +302,9 @@ public partial class PlayerAbilityController
             if (!ally || !ally.IsAlive || ally.Stats == null)
                 continue;
 
-            if (GetWarBannerHorizontalDistanceSq(ally.transform.position, _warBannerAnchor) > rangeSq)
-                continue;
-
             if (!dest.Contains(ally.Stats))
                 dest.Add(ally.Stats);
         }
-    }
-
-    private static float GetWarBannerHorizontalDistanceSq(Vector3 worldPosition, Vector3 bannerAnchor)
-    {
-        float dx = worldPosition.x - bannerAnchor.x;
-        return dx * dx;
     }
 
     private void ClearWarBannerAllies()

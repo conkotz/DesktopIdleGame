@@ -63,7 +63,6 @@ public static class AbilityCombatPower
     public const string WarBannerAbilityId = "war_banner";
 
     public const float WarBannerBaseDurationSeconds = 20f;
-    public const float WarBannerAllyRange = 15f;
     public const float WarBannerBaseAttackSpeedBonus = 0.05f;
     public const float WarBannerBaseDamageReductionFraction = 0.05f;
     public const float WarBannerBaseGlobalPhysicalDamageBonus = 0.05f;
@@ -76,7 +75,7 @@ public static class AbilityCombatPower
     public const float WarBannerSpawnHoldSeconds = 0f;
 
     public const float WarBannerEnh1CooldownReduction = 0.15f;
-    public const float WarBannerEnh2MaxStacksHealFraction = 0.15f;
+    public const float WarBannerEnh2MaxStacksHealPerSecondFraction = 0.02f;
     public const float WarBannerEnh2MoveSpeedBonus = 0.15f;
     public const int WarBannerEnh3KillMaxStackBonus = 1;
     public const float WarBannerEnh3KillDurationExtensionSeconds = 3f;

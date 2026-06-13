@@ -1071,19 +1071,22 @@ MonoBehaviour:
     choices:
     - requiredLevel: 38
       title: War Drums
-      description: +15% cooldown reduction
+      description: 15% cooldown reduction while banner persists. Also reduces remaining cooldowns
+        by 15%
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
       title: Triumphant Rally
-      description: Heal 15% max health and gain 15% movement speed at max stacks.
+      description: At 10 stacks, all allies regenerate 2% max health per second and gain 15%
+        movement speed while banner persists.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
       title: Bloodied Banner
-      description: Kills extend banner duration and max stacks.
+      description: Kills extend banner's duration by 3 seconds and increase max stacks by 1 (max
+        of 5)
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

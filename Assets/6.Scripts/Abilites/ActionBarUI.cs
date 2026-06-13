@@ -759,6 +759,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private int activeCombatLoadoutSetIndex = 0; // 0 = set 1, 1 = set 2
     private bool suppressSaveForLoadoutSwap;
     private bool pendingSavedStateApply;
+
+    /// <summary>True while slot restore is still retrying (load-order races after scene load).</summary>
+    public bool IsSavedStateApplyPending => pendingSavedStateApply;
     private float nextSavedStateApplyTime;
     private int savedStateApplyAttempts;
 

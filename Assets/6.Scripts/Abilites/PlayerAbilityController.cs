@@ -423,13 +423,75 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
-        if (!actionBar) actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (!actionBar) ResolveActionBarReference();
         ReclaimPersistedSoulforgedMinionsFromScene();
+    }
+
+    private void ResolveActionBarReference()
+    {
+        ActionBarUI resolved = ActionBarUI.FindForCharacterStats(stats);
+        if (resolved)
+            actionBar = resolved;
+        else if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+    }
+
+    private bool IsActionBarReadyForLingeringAbilityChecks()
+    {
+        ResolveActionBarReference();
+        return actionBar != null && !actionBar.IsSavedStateApplyPending;
+    }
+
+    private static bool IsSoulforgedMinionAbilityId(string abilityId) =>
+        string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase);
+
+    private static int CountSoulforgedWeaponMinionsInScene()
+    {
+        SoulforgedWeaponMinion[] found = FindObjectsByType<SoulforgedWeaponMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        int count = 0;
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i])
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int CountSoulforgedWarriorMinionsInScene()
+    {
+        SoulforgedWarriorMinion[] found = FindObjectsByType<SoulforgedWarriorMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        int count = 0;
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i])
+                count++;
+        }
+
+        return count;
+    }
+
+    private void EnsureSoulforgedMinionsReclaimedIfNeeded()
+    {
+        if (CountSoulforgedWeaponMinionsInScene() > _activeSoulforgedWeaponMinions.Count
+            || CountSoulforgedWarriorMinionsInScene() > _activeSoulforgedWarriorMinions.Count)
+            ReclaimPersistedSoulforgedMinionsFromScene();
     }
 
     private void ReclaimPersistedSoulforgedMinionsFromScene()
     {
-        _soulforgedAvailabilityCheckPausedUntil = Time.time + SoulforgedWeaponSceneLoadActionBarGraceSeconds;
+        ResolveActionBarReference();
+
+        float graceEnd = Time.time + SoulforgedWeaponSceneLoadActionBarGraceSeconds;
+        if (actionBar != null && actionBar.IsSavedStateApplyPending)
+            graceEnd = Mathf.Max(graceEnd, Time.unscaledTime + 10f);
+
+        _soulforgedAvailabilityCheckPausedUntil = graceEnd;
 
         if (!string.IsNullOrWhiteSpace(s_persistedSoulforgedWeaponCooldownAbilityId))
         {
@@ -572,8 +634,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ResolveActionBarReference();
 
         ReclaimPersistedSoulforgedMinionsFromScene();
         StartCoroutine(RefreshPersistedSoulforgedMinionsAfterSceneLoad());
@@ -610,7 +671,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         for (int i = 0; i < _activeSoulforgedWarriorMinions.Count; i++)
         {
             SoulforgedWarriorMinion minion = _activeSoulforgedWarriorMinions[i];
-            if (!minion || !minion.IsOperational)
+            if (!minion)
                 continue;
 
             minion.RefreshAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
@@ -651,7 +712,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         for (int i = 0; i < found.Length; i++)
         {
             SoulforgedWarriorMinion minion = found[i];
-            if (!minion || !minion.IsOperational)
+            if (!minion)
                 continue;
 
             if (!_activeSoulforgedWarriorMinions.Contains(minion))
@@ -778,9 +839,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
-            return _activeSoulforgedWeaponMinions.Count > 0;
+            return _activeSoulforgedWeaponMinions.Count > 0 || CountSoulforgedWeaponMinionsInScene() > 0;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase))
-            return _activeSoulforgedWarriorMinions.Count > 0;
+            return _activeSoulforgedWarriorMinions.Count > 0 || CountSoulforgedWarriorMinionsInScene() > 0;
 
         return false;
     }
@@ -900,8 +961,8 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private void EndActiveLingeringAbilitiesNotOnActionBar()
     {
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        EnsureSoulforgedMinionsReclaimedIfNeeded();
+        ResolveActionBarReference();
         if (!actionBar)
             return;
 
@@ -966,11 +1027,16 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private bool ShouldSkipActionBarRemovalForAbility(string abilityId)
     {
-        if (Time.time >= _soulforgedAvailabilityCheckPausedUntil)
+        if (!IsSoulforgedMinionAbilityId(abilityId))
             return false;
 
-        return string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase);
+        if (Time.time < _soulforgedAvailabilityCheckPausedUntil)
+            return true;
+
+        if (!IsActionBarReadyForLingeringAbilityChecks())
+            return true;
+
+        return false;
     }
 
     /// <summary>Skill tree active overlay: only for finite-duration HUD buffs (not indefinite minion / until-dismissed).</summary>
