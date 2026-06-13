@@ -15,6 +15,7 @@ MonoBehaviour:
   skillType: 4
   displayName: Ranged
   description: Fight enemies using ranged combat
+  presentation: {fileID: 0}
   icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
   themeColor: {r: 0.013349866, g: 0.4716981, b: 0.035673983, a: 1}
   category: 1
@@ -27,7 +28,14 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: a2d5864fad9249f1b8e199f7df2aca68, type: 2}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 1
     title: Ranged Minor I
@@ -36,7 +44,14 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 2
     title: Ranged Minor II
@@ -45,7 +60,14 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 3
     title: Ranged Minor III
@@ -54,7 +76,14 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 3
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 4
     title: Ranged Minor IV
@@ -63,5 +92,41 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 4
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 5
+    title: Triple Shot
+    description: Primes your next auto attack to fire +2 phantom arrows at the target
+      (these additional arrows do not use additional arrows).
+    icon: {fileID: 3800113659745385010, guid: 6c2177c6341d13a4689486445b7c9c6e, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: e8d15914bd7641bb1ec7956489b4f9a7, type: 2}
+    presentation: {fileID: 11400000, guid: 1f10f390f52c4203a810b8d567202efe, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Piercing Volley
+      description: Each arrow deals an additional 10% extra damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 8
+      title: Rapid Recovery
+      description: -3 seconds Triple Shot cooldown.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}

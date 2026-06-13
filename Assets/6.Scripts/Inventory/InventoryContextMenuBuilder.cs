@@ -18,6 +18,8 @@ public static class InventoryContextMenuBuilder
         {
             bool canSell = slot.CanSellToActiveMerchant(out string sellLabel);
             entries.Add(new ContextMenuEntry(sellLabel, slot.PerformSellAction, disabled: !canSell));
+            if (slot.CanIdentifyStats())
+                entries.Add(new ContextMenuEntry("Identify Stats", slot.PerformIdentifyStatsAction));
             entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));
             AddDropEntry(entries, slot.PerformDropAction);
             return entries;

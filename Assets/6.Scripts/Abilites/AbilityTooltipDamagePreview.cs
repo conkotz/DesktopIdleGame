@@ -313,6 +313,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsPowerSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.PowerSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsTripleShot(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.TripleShotAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Combat abilities that show full hit totals in Effects (weapon × mult + AP + bonuses),
     /// not separate "+ bonus" damage lines over a basic attack.
@@ -327,7 +330,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
-        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def))
+        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def))
             return false;
 
         const float scalingEpsilon = 0.0001f;
@@ -776,9 +779,9 @@ public static class AbilityTooltipDamagePreview
             + tipAvgCorr * wEff * allM
             + ailmentBonus * allM);
 
-        int apBonusPct = Mathf.RoundToInt(Mathf.Max(0f, (apM - 1f) * 100f));
-        if (apBonusPct > 0)
-            scaling.AppendLine(S($"+{apBonusPct}% damage from Ability Power"));
+        float apBonusPct = Mathf.Max(0f, (apM - 1f) * 100f);
+        if (apBonusPct > 0.05f)
+            scaling.AppendLine(S($"+{apBonusPct:0.#}% damage from Ability Power"));
 
         AppendElementBonusScalerLine(scaling, S, def, stats, allM, apM, eps);
     }
@@ -1312,6 +1315,10 @@ public static class AbilityTooltipDamagePreview
         else if (IsPowerSlash(def))
         {
             AppendPowerSlashTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
+        }
+        else if (IsTripleShot(def))
+        {
+            AppendTripleShotTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
         }
         else if (IsHammerTempest(def))
         {
@@ -2317,6 +2324,29 @@ public static class AbilityTooltipDamagePreview
         ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
         DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
         AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+    }
+
+    private static void AppendTripleShotTooltipHitDamage(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier)
+    {
+        string suffix = " per arrow on hit";
+        if (!stats)
+        {
+            body.AppendLine(O("Arrow damage"));
+            return;
+        }
+
+        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
+        AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+        body.AppendLine(O(
+            $"Fires {AbilityCombatPower.TripleShotArrowCount} arrows ({AbilityCombatPower.TripleShotPhantomArrowIntervalSeconds:0.#}s apart). Phantom arrows do not consume ammo."));
     }
 
     /// <summary>

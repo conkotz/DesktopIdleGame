@@ -18,7 +18,7 @@ public enum RandomItemStatType
     LifeSteal,
     MoveSpeedPercent,
     PhysicalDamageFlat,
-    PhysicalDamagePercent,
+    MeleePhysicalDamagePercent,
     GlobalPhysicalDamagePercent,
     RangedPhysicalDamagePercent,
     MagicDamageFlat,
@@ -248,7 +248,7 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.LifeSteal, bonus.lifeSteal);
         TryAdd(RandomItemStatType.MoveSpeedPercent, bonus.moveSpeedPercent);
         TryAdd(RandomItemStatType.PhysicalDamageFlat, bonus.physicalDamage);
-        TryAdd(RandomItemStatType.PhysicalDamagePercent, bonus.physicalDamagePercent);
+        TryAdd(RandomItemStatType.MeleePhysicalDamagePercent, bonus.meleePhysicalDamagePercent);
         TryAdd(RandomItemStatType.GlobalPhysicalDamagePercent, bonus.globalPhysicalDamagePercent);
         TryAdd(RandomItemStatType.RangedPhysicalDamagePercent, bonus.rangedPhysicalDamagePercent);
         TryAdd(RandomItemStatType.MagicDamageFlat, bonus.magicDamage);
@@ -609,8 +609,8 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.PhysicalDamageFlat:
                 item.bonusStats.physicalDamage += primary;
                 break;
-            case RandomItemStatType.PhysicalDamagePercent:
-                item.bonusStats.physicalDamagePercent += primary;
+            case RandomItemStatType.MeleePhysicalDamagePercent:
+                item.bonusStats.meleePhysicalDamagePercent += primary;
                 break;
             case RandomItemStatType.GlobalPhysicalDamagePercent:
                 item.bonusStats.globalPhysicalDamagePercent += primary;

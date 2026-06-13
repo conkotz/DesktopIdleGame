@@ -1741,14 +1741,10 @@ public sealed class UpgradePageUI : MonoBehaviour
 
     private Inventory ResolveInventory()
     {
-        if (_inventory != null)
-            return _inventory;
+        Inventory inv = Inventory.ResolvePlayer();
+        if (inv != null)
+            _inventory = inv;
 
-        PlayerController player = FindFirstObjectByType<PlayerController>();
-        if (player != null)
-            _inventory = player.GetComponent<Inventory>();
-
-        _inventory ??= FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         return _inventory;
     }
 

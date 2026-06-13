@@ -233,11 +233,25 @@ public class ShopUI : MonoBehaviour
 
     private void TryResolveRefs()
     {
-        if (!inventory)
-            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        inventory = Inventory.ResolvePlayer();
 
         if (!wallet)
             wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+    }
+
+    private void RefreshEmbeddedInventoryGrids()
+    {
+        GameObject root = ResolveWindowRoot();
+        if (!root)
+            return;
+
+        InventoryGridUI[] grids = root.GetComponentsInChildren<InventoryGridUI>(true);
+        for (int i = 0; i < grids.Length; i++)
+        {
+            InventoryGridUI grid = grids[i];
+            if (grid)
+                grid.RefreshNow();
+        }
     }
 
     private SharedTooltipUI FindShopTooltip()
@@ -379,6 +393,7 @@ public class ShopUI : MonoBehaviour
             panelRoot.SetActive(true);
 
         Rebuild(merchant);
+        RefreshEmbeddedInventoryGrids();
         RefreshSelectionPanel();
         RefreshShopRaycastTargets();
         EnsureShopDragHandleOnTop();

@@ -447,7 +447,6 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (ToggleSettingsStore.Get(ToggleSettingId.AutoTrackNewQuest))
             ApplyAutoTrackAndShowQuestTracker(q.questId);
 
-        MainMenuWindowUI.Resolve()?.OpenQuestShow();
         TryAutoCompleteEligibleQuests();
         QuestAcceptedEnemyRespawnService.OnQuestAccepted(q);
 

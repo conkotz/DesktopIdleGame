@@ -364,21 +364,44 @@ public class MerchantClick : MonoBehaviour
     public static void ForceCloseMerchantMode()
     {
         CancelPendingOpen();
-        MerchantModeOpen = false;
 
-        UndoShopWindowUI undoWin = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
-        undoWin?.CloseWindow();
+        if (!MerchantModeOpen && _active == null && _pendingOpen == null)
+            return;
+
+        MerchantModeOpen = false;
 
         if (_active != null)
         {
+            CloseUndoWindowForShop(_active.shopUI);
             _active.CloseOnlyMerchantMode();
             _active = null;
             return;
         }
 
-        ShopUI shop = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
+        ShopUI shop = ResolveShopUi();
+        CloseUndoWindowForShop(shop);
         if (shop != null && shop.IsOpen)
             shop.Close();
+    }
+
+    private static ShopUI _cachedShopUi;
+
+    private static ShopUI ResolveShopUi()
+    {
+        if (_cachedShopUi)
+            return _cachedShopUi;
+
+        _cachedShopUi = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
+        return _cachedShopUi;
+    }
+
+    private static void CloseUndoWindowForShop(ShopUI shop)
+    {
+        if (!shop)
+            return;
+
+        UndoShopWindowUI undoWin = shop.GetComponentInChildren<UndoShopWindowUI>(true);
+        undoWin?.CloseWindow();
     }
 
     public static bool TryGetActiveMerchant(out Merchant merchant)

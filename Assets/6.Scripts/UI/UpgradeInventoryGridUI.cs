@@ -42,12 +42,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     private void Awake()
     {
-        if (!inventory)
-        {
-            PlayerController player = FindFirstObjectByType<PlayerController>();
-            if (player)
-                inventory = player.GetComponent<Inventory>();
-        }
+        inventory ??= Inventory.ResolvePlayer();
 
         if (slotsGrid)
             _grid = slotsGrid.GetComponent<GridLayoutGroup>();
@@ -64,12 +59,16 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     private void OnEnable()
     {
         DisableLegacyInventoryGrid();
+        PurgeOrphanSlotChildren();
         TrySubscribeInventory();
 
-        if (MainMenuUIPrewarm.UseBatchedInstantiation)
-            return;
+        if (_subscribedInventory != null)
+        {
+            _subscribedInventory.OnInventoryChanged -= OnInventoryChanged;
+            _subscribedInventory.OnInventoryChanged += OnInventoryChanged;
+        }
 
-        if (_displayPrewarmed && _poolPrewarmed && !_dirty)
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
             return;
 
         _dirty = true;
@@ -89,6 +88,19 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     public void MarkDirty() => _dirty = true;
 
+    public void RefreshNow()
+    {
+        TrySubscribeInventory();
+        PurgeOrphanSlotChildren();
+        _displayPrewarmed = false;
+        _dirty = true;
+
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+            return;
+
+        RebuildIfDirty();
+    }
+
     public void SetSelectedSourceSlot(int sourceSlotIndex)
     {
         _selectedSourceSlot = sourceSlotIndex;
@@ -107,8 +119,8 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     private void TrySubscribeInventory()
     {
-        Inventory inv = inventory ?? FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (inv == _subscribedInventory)
+        Inventory inv = Inventory.ResolvePlayer();
+        if (inv == _subscribedInventory && inventory == inv)
             return;
 
         if (_subscribedInventory != null)
@@ -116,8 +128,8 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
         inventory = inv;
         _subscribedInventory = inv;
-        if (_subscribedInventory != null)
-            _subscribedInventory.OnInventoryChanged += OnInventoryChanged;
+        _displayPrewarmed = false;
+        _dirty = true;
     }
 
     private void UnsubscribeInventory()
@@ -168,8 +180,30 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     private void DisableLegacyInventoryGrid()
     {
         InventoryGridUI legacyGrid = GetComponent<InventoryGridUI>();
-        if (legacyGrid != null)
-            legacyGrid.enabled = false;
+        if (legacyGrid == null)
+            return;
+
+        legacyGrid.enabled = false;
+        PurgeOrphanSlotChildren();
+    }
+
+    private void PurgeOrphanSlotChildren()
+    {
+        if (!slotsGrid)
+            return;
+
+        for (int i = slotsGrid.childCount - 1; i >= 0; i--)
+        {
+            Transform child = slotsGrid.GetChild(i);
+            InventorySlotUI slotUi = child.GetComponent<InventorySlotUI>();
+            if (!slotUi || _slotPool.Contains(slotUi))
+                continue;
+
+            if (Application.isPlaying)
+                Destroy(child.gameObject);
+            else
+                DestroyImmediate(child.gameObject);
+        }
     }
 
     private void RebuildIfDirty()
@@ -186,6 +220,9 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     public IEnumerator CoPrewarmPool()
     {
+        TrySubscribeInventory();
+        PurgeOrphanSlotChildren();
+
         if (!inventory || !slotsGrid || !slotPrefab)
             yield break;
 
@@ -213,6 +250,8 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     {
         if (!inventory || !slotsGrid || !slotPrefab)
             return;
+
+        PurgeOrphanSlotChildren();
 
         inventory.EnsureSlotCount(inventory.SlotCount);
 

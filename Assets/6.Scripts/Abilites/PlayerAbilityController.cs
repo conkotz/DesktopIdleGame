@@ -67,6 +67,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _instance.ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
     }
     private const string PowerSlashId = "power_slash";
+    private const string TripleShotId = "triple_shot";
     private const string CrusaderStrikeId = "crusader_strike";
     public const string CrusaderStrikeFireBalanceHudBuffId = "crusader_strike_fire_balance";
     private const string WhirlwindId = "whirlwind";
@@ -194,6 +195,11 @@ public partial class PlayerAbilityController : MonoBehaviour
     private float _crusaderStrikeFireBalanceBuffDuration;
     private float _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
     private bool _powerSlashQueued;
+    private bool _tripleShotQueued;
+    private Coroutine _tripleShotPhantomVolleyRoutine;
+    private float _queuedTripleShotWeaponMultiplier = 1f;
+    private float _queuedTripleShotAllDamageMultiplier = 1f;
+    private bool _queuedTripleShotUsedEnergyInfusionMana;
     private string _pendingMeleeApproachAbilityId;
     private bool _rendQueued;
     private bool _envenomQueued;
@@ -342,6 +348,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     {
         None,
         PowerSlash,
+        TripleShot,
         Rend,
         Envenom,
         CrescentSlash,
@@ -380,6 +387,17 @@ public partial class PlayerAbilityController : MonoBehaviour
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(PowerSlashId),
+                1f);
+        }
+
+        if (_queuedConsumedThisHit == QueuedHitEffect.TripleShot)
+        {
+            _queuedConsumedThisHit = QueuedHitEffect.None;
+            _queuedConsumedFrame = -1;
+
+            return new PlayerCombatController.SwingOutgoingAttribution(
+                "Auto Attack",
+                GetAbilityOutgoingDamageSourceLabel(TripleShotId),
                 1f);
         }
 
@@ -1732,6 +1750,11 @@ public partial class PlayerAbilityController : MonoBehaviour
                 ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
                 : 0f;
 
+        if (string.Equals(def.abilityId, TripleShotId, StringComparison.OrdinalIgnoreCase))
+            return _queuedTripleShotUsedEnergyInfusionMana
+                ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
+                : 0f;
+
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashUsedEnergyInfusionMana
                 ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
@@ -2306,6 +2329,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         string id = def.abilityId;
         return string.Equals(id, PowerSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, TripleShotId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
@@ -2709,6 +2733,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         string id = def.abilityId;
         return string.Equals(id, PowerSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, TripleShotId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
@@ -3208,6 +3233,11 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (_powerSlashQueued)
                 return false;
         }
+        if (string.Equals(def.abilityId, TripleShotId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_tripleShotQueued)
+                return false;
+        }
         if (string.Equals(def.abilityId, RendId, StringComparison.OrdinalIgnoreCase))
         {
             if (_rendQueued)
@@ -3265,6 +3295,22 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (UsesMeleeApproachOnActivate(def))
             return TryUseMeleeApproachAbility(def, showLockedFeedback);
+
+        if (string.Equals(def.abilityId, TripleShotId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_tripleShotQueued)
+                return false;
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
+            _tripleShotQueued = true;
+            _queuedTripleShotUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
 
         if (string.Equals(def.abilityId, RendId, StringComparison.OrdinalIgnoreCase))
         {
@@ -6320,6 +6366,52 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
+        if (_tripleShotQueued)
+        {
+            if (stats == null || stats.CurrentAttackSkill != AttackSkill.Ranged)
+                return false;
+
+            AbilityDefinition def = GetAbilityDefinition(TripleShotId);
+            if (def == null)
+            {
+                _tripleShotQueued = false;
+                return false;
+            }
+
+            _tripleShotQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.TripleShot;
+            _queuedConsumedFrame = Time.frameCount;
+
+            float tripleShotAnyTypeBonus = GetTripleShotAnyTypeMultiplierBonus();
+            float weaponCombo = def.weaponDamageMultiplier + tripleShotAnyTypeBonus;
+            _queuedTripleShotWeaponMultiplier = weaponCombo <= 0f ? 1f : weaponCombo;
+            _queuedTripleShotAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
+
+            float apM = GetAbilityPowerDamageMultiplierForAbility(def);
+            float allM = _queuedTripleShotAllDamageMultiplier;
+            float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+            float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+            float overloadMult = GetBattleEngineOverloadDamageMultiplier();
+
+            rolled.physical = ((rolled.physical * _queuedTripleShotWeaponMultiplier + ailmentBonus) * apM * allM) * overloadMult;
+            rolled.magic = ((rolled.magic * _queuedTripleShotWeaponMultiplier + elementBonus) * apM * allM) * overloadMult;
+            rolled.corruptionDamage = ((rolled.corruptionDamage * _queuedTripleShotWeaponMultiplier) * apM * allM) * overloadMult;
+            rolled.physical = Mathf.Max(0f, rolled.physical);
+            rolled.magic = Mathf.Max(0f, rolled.magic);
+            rolled.corruptionDamage = Mathf.Max(0f, rolled.corruptionDamage);
+            _queuedTripleShotUsedEnergyInfusionMana = false;
+
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            EnemyBaseController volleyTarget = combat != null ? combat.CurrentTarget : null;
+            BeginTripleShotPhantomVolley(volleyTarget);
+
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+
         if (_rendQueued)
         {
             AbilityDefinition def = GetAbilityDefinition(RendId);
@@ -8011,6 +8103,8 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
             return _powerSlashQueued;
+        if (string.Equals(abilityId, TripleShotId, StringComparison.OrdinalIgnoreCase))
+            return _tripleShotQueued;
         if (string.Equals(abilityId, RendId, StringComparison.OrdinalIgnoreCase))
             return _rendQueued;
         if (string.Equals(abilityId, EnvenomId, StringComparison.OrdinalIgnoreCase))
@@ -8142,7 +8236,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     private void StartCooldown(AbilityDefinition def)
     {
         if (!def) return;
-        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
+        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetTripleShotCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
         if (stats != null)
             cd *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
         if (cd <= 0f) return;
@@ -8177,6 +8271,103 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
         return selected == 1 ? 3f : 0f;
+    }
+
+    private float GetTripleShotAnyTypeMultiplierBonus()
+    {
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return 0f;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        return selected == 0 ? AbilityCombatPower.TripleShotEnhancementDamageBonus : 0f;
+    }
+
+    private float GetTripleShotCooldownReduction(AbilityDefinition def)
+    {
+        if (def == null || !string.Equals(def.abilityId, TripleShotId, StringComparison.OrdinalIgnoreCase))
+            return 0f;
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return 0f;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        return selected == 1 ? AbilityCombatPower.TripleShotEnhancementCooldownReductionSeconds : 0f;
+    }
+
+    private void BeginTripleShotPhantomVolley(EnemyBaseController target)
+    {
+        if (_tripleShotPhantomVolleyRoutine != null)
+        {
+            StopCoroutine(_tripleShotPhantomVolleyRoutine);
+            _tripleShotPhantomVolleyRoutine = null;
+        }
+
+        if (target == null || target.IsDead)
+            return;
+
+        _tripleShotPhantomVolleyRoutine = StartCoroutine(CoTripleShotPhantomVolley(target));
+    }
+
+    private IEnumerator CoTripleShotPhantomVolley(EnemyBaseController initialTarget)
+    {
+        int phantomShots = AbilityCombatPower.TripleShotArrowCount - 1;
+        float interval = AbilityCombatPower.TripleShotPhantomArrowIntervalSeconds;
+        AbilityDefinition def = GetAbilityDefinition(TripleShotId);
+        string sourceLabel = GetAbilityOutgoingDamageSourceLabel(TripleShotId);
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        for (int i = 0; i < phantomShots; i++)
+        {
+            yield return new WaitForSeconds(interval);
+
+            if (player == null || stats == null || combat == null || stats.IsDead || player.IsDead)
+                break;
+
+            EnemyBaseController target = initialTarget;
+            if (target == null || target.IsDead || !target.gameObject.activeInHierarchy)
+            {
+                target = combat.CurrentTarget;
+                if (target == null || target.IsDead)
+                    break;
+            }
+
+            SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
+            ApplyTripleShotPhantomDamageScaling(ref rolled, def);
+            ApplyActiveDamageConversions(ref rolled);
+            if (rolled.IsEmpty)
+                continue;
+
+            var attribution = new PlayerCombatController.SwingOutgoingAttribution(
+                "Auto Attack",
+                sourceLabel,
+                1f);
+            combat.FireBonusRangedAttackShot(target, rolled, wasCrit, attribution, consumeAmmo: false);
+        }
+
+        _tripleShotPhantomVolleyRoutine = null;
+        _queuedTripleShotUsedEnergyInfusionMana = false;
+    }
+
+    private void ApplyTripleShotPhantomDamageScaling(ref SplitDamage rolled, AbilityDefinition def)
+    {
+        if (rolled.IsEmpty || stats == null)
+            return;
+
+        float apM = GetAbilityPowerDamageMultiplierForAbility(def);
+        float allM = _queuedTripleShotAllDamageMultiplier;
+        float elementBonus = def != null ? AbilityElementScaling.GetElementDamageBonus(def, stats) : 0f;
+        float ailmentBonus = def != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats) : 0f;
+        float overloadMult = GetBattleEngineOverloadDamageMultiplier();
+
+        rolled.physical = ((rolled.physical * _queuedTripleShotWeaponMultiplier + ailmentBonus) * apM * allM) * overloadMult;
+        rolled.magic = ((rolled.magic * _queuedTripleShotWeaponMultiplier + elementBonus) * apM * allM) * overloadMult;
+        rolled.corruptionDamage = ((rolled.corruptionDamage * _queuedTripleShotWeaponMultiplier) * apM * allM) * overloadMult;
+        rolled.physical = Mathf.Max(0f, rolled.physical);
+        rolled.magic = Mathf.Max(0f, rolled.magic);
+        rolled.corruptionDamage = Mathf.Max(0f, rolled.corruptionDamage);
     }
 
     private float GetAvatarOfTheForestCooldownReduction(AbilityDefinition def)

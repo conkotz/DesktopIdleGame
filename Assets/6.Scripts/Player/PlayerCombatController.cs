@@ -1412,14 +1412,41 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         bool wasCrit,
         SwingOutgoingAttribution swingAttribution)
     {
+        HandleRangedAttackInternal(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo: true);
+    }
+
+    /// <summary>
+    /// Bonus ranged shot (animation + projectile). Triple Shot phantom arrows skip off-hand ammo consumption.
+    /// </summary>
+    public void FireBonusRangedAttackShot(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution,
+        bool consumeAmmo)
+    {
+        if (targetAtFireTime == null || targetAtFireTime.IsDead || rolled.IsEmpty || player == null)
+            return;
+
+        player.TriggerAttackAnim();
+        HandleRangedAttackInternal(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo);
+    }
+
+    private void HandleRangedAttackInternal(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution,
+        bool consumeAmmo)
+    {
         float fireDelay = Mathf.Max(0f, rangedProjectileFireDelay);
         if (fireDelay <= 0f)
         {
-            ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
+            ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo);
             return;
         }
 
-        StartCoroutine(ResolveRangedAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay, swingAttribution));
+        StartCoroutine(ResolveRangedAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay, swingAttribution, consumeAmmo));
     }
 
     private System.Collections.IEnumerator ResolveRangedAttackAfterFireDelay(
@@ -1427,17 +1454,19 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         SplitDamage rolled,
         bool wasCrit,
         float fireDelay,
-        SwingOutgoingAttribution swingAttribution)
+        SwingOutgoingAttribution swingAttribution,
+        bool consumeAmmo = true)
     {
         yield return new WaitForSeconds(fireDelay);
-        ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
+        ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo);
     }
 
     private void ResolveRangedAttackAtRelease(
         EnemyBaseController targetAtFireTime,
         SplitDamage rolled,
         bool wasCrit,
-        SwingOutgoingAttribution swingAttribution)
+        SwingOutgoingAttribution swingAttribution,
+        bool consumeAmmo = true)
     {
         if (targetAtFireTime == null || targetAtFireTime.IsDead)
             return;
@@ -1449,11 +1478,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (delay <= 0f)
         {
-            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
+            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo: consumeAmmo);
             return;
         }
 
-        StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay, swingAttribution));
+        StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay, swingAttribution, consumeAmmo: consumeAmmo));
     }
 
     private void HandleMagicAttack(
@@ -1598,10 +1627,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         bool wasCrit,
         float delay,
         SwingOutgoingAttribution swingAttribution,
-        bool suppressOnHitAilments = false)
+        bool suppressOnHitAilments = false,
+        bool consumeAmmo = true)
     {
         yield return new WaitForSeconds(delay);
-        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution, suppressOnHitAilments);
+        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution, suppressOnHitAilments, consumeAmmo);
     }
 
     /// <summary>
@@ -1758,7 +1788,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         SplitDamage rolled,
         bool wasCrit,
         SwingOutgoingAttribution swingAttribution = default,
-        bool suppressOnHitAilments = false)
+        bool suppressOnHitAilments = false,
+        bool consumeAmmo = true)
     {
         if (string.IsNullOrWhiteSpace(swingAttribution.primarySource))
             swingAttribution = SwingOutgoingAttribution.AutoAttackOnly;
@@ -1778,7 +1809,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         TryApplyPendingWayOfTheCrusaderExtraFireDamage(targetToHit, wasCrit);
 
-        if (totalDealt > 0f)
+        if (totalDealt > 0f && consumeAmmo)
             TryConsumeOffHandSupportAmmo();
 
         if (abilityController != null && totalDealt > 0f &&
@@ -3272,6 +3303,21 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     public const string PhoenixSoulHealingSourceLabel = "Phoenix Soul";
     public const string AbilityHealthRefundHealingSourceLabel = "Ability Health Refund";
     public const string GenericHealingSourceLabel = "Healing";
+    public const string WarBannerTriumphantRallyHealingSourceLabel = "Triumphant Rally";
+
+    /// <summary>
+    /// Green +HP floating text for every labeled heal except natural HP regen ticks
+    /// (<see cref="HpRegenHealingSourceLabel"/>) and life steal (<see cref="LeechHealingSourceLabel"/>).
+    /// Pass a stable label from <see cref="CharacterStats.Heal"/>.
+    /// </summary>
+    public static bool ShouldShowHealingPopupForSource(string sourceLabel)
+    {
+        if (string.IsNullOrWhiteSpace(sourceLabel))
+            return false;
+
+        return !string.Equals(sourceLabel, HpRegenHealingSourceLabel, System.StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(sourceLabel, LeechHealingSourceLabel, System.StringComparison.OrdinalIgnoreCase);
+    }
 
     private string ResolveOutgoingDamageSourceLabel(
         string explicitLabel,

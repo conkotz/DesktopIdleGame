@@ -1,8 +1,20 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class WorldClickPicker2D
 {
     private static readonly Collider2D[] _hits = new Collider2D[128];
+    private static readonly Dictionary<int, CachedPickSort> _sortCache = new(256);
+
+    private struct CachedPickSort
+    {
+        public Collider2D Collider;
+        public int LayerValue;
+        public int Order;
+        public float Z;
+        public int DropOrder;
+        public bool HasRenderer;
+    }
 
     public static Collider2D PickTopmostAtPoint(Vector2 point, LayerMask mask)
     {
@@ -32,19 +44,10 @@ public static class WorldClickPicker2D
             var c = _hits[i];
             if (!c) continue;
 
-            var r = c.GetComponentInParent<SpriteRenderer>();
-            if (!r)
-                r = c.GetComponentInChildren<SpriteRenderer>(true);
-            if (!r) continue;
+            if (!TryGetPickSort(c, out int layerValue, out int order, out float z, out int dropOrder))
+                continue;
 
-            int layerValue = SortingLayer.GetLayerValueFromID(r.sortingLayerID);
-            int order = r.sortingOrder;
-            float z = r.transform.position.z;
-
-            var drop = c.GetComponentInParent<ItemDrop>();
-            int dropOrder = drop ? drop.DropOrder : int.MinValue;
-
-            int id = r.GetInstanceID();
+            int id = c.GetInstanceID();
             Vector2 close = c.ClosestPoint(point);
             float distSq = (close - point).sqrMagnitude;
 
@@ -69,5 +72,59 @@ public static class WorldClickPicker2D
         }
 
         return bestC;
+    }
+
+    private static bool TryGetPickSort(
+        Collider2D c,
+        out int layerValue,
+        out int order,
+        out float z,
+        out int dropOrder)
+    {
+        layerValue = 0;
+        order = 0;
+        z = 0f;
+        dropOrder = int.MinValue;
+
+        int id = c.GetInstanceID();
+        if (_sortCache.TryGetValue(id, out CachedPickSort cached) && cached.Collider == c)
+        {
+            if (!cached.HasRenderer)
+                return false;
+
+            layerValue = cached.LayerValue;
+            order = cached.Order;
+            z = cached.Z;
+            dropOrder = cached.DropOrder;
+            return true;
+        }
+
+        SpriteRenderer r = c.GetComponentInParent<SpriteRenderer>();
+        if (!r)
+            r = c.GetComponentInChildren<SpriteRenderer>(true);
+
+        if (!r)
+        {
+            _sortCache[id] = new CachedPickSort { Collider = c, HasRenderer = false };
+            return false;
+        }
+
+        ItemDrop drop = c.GetComponentInParent<ItemDrop>();
+        cached = new CachedPickSort
+        {
+            Collider = c,
+            LayerValue = SortingLayer.GetLayerValueFromID(r.sortingLayerID),
+            Order = r.sortingOrder,
+            Z = r.transform.position.z,
+            DropOrder = drop ? drop.DropOrder : int.MinValue,
+            HasRenderer = true
+        };
+        _sortCache[id] = cached;
+
+        layerValue = cached.LayerValue;
+        order = cached.Order;
+        z = cached.Z;
+        dropOrder = cached.DropOrder;
+        return true;
     }
 }

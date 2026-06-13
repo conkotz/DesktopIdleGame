@@ -233,9 +233,8 @@ public struct CombatSupportStats
     public float attackSpeedPercent;
 
     [Header("Damage % (multipliers)")]
-    [Tooltip("Extra all-physical damage. Uses item scaling: 0.1 = +10% (stacks additively across gear).")]
-    public float physicalDamagePercent;
-    [Tooltip("More all-physical damage, same stacking as Physical %. Use either or both; they add together.")]
+    [Tooltip("Extra global physical damage on all attack styles (0.1 = +10%). Former all-physical % rolls into this field.")]
+    [FormerlySerializedAs("physicalDamagePercent")]
     public float globalPhysicalDamagePercent;
     [Tooltip("Extra physical damage with ranged weapons only (0.1 = +10%).")]
     public float rangedPhysicalDamagePercent;
@@ -362,10 +361,11 @@ public struct BonusStats
     [Tooltip("Flat physical damage added to attacks.")]
     public float physicalDamage;
 
-    [Tooltip("Extra all-physical damage (0.1 = +10%). Stacks with Global Physical % on this item.")]
-    public float physicalDamagePercent;
+    [Tooltip("Extra physical damage with melee weapons only (0.1 = +10%).")]
+    public float meleePhysicalDamagePercent;
 
-    [Tooltip("More all-physical damage (0.1 = +10%). Same combat bucket as Physical %.")]
+    [Tooltip("Extra global physical damage on all attack styles (0.1 = +10%). Former all-physical % rolls into this field.")]
+    [FormerlySerializedAs("physicalDamagePercent")]
     public float globalPhysicalDamagePercent;
 
     [Tooltip("Extra physical damage with ranged weapons (0.1 = +10%).")]
@@ -481,7 +481,7 @@ public struct BonusStats
                armor != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
                lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || energyEfficiency > 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
-               physicalDamage != 0f || physicalDamagePercent != 0f ||
+               physicalDamage != 0f || meleePhysicalDamagePercent != 0f ||
                globalPhysicalDamagePercent != 0f || rangedPhysicalDamagePercent != 0f ||
                magicDamage != 0f || magicDamagePercent != 0f ||
                fireSkillDamagePercent != 0f || iceSkillDamagePercent != 0f || lightningSkillDamagePercent != 0f ||
@@ -1161,9 +1161,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float SupportAttackSpeedPercent =>
         IsCombatSupport ? combatSupportStats.attackSpeedPercent : 0f;
 
-    public float SupportPhysicalDamagePercent =>
-        IsCombatSupport ? combatSupportStats.physicalDamagePercent : 0f;
-
     public float SupportGlobalPhysicalDamagePercent =>
         IsCombatSupport ? combatSupportStats.globalPhysicalDamagePercent : 0f;
 
@@ -1621,7 +1618,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float BonusCorruptionDamage => bonusStats.corruptionDamage;
     public float AbilityPower => bonusStats.abilityPower;
 
-    public float PhysicalDamagePercent => bonusStats.physicalDamagePercent;
+    public float MeleePhysicalDamagePercent => bonusStats.meleePhysicalDamagePercent;
 
     /// <summary>Armor/weapon bonus + combat support: stacks into the global physical multiplier.</summary>
     public float GlobalPhysicalDamagePercent =>
@@ -2210,9 +2207,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
-            float supAllPhys = SupportPhysicalDamagePercent + SupportGlobalPhysicalDamagePercent;
-            if (supAllPhys != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(supAllPhys, "All physical")}";
+            if (SupportGlobalPhysicalDamagePercent != 0f)
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportGlobalPhysicalDamagePercent, "Global physical")}";
             if (SupportRangedPhysicalDamagePercent != 0f)
                 s += $"\nRanged Dmg: {FormatSignedPercent01(SupportRangedPhysicalDamagePercent)}";
             if (SupportMagicDamagePercent != 0f)
@@ -2760,18 +2756,30 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedNumber(delta));
         }
 
-        float allPhysPct = cur.physicalDamagePercent + cur.globalPhysicalDamagePercent;
-        if (allPhysPct != 0f)
+        if (cur.meleePhysicalDamagePercent != 0f)
         {
-            float baseAllPhysPct = baselineStats.physicalDamagePercent + baselineStats.globalPhysicalDamagePercent;
-            float delta = FloatDelta(allPhysPct, baseAllPhysPct);
+            float delta = FloatDelta(cur.meleePhysicalDamagePercent, baselineStats.meleePhysicalDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baseAllPhysPct, "All physical"),
+                FormatScalingCoefficientPercentLine(baselineStats.meleePhysicalDamagePercent, "Melee physical"),
 
-                FormatScalingCoefficientPercentLine(allPhysPct, "All physical"),
+                FormatScalingCoefficientPercentLine(cur.meleePhysicalDamagePercent, "Melee physical"),
 
-                HasFloatDelta(allPhysPct, baseAllPhysPct),
+                HasFloatDelta(cur.meleePhysicalDamagePercent, baselineStats.meleePhysicalDamagePercent),
+
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.globalPhysicalDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.globalPhysicalDamagePercent, baselineStats.globalPhysicalDamagePercent);
+            AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.globalPhysicalDamagePercent, "Global physical"),
+
+                FormatScalingCoefficientPercentLine(cur.globalPhysicalDamagePercent, "Global physical"),
+
+                HasFloatDelta(cur.globalPhysicalDamagePercent, baselineStats.globalPhysicalDamagePercent),
 
                 DeltaPercentFractionNote(delta));
         }
@@ -3207,9 +3215,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.moveSpeedPercent != 0f)
             s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
-        float allPhysPct = bonusStats.physicalDamagePercent + bonusStats.globalPhysicalDamagePercent;
-        if (allPhysPct != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(allPhysPct, "All physical")}\n";
+        if (bonusStats.meleePhysicalDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.meleePhysicalDamagePercent, "Melee physical")}\n";
+        if (bonusStats.globalPhysicalDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.globalPhysicalDamagePercent, "Global physical")}\n";
         if (bonusStats.rangedPhysicalDamagePercent != 0f)
             s += $"Ranged Dmg: {FormatSignedPercent01(bonusStats.rangedPhysicalDamagePercent)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";

@@ -23,6 +23,17 @@ public static class AbilityTooltipAdjustments
                 cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.TripleShotAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, AbilityCombatPower.TripleShotEnhancementParentSpineNodeId, -1);
+            if (selected == 0)
+                weaponDamageMultiplier += AbilityCombatPower.TripleShotEnhancementDamageBonus;
+            else if (selected == 1)
+                cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - AbilityCombatPower.TripleShotEnhancementCooldownReductionSeconds);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(

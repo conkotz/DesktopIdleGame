@@ -100,16 +100,13 @@ public class InventoryGridUI : MonoBehaviour
     private Canvas _rootCanvas;
     private RectTransform _resolvedViewport;
     private RectTransform _resolvedContent;
+    private Inventory _subscribedInventory;
 
     private int TotalSlots => GetTargetSlotCount();
 
     private void Awake()
     {
-        if (!inventory)
-        {
-            var player = FindFirstObjectByType<PlayerController>();
-            if (player) inventory = player.GetComponent<Inventory>();
-        }
+        TryResolveInventory();
 
         if (slotsGrid) _grid = slotsGrid.GetComponent<GridLayoutGroup>();
         if (!_grid && slotsGrid) _grid = slotsGrid.GetComponent<GridLayoutGroup>();
@@ -145,16 +142,20 @@ public class InventoryGridUI : MonoBehaviour
     private void OnEnable()
     {
         EnsureScrollViewportClipping();
+        TryResolveInventory();
 
-        if (inventory != null)
-            inventory.OnInventoryChanged += MarkDirty;
-
-        BindFilterButtons();
-        SetFilter(InventoryViewFilter.All, rebuildNow: false);
+        if (_subscribedInventory != null)
+        {
+            _subscribedInventory.OnInventoryChanged -= MarkDirty;
+            _subscribedInventory.OnInventoryChanged += MarkDirty;
+        }
 
         int totalSlots = TotalSlots;
         if (_poolPrewarmed && _slotPool.Count < totalSlots)
             _poolPrewarmed = false;
+
+        BindFilterButtons();
+        SetFilter(InventoryViewFilter.All, rebuildNow: false);
 
         if (TryShowPrewarmedWithoutRebuild())
             return;
@@ -165,8 +166,27 @@ public class InventoryGridUI : MonoBehaviour
         StartCoroutine(DeferredRefresh());
     }
 
+    private void TryResolveInventory()
+    {
+        Inventory resolved = Inventory.ResolvePlayer();
+        if (!resolved)
+            return;
+
+        if (inventory == resolved)
+            return;
+
+        if (_subscribedInventory != null)
+            _subscribedInventory.OnInventoryChanged -= MarkDirty;
+
+        inventory = resolved;
+        _subscribedInventory = resolved;
+        _displayPrewarmed = false;
+        _dirty = true;
+        ClearSlotRebindCache();
+    }
+
     /// <summary>
-    /// After load-time prewarm, visuals and slot bindings are already current — skip the full deferred rebuild on first open.
+    /// After load-time prewarm, pool/layout are warm — re-bind live inventory data on every open.
     /// </summary>
     private bool TryShowPrewarmedWithoutRebuild()
     {
@@ -191,20 +211,22 @@ public class InventoryGridUI : MonoBehaviour
 
         int totalSlots = TotalSlots;
         int sig = ComputeInventoryGridLayoutSignature(totalSlots);
-        if (sig == _lastLayoutFitSignature)
-            yield break;
+        if (sig != _lastLayoutFitSignature)
+        {
+            ApplyGridFit();
+            _lastLayoutFitSignature = sig;
+        }
 
-        ApplyGridFit();
-        _lastLayoutFitSignature = sig;
         Rebuild();
+        _dirty = false;
     }
 
     private void OnDisable()
     {
         _pendingLateRebuild = false;
 
-        if (inventory != null)
-            inventory.OnInventoryChanged -= MarkDirty;
+        if (_subscribedInventory != null)
+            _subscribedInventory.OnInventoryChanged -= MarkDirty;
 
         UnbindFilterButtons();
 
@@ -234,6 +256,17 @@ public class InventoryGridUI : MonoBehaviour
         for (int i = 0; i < grids.Length; i++)
         {
             InventoryGridUI grid = grids[i];
+            if (grid)
+                grid.RefreshNow();
+        }
+
+        UpgradeInventoryGridUI[] upgradeGrids = FindObjectsByType<UpgradeInventoryGridUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < upgradeGrids.Length; i++)
+        {
+            UpgradeInventoryGridUI grid = upgradeGrids[i];
             if (grid)
                 grid.RefreshNow();
         }
@@ -306,6 +339,8 @@ public class InventoryGridUI : MonoBehaviour
 
     public IEnumerator CoPrewarmPool()
     {
+        TryResolveInventory();
+
         int totalSlots = TotalSlots;
         if (_displayPrewarmed && _poolPrewarmed && _slotPool.Count >= totalSlots)
             yield break;

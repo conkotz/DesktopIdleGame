@@ -52,26 +52,12 @@ public class InventorySortButton : MonoBehaviour
 
     private static void RefreshInventoryGrids()
     {
-        InventoryGridUI[] grids = FindObjectsByType<InventoryGridUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < grids.Length; i++)
-        {
-            InventoryGridUI grid = grids[i];
-            if (grid != null && grid.isActiveAndEnabled)
-                grid.RefreshNow();
-        }
+        InventoryGridUI.RefreshAllGrids();
     }
 
     private static Inventory ResolvePlayerInventory()
     {
-        var pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (pc != null)
-        {
-            var inv = pc.GetComponent<Inventory>();
-            if (inv != null)
-                return inv;
-        }
-
-        return FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        return Inventory.ResolvePlayer();
     }
 
     private static PlayerStorage ResolvePlayerStorage()

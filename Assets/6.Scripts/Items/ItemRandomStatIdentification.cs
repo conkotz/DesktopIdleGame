@@ -93,8 +93,8 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, "Life Steal", cur.lifeSteal, baseline.lifeSteal);
         TryAppendPercent01Delta(sb, "Move Speed", cur.moveSpeedPercent, baseline.moveSpeedPercent);
         TryAppendFloatDelta(sb, "Physical Damage", cur.physicalDamage, baseline.physicalDamage);
-        TryAppendPercent01Delta(sb, "Physical Damage %", cur.physicalDamagePercent, baseline.physicalDamagePercent);
-        TryAppendPercent01Delta(sb, "All Physical Damage", cur.globalPhysicalDamagePercent, baseline.globalPhysicalDamagePercent);
+        TryAppendPercent01Delta(sb, "Melee Physical Damage", cur.meleePhysicalDamagePercent, baseline.meleePhysicalDamagePercent);
+        TryAppendPercent01Delta(sb, "Global Physical Damage", cur.globalPhysicalDamagePercent, baseline.globalPhysicalDamagePercent);
         TryAppendPercent01Delta(sb, "Ranged Physical Damage", cur.rangedPhysicalDamagePercent, baseline.rangedPhysicalDamagePercent);
         TryAppendFloatDelta(sb, "Magic Damage", cur.magicDamage, baseline.magicDamage);
         TryAppendPercent01Delta(sb, "Magic Damage %", cur.magicDamagePercent, baseline.magicDamagePercent);

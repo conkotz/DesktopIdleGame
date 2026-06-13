@@ -261,7 +261,7 @@ public partial class PlayerAbilityController
                 continue;
 
             int healAmount = Mathf.Max(1, Mathf.RoundToInt(allyStats.MaxHP * healFraction));
-            allyStats.Heal(healAmount, "War Banner");
+            allyStats.Heal(healAmount, PlayerCombatController.WarBannerTriumphantRallyHealingSourceLabel);
         }
     }
 

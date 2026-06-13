@@ -51,7 +51,10 @@ public static class MainMenuPagePrewarm
         for (int i = 0; i < inventoryGrids.Length; i++)
         {
             InventoryGridUI grid = inventoryGrids[i];
-            if (!grid || grid.IsDisplayPrewarmed)
+            if (!grid || !grid.isActiveAndEnabled || grid.IsDisplayPrewarmed)
+                continue;
+
+            if (grid.GetComponent<UpgradeInventoryGridUI>() != null)
                 continue;
 
             yield return grid.CoPrewarmPool();

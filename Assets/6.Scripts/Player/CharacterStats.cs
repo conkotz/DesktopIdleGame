@@ -2268,6 +2268,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private static float GetAdditivePhysicalPercentForWeaponStyle(
         AttackSkill weaponAttackSkill,
         float globalPhysicalFraction,
+        float meleePhysicalFraction,
         float rangedPhysicalFraction,
         float rangedSkillTreeDamagePercent,
         MeleeMinorNodeBonuses meleeBonuses)
@@ -2276,7 +2277,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (weaponAttackSkill == AttackSkill.Ranged)
             p += rangedPhysicalFraction + rangedSkillTreeDamagePercent;
         else if (weaponAttackSkill == AttackSkill.Melee)
-            p += meleeBonuses.meleeDamagePercent;
+            p += meleeBonuses.meleeDamagePercent + meleePhysicalFraction;
         return Mathf.Max(0f, p);
     }
 
@@ -2295,6 +2296,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float physical = GetAdditivePhysicalPercentForWeaponStyle(
             forWeaponAttackSkill,
             GetEquippedGlobalPhysicalDamagePercent(),
+            GetEquippedMeleePhysicalDamagePercent(),
             GetEquippedRangedPhysicalDamagePercent(),
             rangedSkillTree,
             melee);
@@ -2343,6 +2345,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float physPct = GetAdditivePhysicalPercentForWeaponStyle(
             skill,
             GetEquippedGlobalPhysicalDamagePercent(),
+            GetEquippedMeleePhysicalDamagePercent(),
             rangedGear,
             rangedSkill,
             meleeBonuses);
@@ -4294,15 +4297,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
-        {
             total += def.GlobalPhysicalDamagePercent;
-            total += def.PhysicalDamagePercent;
-            total += def.SupportPhysicalDamagePercent;
-        }
 
         total += GetBloodbathPhysicalDamagePercent();
         total += GetWayOfTheSlayerBleedChancePhysicalConversionFraction();
         total += _combatGlobalPhysicalDamagePercentBonus;
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetEquippedMeleePhysicalDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.MeleePhysicalDamagePercent;
         return Mathf.Max(0f, total);
     }
 
@@ -5190,23 +5197,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         if (amount <= 0f || !_ownerPlayer || DamagePopupSystem.Instance == null)
             return;
-        if (!ShouldShowHealingPopupForSource(sourceLabel))
+        if (!PlayerCombatController.ShouldShowHealingPopupForSource(sourceLabel))
             return;
 
         int roundedAmount = Mathf.Max(1, Mathf.RoundToInt(amount));
         DamagePopupSystem.Instance.SpawnHealingForPlayer(_ownerPlayer, roundedAmount);
-    }
-
-    private static bool ShouldShowHealingPopupForSource(string sourceLabel)
-    {
-        if (string.IsNullOrWhiteSpace(sourceLabel))
-            return false;
-
-        return string.Equals(sourceLabel, PlayerCombatController.CrusaderStrikeHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(sourceLabel, PlayerCombatController.WayOfTheCrusaderHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(sourceLabel, PlayerCombatController.PhoenixSoulHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(sourceLabel, PlayerCombatController.PotionHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(sourceLabel, PlayerCombatController.FoodHealingSourceLabel, StringComparison.OrdinalIgnoreCase);
     }
 
     private SplitDamage ApplyFoodFocusedMultiplier(SplitDamage sd)

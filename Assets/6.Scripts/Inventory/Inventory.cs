@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class Inventory : MonoBehaviour, ISaveable
 {
@@ -197,6 +198,55 @@ public class Inventory : MonoBehaviour, ISaveable
 
     public event Action OnInventoryChanged;
     public event Action OnInventoryFull;
+
+    /// <summary>Player inventory used by shop, character sheet, enhance, and save/load.</summary>
+    public static Inventory ResolvePlayer()
+    {
+        PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            Inventory onPlayer = player.GetComponent<Inventory>();
+            if (onPlayer != null)
+                return onPlayer;
+        }
+
+        Inventory[] all = UnityEngine.Object.FindObjectsByType<Inventory>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        if (all == null || all.Length == 0)
+            return null;
+
+        if (all.Length == 1)
+            return all[0];
+
+        Scene active = SceneManager.GetActiveScene();
+        Transform playerRoot = player != null ? player.transform : null;
+
+        Inventory best = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            Inventory inv = all[i];
+            if (!inv)
+                continue;
+
+            int score = Mathf.Max(0, inv.SlotCount);
+            if (playerRoot != null && inv.transform.IsChildOf(playerRoot))
+                score += 10000;
+            if (inv.gameObject.scene == active)
+                score += 1000;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = inv;
+            }
+        }
+
+        return best != null ? best : all[0];
+    }
 
     private int _batchChangeNotifyDepth;
     private bool _batchChangeNotifyPending;

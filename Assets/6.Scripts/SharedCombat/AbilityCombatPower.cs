@@ -12,6 +12,12 @@ public static class AbilityCombatPower
 {
     /// <summary>Matches <see cref="PlayerAbilityController"/> Power Slash id — attack-queued bonus, not raw / cooldown.</summary>
     public const string PowerSlashAbilityId = "power_slash";
+    public const string TripleShotAbilityId = "triple_shot";
+    public const string TripleShotEnhancementParentSpineNodeId = "Lv5_0";
+    public const int TripleShotArrowCount = 3;
+    public const float TripleShotPhantomArrowIntervalSeconds = 0.3f;
+    public const float TripleShotEnhancementDamageBonus = 0.10f;
+    public const float TripleShotEnhancementCooldownReductionSeconds = 3f;
     public const string CrusaderStrikeAbilityId = "crusader_strike";
     public const string WhirlwindAbilityId = "whirlwind";
     public const string RendAbilityId = "rend";
@@ -677,6 +683,7 @@ public static class AbilityCombatPower
         float weaponMult = def.weaponDamageMultiplier;
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref weaponMult, ref cd);
+        ApplyTripleShotChoiceAdjustments(def, ref weaponMult, ref cd);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
@@ -699,6 +706,24 @@ public static class AbilityCombatPower
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             return Mathf.Max(0f, perEnhancedHit * procRate);
+        }
+
+        // Triple Shot: three ranged arrows at weapon-scaled damage per arrow.
+        if (string.Equals(def.abilityId, TripleShotAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float tsAllM = def.GetEffectiveAllDamageMultiplier();
+            float apM = stats.GetAbilityPowerDamageMultiplier();
+            float weaponEff = weaponMult <= 0f ? 1f : weaponMult;
+            float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+            float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+            float physPerArrow = (avgPhys * weaponEff + ailmentBonus) * apM * tsAllM;
+            float magPerArrow = (avgMag * weaponEff + elementBonus) * apM * tsAllM;
+            float corrPerArrow = (avgCorruption * weaponEff) * apM * tsAllM;
+            float perArrowTotal = (physPerArrow + magPerArrow + corrPerArrow) * critFactor;
+            float volleyTotal = perArrowTotal * TripleShotArrowCount;
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            return Mathf.Max(0f, volleyTotal * procRate);
         }
 
         // Rend: exclusive bleed on proc — value scales with how much "guaranteed bleed" improves over baseline chance.
@@ -912,6 +937,25 @@ public static class AbilityCombatPower
         {
             cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f); // Relentless Flow
         }
+    }
+
+    private static void ApplyTripleShotChoiceAdjustments(AbilityDefinition def, ref float weaponDamageMultiplier, ref float cooldownSeconds)
+    {
+        if (!def || !string.Equals(def.abilityId, TripleShotAbilityId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        if (selected < 0)
+            selected = sm.GetSkillChoiceSelection(SkillType.Ranged, TripleShotEnhancementParentSpineNodeId, -1);
+
+        if (selected == 0)
+            weaponDamageMultiplier += TripleShotEnhancementDamageBonus;
+        else if (selected == 1)
+            cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - TripleShotEnhancementCooldownReductionSeconds);
     }
 
     private static int GetRendSelectedChoiceForCombatPower()

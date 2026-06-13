@@ -528,7 +528,6 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty critMultiplierBonus = combatSupportStats.FindPropertyRelative("critMultiplierBonus");
         SerializedProperty attackSpeedPercent = combatSupportStats.FindPropertyRelative("attackSpeedPercent");
 
-        SerializedProperty physicalDamagePercent = combatSupportStats.FindPropertyRelative("physicalDamagePercent");
         SerializedProperty globalPhysicalDamagePercentCs = combatSupportStats.FindPropertyRelative("globalPhysicalDamagePercent");
         SerializedProperty rangedPhysicalDamagePercentCs = combatSupportStats.FindPropertyRelative("rangedPhysicalDamagePercent");
         SerializedProperty magicDamagePercentCs = combatSupportStats.FindPropertyRelative("magicDamagePercent");
@@ -556,7 +555,6 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Damage % (0.1 = +10%)", EditorStyles.boldLabel);
-        PropertyField(physicalDamagePercent, "All physical %");
         PropertyField(globalPhysicalDamagePercentCs, "Global physical %");
         PropertyField(rangedPhysicalDamagePercentCs, "Ranged physical %");
         PropertyField(magicDamagePercentCs, "All magic %");
@@ -1471,7 +1469,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty moveSpeedPercent = bonusStats.FindPropertyRelative("moveSpeedPercent");
 
         SerializedProperty physicalDamage = bonusStats.FindPropertyRelative("physicalDamage");
-        SerializedProperty physicalDamagePercent = bonusStats.FindPropertyRelative("physicalDamagePercent");
+        SerializedProperty meleePhysicalDamagePercent = bonusStats.FindPropertyRelative("meleePhysicalDamagePercent");
         SerializedProperty globalPhysicalDamagePercentBonus = bonusStats.FindPropertyRelative("globalPhysicalDamagePercent");
         SerializedProperty rangedPhysicalDamagePercentBonus = bonusStats.FindPropertyRelative("rangedPhysicalDamagePercent");
         SerializedProperty magicDamage = bonusStats.FindPropertyRelative("magicDamage");
@@ -1537,7 +1535,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Offense", EditorStyles.boldLabel);
         PropertyField(physicalDamage, "Physical damage");
-        PropertyField(physicalDamagePercent, "All physical %");
+        PropertyField(meleePhysicalDamagePercent, "Melee physical %");
         PropertyField(globalPhysicalDamagePercentBonus, "Global physical %");
         PropertyField(rangedPhysicalDamagePercentBonus, "Ranged physical %");
         PropertyField(magicDamage, "Magic damage");
