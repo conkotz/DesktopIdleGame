@@ -184,7 +184,8 @@ public class UnitOverheadUI : MonoBehaviour
     private float _nextSpanBoundsRefreshTime;
     private Vector2 _lastSpanBoundsBaseAnchored;
     private const float SpanBoundsRefreshInterval = 0.12f;
-    private const float SpanBoundsAnchorDeltaPx = 0.5f;
+    private const float SpanBoundsAnchorDeltaPx = 2f;
+    private const float SpanBoundsVerticalDeltaPx = 0.75f;
 
     private string _cachedNameDisplay = string.Empty;
     private string _cachedCombatProfileDisplay = string.Empty;
@@ -906,10 +907,25 @@ public class UnitOverheadUI : MonoBehaviour
             return;
         }
 
-        bool anchorMoved =
-            Mathf.Abs(_stackBaseAnchored.x - _lastSpanBoundsBaseAnchored.x) > SpanBoundsAnchorDeltaPx ||
-            Mathf.Abs(_stackBaseAnchored.y - _lastSpanBoundsBaseAnchored.y) > SpanBoundsAnchorDeltaPx;
+        float deltaX = _stackBaseAnchored.x - _lastSpanBoundsBaseAnchored.x;
+        float deltaY = _stackBaseAnchored.y - _lastSpanBoundsBaseAnchored.y;
         bool due = Time.unscaledTime >= _nextSpanBoundsRefreshTime;
+
+        // Camera follow slides nameplates horizontally without changing measured width — shift cached span.
+        if (!_spanBoundsDirty && !due && _cachedSpanMinX < float.MaxValue)
+        {
+            if (Mathf.Abs(deltaY) <= SpanBoundsVerticalDeltaPx && Mathf.Abs(deltaX) > 0.001f)
+            {
+                _cachedSpanMinX += deltaX;
+                _cachedSpanMaxX += deltaX;
+                _lastSpanBoundsBaseAnchored = _stackBaseAnchored;
+                return;
+            }
+        }
+
+        bool anchorMoved =
+            Mathf.Abs(deltaX) > SpanBoundsAnchorDeltaPx ||
+            Mathf.Abs(deltaY) > SpanBoundsVerticalDeltaPx;
 
         if (!_spanBoundsDirty && !anchorMoved && !due)
             return;

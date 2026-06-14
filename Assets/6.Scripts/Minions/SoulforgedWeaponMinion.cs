@@ -70,6 +70,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private float _returnLockedEulerZ;
     private Vector3 _homeFormationOffset;
     private Vector3 _attachFormationOffset;
+    private float _nextIdleEnemyScanAt;
 
     public EnemyBaseController CurrentTarget => _strikeTarget;
 
@@ -90,6 +91,16 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             (a.magic + b.magic) * 0.5f,
             (a.corruptionDamage + b.corruptionDamage) * 0.5f
         );
+    }
+
+    private void OnEnable()
+    {
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+    }
+
+    private void OnDisable()
+    {
+        WorldFloorFollowerRegistry.Unregister(transform);
     }
 
     /// <summary>
@@ -549,6 +560,11 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (Time.time < _nextStrikeReadyTime)
             return;
 
+        if (Time.time < _nextIdleEnemyScanAt)
+            return;
+
+        _nextIdleEnemyScanAt = Time.time + 0.1f;
+
         Vector3 rangeOrigin = GetPlayerRangeOrigin();
         EnemyBaseController enemy = FindNearestEnemy(rangeOrigin, _presentation.attackRange);
         if (!enemy)
@@ -801,12 +817,12 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private EnemyBaseController FindBestRecastTarget(Vector3 origin, float range, HashSet<int> avoidEnemyInstanceIds = null)
     {
         float r2 = range * range;
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController bestFresh = null;
         float bestFreshD2 = float.MaxValue;
         EnemyBaseController avoidedFallback = null;
         float avoidedFallbackD2 = float.MaxValue;
-        for (int i = 0; i < candidates.Length; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!e || e.IsDead) continue;
@@ -847,10 +863,10 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private static EnemyBaseController FindNearestEnemyExcluding(Vector3 from, float range, EnemyBaseController exclude, HashSet<int> avoidEnemyInstanceIds = null)
     {
         float r2 = range * range;
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
         float bestD = float.MaxValue;
-        for (int i = 0; i < candidates.Length; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!e || e.IsDead || e == exclude) continue;

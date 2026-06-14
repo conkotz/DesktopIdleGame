@@ -195,6 +195,14 @@ public class MinionUnit : MonoBehaviour
     {
         speed = Mathf.Max(0.01f, speed);
         const float retargetEpsilon = 0.04f;
+        const float arriveEpsilon = 0.04f;
+
+        if (Mathf.Abs(transform.position.x - worldX) <= arriveEpsilon)
+        {
+            StopMovement();
+            return;
+        }
+
         if (_wantsMove &&
             Mathf.Abs(_moveTargetX - worldX) <= retargetEpsilon &&
             Mathf.Approximately(_moveSpeed, speed))
@@ -315,12 +323,26 @@ public class MinionUnit : MonoBehaviour
     private void TickHorizontalMovement()
     {
         Vector3 pos = transform.position;
-        float newX = Mathf.MoveTowards(pos.x, _moveTargetX, _moveSpeed * Time.deltaTime);
+        float remaining = Mathf.Abs(_moveTargetX - pos.x);
+        float step = _moveSpeed * Time.deltaTime;
+
+        if (remaining <= Mathf.Max(0.02f, step))
+        {
+            if (remaining > 1e-5f)
+            {
+                pos.x = _moveTargetX;
+                transform.position = pos;
+                if (_rb)
+                    _rb.position = new Vector2(pos.x, pos.y);
+            }
+
+            StopMovement();
+            return;
+        }
+
+        float newX = Mathf.MoveTowards(pos.x, _moveTargetX, step);
         if (Mathf.Abs(newX - pos.x) > 1e-6f)
             UpdateFacingFromMovement(newX - pos.x);
-
-        if (Mathf.Approximately(newX, pos.x))
-            return;
 
         pos.x = newX;
         transform.position = pos;

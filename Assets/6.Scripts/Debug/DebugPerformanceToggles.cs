@@ -34,6 +34,9 @@ public sealed class DebugPerformanceToggles : MonoBehaviour
     private int _frameCount;
     private GUIStyle _overlayStyle;
     private readonly StringBuilder _overlayBuilder = new(320);
+    private bool _cachedAnyOverheadActive = true;
+    private float _nextOverheadStateRefreshTime;
+    private const float OverheadStateRefreshInterval = 0.5f;
 
     private void Awake()
     {
@@ -49,6 +52,7 @@ public sealed class DebugPerformanceToggles : MonoBehaviour
     private void Start()
     {
         TryAutoResolveMissingReferences(logWarnings: true);
+        RefreshCachedOverheadUiState();
     }
 
     private void Update()
@@ -167,6 +171,9 @@ public sealed class DebugPerformanceToggles : MonoBehaviour
             instance.gameObject.SetActive(enable);
         }
 
+        _cachedAnyOverheadActive = enable;
+        _nextOverheadStateRefreshTime = Time.unscaledTime + OverheadStateRefreshInterval;
+
         Debug.Log(enable ? "Overhead UI Enabled" : "Overhead UI Disabled");
     }
 
@@ -234,11 +241,20 @@ public sealed class DebugPerformanceToggles : MonoBehaviour
         if (!useUnitOverheadUiFallback)
             return "N/A";
 
+        if (Time.unscaledTime >= _nextOverheadStateRefreshTime)
+            RefreshCachedOverheadUiState();
+
+        return _cachedAnyOverheadActive ? "ON" : "OFF";
+    }
+
+    private void RefreshCachedOverheadUiState()
+    {
+        _nextOverheadStateRefreshTime = Time.unscaledTime + OverheadStateRefreshInterval;
+
         UnitOverheadUI[] instances = FindObjectsByType<UnitOverheadUI>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
-
-        return AnyUnitOverheadActive(instances) ? "ON" : "OFF";
+        _cachedAnyOverheadActive = AnyUnitOverheadActive(instances);
     }
 
     private string ResolveFloatingCombatTextState()

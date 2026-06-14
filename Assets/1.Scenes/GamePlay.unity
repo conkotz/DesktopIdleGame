@@ -150064,7 +150064,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1044983554}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c9e2a41b8d34f5690e1a2c3d4b5f678, type: 3}
   m_Name: 
@@ -196756,6 +196756,7 @@ MonoBehaviour:
   label: {fileID: 1400209657}
   visibilityRoot: {fileID: 0}
   refreshInterval: 0.25
+  smoothFactor: 0.35
   format: 'FPS: {0}'
 --- !u!1 &1400297984
 GameObject:

@@ -37,6 +37,8 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private PlayerCombatController combat;
 
+    private ActionBarUI _actionBarUiCache;
+
     public bool AnyEnemyOnMap => EnemyBaseController.AliveEnemyCount > 0;
 
     [Tooltip("Set to Resource nodes / merchant / interactables layer(s)")]
@@ -115,6 +117,8 @@ public class PlayerController : MonoBehaviour
     public float FacingDirectionX { get; private set; } = 1f;
 
     private bool _keyboardManualMoveThisFrame;
+    private float _keyboardSteerDir;
+    private bool _keyboardSteerNotified;
     private bool _moveToPointFromPlayerInput;
     public bool IsManualKeyboardSteering => _keyboardManualMoveThisFrame;
     public bool IsPerformingAttackAnimation => _attackLocked;
@@ -691,7 +695,8 @@ public class PlayerController : MonoBehaviour
         if (isMoving &&
             !shouldShowFighting &&
             _action == PlayerAction.Walking &&
-            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup))
+            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup ||
+             _keyboardManualMoveThisFrame))
         {
             return;
         }
@@ -965,28 +970,45 @@ public class PlayerController : MonoBehaviour
     private void PollKeyboardSteeringInput()
     {
         _keyboardManualMoveThisFrame = false;
+        _keyboardSteerDir = 0f;
 
         if (movementLocked || _isDead)
+        {
+            _keyboardSteerNotified = false;
             return;
+        }
 
         if (!CanPollKeyboardMovementInput())
+        {
+            _keyboardSteerNotified = false;
             return;
+        }
 
         bool left = IsKeyboardMoveLeftHeld();
         bool right = IsKeyboardMoveRightHeld();
         if (!left && !right)
+        {
+            _keyboardSteerNotified = false;
             return;
+        }
 
-        float dir = 0f;
         if (left)
-            dir -= 1f;
+            _keyboardSteerDir -= 1f;
         if (right)
-            dir += 1f;
-        if (Mathf.Abs(dir) < 0.01f)
+            _keyboardSteerDir += 1f;
+        if (Mathf.Abs(_keyboardSteerDir) < 0.01f)
+        {
+            _keyboardSteerNotified = false;
             return;
+        }
 
         _keyboardManualMoveThisFrame = true;
-        NotifyPlayerInitiatedMovement();
+        if (!_keyboardSteerNotified)
+        {
+            NotifyPlayerInitiatedMovement();
+            _keyboardSteerNotified = true;
+        }
+
         CancelAutoMovementFromKeyboardSteering();
     }
 
@@ -995,27 +1017,19 @@ public class PlayerController : MonoBehaviour
         if (PlayerSprintInput.IsSprintDashing)
             return;
 
-        if (!_keyboardManualMoveThisFrame)
+        if (!_keyboardManualMoveThisFrame || Mathf.Abs(_keyboardSteerDir) < 0.01f)
             return;
 
-        bool left = IsKeyboardMoveLeftHeld();
-        bool right = IsKeyboardMoveRightHeld();
-        float dir = 0f;
-        if (left)
-            dir -= 1f;
-        if (right)
-            dir += 1f;
-        if (Mathf.Abs(dir) < 0.01f)
-            return;
-
+        float dir = _keyboardSteerDir;
         float speed = GetMoveSpeed();
-        Vector3 pos = transform.position;
-        pos.x += dir * speed * Time.deltaTime;
+        float targetX = transform.position.x + dir * speed * Time.deltaTime;
         GetClampXMinMax(out float min, out float max);
-        pos.x = Mathf.Clamp(pos.x, min, max);
-        transform.position = pos;
-        SyncPlayerRigidbody2DPosition();
-        FaceTargetX(pos.x + dir);
+        targetX = Mathf.Clamp(targetX, min, max);
+        MoveToX(targetX, speed);
+
+        float desiredFacing = dir >= 0f ? 1f : -1f;
+        if (!Mathf.Approximately(Mathf.Sign(FacingDirectionX), desiredFacing))
+            FaceTargetX(targetX + dir);
     }
 
     private void CancelAutoMovementFromKeyboardSteering()
@@ -3607,7 +3621,7 @@ public class PlayerController : MonoBehaviour
 
     private void SyncActionBarGatheringStripToAction(PlayerAction action)
     {
-        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ActionBarUI bar = ResolveActionBarUi();
         if (bar == null)
             return;
 
@@ -3649,6 +3663,13 @@ public class PlayerController : MonoBehaviour
         return "Can't gather right now.";
     }
 
+    private ActionBarUI ResolveActionBarUi()
+    {
+        if (_actionBarUiCache == null)
+            _actionBarUiCache = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        return _actionBarUiCache;
+    }
+
     private void SetAction(PlayerAction newAction, bool forceNotify = false)
     {
         // If action hasn't changed, we usually early-out.
@@ -3658,7 +3679,8 @@ public class PlayerController : MonoBehaviour
         {
             // Steady locomotion already on walk — avoid GetCurrentAnimatorStateInfo every frame.
             if (newAction == PlayerAction.Walking &&
-                (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup))
+                (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup ||
+                 _keyboardManualMoveThisFrame))
             {
                 return;
             }

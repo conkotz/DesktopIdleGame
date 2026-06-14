@@ -178,7 +178,6 @@ public partial class PlayerAbilityController : MonoBehaviour
     private float _whirlwindChannelStartedAt;
     private float _whirlwindLastTickAt;
     private float _whirlwindNextTickAt;
-    private float _whirlwindNextVfxAt;
     private float _whirlwindNextGaleforceTwisterAt;
     private readonly List<GaleforceTwisterInstance> _galeforceTwisterDamageBuffer = new();
     private readonly Dictionary<int, float> _whirlwindLastHitTimeByEnemyId = new();
@@ -5554,7 +5553,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         _whirlwindChannelStartedAt = Time.time;
         _whirlwindLastTickAt = Time.time;
         _whirlwindNextTickAt = Time.time + GetWhirlwindChannelHitIntervalSeconds();
-        _whirlwindNextVfxAt = Time.time + AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
         _whirlwindNextGaleforceTwisterAt = GetWhirlwindSelectedChoice() == 0
             ? Time.time + AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds
             : 0f;
@@ -5562,7 +5560,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
-        abilityVfx?.SpawnWhirlwind(radius);
+        abilityVfx?.BeginWhirlwindChannelVfx(radius);
 
         if (stats != null && stats.Energy <= 0.0001f)
         {
@@ -5632,25 +5630,18 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float currentRadius = GetWhirlwindEffectiveRadius(channelSeconds);
-        while (_whirlwindChanneling && Time.time >= _whirlwindNextVfxAt)
-        {
-            abilityVfx?.SpawnWhirlwind(currentRadius);
-            _whirlwindNextVfxAt += AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
-        }
+        abilityVfx?.SetWhirlwindChannelRadius(currentRadius);
 
-        while (_whirlwindChanneling && GetWhirlwindSelectedChoice() == 0 && Time.time >= _whirlwindNextGaleforceTwisterAt)
+        if (_whirlwindChanneling && GetWhirlwindSelectedChoice() == 0 && Time.time >= _whirlwindNextGaleforceTwisterAt)
         {
             TrySpawnGaleforceTwister(def, currentRadius);
-            _whirlwindNextGaleforceTwisterAt += AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds;
+            _whirlwindNextGaleforceTwisterAt = Time.time + AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds;
         }
 
-        _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
-
-        while (_whirlwindChanneling && Time.time + 0.0001f >= _whirlwindNextTickAt)
+        if (_whirlwindChanneling && Time.time + 0.0001f >= _whirlwindNextTickAt)
         {
             TryUseWhirlwind(def);
-
-            _whirlwindLastTickAt = _whirlwindNextTickAt;
+            _whirlwindLastTickAt = Time.time;
             _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
         }
 
@@ -5659,8 +5650,6 @@ public partial class PlayerAbilityController : MonoBehaviour
             TickWhirlwindAutoBattleRetarget();
             TickWhirlwindAutoBattleAdvance();
         }
-
-        TryUseWhirlwind(def);
     }
 
     private bool HasAnyLiveEnemyOnScreen()
@@ -5999,7 +5988,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         _whirlwindChannelStartedAt = 0f;
         _whirlwindLastTickAt = 0f;
         _whirlwindNextTickAt = 0f;
-        _whirlwindNextVfxAt = 0f;
         _whirlwindNextGaleforceTwisterAt = 0f;
         _whirlwindUsedEnergyInfusionMana = false;
         if (lingerGaleforceTwisters)
@@ -6013,6 +6001,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             abilityVfx?.EndAllGaleforceTwisterVfx();
         }
+
+        abilityVfx?.EndWhirlwindChannelVfx();
 
         _whirlwindLastHitTimeByEnemyId.Clear();
         _whirlwindEnemiesInContactThisFrame.Clear();

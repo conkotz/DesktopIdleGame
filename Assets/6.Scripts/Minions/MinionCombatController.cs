@@ -807,8 +807,8 @@ public class MinionCombatController : MonoBehaviour
         if (instanceId == 0)
             return null;
 
-        EnemyBaseController[] candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < candidates.Length; i++)
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (e && e.GetInstanceID() == instanceId && !e.IsDead)
@@ -1017,7 +1017,7 @@ public class MinionCombatController : MonoBehaviour
     private bool TryTickFollowPlayer(Vector3 playerPos)
     {
         float distX = Mathf.Abs(playerPos.x - transform.position.x);
-        if (distX <= followStopDistance)
+        if (distX <= followStopDistance + homeArrivalDistance)
             return false;
 
         CancelWander();

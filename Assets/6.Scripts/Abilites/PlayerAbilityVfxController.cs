@@ -366,6 +366,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private readonly List<GameObject> _activeFlameChargeDashTrailRoots = new();
     private readonly List<GameObject> _activeGaleforceTwisterRoots = new();
 
+    private GameObject _whirlwindChannelRoot;
+    private Coroutine _whirlwindChannelRoutine;
+    private float _whirlwindChannelRadius;
+    private Transform _whirlwindChannelCenter;
+    private Transform[] _whirlwindChannelEmitters;
+    private TrailRenderer[] _whirlwindChannelTrails;
+    private float[] _whirlwindChannelPhases;
+    private float[] _whirlwindChannelLaneBaseY;
+    private float[] _whirlwindChannelLaneOrbitHeight;
+    private float[] _whirlwindChannelLaneHorizontalScale;
+    private float _whirlwindChannelFacingSignX = 1f;
+
     private sealed class GaleforceTwisterLifetime : MonoBehaviour
     {
         public float EndTime;
@@ -384,6 +396,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private static bool s_LoggedMissingUrParticleMaterial;
     private static Sprite s_RuntimeCircleSprite;
     private static Sprite s_HammerTempestRadialRingSprite;
+    private static Material s_WhirlingBladeTrailMaterial;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
 
@@ -431,6 +444,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
         StopAshenRebirthPhoenixVfx();
+        EndWhirlwindChannelVfx();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -477,15 +491,128 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (startDir.sqrMagnitude <= 0.0001f)
             startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
 
-        int slashCount = Mathf.Clamp(whirlingBladeSlashCount, 2, 5);
-        var emitters = new Transform[slashCount];
-        var trails = new TrailRenderer[slashCount];
-        var phases = new float[slashCount];
-        var laneBaseY = new float[slashCount];
-        var laneOrbitHeight = new float[slashCount];
-        var laneHorizontalScale = new float[slashCount];
+        if (!TryBuildWhirlwindBladeRig(
+                center,
+                out GameObject root,
+                out Transform[] emitters,
+                out TrailRenderer[] trails,
+                out float[] phases,
+                out float[] laneBaseY,
+                out float[] laneOrbitHeight,
+                out float[] laneHorizontalScale))
+            return;
 
-        GameObject root = new GameObject("WhirlwindBlades");
+        StartCoroutine(AnimateWhirlwindBlades(
+            root,
+            emitters,
+            trails,
+            center,
+            radius,
+            startDir.x,
+            phases,
+            laneBaseY,
+            laneOrbitHeight,
+            laneHorizontalScale));
+    }
+
+    /// <summary>One sustained whirlwind rig for the whole channel — avoids spawning new trails every VFX tick.</summary>
+    public void BeginWhirlwindChannelVfx(float radius)
+    {
+        EndWhirlwindChannelVfx();
+
+        Transform anchor = ResolvePowerSlashAnchor();
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+        if (anchor == null)
+            anchor = center;
+
+        Vector2 startDir = ((Vector2)anchor.position - (Vector2)center.position).normalized;
+        if (startDir.sqrMagnitude <= 0.0001f)
+            startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
+
+        _whirlwindChannelFacingSignX = startDir.x;
+        _whirlwindChannelRadius = radius;
+        _whirlwindChannelCenter = center;
+
+        if (!TryBuildWhirlwindBladeRig(
+                center,
+                out _whirlwindChannelRoot,
+                out _whirlwindChannelEmitters,
+                out _whirlwindChannelTrails,
+                out _whirlwindChannelPhases,
+                out _whirlwindChannelLaneBaseY,
+                out _whirlwindChannelLaneOrbitHeight,
+                out _whirlwindChannelLaneHorizontalScale))
+            return;
+
+        _whirlwindChannelRoutine = StartCoroutine(AnimateWhirlwindChannelLoop());
+    }
+
+    public void SetWhirlwindChannelRadius(float radius) => _whirlwindChannelRadius = radius;
+
+    public void EndWhirlwindChannelVfx()
+    {
+        if (_whirlwindChannelRoutine != null)
+        {
+            StopCoroutine(_whirlwindChannelRoutine);
+            _whirlwindChannelRoutine = null;
+        }
+
+        if (_whirlwindChannelTrails != null)
+        {
+            for (int i = 0; i < _whirlwindChannelTrails.Length; i++)
+            {
+                if (_whirlwindChannelTrails[i] != null)
+                    _whirlwindChannelTrails[i].emitting = false;
+            }
+        }
+
+        if (_whirlwindChannelRoot != null)
+        {
+            Destroy(_whirlwindChannelRoot);
+            _whirlwindChannelRoot = null;
+        }
+
+        _whirlwindChannelCenter = null;
+        _whirlwindChannelEmitters = null;
+        _whirlwindChannelTrails = null;
+        _whirlwindChannelPhases = null;
+        _whirlwindChannelLaneBaseY = null;
+        _whirlwindChannelLaneOrbitHeight = null;
+        _whirlwindChannelLaneHorizontalScale = null;
+    }
+
+    private bool TryBuildWhirlwindBladeRig(
+        Transform center,
+        out GameObject root,
+        out Transform[] emitters,
+        out TrailRenderer[] trails,
+        out float[] phases,
+        out float[] laneBaseY,
+        out float[] laneOrbitHeight,
+        out float[] laneHorizontalScale)
+    {
+        root = null;
+        emitters = null;
+        trails = null;
+        phases = null;
+        laneBaseY = null;
+        laneOrbitHeight = null;
+        laneHorizontalScale = null;
+
+        if (center == null)
+            return false;
+
+        int slashCount = Mathf.Clamp(whirlingBladeSlashCount, 2, 5);
+        emitters = new Transform[slashCount];
+        trails = new TrailRenderer[slashCount];
+        phases = new float[slashCount];
+        laneBaseY = new float[slashCount];
+        laneOrbitHeight = new float[slashCount];
+        laneHorizontalScale = new float[slashCount];
+
+        root = new GameObject("WhirlwindBlades");
         float spawnYOffset = UnityEngine.Random.Range(-whirlingBladeSpawnVerticalJitter, whirlingBladeSpawnVerticalJitter);
         root.transform.position = center.position + whirlingBladeCenterOffset + Vector3.up * spawnYOffset;
 
@@ -503,17 +630,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
             trails[i] = CreateWhirlwindBladeTrail(orbitGO, widthScale, 10 + i);
         }
 
-        StartCoroutine(AnimateWhirlwindBlades(
-            root,
-            emitters,
-            trails,
-            center,
-            radius,
-            startDir.x,
-            phases,
-            laneBaseY,
-            laneOrbitHeight,
-            laneHorizontalScale));
+        return true;
     }
 
     private TrailRenderer CreateWhirlwindBladeTrail(
@@ -526,13 +643,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Color bladeColor = bladeColorOverride ?? whirlingBladeColor;
         TrailRenderer trail = owner.AddComponent<TrailRenderer>();
         trail.time = Mathf.Max(0.06f, whirlingBladeDuration * 0.75f);
-        trail.minVertexDistance = 0.003f;
+        trail.minVertexDistance = 0.012f;
         trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth * widthScale * widthScaleMultiplier);
         trail.numCornerVertices = 4;
         trail.numCapVertices = 0;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
-        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.material = GetWhirlwindBladeTrailMaterial();
         trail.widthCurve = new AnimationCurve(
             new Keyframe(0f, 0f),
             new Keyframe(0.05f, 0.015f),
@@ -1192,6 +1309,67 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         if (root != null)
             Destroy(root, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
+    }
+
+    private IEnumerator AnimateWhirlwindChannelLoop()
+    {
+        Transform center = _whirlwindChannelCenter;
+        Transform[] emitters = _whirlwindChannelEmitters;
+        float[] phases = _whirlwindChannelPhases;
+        float[] laneBaseY = _whirlwindChannelLaneBaseY;
+        float[] laneOrbitHeight = _whirlwindChannelLaneOrbitHeight;
+        float[] laneHorizontalScale = _whirlwindChannelLaneHorizontalScale;
+        if (center == null || emitters == null || phases == null)
+            yield break;
+
+        float cycleDuration = Mathf.Max(0.06f, whirlingBladeDuration);
+        float width = Mathf.Max(0.01f, whirlingBladeLineWidth);
+        float spinCycles = Mathf.Max(1f, Mathf.Abs(whirlingBladeSpinDegrees) / 360f);
+        float facingSign = Mathf.Sign(_whirlwindChannelFacingSignX == 0f ? 1f : _whirlwindChannelFacingSignX);
+        int count = emitters.Length;
+        float elapsed = 0f;
+
+        while (_whirlwindChannelRoot != null && center != null)
+        {
+            float t = (elapsed % cycleDuration) / cycleDuration;
+            float visualRadius = Mathf.Max(0.05f, _whirlwindChannelRadius - (width * 0.5f));
+            Vector3 basePos = center.position + whirlingBladeCenterOffset;
+
+            for (int i = 0; i < count; i++)
+            {
+                Transform emitter = emitters[i];
+                if (emitter == null)
+                    continue;
+
+                EvaluateWhirlwindHorizontalSlashOrbit(
+                    t,
+                    visualRadius,
+                    phases[i],
+                    spinCycles,
+                    facingSign,
+                    laneBaseY != null && i < laneBaseY.Length ? laneBaseY[i] : 0f,
+                    laneOrbitHeight != null && i < laneOrbitHeight.Length ? laneOrbitHeight[i] : 0f,
+                    laneHorizontalScale != null && i < laneHorizontalScale.Length ? laneHorizontalScale[i] : 1f,
+                    out float x,
+                    out float y);
+                emitter.position = basePos + new Vector3(x, y, 0f);
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    private static Material GetWhirlwindBladeTrailMaterial()
+    {
+        if (s_WhirlingBladeTrailMaterial != null)
+            return s_WhirlingBladeTrailMaterial;
+
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader != null)
+            s_WhirlingBladeTrailMaterial = new Material(shader);
+
+        return s_WhirlingBladeTrailMaterial;
     }
 
     private IEnumerator AnimateGaleforceTwister(

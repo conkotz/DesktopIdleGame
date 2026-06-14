@@ -219,7 +219,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MinionUnit
   soldierVisualPrefab: {fileID: 1000011742669328, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
   visualsRoot: {fileID: 7123456789012345686}
-  visualsRootLocalPosition: {x: -0.13, y: -0.32, z: 0}
+  visualsRootLocalPosition: {x: -0.13, y: -0.1, z: 0}
   soldierLocalPosition: {x: -0.14, y: 0.28, z: 0}
   idleStateName: idle
   walkStateName: walk

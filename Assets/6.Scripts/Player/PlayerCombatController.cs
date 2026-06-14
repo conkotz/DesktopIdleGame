@@ -474,6 +474,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private readonly List<string> _outgoingSourceOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
+    private readonly List<(EnemyBaseController enemy, float gap)> _cleaveCandidateScratch = new(16);
 
     private EnemyBaseController _lastEnemyThatDamagedPlayer;
     private float _lastEnemyThatDamagedPlayerTime = -999f;
@@ -1994,7 +1995,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         float yTol = Mathf.Max(0.85f, cleaveRadius * 0.4f);
 
         IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
-        var nearest = new List<(EnemyBaseController enemy, float gap)>(candidates.Count);
+        _cleaveCandidateScratch.Clear();
 
         for (int i = 0; i < candidates.Count; i++)
         {
@@ -2006,8 +2007,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 continue;
 
             Collider2D enemyCol = e.GetComponent<Collider2D>();
-            if (enemyCol == null)
-                enemyCol = e.GetComponentInChildren<Collider2D>();
 
             float enemyHalf = HalfWidthX(enemyCol);
             float gapFromPlayer = EdgeGapX(myX, e.transform.position.x, myHalf, enemyHalf);
@@ -2016,15 +2015,27 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (gapFromPlayer > cleaveRadius && gapFromPrimary > cleaveRadius)
                 continue;
 
-            nearest.Add((e, gap));
+            _cleaveCandidateScratch.Add((e, gap));
         }
 
-        nearest.Sort((a, b) => a.gap.CompareTo(b.gap));
-        int count = Mathf.Min(extraTargets, nearest.Count);
+        int count = Mathf.Min(extraTargets, _cleaveCandidateScratch.Count);
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
         for (int i = 0; i < count; i++)
         {
-            EnemyBaseController e = nearest[i].enemy;
+            int bestIdx = 0;
+            float bestGap = _cleaveCandidateScratch[0].gap;
+            for (int j = 1; j < _cleaveCandidateScratch.Count; j++)
+            {
+                float gap = _cleaveCandidateScratch[j].gap;
+                if (gap < bestGap)
+                {
+                    bestGap = gap;
+                    bestIdx = j;
+                }
+            }
+
+            EnemyBaseController e = _cleaveCandidateScratch[bestIdx].enemy;
+            _cleaveCandidateScratch.RemoveAt(bestIdx);
 
             // Roll each target independently (min/max + crit).
             SplitDamage secondaryBase = stats.RollSplitAttackDamage(out bool baseWasCrit);
