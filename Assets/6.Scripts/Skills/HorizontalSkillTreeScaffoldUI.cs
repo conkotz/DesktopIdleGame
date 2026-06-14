@@ -128,6 +128,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (!HasSpawnedTimelineContent())
             return;
 
+        RefreshMinorTickVisibility(_builtSkill);
         BringSpineMinorNodesToFront();
         QueueDeferredConnectorRefresh();
     }
@@ -165,7 +166,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             SkillTimelineNodeBinding restoreDetailsBinding = CaptureOpenDetailsBinding();
             EnsureTimelineReady();
             ClearSpawnedContent(dismissDetailsPanel: restoreDetailsBinding == null);
-            RefreshSpineRowChrome();
+            RefreshSpineRowChrome(skill);
             if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             {
                 _builtSkill = skill;
@@ -193,8 +194,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
             RefreshSkillLevelLabel(skill, playerLevel);
             RefreshSpineProgress(playerLevel);
-            RefreshMinorTickVisibility();
-            BringSpineMinorNodesToFront();
+            RefreshMinorTickVisibility(skill);
             RefreshRowSelectionVisuals();
             _scrollRestoreAfterLayout = savedScroll;
             RestoreTimelineScrollPosition(savedScroll);
@@ -246,7 +246,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         int playerLevel = ResolvePlayerSkillLevel(skill);
         RefreshSkillLevelLabel(skill, playerLevel);
         RefreshSpineProgress(playerLevel);
-        BringSpineMinorNodesToFront();
+        RefreshMinorTickVisibility(skill);
         RefreshRowSelectionVisuals();
         return true;
     }
@@ -262,7 +262,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         _builtAtPlayerLevel = currentSkillLevel;
         RefreshSkillLevelLabel(skill, currentSkillLevel);
         RefreshSpineProgress(currentSkillLevel);
-        BringSpineMinorNodesToFront();
+        RefreshMinorTickVisibility(skill);
 
         for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
         {
@@ -502,6 +502,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             return;
 
         BuildTimelineConnectors();
+        RefreshMinorTickVisibility(_builtSkill);
         BringSpineMinorNodesToFront();
         RefreshRowSelectionVisuals();
 
@@ -642,7 +643,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             timelineScaffold.ApplyRowLayout(spineY, choiceRowY);
             CacheRowContainers();
             bool rowsMissing = _unlockRow == null || _spineRow == null || _choiceRow == null;
-            if (rowsMissing)
+            if (rowsMissing && !HasSpawnedTimelineContent())
                 timelineScaffold.RebuildScaffold(notifyHorizontalTree: !_isBuilding);
             else
                 timelineScaffold.PrepareContentForAbsoluteNodes(timelineContent);
@@ -655,11 +656,14 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         CacheRowContainers();
     }
 
-    private void RefreshSpineRowChrome()
+    private void RefreshSpineRowChrome(SkillDefinition skill = null)
     {
         CacheRowContainers();
         if (timelineScaffold != null && _spineRow != null)
-            timelineScaffold.RefreshSpineChrome(_spineRow);
+        {
+            HashSet<int> skipMinorTickLevels = CollectMinorPassiveSpineLevels(skill);
+            timelineScaffold.RefreshSpineChrome(_spineRow, skipMinorTickLevels);
+        }
     }
 
     private void CacheRowContainers()
@@ -1066,31 +1070,91 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     }
 
     /// <summary>Hides level ticks on non-milestone levels that have a spine minor node.</summary>
-    private void RefreshMinorTickVisibility()
+    private void RefreshMinorTickVisibility(SkillDefinition skill = null)
     {
         if (_spineRow == null)
             CacheRowContainers();
         if (_spineRow == null)
             return;
 
-        var levelsWithMinors = new HashSet<int>();
-        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
-        {
-            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
-            SkillTimelineNodeBinding binding = node != null ? node.Binding : null;
-            if (binding == null)
-                continue;
-
-            if (binding.TimelineNodeType != SkillTimelineNodeUI.SkillTimelineNodeType.MinorPassive)
-                continue;
-
-            if (SkillTimelineScaffoldUI.IsLabeledMilestoneLevel(binding.Level))
-                continue;
-
-            levelsWithMinors.Add(binding.Level);
-        }
+        HashSet<int> levelsWithMinors = CollectMinorPassiveSpineLevels(skill);
+        if (levelsWithMinors.Count == 0)
+            return;
 
         SkillTimelineScaffoldUI.HideMinorTicksForLevels(_spineRow, levelsWithMinors);
+    }
+
+    private HashSet<int> CollectMinorPassiveSpineLevels(SkillDefinition skill = null)
+    {
+        skill ??= _builtSkill;
+        var levelsWithMinors = new HashSet<int>();
+
+        if (skill?.unlocks != null)
+        {
+            for (int i = 0; i < skill.unlocks.Count; i++)
+            {
+                SkillUnlockDefinition unlock = skill.unlocks[i];
+                if (unlock == null || unlock.unlockType != SkillUnlockType.MinorPassive)
+                    continue;
+
+                int level = unlock.requiredLevel;
+                if (SkillTimelineScaffoldUI.IsLabeledMilestoneLevel(level))
+                    continue;
+
+                levelsWithMinors.Add(level);
+            }
+        }
+
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+            TryAddMinorPassiveLevel(levelsWithMinors, _spawnedTimelineNodes[i]);
+
+        if (_spineRow != null)
+        {
+            for (int i = 0; i < _spineRow.childCount; i++)
+            {
+                if (!_spineRow.GetChild(i).TryGetComponent(out SkillTimelineNodeUI node))
+                    continue;
+
+                TryAddMinorPassiveLevel(levelsWithMinors, node);
+            }
+        }
+
+        return levelsWithMinors;
+    }
+
+    private static void TryAddMinorPassiveLevel(HashSet<int> levelsWithMinors, SkillTimelineNodeUI node)
+    {
+        if (levelsWithMinors == null || node == null)
+            return;
+
+        SkillTimelineNodeBinding binding = node.Binding;
+        if (binding != null)
+        {
+            if (binding.TimelineNodeType != SkillTimelineNodeUI.SkillTimelineNodeType.MinorPassive)
+                return;
+
+            if (SkillTimelineScaffoldUI.IsLabeledMilestoneLevel(binding.Level))
+                return;
+
+            levelsWithMinors.Add(binding.Level);
+            return;
+        }
+
+        if (!node.name.StartsWith("Minor_Lv", System.StringComparison.Ordinal))
+            return;
+
+        int underscore = node.name.IndexOf('_', "Minor_Lv".Length);
+        string levelText = underscore > 0
+            ? node.name.Substring("Minor_Lv".Length, underscore - "Minor_Lv".Length)
+            : node.name.Substring("Minor_Lv".Length);
+
+        if (!int.TryParse(levelText, out int level))
+            return;
+
+        if (SkillTimelineScaffoldUI.IsLabeledMilestoneLevel(level))
+            return;
+
+        levelsWithMinors.Add(level);
     }
 
     private static SkillTimelineNodeUI.SkillTimelineNodeState ResolveDisplayState(int unlockLevel, int playerLevel) =>

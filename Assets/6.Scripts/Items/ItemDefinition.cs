@@ -43,7 +43,8 @@ public enum ItemKind
     Consumable,
     Quest,
     CombatSupport,
-    EnhancementScroll
+    EnhancementScroll,
+    MapEnhancement
 }
 
 public enum CombatSupportType
@@ -713,6 +714,17 @@ public struct ConsumableStats
          foodEnableFocused);
 }
 
+/// <summary>Template data for permanent map enhancement items (dropped on combat maps).</summary>
+[System.Serializable]
+public struct MapEnhancementItemStats
+{
+    [Tooltip("Tier 1 rolls 1 modifier; Tier 2 rolls 2 modifiers.")]
+    public MapEnhancementTier tier;
+
+    [Tooltip("Roll ranges and weights for each modifier type when this template drops on a map.")]
+    public MapEnhancementModRollConfig[] modRolls;
+}
+
 public enum EnhancementScrollTargetStat
 {
     PhysicalDamage,
@@ -957,6 +969,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public EnhancementScrollStats enhancementScrollStats;
 
+    [Header("Map Enhancement Stats (Only if ItemKind = MapEnhancement)")]
+    public MapEnhancementItemStats mapEnhancementStats;
+
     [Header("Cookable Stats")]
     public CookableStats cookableStats;
 
@@ -965,6 +980,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsArmor => itemKind == ItemKind.Armor;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
+    public bool IsMapEnhancementItemKind => itemKind == ItemKind.MapEnhancement;
 
     public const string UniquelyEquippedRingTooltipLine = "Uniquely equipped";
 
@@ -1669,16 +1685,37 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         IsConsumable && consumableStats.consumableType == ConsumableType.FishingBait;
 
     public bool IsMapEnhancement =>
-        IsConsumable && consumableStats.consumableType == ConsumableType.MapEnhancement;
+        IsMapEnhancementItemKind ||
+        (IsConsumable && consumableStats.consumableType == ConsumableType.MapEnhancement);
 
-    public MapEnhancementTier MapEnhancementTier =>
-        IsMapEnhancement ? consumableStats.mapEnhancementTier : MapEnhancementTier.Tier1;
+    public MapEnhancementTier MapEnhancementTier
+    {
+        get
+        {
+            if (IsMapEnhancementItemKind)
+                return mapEnhancementStats.tier;
+
+            if (IsConsumable && consumableStats.consumableType == ConsumableType.MapEnhancement)
+                return consumableStats.mapEnhancementTier;
+
+            return MapEnhancementTier.Tier1;
+        }
+    }
 
     public int MapEnhancementModCount =>
         MapEnhancementTier == MapEnhancementTier.Tier2 ? 2 : 1;
 
     public MapEnhancementModRollConfig[] GetMapEnhancementModRollConfigs()
     {
+        if (IsMapEnhancementItemKind)
+        {
+            MapEnhancementModRollConfig[] kindRolls = mapEnhancementStats.modRolls;
+            if (kindRolls != null && kindRolls.Length > 0)
+                return kindRolls;
+
+            return MapEnhancementRollDefaults.CreateDefaultRollConfigs();
+        }
+
         MapEnhancementModRollConfig[] rolls = consumableStats.mapEnhancementModRolls;
         if (rolls != null && rolls.Length > 0)
             return rolls;
@@ -2282,6 +2319,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 s += miscAj;
 
             return s.TrimEnd('\n');
+        }
+
+        if (IsMapEnhancement)
+        {
+            return "Map Enhancement";
         }
 
         if (IsConsumable)

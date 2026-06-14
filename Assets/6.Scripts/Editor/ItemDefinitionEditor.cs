@@ -27,6 +27,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty armorStats;
     private SerializedProperty consumableStats;
     private SerializedProperty enhancementScrollStats;
+    private SerializedProperty mapEnhancementStats;
     private SerializedProperty cookableStats;
 
     // Bonuses
@@ -69,6 +70,7 @@ public class ItemDefinitionEditor : Editor
         armorStats = serializedObject.FindProperty("armorStats");
         consumableStats = serializedObject.FindProperty("consumableStats");
         enhancementScrollStats = serializedObject.FindProperty("enhancementScrollStats");
+        mapEnhancementStats = serializedObject.FindProperty("mapEnhancementStats");
         cookableStats = serializedObject.FindProperty("cookableStats");
 
         bonusStats = serializedObject.FindProperty("bonusStats");
@@ -107,7 +109,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Economy", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(value);
 
-        bool showEquipmentSection = kind != ItemKind.EnhancementScroll;
+        bool showEquipmentSection = kind != ItemKind.EnhancementScroll && kind != ItemKind.MapEnhancement;
         var slot = EquipSlot.None;
 
         if (showEquipmentSection)
@@ -318,6 +320,10 @@ public class ItemDefinitionEditor : Editor
         else if (kind == ItemKind.EnhancementScroll)
         {
             DrawEnhancementScrollStatsBlock();
+        }
+        else if (kind == ItemKind.MapEnhancement)
+        {
+            DrawMapEnhancementItemStatsBlock();
         }
         else
         {
@@ -684,7 +690,10 @@ public class ItemDefinitionEditor : Editor
         }
         else if (isMapEnhancement)
         {
-            EditorGUILayout.LabelField("Map Enhancement", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Map enhancements now use Item Kind = Map Enhancement. Use Tools → Items → Migrate Legacy Map Enhancement Items to convert this asset.",
+                MessageType.Warning);
+            EditorGUILayout.LabelField("Map Enhancement (legacy consumable)", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(
                 mapEnhancementTier,
                 new GUIContent(
@@ -808,11 +817,36 @@ public class ItemDefinitionEditor : Editor
             "Food: instant heal/energy (above) plus optional timed buffs (Regen, Swiftness, Overheal, Focused) when Effect Duration > 0.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
             "Fishing Bait: consumed automatically while fishing; higher bait tier is prioritized first.\n" +
-            "Map Enhancement: permanent map modifier consumable. Rolled when dropped; equip on matching map node.\n" +
             "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +
             "Required Amount To Open controls how many copies are consumed per open (e.g. 5 shards → 1 open).",
             MessageType.None
         );
+    }
+
+    private void DrawMapEnhancementItemStatsBlock()
+    {
+        DrawModuleHeader("Map Enhancement Stats");
+
+        if (mapEnhancementStats == null)
+        {
+            EditorGUILayout.HelpBox("mapEnhancementStats property not found.", MessageType.Error);
+            return;
+        }
+
+        SerializedProperty tier = mapEnhancementStats.FindPropertyRelative("tier");
+        SerializedProperty modRolls = mapEnhancementStats.FindPropertyRelative("modRolls");
+
+        EditorGUILayout.PropertyField(
+            tier,
+            new GUIContent(
+                "Tier",
+                "Tier 1 rolls 1 permanent modifier when dropped on a map. Tier 2 rolls 2 modifiers."));
+        EditorGUILayout.Space(4);
+        DrawMapEnhancementModRolls(modRolls);
+        EditorGUILayout.HelpBox(
+            "Template item only. When dropped as special loot on a combat map, a rolled instance is created " +
+            "with the map name appended (e.g. \"Spider Lair Map Enhancement\") and random modifiers.",
+            MessageType.Info);
     }
 
     private static void DrawMapEnhancementModRolls(SerializedProperty modRolls)
@@ -1359,6 +1393,8 @@ public class ItemDefinitionEditor : Editor
             msg = "Jewelry should use Equip Slot: Ring / Neck / Trinket.\nRings can be equipped into Ring1 or Ring2 in UI.";
         else if (kind == ItemKind.Consumable)
             msg = "Consumables should use Equip Slot: None. They are used from inventory/action bar, not equipped.";
+        else if (kind == ItemKind.MapEnhancement)
+            msg = "Map enhancements should use Equip Slot: None. They are applied from inventory onto a combat map node.";
         else
             msg = "Non-equippables should use Equip Slot: None.";
 

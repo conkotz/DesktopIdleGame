@@ -144,6 +144,8 @@ public static class ItemTooltipStatHighlight
         AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
         AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
 
+        if (s.Length > 0)
+            s.Append('\n');
         s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
 
         AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);

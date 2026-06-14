@@ -8,6 +8,9 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Adds timeline scaffold components to SkillsAbilityPageNEW and assigns prefab references.
+/// Sets rebuildOnEnable=false so opening the skills page does not rebuild timeline chrome over your scene layout.
+/// Does not modify connector thickness, row offsets, or spawned nodes — use context menus on
+/// HorizontalSkillTreeScaffoldUI / SkillTimelineScaffoldUI for explicit rebuilds only.
 /// </summary>
 public static class SkillsAbilityPageNewSceneWiring
 {

@@ -53,7 +53,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     /// <summary>Small tick centered on the spine between milestone levels (Lv 2–4, 6–9, …).</summary>
     private const float MinorLevelTickHeight = 10f;
     private const float DefaultHelperBarHeight = 60f;
-    private const float DefaultHorizontalScrollbarHeight = 18f;
+    private const float DefaultHorizontalScrollbarHeight = 22f;
     private const float ScrollbarHandleMinWidth = 48f;
     /// <summary>Vertical stems from the spine to milestone nodes (matches choice-group branch lines).</summary>
     public const float MilestoneSpineConnectorThickness = TimelineConnectorThickness;
@@ -96,8 +96,14 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
     private void OnEnable()
     {
-        if (rebuildOnEnable)
-            RebuildScaffold();
+        if (!rebuildOnEnable)
+            return;
+
+        // Runtime prefab trees use HorizontalSkillTreeScaffoldUI — avoid wiping saved scene chrome on open.
+        if (Application.isPlaying && !buildPlaceholderNodes)
+            return;
+
+        RebuildScaffold();
     }
 
 #if UNITY_EDITOR
@@ -159,14 +165,17 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     }
 
     /// <summary>Rebuilds spine line + uniform level ticks (runtime refresh when tick layout code changes).</summary>
-    public void RefreshSpineChrome(RectTransform spineRow)
+    public void RefreshSpineChrome(RectTransform spineRow, IEnumerable<int> skipMinorTickAtLevels = null)
     {
         if (spineRow == null)
             return;
 
+        var skipLevels = skipMinorTickAtLevels as HashSet<int> ?? (
+            skipMinorTickAtLevels != null ? new HashSet<int>(skipMinorTickAtLevels) : null);
+
         ClearSpineChrome(spineRow);
         BuildSpine(spineRow);
-        BuildLevelTicks(spineRow);
+        BuildLevelTicks(spineRow, skipLevels);
         ApplySpineRowDrawOrder(spineRow);
     }
 
@@ -205,14 +214,14 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             progress.SetSiblingIndex(index++);
         if (minorTicks != null)
             minorTicks.SetSiblingIndex(index++);
+        if (legacyTicks != null)
+            legacyTicks.SetSiblingIndex(index++);
 
         for (int i = 0; i < minorNodes.Count; i++)
             minorNodes[i].SetSiblingIndex(index++);
 
         if (milestoneTicks != null)
             milestoneTicks.SetSiblingIndex(index++);
-        if (legacyTicks != null)
-            legacyTicks.SetSiblingIndex(index++);
     }
 
     /// <summary>Local Y for spine minor nodes — centered on the main spine line.</summary>
@@ -428,12 +437,12 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         int index = 0;
         if (viewport != null)
             viewport.SetSiblingIndex(index++);
-        if (scrollbar != null)
-            scrollbar.SetSiblingIndex(index++);
         if (helper != null)
             helper.SetSiblingIndex(index++);
         if (skillLevelPanel != null)
             skillLevelPanel.SetSiblingIndex(index++);
+        if (scrollbar != null)
+            scrollbar.SetSiblingIndex(index++);
     }
 
     private Scrollbar EnsureHorizontalScrollbar(RectTransform container, float helperHeight, float scrollbarHeight)
@@ -570,6 +579,9 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             handleImg.raycastTarget = true;
         }
 
+        if (scrollbar != null && scrollbar.GetComponent<TimelineScrollbarInputGuard>() == null)
+            scrollbar.gameObject.AddComponent<TimelineScrollbarInputGuard>();
+
         scrollbar.handleRect = handleRt;
         scrollbar.targetGraphic = handleImg;
         scrollbar.direction = Scrollbar.Direction.LeftToRight;
@@ -684,7 +696,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         img.raycastTarget = false;
     }
 
-    private static void BuildLevelTicks(RectTransform root)
+    private static void BuildLevelTicks(RectTransform root, HashSet<int> skipMinorTickAtLevels = null)
     {
         var minorTicksParent = CreateRect(root, MinorLevelTicksName, Vector2.zero, Vector2.zero);
         var minorTicksRt = (RectTransform)minorTicksParent;
@@ -704,19 +716,14 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
             if (IsLabeledMilestoneLevel(level))
             {
-                bool isSpineOrigin = level == 1;
-                float tickH = isSpineOrigin
-                    ? StandardLevelUpwardStemHeight * 2f
-                    : StandardLevelUpwardStemHeight;
-
                 var tick = CreateRect(
                     milestoneTicksRt,
                     $"Tick_Lv{level}",
                     new Vector2(x, SpineLocalY),
-                    new Vector2(LevelTickWidth, tickH));
+                    new Vector2(LevelTickWidth, StandardLevelUpwardStemHeight));
                 var tickRt = (RectTransform)tick;
                 tickRt.anchorMin = tickRt.anchorMax = new Vector2(0f, 0.5f);
-                tickRt.pivot = isSpineOrigin ? new Vector2(0.5f, 0.5f) : new Vector2(0.5f, 0f);
+                tickRt.pivot = new Vector2(0.5f, 0f);
                 var tickImg = tick.gameObject.AddComponent<Image>();
                 tickImg.color = TickColor;
                 tickImg.raycastTarget = false;
@@ -725,7 +732,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
                 float labelY = SpineLocalY + MilestoneLabelYOffset;
                 CreateMilestoneLabel(milestoneTicksRt, $"Lv {level}", new Vector2(labelX, labelY));
             }
-            else
+            else if (skipMinorTickAtLevels == null || !skipMinorTickAtLevels.Contains(level))
             {
                 var tick = CreateRect(
                     minorTicksRt,
@@ -750,22 +757,34 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (spineRow == null || levelsWithMinorNodes == null)
             return;
 
-        Transform minorTicks = spineRow.Find(MinorLevelTicksName);
-        if (minorTicks == null)
+        var hiddenLevels = levelsWithMinorNodes as HashSet<int> ?? new HashSet<int>(levelsWithMinorNodes);
+        if (hiddenLevels.Count == 0)
             return;
 
-        var hiddenLevels = levelsWithMinorNodes as HashSet<int> ?? new HashSet<int>(levelsWithMinorNodes);
-        for (int i = 0; i < minorTicks.childCount; i++)
+        Transform[] tickTransforms = spineRow.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < tickTransforms.Length; i++)
         {
-            Transform tick = minorTicks.GetChild(i);
-            if (!tick.name.StartsWith("Tick_Lv"))
+            Transform tick = tickTransforms[i];
+            if (tick == spineRow || !tick.name.StartsWith("Tick_Lv", System.StringComparison.Ordinal))
                 continue;
 
-            if (!int.TryParse(tick.name.Substring("Tick_Lv".Length), out int level))
+            if (!TryParseTickLevel(tick.name, out int level))
                 continue;
 
-            tick.gameObject.SetActive(!hiddenLevels.Contains(level));
+            if (!hiddenLevels.Contains(level))
+                continue;
+
+            tick.gameObject.SetActive(false);
         }
+    }
+
+    private static bool TryParseTickLevel(string tickName, out int level)
+    {
+        level = 0;
+        if (string.IsNullOrEmpty(tickName) || !tickName.StartsWith("Tick_Lv", System.StringComparison.Ordinal))
+            return false;
+
+        return int.TryParse(tickName.Substring("Tick_Lv".Length), out level);
     }
 
     private void BuildPlaceholderNodesInRows(

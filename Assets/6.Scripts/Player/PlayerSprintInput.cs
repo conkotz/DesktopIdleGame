@@ -53,7 +53,13 @@ public class PlayerSprintInput : MonoBehaviour
     [SerializeField] private PlayerController playerController;
 
     [Tooltip("Keeps the sprint HUD icon visible briefly after sprint stops (e.g. direction change zeroes measured speed for a frame).")]
-    [SerializeField, Min(0f)] private float sprintHudIconHoldSeconds = 0.01f;
+    [SerializeField, Min(0f)] private float sprintHudIconHoldSeconds = 0.15f;
+
+    [Tooltip("Minimum time between sprint key-down attempts (stops dash / buff flicker when spam-clicking).")]
+    [SerializeField, Min(0f)] private float sprintKeyDownDebounceSeconds = 0.22f;
+
+    [Tooltip("After an accepted sprint press, move speed + HUD stay stable briefly even if the key is released early.")]
+    [SerializeField, Min(0f)] private float sprintTapStabilitySeconds = 0.18f;
 
     [Tooltip("How long the sprint dash takes to travel its full distance.")]
     [SerializeField, Min(0.01f)] private float sprintDashDurationSeconds = 0.12f;
@@ -63,6 +69,9 @@ public class PlayerSprintInput : MonoBehaviour
     private float _lastHorizontalSpeed;
     private bool _sprintHudBuffRegistered;
     private float _sprintHudShowUntil;
+    private float _sprintStabilityUntil;
+    private float _nextSprintKeyDownAcceptedAt;
+    private bool _armedDashWhenCooldownReady;
     private bool _sprintGameplayActiveLastFrame;
     private float _dashCooldownEndsAt;
     private bool _isDashing;
@@ -135,14 +144,51 @@ public class PlayerSprintInput : MonoBehaviour
         }
 
         if (!_sprintKeyHeld)
+        {
+            _armedDashWhenCooldownReady = true;
             return;
+        }
 
         if (IsSprintBlockedByExhaustionOrEmptyStamina())
             return;
 
-        if (_sprintKeyDownThisFrame || Time.time >= _dashCooldownEndsAt)
+        if (TryConsumeDebouncedSprintKeyDown())
             TryStartDash();
+        else if (_armedDashWhenCooldownReady && Time.time >= _dashCooldownEndsAt)
+        {
+            _armedDashWhenCooldownReady = false;
+            TryStartDash();
+        }
     }
+
+    /// <summary>Honors sprint key-down at most once per debounce window; extends tap stability for HUD / move speed.</summary>
+    private bool TryConsumeDebouncedSprintKeyDown()
+    {
+        if (!_sprintKeyDownThisFrame)
+            return false;
+
+        if (sprintKeyDownDebounceSeconds > 0f && Time.time < _nextSprintKeyDownAcceptedAt)
+            return false;
+
+        if (sprintKeyDownDebounceSeconds > 0f)
+            _nextSprintKeyDownAcceptedAt = Time.time + sprintKeyDownDebounceSeconds;
+
+        ExtendSprintTapStability();
+        return true;
+    }
+
+    private void ExtendSprintTapStability()
+    {
+        if (sprintTapStabilitySeconds <= 0f)
+            return;
+
+        float until = Time.time + sprintTapStabilitySeconds;
+        if (until > _sprintStabilityUntil)
+            _sprintStabilityUntil = until;
+    }
+
+    private bool IsWithinSprintTapStability() =>
+        _sprintStabilityUntil > 0f && Time.time < _sprintStabilityUntil;
 
     private void TickActiveDash()
     {
@@ -205,6 +251,7 @@ public class PlayerSprintInput : MonoBehaviour
         if (characterStats.Energy <= 0f)
             SetSprintExhausted(true);
 
+        ExtendSprintTapStability();
         playerController.InterruptForSprintDash();
 
         _dashStartX = startX;
@@ -301,9 +348,6 @@ public class PlayerSprintInput : MonoBehaviour
     /// </summary>
     public static bool ShouldApplyMoveSpeedBonus()
     {
-        if (!_sprintKeyHeld)
-            return false;
-
         if (IsSprintExhausted)
             return false;
 
@@ -314,8 +358,21 @@ public class PlayerSprintInput : MonoBehaviour
         if (IsSprinting)
             return true;
 
-        // Brief hold after the last sprint frame (direction changes can zero measured speed for a frame).
-        return _instance != null && Time.time < _instance._sprintHudShowUntil;
+        if (_sprintKeyHeld)
+        {
+            // Brief hold after the last sprint frame while still holding the key.
+            if (_instance != null && Time.time < _instance._sprintHudShowUntil)
+                return true;
+            return false;
+        }
+
+        if (_instance == null)
+            return false;
+
+        if (Time.time < _instance._sprintHudShowUntil)
+            return true;
+
+        return _instance.IsWithinSprintTapStability();
     }
 
     public static float ApplySprintBonus(float baseMoveSpeed)
@@ -393,12 +450,18 @@ public class PlayerSprintInput : MonoBehaviour
 
     private void RefreshSprintHudBuffGrace(bool sprintGameplayActive)
     {
-        if (!sprintGameplayActive && _sprintGameplayActiveLastFrame && sprintHudIconHoldSeconds > 0f)
-            _sprintHudShowUntil = Time.time + sprintHudIconHoldSeconds;
+        if (!sprintGameplayActive && _sprintGameplayActiveLastFrame)
+        {
+            float hold = Mathf.Max(sprintHudIconHoldSeconds, sprintTapStabilitySeconds);
+            if (hold > 0f)
+                _sprintHudShowUntil = Time.time + hold;
+        }
 
         _sprintGameplayActiveLastFrame = sprintGameplayActive;
 
-        bool showHud = sprintGameplayActive || Time.time < _sprintHudShowUntil;
+        bool showHud = sprintGameplayActive
+            || Time.time < _sprintHudShowUntil
+            || IsWithinSprintTapStability();
         SyncSprintHudBuff(showHud);
     }
 

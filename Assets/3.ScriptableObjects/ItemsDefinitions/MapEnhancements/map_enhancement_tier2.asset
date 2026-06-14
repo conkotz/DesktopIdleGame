@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
   m_Name: map_enhancement_tier2
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 5
+  itemKind: 9
   maxStack: 1
   itemId: map_enhancement_tier2
   displayName: Map Enhancement (Tier 2)
@@ -154,7 +154,7 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 5
+    consumableType: 0
     healAmount: 0
     energyAmount: 0
     cooldownSeconds: 0
@@ -223,6 +223,41 @@ MonoBehaviour:
     destroyChanceOnFailure: 0
     cursed: 0
     allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 2
+    modRolls:
+    - modType: 0
+      rollWeight: 3
+      minValue: 1
+      maxValue: 3
+    - modType: 1
+      rollWeight: 3
+      minValue: 1
+      maxValue: 3
+    - modType: 2
+      rollWeight: 10
+      minValue: 0.1
+      maxValue: 0.2
+    - modType: 3
+      rollWeight: 10
+      minValue: 0.04
+      maxValue: 0.07
+    - modType: 4
+      rollWeight: 10
+      minValue: 0.06
+      maxValue: 0.11
+    - modType: 5
+      rollWeight: 7
+      minValue: 0.15
+      maxValue: 0.35
+    - modType: 6
+      rollWeight: 5
+      minValue: 0.07
+      maxValue: 0.12
+    - modType: 7
+      rollWeight: 4
+      minValue: 0.15
+      maxValue: 0.25
   cookableStats:
     isCookable: 0
     cookedResultItemId: 
