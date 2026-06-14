@@ -104,6 +104,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
     {
         if (IsBootstrapScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()))
         {
+            UIWindowLayoutBinding.ResetGameLoadLayoutState();
             UIWindowPositionMemory.ForgetAll();
             return;
         }
@@ -189,7 +190,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         ToggleSettingsStore.Changed -= OnToggleChanged;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
 
-        if (_instance == this)
+        if (_instance == this && _active)
             SetActiveInternal(false);
     }
 
@@ -209,6 +210,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
         if (IsBootstrapScene(scene))
         {
+            UIWindowLayoutBinding.ResetGameLoadLayoutState();
             UIWindowPositionMemory.ForgetAll();
             return;
         }
@@ -281,6 +283,9 @@ public sealed class MovePivotsModeController : MonoBehaviour
     {
         if (!active)
         {
+            if (!_active)
+                return;
+
             _active = false;
             if (_userFinishedArranging)
             {
@@ -296,6 +301,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
             {
                 CommitAllGhostLayoutsAndSave();
                 ApplySavedPivotsAsLiveLayout();
+                ClearPivotEditSnapshots();
             }
             else
             {
@@ -511,6 +517,14 @@ public sealed class MovePivotsModeController : MonoBehaviour
         }
 
         PlayerPrefs.Save();
+    }
+
+    private void ClearPivotEditSnapshots()
+    {
+        _entrySavedPivotSnapshots.Clear();
+        _entryHadSavedPivot.Clear();
+        _preEditBindingSnapshots.Clear();
+        _ghostSnapshots.Clear();
     }
 
     private void RecordGhostSnapshot(string memoryKey, in UIWindowLayoutPrefs.Snapshot snapshot)

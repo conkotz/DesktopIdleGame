@@ -258,7 +258,10 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         if (UIWindowLayoutPrefs.HasSaved(memoryKey))
         {
             UIWindowLayoutPrefs.TryLoadAndApply(window, memoryKey);
-            UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
+            if (UIWindowLayoutBinding.IsKnownPivotWindow(memoryKey))
+                UIWindowSessionLayoutMemory.Capture(window, memoryKey);
+            else
+                UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
             return;
         }
 

@@ -35,6 +35,12 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     private UIWindowLayoutPrefs.Snapshot _factorySnapshot;
     private bool _factoryCaptured;
 
+    /// <summary>
+    /// After <see cref="RestoreAllPivotLayoutsForGameLoad"/>, defer seeding session baselines until HUD/canvas layout is stable.
+    /// Scene travel within the same play session does not set this — session drag positions win there.
+    /// </summary>
+    private static bool s_reapplyPivotLayoutsWhenHudReady;
+
     public RectTransform WindowRect => windowRect;
     public string DisplayLabel => string.IsNullOrWhiteSpace(displayLabel) ? memoryKey : displayLabel;
     public string MemoryKey => memoryKey;
@@ -126,17 +132,31 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
         return prepared;
     }
 
+    /// <summary>Clears pending pivot-restore state when returning to Bootstrap (new play cycle).</summary>
+    public static void ResetGameLoadLayoutState()
+    {
+        s_reapplyPivotLayoutsWhenHudReady = false;
+    }
+
     /// <summary>Fresh game load / new game — clear session moves and apply saved pivot layouts.</summary>
     public static void RestoreAllPivotLayoutsForGameLoad()
     {
         UIWindowPositionMemory.ForgetAll();
         UIWindowSessionLayoutMemory.ForgetAll();
-        RestoreAllKnownWindowLayouts(RestorePivotLayoutOnBinding);
+        s_reapplyPivotLayoutsWhenHudReady = true;
+        RestoreAllKnownWindowLayouts(binding => binding.RestorePivotLayout(seedSessionBaseline: false));
     }
 
     /// <summary>Map scene reload within the same play session — keep session drag/resize positions.</summary>
     public static void RestoreSessionLayoutsForSceneChange()
     {
+        if (s_reapplyPivotLayoutsWhenHudReady)
+        {
+            s_reapplyPivotLayoutsWhenHudReady = false;
+            RestoreAllKnownWindowLayouts(binding => binding.RestorePivotLayout(seedSessionBaseline: true));
+            return;
+        }
+
         RestoreAllKnownWindowLayouts(binding =>
         {
             if (UIWindowSessionLayoutMemory.TryGet(binding.MemoryKey, out UIWindowLayoutPrefs.Snapshot session))
@@ -174,16 +194,16 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
     private static Transform ResolveWindowsArea()
     {
-        Transform windowsArea = GameObject.Find("WindowsArea")?.transform;
-        if (windowsArea)
-            return windowsArea;
+        GameObject area = GameObject.Find("WindowsArea");
+        if (area)
+            return area.transform;
 
         GameObject canvas = GameObject.Find("FullWindowCanvas");
+        if (!canvas)
+            canvas = GameObject.FindWithTag("FullWindowCanvas");
+
         return canvas != null ? canvas.transform.Find("WindowsArea") : null;
     }
-
-    private static void RestorePivotLayoutOnBinding(UIWindowLayoutBinding binding) =>
-        binding?.RestorePivotLayout();
 
     private static Transform FindChildRecursive(Transform parent, string childName)
     {
@@ -247,7 +267,7 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
     public void RestoreSavedLayout() => RestorePivotLayout();
 
-    public void RestorePivotLayout()
+    public void RestorePivotLayout(bool seedSessionBaseline = true)
     {
         if (!windowRect)
             return;
@@ -266,8 +286,11 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
         UIWindowPositionMemory.ForgetKey(memoryKey);
         UIWindowSessionLayoutMemory.ForgetKey(memoryKey);
-        UIWindowPositionMemory.Save(memoryKey, windowRect.anchoredPosition);
-        UIWindowSessionLayoutMemory.Capture(windowRect, memoryKey);
+        if (seedSessionBaseline)
+        {
+            UIWindowPositionMemory.Save(memoryKey, windowRect.anchoredPosition);
+            UIWindowSessionLayoutMemory.Capture(windowRect, memoryKey);
+        }
 
         UIWindowCornerResize resize = windowRect.GetComponent<UIWindowCornerResize>();
         if (resize != null && UIWindowLayoutPrefs.HasSaved(memoryKey))
@@ -286,6 +309,7 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
 
         UIWindowLayoutPrefs.Save(windowRect, memoryKey);
         UIWindowPositionMemory.Save(memoryKey, windowRect.anchoredPosition);
+        UIWindowSessionLayoutMemory.Capture(windowRect, memoryKey);
 
         UIWindowCornerResize resize = windowRect.GetComponent<UIWindowCornerResize>();
         resize?.SyncPersistedScaleFromCurrentTransform();

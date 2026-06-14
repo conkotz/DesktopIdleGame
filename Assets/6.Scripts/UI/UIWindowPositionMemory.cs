@@ -26,6 +26,7 @@ public static class UIWindowPositionMemory
     {
         SavedAnchoredPositions.Clear();
         UIWindowSessionLayoutMemory.ForgetAll();
+        UIWindowLayoutBinding.ResetGameLoadLayoutState();
     }
 
     public static void ForgetKey(string key)
