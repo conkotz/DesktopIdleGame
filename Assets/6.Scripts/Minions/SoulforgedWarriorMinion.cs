@@ -234,6 +234,8 @@ public class SoulforgedWarriorMinion : MonoBehaviour
 
     private IEnumerator CoWarcryLoop()
     {
+        yield return new WaitForSeconds(AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds);
+
         while (IsOperational)
         {
             PerformWarcry();
@@ -308,8 +310,8 @@ public class SoulforgedWarriorMinion : MonoBehaviour
     {
         float rangeSq = range * range;
         Vector3 myPos = transform.position;
-        EnemyBaseController[] enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < enemies.Length; i++)
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < enemies.Count; i++)
         {
             EnemyBaseController enemy = enemies[i];
             if (!enemy || enemy.IsDead)

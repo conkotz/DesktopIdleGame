@@ -102,7 +102,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0.55}
+  m_Offset: {x: 0, y: 0.5335386}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -112,7 +112,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.45, y: 1.1}
+  m_Size: {x: 0.45, y: 1.1329229}
   m_EdgeRadius: 0
 --- !u!114 &7123456789012345682
 MonoBehaviour:
@@ -126,6 +126,71 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca62f303b7a96e54799a617842982a7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
+  buffController: {fileID: 0}
+  unitDisplayName: Adventurer
+  currentHP: -1
+  currentEnergy: -1
+  currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
+  baseMaxHP: 100
+  baseMaxEnergy: 100
+  baseMaxMana: 50
+  baseArmor: 0
+  baseMagicResist: 0
+  baseCorruptionResist: 0
+  basePhysBlockChance: 0
+  basePhysBlockMitigation: 0.7
+  baseMoveSpeed: 3
+  baseMoveSpeedMult: 1
+  baseLifeRegen: 1
+  baseEnergyRegenFlatPerSecond: 10
+  baseManaRegen: 1
+  baseMinPhysicalDamage: 0
+  baseMaxPhysicalDamage: 0
+  baseMinMagicDamage: 0
+  baseMaxMagicDamage: 0
+  baseMinCorruptionDamage: 0
+  baseMaxCorruptionDamage: 0
+  baseAbilityPower: 0
+  baseLifeSteal: 0
+  baseBleedChance: 0
+  baseBleedMultiplier: 0
+  baseBleedDuration: 5
+  basePoisonChance: 0
+  basePoisonMultiplier: 0
+  poisonPoolFractionOfCorruptionDamage: 0.4
+  basePoisonDuration: 5
+  basePoisonMaxStacks: 3
+  baseMagicAttackType: 0
+  baseMagicAilmentApplyChance: 0
+  baseBurnChance: 0
+  baseChillDuration: 5
+  baseChillMaxStacks: 6
+  baseChillSlowPerStack: 0.15
+  baseBurnHitsToExplode: 3
+  baseBurnExplosionMultiplier: 1
+  bonusBurnDamageMultiplier: 0
+  bonusAbilityCooldownReductionFraction: 0
+  baseShockDuration: 5
+  baseShockDamageTakenMultiplier: 0.15
+  dualWieldApsBonus: 1.15
+  equipment: {fileID: 0}
+  inventory: {fileID: 0}
+  toolbelt: {fileID: 0}
+  skillsManager: {fileID: 0}
+  skillDatabase: {fileID: 0}
+  unarmedMinPhysicalDamage: 1
+  unarmedMaxPhysicalDamage: 2
+  unarmedAttacksPerSecond: 1
+  unarmedRange: 1
+  unarmedCritChance: 0
+  unarmedCritMultiplier: 1.5
+  bonusAxeSpeedMult: 0
+  bonusPickaxeSpeedMult: 0
+  bonusRodSpeedMult: 0
+  debugAbilityCombatPower: 0
 --- !u!114 &7123456789012345683
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -162,7 +227,6 @@ MonoBehaviour:
   hurtTriggerName: Hurt
   dieTriggerName: Die
   dieStateName: die
-  xOnly: 1
 --- !u!114 &7123456789012345691
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -214,6 +278,9 @@ MonoBehaviour:
     visualScaleMultiplier: 1.12
   spawnDistanceFromPlayer: 3
   spawnSideSign: 1
+  warcryRingMaxRadius: 8
+  warcryRingDuration: 0.55
+  furiousSlamShockwaveDuration: 0.35
 --- !u!114 &7123456789012345685
 MonoBehaviour:
   m_ObjectHideFlags: 0

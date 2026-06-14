@@ -178,6 +178,8 @@ public class MinionCombatController : MonoBehaviour
         _attackHitPending = false;
         unit.StopMovement();
         ResetIdleFollowState();
+        _lastAlignedFloorTopY = float.NaN;
+        unit.AlignToLaneFloor();
     }
 
     public bool TryApplyStrikeToEnemy(EnemyBaseController enemy, float damageMultiplier)
@@ -354,12 +356,20 @@ public class MinionCombatController : MonoBehaviour
         }
     }
 
+    private float _lastAlignedFloorTopY = float.NaN;
+
     private void LateUpdate()
     {
         if (!_initialized || !_def || !_ownerStats || !unit.IsAliveVisual)
             return;
 
-        SyncGroundToOwner();
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        if (float.IsNaN(_lastAlignedFloorTopY) || Mathf.Abs(floorTop - _lastAlignedFloorTopY) > 1e-4f)
+        {
+            _lastAlignedFloorTopY = floorTop;
+            unit.AlignToLaneFloor();
+        }
+
         EnforceLeashTeleport();
     }
 
@@ -769,8 +779,8 @@ public class MinionCombatController : MonoBehaviour
         TeleportToReturnDestination();
         Physics2D.SyncTransforms();
 
-        if (debugLogs)
-            Debug.Log($"[MinionCombat] Leash teleport (> {maxD:0.#} from player)", this);
+        _lastAlignedFloorTopY = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        unit?.AlignToLaneFloor();
     }
 
     private void TeleportToReturnDestination()

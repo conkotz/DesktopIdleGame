@@ -452,6 +452,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextLowManaPopupTime;
     private float _nextSupportWeaponMismatchPopupTime;
     private bool _isClosingDistanceForAttack;
+    private float _stableCombatSideSign;
     private bool _attackBufferedFromRange;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
@@ -949,7 +950,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _attackBufferedFromRange = false;
 
         float desiredCenterDist = myRange + myHalf + enemyHalf;
-        float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
+        float dxToEnemy = enemyX - myX;
+        if (Mathf.Abs(dxToEnemy) > 0.08f)
+            _stableCombatSideSign = Mathf.Sign(dxToEnemy);
+        else if (Mathf.Approximately(_stableCombatSideSign, 0f))
+            _stableCombatSideSign = player.FacingDirectionX < 0f ? -1f : 1f;
+
+        float desiredX = enemyX - _stableCombatSideSign * desiredCenterDist;
         bool shouldStartClosing = gap > closeEnoughToSwing;
         bool shouldKeepClosing = _isClosingDistanceForAttack && gap > closeEnoughToSwing;
         bool shouldCloseDistance = !_attackBufferedFromRange && (shouldStartClosing || shouldKeepClosing);
@@ -2715,6 +2722,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _target = null;
         _targetColCached = null;
         _combatChaseMovementEnabled = true;
+        _stableCombatSideSign = 0f;
 
         if (player)
         {

@@ -14,11 +14,14 @@ public sealed class FpsDisplayText : MonoBehaviour
     [SerializeField] private TMP_Text label;
     [Tooltip("Hidden when Show FPS is off. Defaults to parent when named FPSTextPanel, otherwise this object.")]
     [SerializeField] private GameObject visibilityRoot;
-    [SerializeField, Min(0.05f)] private float refreshInterval = 0.25f;
+    [SerializeField, Min(0.05f)] private float refreshInterval = 0.5f;
+    [SerializeField, Range(0.1f, 0.9f)] private float smoothFactor = 0.35f;
     [SerializeField] private string format = "FPS: {0}";
 
     private float _accumUnscaledTime;
     private int _frameCount;
+    private float _smoothedFps = -1f;
+    private int _displayedFps = -1;
     private bool _overlayConfigured;
 
     private void Awake()
@@ -44,6 +47,7 @@ public sealed class FpsDisplayText : MonoBehaviour
     private void OnEnable()
     {
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
+        ResetSmoothing();
         ApplyVisibilityFromSettings();
         EnsureTopmostOverlayCanvas();
     }
@@ -86,6 +90,17 @@ public sealed class FpsDisplayText : MonoBehaviour
         bool show = ToggleSettingsStore.Get(ToggleSettingId.ShowFps);
         if (visibilityRoot)
             visibilityRoot.SetActive(show);
+
+        if (show)
+            ResetSmoothing();
+    }
+
+    private void ResetSmoothing()
+    {
+        _accumUnscaledTime = 0f;
+        _frameCount = 0;
+        _smoothedFps = -1f;
+        _displayedFps = -1;
     }
 
     private void Update()
@@ -102,10 +117,22 @@ public sealed class FpsDisplayText : MonoBehaviour
         if (_accumUnscaledTime < refreshInterval)
             return;
 
-        int fps = Mathf.RoundToInt(_frameCount / _accumUnscaledTime);
+        float instantFps = _frameCount / _accumUnscaledTime;
         _accumUnscaledTime = 0f;
         _frameCount = 0;
 
+        if (_smoothedFps < 0f)
+            _smoothedFps = instantFps;
+        else if (instantFps > _smoothedFps)
+            _smoothedFps = Mathf.Lerp(_smoothedFps, instantFps, Mathf.Min(1f, smoothFactor * 1.6f));
+        else
+            _smoothedFps = Mathf.Lerp(_smoothedFps, instantFps, smoothFactor * 0.45f);
+
+        int fps = Mathf.RoundToInt(_smoothedFps);
+        if (fps == _displayedFps)
+            return;
+
+        _displayedFps = fps;
         label.text = string.Format(format, fps);
     }
 }

@@ -8,6 +8,7 @@ public static class SoulforgedWarriorMinionVfx
 {
     private static readonly Color WarcryBaseColor = new Color(1f, 0.58f, 0.1f, 0.78f);
     public static readonly Color FuriousSlamShockwaveColor = new Color(1f, 0.12f, 0.08f, 0.95f);
+    private static Material s_lineMaterial;
 
     public static void PlayWarcryRing(MonoBehaviour host, Vector3 worldCenter, float maxRadius, float durationSeconds)
     {
@@ -149,7 +150,11 @@ public static class SoulforgedWarriorMinionVfx
         lr.sortingOrder = 40;
         Shader shader = Shader.Find("Sprites/Default");
         if (shader)
-            lr.material = new Material(shader);
+        {
+            if (s_lineMaterial == null)
+                s_lineMaterial = new Material(shader);
+            lr.sharedMaterial = s_lineMaterial;
+        }
         return lr;
     }
 
@@ -158,7 +163,7 @@ public static class SoulforgedWarriorMinionVfx
         if (!lr)
             return;
 
-        const int segments = 48;
+        const int segments = 24;
         lr.positionCount = segments + 1;
         Color c = baseColor;
         c.a = alpha;

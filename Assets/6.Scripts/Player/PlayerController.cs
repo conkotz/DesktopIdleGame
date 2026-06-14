@@ -3917,6 +3917,12 @@ public class PlayerController : MonoBehaviour
                 !(state == State.MoveToPoint && _moveToPointFromPlayerInput))
             {
                 float targetX = target.transform.position.x;
+                if (Mathf.Abs(targetX - currentX) <= 0.04f)
+                {
+                    _lastX = currentX;
+                    return;
+                }
+
                 bool faceLeft = targetX < currentX;
                 bool flip = faceLeft;
                 if (invertFlip) flip = !flip;
@@ -3973,6 +3979,9 @@ public class PlayerController : MonoBehaviour
         if (!visualsRoot) return;
 
         float myX = transform.position.x;
+        if (Mathf.Abs(targetX - myX) <= 0.04f)
+            return;
+
         bool faceLeft = targetX < myX;
 
         bool flip = faceLeft;

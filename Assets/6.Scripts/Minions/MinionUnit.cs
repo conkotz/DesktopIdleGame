@@ -35,6 +35,8 @@ public class MinionUnit : MonoBehaviour
     private float _moveSpeed;
     private float _visualFlipScaleX = 1f;
     private Vector3 _soldierBaseLocalPosition;
+    private float _colliderBottomBelowRoot;
+    private bool _hasColliderBottomBelowRoot;
 
     public Animator Animator => _animator;
     public Transform VisualFlipRoot => _visualFlipRoot;
@@ -60,6 +62,16 @@ public class MinionUnit : MonoBehaviour
             visualsRoot.localPosition = visualsRootLocalPosition;
     }
 
+    private void OnEnable()
+    {
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+    }
+
+    private void OnDisable()
+    {
+        WorldFloorFollowerRegistry.Unregister(transform);
+    }
+
     public bool SetupFromOwner(Transform ownerRoot, Color spectralTint, float uniformScale)
     {
         if (!soldierVisualPrefab || !ownerRoot)
@@ -79,7 +91,7 @@ public class MinionUnit : MonoBehaviour
         _animator = soldierGo.GetComponent<Animator>();
         if (_animator)
         {
-            _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            _animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
             _animator.updateMode = AnimatorUpdateMode.Normal;
         }
 
@@ -89,6 +101,8 @@ public class MinionUnit : MonoBehaviour
         visualsRoot.localScale = new Vector3(u, u, u);
         _visualFlipRoot.localScale = Vector3.one;
 
+        AlignToLaneFloor();
+        CacheColliderBottomBelowRoot();
         AlignToLaneFloor();
         PlayIdle();
         return _animator != null;
@@ -109,45 +123,45 @@ public class MinionUnit : MonoBehaviour
 
     /// <summary>
     /// Keeps the minion on the canonical lane floor (same line as player, merchants, and signposts).
+    /// Uses a cached feet offset — no per-frame <see cref="Physics2D.SyncTransforms"/>.
     /// </summary>
     public void AlignToLaneFloor(float feetYOffset = 0f)
     {
-        Collider2D minionCol = GetSoldierCollider();
-        if (minionCol != null)
-        {
-            if (ShouldPreserveLaneHierarchy())
-                SnapColliderBottomToLaneFloor(minionCol, feetYOffset);
-            else
-                LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(minionCol, transform, feetYOffset);
-        }
-        else
-        {
-            if (!ShouldPreserveLaneHierarchy())
-                LaneGroundEffectPlacement.AttachUnitToLane(transform);
+        if (!ShouldPreserveLaneHierarchy())
+            LaneGroundEffectPlacement.AttachUnitToLane(transform);
 
-            Vector3 pos = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(transform.position, feetYOffset);
-            transform.position = pos;
-        }
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + feetYOffset;
+        float targetRootY = _hasColliderBottomBelowRoot
+            ? floorTop + _colliderBottomBelowRoot
+            : floorTop;
+
+        Vector3 pos = transform.position;
+        if (Mathf.Abs(pos.y - targetRootY) <= 1e-5f)
+            return;
+
+        pos.y = targetRootY;
+        transform.position = pos;
 
         if (_rb)
-            _rb.position = new Vector2(transform.position.x, transform.position.y);
+            _rb.position = new Vector2(pos.x, pos.y);
+    }
+
+    private void CacheColliderBottomBelowRoot()
+    {
+        Collider2D minionCol = GetSoldierCollider();
+        if (!minionCol)
+        {
+            _hasColliderBottomBelowRoot = false;
+            return;
+        }
+
+        Physics2D.SyncTransforms();
+        _colliderBottomBelowRoot = transform.position.y - minionCol.bounds.min.y;
+        _hasColliderBottomBelowRoot = true;
     }
 
     private bool ShouldPreserveLaneHierarchy() =>
         gameObject.scene.name == "DontDestroyOnLoad";
-
-    private void SnapColliderBottomToLaneFloor(Collider2D minionCol, float feetYOffset)
-    {
-        Physics2D.SyncTransforms();
-        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + feetYOffset;
-        float delta = floorTop - minionCol.bounds.min.y;
-        if (Mathf.Abs(delta) <= 1e-5f)
-            return;
-
-        Vector3 pos = transform.position;
-        pos.y += delta;
-        transform.position = pos;
-    }
 
     public void SyncGroundY(float worldY)
     {

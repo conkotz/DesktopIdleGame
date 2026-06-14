@@ -338,6 +338,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private GameObject _singleModeScrollRoot;
     private RectTransform _singleModeScrollRect;
+    private ScrollRect _singleModeScroll;
     private TMP_Text _questOfferHeaderText;
     private TMP_Text _singleTitleText;
     private TMP_Text _singleRewardText;
@@ -353,6 +354,74 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private readonly List<ActiveTypewriter> _activeTypewriters = new();
 
     private bool HasActiveTypewriters => _activeTypewriters.Count > 0;
+
+    private const float DialogueArrowScrollStepPixels = 48f;
+
+    private void Update()
+    {
+        if (!ShouldReceiveArrowScrollForThisBox())
+            return;
+
+        ScrollRect scroll = ResolveActiveScrollRect();
+        if (!scroll || !scroll.vertical || scroll.content == null || scroll.viewport == null)
+            return;
+
+        float scrollable = scroll.content.rect.height - scroll.viewport.rect.height;
+        if (scrollable <= 1f)
+            return;
+
+        float delta = DialogueArrowScrollStepPixels / scrollable;
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+            scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition + delta);
+        else if (Input.GetKeyDown(KeyCode.DownArrow))
+            scroll.verticalNormalizedPosition = Mathf.Clamp01(scroll.verticalNormalizedPosition - delta);
+    }
+
+    private bool ShouldReceiveArrowScrollForThisBox()
+    {
+        if (!gameObject.activeInHierarchy)
+            return false;
+
+        NPCDialogueBoxUI target = ResolveArrowScrollTarget();
+        return ReferenceEquals(target, this);
+    }
+
+    private static NPCDialogueBoxUI ResolveArrowScrollTarget()
+    {
+        if (_activeBox != null && _activeBox.gameObject.activeInHierarchy)
+            return _activeBox;
+
+        if (ActiveMultiOfferBoxes.Count == 0)
+            return null;
+
+        if (ActiveMultiOfferBoxes.Count == 1)
+            return ActiveMultiOfferBoxes[0];
+
+        Vector2 mouse = Input.mousePosition;
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+            if (box != null &&
+                box._rectTransform != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(box._rectTransform, mouse, null))
+            {
+                return box;
+            }
+        }
+
+        return ActiveMultiOfferBoxes[0];
+    }
+
+    private ScrollRect ResolveActiveScrollRect()
+    {
+        if (_singleModeScroll)
+            return _singleModeScroll;
+
+        if (_singleModeScrollRoot)
+            _singleModeScroll = _singleModeScrollRoot.GetComponent<ScrollRect>();
+
+        return _singleModeScroll;
+    }
 
     public Vector3 GetNpcDialogueLocalOffset() => npcDialogueLocalOffset;
 
@@ -2126,6 +2195,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             {
                 _singleModeScrollRoot = scroll.gameObject;
                 _singleModeScrollRect = scroll as RectTransform;
+                _singleModeScroll = scroll.GetComponent<ScrollRect>();
             }
         }
 
@@ -2350,6 +2420,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         _singleModeScrollRoot = scrollGo;
         _singleModeScrollRect = scrollRt;
+        _singleModeScroll = scroll;
 
         RectTransform acceptRt = CreateButton("AcceptButton", "Accept", _rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 22f), new Vector2(80f, 30f), out acceptButton);
         acceptRt.gameObject.SetActive(false);
