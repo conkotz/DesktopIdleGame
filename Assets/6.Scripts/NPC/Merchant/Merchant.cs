@@ -52,6 +52,12 @@ public class Merchant : MonoBehaviour, ISaveable
     private void OnEnable()
     {
         ApplyIdentityToLabel();
+        OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Npc, transform);
+    }
+
+    private void OnDisable()
+    {
+        OffscreenMarkerTargetRegistry.Unregister(transform);
     }
 
     private void OnValidate()

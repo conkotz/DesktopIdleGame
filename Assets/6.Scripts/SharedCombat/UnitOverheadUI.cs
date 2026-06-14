@@ -1611,12 +1611,17 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleAilmentsChanged()
     {
-        RefreshPlayerOverheadAilmentPresentation();
-        RefreshDebuffIconStrip();
+        AilmentUiRebuildCoordinator.MarkUnitOverheadDirty(this);
     }
 
     private void HandleShadowStrikeMarksChanged()
     {
+        AilmentUiRebuildCoordinator.MarkUnitOverheadDirty(this);
+    }
+
+    internal void FlushCoalescedAilmentUiRebuild()
+    {
+        RefreshPlayerOverheadAilmentPresentation();
         RefreshDebuffIconStrip();
     }
 

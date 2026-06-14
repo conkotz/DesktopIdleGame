@@ -204,7 +204,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
         UpdateBuffTimers();
     }
 
-    private void HandleAilmentsChanged() => RefreshDebuffs();
+    private void HandleAilmentsChanged()
+    {
+        AilmentUiRebuildCoordinator.MarkBuffsPanelDirty(this);
+    }
+
+    internal void FlushCoalescedAilmentUiRebuild() => RefreshDebuffs();
     private void HandleBuffsChanged() => RefreshBuffs();
 
     public void RefreshAll()

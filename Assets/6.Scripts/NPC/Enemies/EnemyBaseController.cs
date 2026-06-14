@@ -22,8 +22,6 @@ public class EnemyBaseController : MonoBehaviour
 
     [Header("Target")]
     [SerializeField] private Transform player;
-    [SerializeField] private string playerTag = "Player";
-
     [Header("Aggro")]
     [SerializeField] private float aggroRange = 5f;
 
@@ -818,25 +816,34 @@ public class EnemyBaseController : MonoBehaviour
 
     private void ResolvePlayer()
     {
-        if (player && _playerController && _wallet && _goldPopupSpawner) return;
+        if (player && _playerController && _wallet && _goldPopupSpawner)
+            return;
 
-        if (!player)
+        UnityEngine.Profiling.Profiler.BeginSample("Enemy.ResolvePlayer");
+        try
         {
-            var go = GameObject.FindGameObjectWithTag(playerTag);
-            if (go) player = go.transform;
+            CombatPlayerRefs.ResolveForEnemy(
+                out Transform playerTransform,
+                out PlayerController controller,
+                out PlayerCombatState combatState,
+                out CurrencyWallet wallet,
+                out GoldPopupSpawner goldPopup);
+
+            if (playerTransform)
+                player = playerTransform;
+            if (controller)
+                _playerController = controller;
+            if (combatState)
+                _playerCombatState = combatState;
+            if (wallet)
+                _wallet = wallet;
+            if (goldPopup)
+                _goldPopupSpawner = goldPopup;
         }
-
-        if (player && !_playerController)
-            _playerController = player.GetComponent<PlayerController>();
-
-        if (player && _playerCombatState == null)
-            _playerCombatState = player.GetComponent<PlayerCombatState>();
-
-        if (!_wallet)
-            _wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
-
-        if (!_goldPopupSpawner)
-            _goldPopupSpawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+        finally
+        {
+            UnityEngine.Profiling.Profiler.EndSample();
+        }
     }
 
     private float DistanceToPlayerX()

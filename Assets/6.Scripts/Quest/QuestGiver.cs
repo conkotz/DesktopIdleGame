@@ -40,6 +40,7 @@ public class QuestGiver : MonoBehaviour
 
     private void OnEnable()
     {
+        OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Npc, transform);
         TryBindManager();
         if (!TrySubscribeInventoryAndStorage())
             StartCoroutine(RetrySubscribeInventoryRoutine());
@@ -64,6 +65,7 @@ public class QuestGiver : MonoBehaviour
 
     private void OnDisable()
     {
+        OffscreenMarkerTargetRegistry.Unregister(transform);
         UnsubscribeInventoryAndStorage();
         if (_manager != null)
         {

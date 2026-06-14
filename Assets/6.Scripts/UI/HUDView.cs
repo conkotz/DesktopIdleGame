@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Profiling;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -9,8 +11,6 @@ public class HUDView : MonoBehaviour
     [SerializeField] private bool fadeWhenPlayerOverlaps = true;
     [Tooltip("Also lower alpha when a live enemy overlaps the HUD (same test as the player).")]
     [SerializeField] private bool includeEnemiesInOverlapFade = true;
-    [Tooltip("Seconds between enemy list refreshes when enemy overlap fade is enabled.")]
-    [SerializeField, Min(0.05f)] private float enemyOverlapScanInterval = 0.25f;
     [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.5f;
     [SerializeField] private Camera overlapCamera;
     [SerializeField] private string overlapCameraName = "StripCamera";
@@ -52,9 +52,6 @@ public class HUDView : MonoBehaviour
     private Camera _hudRectEventCamera;
     private Camera _resolvedOverlapCamera;
 
-    private EnemyBaseController[] _cachedEnemies = System.Array.Empty<EnemyBaseController>();
-    private float _nextEnemyScanTime;
-
     private void Awake()
     {
         _selfRect = transform as RectTransform;
@@ -71,7 +68,6 @@ public class HUDView : MonoBehaviour
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
         TryCachePlayer();
-        _nextEnemyScanTime = 0f;
     }
 
     private void OnDisable()
@@ -83,8 +79,6 @@ public class HUDView : MonoBehaviour
     {
         _player = null;
         _playerRenderers = System.Array.Empty<SpriteRenderer>();
-        _cachedEnemies = System.Array.Empty<EnemyBaseController>();
-        _nextEnemyScanTime = 0f;
         _resolvedOverlapCamera = ResolveOverlapCamera();
         TryCachePlayer();
     }
@@ -139,40 +133,37 @@ public class HUDView : MonoBehaviour
         return false;
     }
 
-    private void RefreshEnemyCacheIfDue()
-    {
-        if (!includeEnemiesInOverlapFade)
-            return;
-
-        if (Time.unscaledTime < _nextEnemyScanTime)
-            return;
-
-        _nextEnemyScanTime = Time.unscaledTime + enemyOverlapScanInterval;
-        _cachedEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-    }
-
     private bool IsAnyLiveEnemyOverlappingHud()
     {
-        if (_selfRect == null)
+        if (!includeEnemiesInOverlapFade || _selfRect == null)
             return false;
 
         Camera cam = ResolveOverlapCamera();
         if (cam == null)
             return false;
 
-        RefreshEnemyCacheIfDue();
-
-        for (int i = 0; i < _cachedEnemies.Length; i++)
+        Profiler.BeginSample("HUDView.EnemyIteration");
+        try
         {
-            EnemyBaseController e = _cachedEnemies[i];
-            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy)
-                continue;
+            IReadOnlyList<EnemyBaseController> enemies =
+                CombatEnemyRegistry.GetLiveEnemies();
 
-            if (IsEnemyVisualOverHudRect(e, cam))
-                return true;
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                EnemyBaseController e = enemies[i];
+                if (e == null || e.IsDead || !e.gameObject.activeInHierarchy)
+                    continue;
+
+                if (IsEnemyVisualOverHudRect(e, cam))
+                    return true;
+            }
+
+            return false;
         }
-
-        return false;
+        finally
+        {
+            Profiler.EndSample();
+        }
     }
 
     private bool IsEnemyVisualOverHudRect(EnemyBaseController enemy, Camera cam)

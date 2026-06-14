@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 /// <summary>
 /// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, NoticeBoard, and Cave
@@ -11,13 +12,6 @@ public class OffscreenMarkersController : MonoBehaviour
 {
     /// <summary>Gameplay singleton — controller may live on <c>WorldManager</c> instead of the player.</summary>
     public static OffscreenMarkersController Instance { get; private set; }
-
-    private const string EnemyTag = "Enemy";
-    private const string NpcTag = "NPC";
-    private const string ResourceTag = "Resource";
-    private const string StorageTag = "Storage";
-    private const string NoticeBoardTag = "NoticeBoard";
-    private const string CaveTag = "Cave";
 
     private enum OffscreenKind
     {
@@ -113,6 +107,8 @@ public class OffscreenMarkersController : MonoBehaviour
     private static float[] s_layoutYByIndex = System.Array.Empty<float>();
     private static readonly HashSet<int> s_collectSeenIds = new();
 
+    private Aggregate _registryCollectAggregate;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -127,6 +123,7 @@ public class OffscreenMarkersController : MonoBehaviour
         Instance = this;
         ResolveMarkerContainer();
         ResolveWorldCamera();
+        OffscreenMarkerTargetRegistry.BootstrapLegacyTaggedObjectsOnce();
 
         if (markerContainer && stretchContainerHorizontally)
         {
@@ -308,42 +305,50 @@ public class OffscreenMarkersController : MonoBehaviour
         {
             _nextRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, refreshInterval);
 
-            Aggregate enemies = default;
-            Aggregate npcs = default;
-            Aggregate resources = default;
-            Aggregate storages = default;
-            Aggregate noticeBoards = default;
-            Aggregate caves = default;
+            Profiler.BeginSample("OffscreenMarkers.UpdateMarkers");
+            try
+            {
+                Aggregate enemies = default;
+                Aggregate npcs = default;
+                Aggregate resources = default;
+                Aggregate storages = default;
+                Aggregate noticeBoards = default;
+                Aggregate caves = default;
 
-            CollectEnemies(ref enemies);
-            CollectNpcs(ref npcs);
-            CollectResources(ref resources);
-            CollectTaggedWorldObjects(StorageTag, ref storages);
-            CollectTaggedWorldObjects(NoticeBoardTag, ref noticeBoards);
-            CollectTaggedWorldObjects(CaveTag, ref caves);
+                CollectEnemies(ref enemies);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Npc, ref npcs);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Resource, ref resources);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Storage, ref storages);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.NoticeBoard, ref noticeBoards);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Cave, ref caves);
 
-            int need = 0;
-            need += CountRowsForAggregate(enemies);
-            need += CountRowsForAggregate(npcs);
-            need += CountRowsForAggregate(resources);
-            need += CountRowsForAggregate(storages);
-            need += CountRowsForAggregate(noticeBoards);
-            need += CountRowsForAggregate(caves);
+                int need = 0;
+                need += CountRowsForAggregate(enemies);
+                need += CountRowsForAggregate(npcs);
+                need += CountRowsForAggregate(resources);
+                need += CountRowsForAggregate(storages);
+                need += CountRowsForAggregate(noticeBoards);
+                need += CountRowsForAggregate(caves);
 
-            EnsurePoolSize(need);
-            for (int i = 0; i < _pool.Count; i++)
-                _pool[i].gameObject.SetActive(i < need);
+                EnsurePoolSize(need);
+                for (int i = 0; i < _pool.Count; i++)
+                    _pool[i].gameObject.SetActive(i < need);
 
-            int idx = 0;
-            EmitRowsForAggregate(ref idx, OffscreenKind.Enemy, enemies);
-            EmitRowsForAggregate(ref idx, OffscreenKind.Npc, npcs);
-            EmitRowsForAggregate(ref idx, OffscreenKind.Resource, resources);
-            EmitRowsForAggregate(ref idx, OffscreenKind.Storage, storages);
-            EmitRowsForAggregate(ref idx, OffscreenKind.NoticeBoard, noticeBoards);
-            EmitRowsForAggregate(ref idx, OffscreenKind.Cave, caves);
+                int idx = 0;
+                EmitRowsForAggregate(ref idx, OffscreenKind.Enemy, enemies);
+                EmitRowsForAggregate(ref idx, OffscreenKind.Npc, npcs);
+                EmitRowsForAggregate(ref idx, OffscreenKind.Resource, resources);
+                EmitRowsForAggregate(ref idx, OffscreenKind.Storage, storages);
+                EmitRowsForAggregate(ref idx, OffscreenKind.NoticeBoard, noticeBoards);
+                EmitRowsForAggregate(ref idx, OffscreenKind.Cave, caves);
 
-            _activeMarkerRows = need;
-            _markerLayoutDirty = true;
+                _activeMarkerRows = need;
+                _markerLayoutDirty = true;
+            }
+            finally
+            {
+                Profiler.EndSample();
+            }
         }
 
         if (_markerLayoutDirty && _activeMarkerRows > 0)
@@ -642,105 +647,45 @@ public class OffscreenMarkersController : MonoBehaviour
         a.Any = true;
     }
 
-    private void CollectTaggedWorldObjects(string unityTag, ref Aggregate agg)
-    {
-        s_collectSeenIds.Clear();
-        GameObject[] tagged = GameObject.FindGameObjectsWithTag(unityTag);
-        for (int i = 0; i < tagged.Length; i++)
-        {
-            GameObject go = tagged[i];
-            if (!go.activeInHierarchy) continue;
-
-            Vector3 p = go.transform.position;
-            int id = go.GetInstanceID();
-            if (!s_collectSeenIds.Add(id)) continue;
-            if (!IsOffCamera(p)) continue;
-            Add(ref agg, p.x);
-        }
-    }
-
     private void CollectEnemies(ref Aggregate agg)
     {
         s_collectSeenIds.Clear();
-        GameObject[] tagged = GameObject.FindGameObjectsWithTag(EnemyTag);
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
 
-        for (int i = 0; i < tagged.Length; i++)
+        for (int i = 0; i < enemies.Count; i++)
         {
-            GameObject go = tagged[i];
-            if (!go.activeInHierarchy) continue;
+            EnemyBaseController ebc = enemies[i];
+            if (!ebc || ebc.IsDead || !ebc.gameObject.activeInHierarchy)
+                continue;
 
-            EnemyBaseController ebc = go.GetComponentInParent<EnemyBaseController>();
-            if (ebc && ebc.IsDead) continue;
+            int dedupeId = ebc.gameObject.GetInstanceID();
+            if (!s_collectSeenIds.Add(dedupeId))
+                continue;
 
-            int dedupeId = ebc ? ebc.gameObject.GetInstanceID() : go.GetInstanceID();
-            if (!s_collectSeenIds.Add(dedupeId)) continue;
+            Vector3 p = ebc.transform.position;
+            if (!IsOffCamera(p))
+                continue;
 
-            Vector3 p = ebc ? ebc.transform.position : go.transform.position;
-            if (!IsOffCamera(p)) continue;
             Add(ref agg, p.x);
         }
     }
 
-    private void CollectResources(ref Aggregate agg)
+    private void CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind kind, ref Aggregate agg)
     {
         s_collectSeenIds.Clear();
-
-        GameObject[] tagged = GameObject.FindGameObjectsWithTag(ResourceTag);
-        for (int i = 0; i < tagged.Length; i++)
-        {
-            GameObject go = tagged[i];
-            if (!go.activeInHierarchy) continue;
-
-            ResourceNode node = go.GetComponentInParent<ResourceNode>();
-            Vector3 p = node && node.workSpot ? node.workSpot.position : go.transform.position;
-            int id = node ? node.gameObject.GetInstanceID() : go.GetInstanceID();
-            TryAddResourceCandidate(ref agg, p, id);
-        }
-
-        ResourceNode[] nodes = FindObjectsByType<ResourceNode>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < nodes.Length; i++)
-        {
-            ResourceNode node = nodes[i];
-            if (!node.gameObject.activeInHierarchy) continue;
-
-            Vector3 p = node.workSpot ? node.workSpot.position : node.transform.position;
-            TryAddResourceCandidate(ref agg, p, node.gameObject.GetInstanceID());
-        }
+        _registryCollectAggregate = agg;
+        OffscreenMarkerTargetRegistry.ForEachActive(kind, VisitRegistryTargetForCollect);
+        agg = _registryCollectAggregate;
     }
 
-    private void TryAddResourceCandidate(ref Aggregate agg, Vector3 worldPos, int dedupeId)
+    private void VisitRegistryTargetForCollect(int instanceId, Vector3 worldPos)
     {
-        if (!s_collectSeenIds.Add(dedupeId)) return;
-        if (!IsOffCamera(worldPos)) return;
-        Add(ref agg, worldPos.x);
-    }
+        if (!s_collectSeenIds.Add(instanceId))
+            return;
 
-    private void CollectNpcs(ref Aggregate agg)
-    {
-        // Per-GameObject ids — do NOT use transform.root or every NPC under the same folder counts once.
-        s_collectSeenIds.Clear();
+        if (!IsOffCamera(worldPos))
+            return;
 
-        GameObject[] tagged = GameObject.FindGameObjectsWithTag(NpcTag);
-        for (int i = 0; i < tagged.Length; i++)
-        {
-            GameObject go = tagged[i];
-            if (!go.activeInHierarchy) continue;
-            TryAddNpcCandidate(ref agg, go.transform.position, go.GetInstanceID());
-        }
-
-        Merchant[] merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < merchants.Length; i++)
-        {
-            Merchant m = merchants[i];
-            if (!m || !m.gameObject.activeInHierarchy) continue;
-            TryAddNpcCandidate(ref agg, m.transform.position, m.gameObject.GetInstanceID());
-        }
-    }
-
-    private void TryAddNpcCandidate(ref Aggregate agg, Vector3 worldPos, int dedupeId)
-    {
-        if (!s_collectSeenIds.Add(dedupeId)) return;
-        if (!IsOffCamera(worldPos)) return;
-        Add(ref agg, worldPos.x);
+        Add(ref _registryCollectAggregate, worldPos.x);
     }
 }

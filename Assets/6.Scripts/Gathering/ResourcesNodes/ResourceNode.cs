@@ -131,6 +131,31 @@ public class ResourceNode : MonoBehaviour
         RefreshDepletionTimerDisplay();
     }
 
+    private void OnEnable()
+    {
+        OffscreenMarkerTargetRegistry.Register(
+            OffscreenMarkerTargetRegistry.Kind.Resource,
+            transform,
+            ResolveOffscreenMarkerWorldPosition);
+    }
+
+    private void OnDisable()
+    {
+        OffscreenMarkerTargetRegistry.Unregister(transform);
+    }
+
+    private static Vector3 ResolveOffscreenMarkerWorldPosition(Transform resourceRoot)
+    {
+        if (!resourceRoot)
+            return Vector3.zero;
+
+        ResourceNode node = resourceRoot.GetComponent<ResourceNode>();
+        if (node && node.workSpot)
+            return node.workSpot.position;
+
+        return resourceRoot.position;
+    }
+
     /// <summary>
     /// Chooses the best work spot for a player at <paramref name="playerWorldPos"/> and updates <see cref="workSpot"/>.
     /// If both left and right are present, picks the closest. If neither is present, leaves <see cref="workSpot"/> as-is.

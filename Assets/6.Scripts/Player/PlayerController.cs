@@ -433,6 +433,7 @@ public class PlayerController : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += HandleSceneLoaded;
+        CombatPlayerRefs.Register(this);
         RebindCameras();
 
         if (!characterStats)
@@ -489,6 +490,7 @@ public class PlayerController : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= HandleSceneLoaded;
+        CombatPlayerRefs.Unregister(this);
 
         if (characterStats != null)
         {
