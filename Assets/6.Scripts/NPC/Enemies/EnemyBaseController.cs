@@ -994,7 +994,12 @@ public class EnemyBaseController : MonoBehaviour
         DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
         Vector3 dealerPos = source != null ? source.position : transform.position;
-        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+        Vector3 pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+            transform,
+            anchorPos,
+            dealerPos,
+            source != null,
+            null);
 
         Color color = new Color32(38, 22, 12, 255);
         FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
@@ -1012,7 +1017,12 @@ public class EnemyBaseController : MonoBehaviour
         DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
         Vector3 dealerPos = source != null ? source.position : transform.position;
-        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+        Vector3 pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+            transform,
+            anchorPos,
+            dealerPos,
+            source != null,
+            null);
 
         Color color = new Color32(140, 18, 28, 255);
         FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
@@ -1353,13 +1363,21 @@ public class EnemyBaseController : MonoBehaviour
     private void GetStatusPopupSpawnBehindDealer(Transform dealer, out Vector3 worldPos)
     {
         Vector3 anchorPos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+        bool hasDealer = dealer != null || _damagePopupDealerLastWorldPosValid;
         Vector3 dealerPos = dealer != null
             ? dealer.position
             : _damagePopupDealerLastWorldPosValid
                 ? _damagePopupDealerLastWorldPos
                 : anchorPos;
 
-        worldPos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+        worldPos = DamagePopupSystem.Instance != null
+            ? DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+                transform,
+                anchorPos,
+                dealerPos,
+                hasDealer,
+                null)
+            : DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
     }
 
     public int TakeDamage(
@@ -1737,7 +1755,15 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
-        Vector3 pos = anchor != null ? anchor.WorldPos : transform.position;
+        Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
+        Vector3 pos = DamagePopupSystem.Instance != null
+            ? DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+                transform,
+                anchorPos,
+                anchorPos,
+                false,
+                null)
+            : anchorPos;
         Color color = new Color32(255, 72, 48, 255);
         FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
         if (prefab != null)

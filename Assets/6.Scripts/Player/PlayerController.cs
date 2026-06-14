@@ -4056,6 +4056,17 @@ public class PlayerController : MonoBehaviour
             Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;
 
             GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out Vector3 pos, out Vector3 dir);
+            if (blocked && DamagePopupSystem.Instance != null)
+            {
+                Vector3 dealerPos = attacker != null ? attacker.position : transform.position;
+                pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+                    transform,
+                    anchorPos,
+                    dealerPos,
+                    attacker != null,
+                    FacingDirectionX);
+                dir = Vector3.up;
+            }
 
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {

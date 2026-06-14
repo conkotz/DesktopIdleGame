@@ -1683,7 +1683,23 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         var anchor = player.GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorPos = anchor ? anchor.WorldPos : player.transform.position;
-        player.GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out Vector3 pos, out Vector3 dir);
+        Vector3 pos;
+        Vector3 dir;
+        if (attacker != null && DamagePopupSystem.Instance != null)
+        {
+            pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+                player.transform,
+                anchorPos,
+                attacker.position,
+                true,
+                player.FacingDirectionX);
+            dir = Vector3.up;
+        }
+        else
+        {
+            player.GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out pos, out dir);
+        }
+
         bool riposteLabel = stats != null && stats.GetParryEnhancementPick() == 0;
         DamagePopupSystem.Instance.SpawnParry(pos, dir, riposteLabel);
     }

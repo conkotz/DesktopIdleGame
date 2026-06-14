@@ -189,13 +189,18 @@ public class AilmentController : MonoBehaviour
 
     private void TrySpawnEnemyAilmentActivationPopup(string message, Color color, Transform source)
     {
-        if (IsPlayerVictim || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
+        if (IsPlayerVictim || MinionCombatTarget.IsMinionTransform(transform) || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
             return;
 
         DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
         Vector3 dealerPos = source != null ? source.position : transform.position;
-        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+        Vector3 pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+            transform,
+            anchorPos,
+            dealerPos,
+            source != null,
+            null);
         DamagePopupSystem.Instance.SpawnLingeringStatus(pos, message, color, transform);
     }
 
@@ -483,10 +488,19 @@ public class AilmentController : MonoBehaviour
             _hasExclusiveBleedDotDealerWorldPos = true;
         }
 
+        bool firstBleed = bleedStacks.Count == 0 && exclusiveBleedTickSchedule.Count == 0;
+
         RefreshExclusiveBleedSchedule(newTick, tickCount);
 
         if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
             exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));
+
+        if (firstBleed && exclusiveBleedTickSchedule.Count > 0)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.BleedDamageColor, new Color32(170, 35, 35, 255));
+            TrySpawnEnemyAilmentActivationPopup("Bleeding", c, payload.source);
+        }
 
         _bleedOwnerPlayerStats?.NotifyBloodbathStackFromBleedApplication();
 

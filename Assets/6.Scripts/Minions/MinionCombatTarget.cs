@@ -17,6 +17,15 @@ public class MinionCombatTarget : MonoBehaviour
 
     public static IReadOnlyList<MinionCombatTarget> ActiveTargets => s_active;
 
+    public static bool IsMinionTransform(Transform t)
+    {
+        if (!t)
+            return false;
+
+        return t.GetComponent<MinionCombatTarget>() != null ||
+               t.GetComponentInParent<MinionCombatTarget>() != null;
+    }
+
     public CharacterStats Stats => stats;
     public bool IsAlive => stats && !stats.IsDead;
     public PlayerCombatController OwnerCombat => _ownerCombat;
@@ -94,27 +103,30 @@ public class MinionCombatTarget : MonoBehaviour
             DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
             Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
             Vector3 dealerPos = attacker != null ? attacker.position : transform.position;
-            Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
             Vector3 dir = (anchorPos - dealerPos).sqrMagnitude > 1e-6f
                 ? (anchorPos - dealerPos).normalized
                 : Vector3.up;
 
-            FloatingDamageTextUI.PopupDamageKind popupKind = type switch
+            if (!blocked)
             {
-                DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
-                DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
-                DamageType.Typless => FloatingDamageTextUI.PopupDamageKind.Typless,
-                _ => FloatingDamageTextUI.PopupDamageKind.Physical
-            };
+                Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+                FloatingDamageTextUI.PopupDamageKind popupKind = type switch
+                {
+                    DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
+                    DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
+                    DamageType.Typless => FloatingDamageTextUI.PopupDamageKind.Typless,
+                    _ => FloatingDamageTextUI.PopupDamageKind.Physical
+                };
 
-            DamagePopupSystem.Instance.Spawn(
-                pos,
-                finalDamage,
-                popupKind,
-                wasCrit,
-                false,
-                dir,
-                blocked);
+                DamagePopupSystem.Instance.Spawn(
+                    pos,
+                    finalDamage,
+                    popupKind,
+                    wasCrit,
+                    false,
+                    dir,
+                    false);
+            }
         }
 
         return finalDamage;

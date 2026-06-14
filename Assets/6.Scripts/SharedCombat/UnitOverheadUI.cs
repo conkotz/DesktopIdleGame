@@ -174,6 +174,48 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static UnitOverheadUI s_activeCombatTargetMarkerUi;
 
+    private bool _isPlayerOverheadCached;
+    private bool _isMinionOverheadCached;
+    private int _cachedStripUiFrameSiblingIndex = -1;
+
+    private float _cachedSpanMinX = float.MaxValue;
+    private float _cachedSpanMaxX = float.MinValue;
+    private bool _spanBoundsDirty = true;
+    private float _nextSpanBoundsRefreshTime;
+    private Vector2 _lastSpanBoundsBaseAnchored;
+    private const float SpanBoundsRefreshInterval = 0.12f;
+    private const float SpanBoundsAnchorDeltaPx = 0.5f;
+
+    private string _cachedNameDisplay = string.Empty;
+    private string _cachedCombatProfileDisplay = string.Empty;
+    private string _cachedHpValueDisplay = string.Empty;
+    private string _cachedGuardValueDisplay = string.Empty;
+    private int _lastHpFillAmountMilli = -1;
+    private int _lastEnemyHpFillAmountMilli = -1;
+
+    private readonly List<GameObject> _debuffIconPool = new();
+    private Vector2 _debuffIconPrefabSize;
+    private bool _debuffIconPrefabSizeCaptured;
+
+    private float _nextPlayerOverheadOrderTime;
+    private float _nextTargetMarkerWorldCacheTime;
+    private const float PlayerOverheadOrderInterval = 0.25f;
+    private const float TargetMarkerWorldCacheInterval = 0.1f;
+
+    private static readonly HashSet<int> s_activeIdsScratch = new();
+    private static readonly List<int> s_staleIdsScratch = new();
+
+    private struct StackSpanEntry
+    {
+        public float minX;
+        public float maxX;
+        public UnitOverheadUI ui;
+    }
+
+    private static readonly List<StackSpanEntry> s_spansScratch = new();
+    private static readonly List<float> s_laneLastMaxXScratch = new();
+    private static readonly List<int> s_canvasKeysScratch = new();
+
     private void Awake()
     {
         if (!root) root = transform as RectTransform;
@@ -184,6 +226,7 @@ public class UnitOverheadUI : MonoBehaviour
         if (!ailments) ailments = GetComponentInParent<AilmentController>();
 
         ResolveResourceFillRefs();
+        RefreshOwnerOverheadCaches();
         ApplyPlayerResourceBarVisibility();
         EnsureClickableBacking();
         EnsureTargetMarkerAnchor();
@@ -210,19 +253,25 @@ public class UnitOverheadUI : MonoBehaviour
         s_instances.Remove(this);
         Unsubscribe();
         ResetPlayerAilmentStatusPopupLatches();
+        RemoveStackStateForInstance(GetInstanceID());
+        ReturnAllDebuffIconsToPool();
     }
 
     private void LateUpdate()
     {
         ComputeBaseAnchoredAndVisibility();
 
-        if (!ShouldUseOverlapStacking())
+        if (_worldBandVisible && root != null && root.gameObject.activeSelf && !ShouldUseOverlapStacking())
             ApplyDirectPosition();
-        else
-            ApplyStackedPosition();
 
-        EnsurePlayerOverheadDrawsAboveEnemyOverheads();
-        TickTargetMarkerPulse();
+        if (_isPlayerOverheadCached && Time.unscaledTime >= _nextPlayerOverheadOrderTime)
+        {
+            _nextPlayerOverheadOrderTime = Time.unscaledTime + PlayerOverheadOrderInterval;
+            EnsurePlayerOverheadDrawsAboveEnemyOverheads();
+        }
+
+        if (targetMarkerImage != null && targetMarkerImage.enabled)
+            TickTargetMarkerPulse();
     }
 
     public void Bind(
@@ -251,6 +300,10 @@ public class UnitOverheadUI : MonoBehaviour
             stats != null &&
             enemyController == null &&
             stats.GetComponentInParent<PlayerController>() != null;
+        _isPlayerOverheadCached = isPlayerOverhead;
+        RefreshOwnerOverheadCaches();
+        CacheStripUiFrameSiblingIndex();
+        InvalidateSpanBounds();
         if (hpFill != null && isPlayerOverhead)
         {
             _playerHpFillCapturedBase = hpFill.color;
@@ -274,6 +327,7 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyStackedPosition();
 
         EnsureDrawsBehindStripUiFrame();
+        CacheStripUiFrameSiblingIndex();
     }
 
     public void SetAdditionalWorldOffset(Vector3 offset)
@@ -328,10 +382,40 @@ public class UnitOverheadUI : MonoBehaviour
         }
     }
 
-    private bool IsPlayerOverhead() =>
-        enemy == null &&
-        characterStats != null &&
-        characterStats.GetComponentInParent<PlayerController>() != null;
+    private bool IsPlayerOverhead() => _isPlayerOverheadCached;
+
+    private void RefreshOwnerOverheadCaches()
+    {
+        _isPlayerOverheadCached =
+            enemy == null &&
+            characterStats != null &&
+            characterStats.GetComponentInParent<PlayerController>() != null;
+
+        _isMinionOverheadCached =
+            enemy == null &&
+            characterStats != null &&
+            (characterStats.GetComponent<MinionCombatTarget>() != null ||
+             characterStats.GetComponentInParent<MinionCombatTarget>() != null);
+    }
+
+    private void CacheStripUiFrameSiblingIndex()
+    {
+        _cachedStripUiFrameSiblingIndex = -1;
+        if (parentCanvas != null && TryGetStripUiFrameSiblingIndex(parentCanvas, out int idx))
+            _cachedStripUiFrameSiblingIndex = idx;
+    }
+
+    private void InvalidateSpanBounds()
+    {
+        _spanBoundsDirty = true;
+    }
+
+    private static void RemoveStackStateForInstance(int uiId)
+    {
+        s_lastAssignedStackLaneByUiId.Remove(uiId);
+        s_lastSortRankByUiId.Remove(uiId);
+        s_pendingStackLaneByUiId.Remove(uiId);
+    }
 
     private void ApplyPlayerResourceBarVisibility()
     {
@@ -400,8 +484,16 @@ public class UnitOverheadUI : MonoBehaviour
             list.Add(ui);
         }
 
-        foreach (List<UnitOverheadUI> list in s_byCanvasScratch.Values)
-            ResolveStackingForCanvasGroup(list);
+        s_canvasKeysScratch.Clear();
+        var canvasEnumerator = s_byCanvasScratch.GetEnumerator();
+        while (canvasEnumerator.MoveNext())
+            s_canvasKeysScratch.Add(canvasEnumerator.Current.Key);
+
+        for (int k = 0; k < s_canvasKeysScratch.Count; k++)
+        {
+            if (s_byCanvasScratch.TryGetValue(s_canvasKeysScratch[k], out List<UnitOverheadUI> list))
+                ResolveStackingForCanvasGroup(list);
+        }
     }
 
     private static List<UnitOverheadUI> RentCanvasList()
@@ -420,15 +512,15 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static void ResolveStackingForCanvasGroup(List<UnitOverheadUI> candidates)
     {
-        var activeIds = new HashSet<int>(candidates.Count);
+        s_activeIdsScratch.Clear();
         for (int i = 0; i < candidates.Count; i++)
         {
             UnitOverheadUI ui = candidates[i];
             if (ui != null)
-                activeIds.Add(ui.GetInstanceID());
+                s_activeIdsScratch.Add(ui.GetInstanceID());
         }
 
-        PruneStaleStackState(activeIds);
+        PruneStaleStackState(s_activeIdsScratch);
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i]._stackYOffset = 0f;
@@ -440,8 +532,6 @@ public class UnitOverheadUI : MonoBehaviour
             return;
         }
 
-        Canvas.ForceUpdateCanvases();
-
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
@@ -449,40 +539,39 @@ public class UnitOverheadUI : MonoBehaviour
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
 
-        var spans = new List<(float minX, float maxX, UnitOverheadUI ui)>(candidates.Count);
+        s_spansScratch.Clear();
         for (int i = 0; i < candidates.Count; i++)
         {
             candidates[i].GetHorizontalSpanInCanvas(out float minX, out float maxX);
             WidenSpanForClusterMerge(candidates[i]._stackBaseAnchored.x, minHalfW, ref minX, ref maxX);
-            spans.Add((minX, maxX, candidates[i]));
+            s_spansScratch.Add(new StackSpanEntry { minX = minX, maxX = maxX, ui = candidates[i] });
         }
 
         float sortHysteresisPx = Mathf.Max(0f, candidates[0].stackSortHysteresisPx);
-        spans.Sort((a, b) => CompareSpansForStableSort(a.minX, b.minX, a.ui, b.ui, sortHysteresisPx));
-        for (int i = 0; i < spans.Count; i++)
-            s_lastSortRankByUiId[spans[i].ui.GetInstanceID()] = i;
+        SortSpansScratch(sortHysteresisPx);
+        for (int i = 0; i < s_spansScratch.Count; i++)
+            s_lastSortRankByUiId[s_spansScratch[i].ui.GetInstanceID()] = i;
 
         float playerSpanMinX = float.PositiveInfinity;
         float playerSpanMaxX = float.NegativeInfinity;
         bool hasPlayerBaseline = false;
-        for (int i = 0; i < spans.Count; i++)
+        for (int i = 0; i < s_spansScratch.Count; i++)
         {
-            if (!IsFixedPlayerBaseline(spans[i].ui))
+            if (!IsFixedPlayerBaseline(s_spansScratch[i].ui))
                 continue;
 
             hasPlayerBaseline = true;
-            spans[i].ui._stackYOffset = 0f;
-            playerSpanMinX = Mathf.Min(playerSpanMinX, spans[i].minX);
-            playerSpanMaxX = Mathf.Max(playerSpanMaxX, spans[i].maxX);
+            s_spansScratch[i].ui._stackYOffset = 0f;
+            playerSpanMinX = Mathf.Min(playerSpanMinX, s_spansScratch[i].minX);
+            playerSpanMaxX = Mathf.Max(playerSpanMaxX, s_spansScratch[i].maxX);
         }
 
-        // Assign each enemy bar to the lowest available "lane" that does not horizontally overlap
-        // any other enemy bar. This avoids transitive chaining (A overlaps B, B overlaps C) from
-        // forcing C onto higher rows when A and C could share the same baseline row.
-        var laneLastMaxX = new List<float>(8);
-        for (int i = 0; i < spans.Count; i++)
+        s_laneLastMaxXScratch.Clear();
+        for (int i = 0; i < s_spansScratch.Count; i++)
         {
-            (float minX, float maxX, UnitOverheadUI ui) = spans[i];
+            float minX = s_spansScratch[i].minX;
+            float maxX = s_spansScratch[i].maxX;
+            UnitOverheadUI ui = s_spansScratch[i].ui;
             if (IsFixedPlayerBaseline(ui))
                 continue;
 
@@ -493,20 +582,20 @@ public class UnitOverheadUI : MonoBehaviour
 
             bool IsLaneAvailable(int lane)
             {
-                if (lane < 0 || lane >= laneLastMaxX.Count)
+                if (lane < 0 || lane >= s_laneLastMaxXScratch.Count)
                     return true;
-                bool laneOverlaps = minX <= laneLastMaxX[lane] + padding - allowedOverlap;
+                bool laneOverlaps = minX <= s_laneLastMaxXScratch[lane] + padding - allowedOverlap;
                 return !laneOverlaps;
             }
 
             int laneIndex = -1;
-            if (preferredLane < laneLastMaxX.Count && IsLaneAvailable(preferredLane))
+            if (preferredLane < s_laneLastMaxXScratch.Count && IsLaneAvailable(preferredLane))
             {
                 laneIndex = preferredLane;
             }
             else
             {
-                for (int lane = 0; lane < laneLastMaxX.Count; lane++)
+                for (int lane = 0; lane < s_laneLastMaxXScratch.Count; lane++)
                 {
                     if (IsLaneAvailable(lane))
                     {
@@ -517,7 +606,7 @@ public class UnitOverheadUI : MonoBehaviour
             }
 
             if (laneIndex < 0)
-                laneIndex = laneLastMaxX.Count;
+                laneIndex = s_laneLastMaxXScratch.Count;
 
             int committedLane = CommitStackLaneWithCooldown(
                 ui,
@@ -525,7 +614,7 @@ public class UnitOverheadUI : MonoBehaviour
                 laneIndex,
                 minX,
                 maxX,
-                laneLastMaxX,
+                s_laneLastMaxXScratch,
                 padding,
                 allowedOverlap);
 
@@ -543,14 +632,37 @@ public class UnitOverheadUI : MonoBehaviour
             ui._stackYOffset = yOffset;
             s_lastAssignedStackLaneByUiId[uiId] = committedLane;
 
-            if (committedLane >= laneLastMaxX.Count)
-                laneLastMaxX.Add(maxX);
+            if (committedLane >= s_laneLastMaxXScratch.Count)
+                s_laneLastMaxXScratch.Add(maxX);
             else
-                laneLastMaxX[committedLane] = Mathf.Max(laneLastMaxX[committedLane], maxX);
+                s_laneLastMaxXScratch[committedLane] = Mathf.Max(s_laneLastMaxXScratch[committedLane], maxX);
         }
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i].ApplyStackedPosition();
+    }
+
+    private static void SortSpansScratch(float hysteresisPx)
+    {
+        int count = s_spansScratch.Count;
+        for (int i = 1; i < count; i++)
+        {
+            StackSpanEntry key = s_spansScratch[i];
+            int j = i - 1;
+            while (j >= 0 &&
+                   CompareSpansForStableSort(
+                       s_spansScratch[j].minX,
+                       key.minX,
+                       s_spansScratch[j].ui,
+                       key.ui,
+                       hysteresisPx) > 0)
+            {
+                s_spansScratch[j + 1] = s_spansScratch[j];
+                j--;
+            }
+
+            s_spansScratch[j + 1] = key;
+        }
     }
 
     private static void PruneStaleStackState(HashSet<int> activeIds)
@@ -560,16 +672,17 @@ public class UnitOverheadUI : MonoBehaviour
             s_pendingStackLaneByUiId.Count == 0)
             return;
 
-        var stale = new List<int>();
-        foreach (int id in s_lastAssignedStackLaneByUiId.Keys)
+        s_staleIdsScratch.Clear();
+        var laneEnumerator = s_lastAssignedStackLaneByUiId.Keys.GetEnumerator();
+        while (laneEnumerator.MoveNext())
         {
-            if (!activeIds.Contains(id))
-                stale.Add(id);
+            if (!activeIds.Contains(laneEnumerator.Current))
+                s_staleIdsScratch.Add(laneEnumerator.Current);
         }
 
-        for (int i = 0; i < stale.Count; i++)
+        for (int i = 0; i < s_staleIdsScratch.Count; i++)
         {
-            int id = stale[i];
+            int id = s_staleIdsScratch[i];
             s_lastAssignedStackLaneByUiId.Remove(id);
             s_lastSortRankByUiId.Remove(id);
             s_pendingStackLaneByUiId.Remove(id);
@@ -674,7 +787,11 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static bool IsFixedPlayerBaseline(UnitOverheadUI ui)
     {
-        return ui != null && ui._hpBarOnlyLayout && ui.enemy == null;
+        if (ui == null || ui.enemy != null)
+            return false;
+
+        // Player and minion overheads stay on a fixed baseline row; enemies stack above them.
+        return ui._hpBarOnlyLayout || ui._isMinionOverheadCached;
     }
 
     private static bool HorizontalSpansOverlap(
@@ -695,23 +812,20 @@ public class UnitOverheadUI : MonoBehaviour
     /// </summary>
     private void EnsurePlayerOverheadDrawsAboveEnemyOverheads()
     {
-        if (enemy != null || !gameObject.activeSelf)
-            return;
-        if (characterStats == null || characterStats.GetComponentInParent<PlayerController>() == null)
-            return;
-        if (parentCanvas == null)
+        if (!_isPlayerOverheadCached || !gameObject.activeSelf || parentCanvas == null)
             return;
 
         Transform strip = parentCanvas.transform;
-        int uiFrameSibling = TryGetStripUiFrameSiblingIndex(parentCanvas, out int uiFrameIndex)
-            ? uiFrameIndex
+        int uiFrameSibling = _cachedStripUiFrameSiblingIndex >= 0
+            ? _cachedStripUiFrameSiblingIndex
             : strip.childCount;
 
         int lastEnemyOverheadSibling = -1;
         int scanCount = Mathf.Min(strip.childCount, uiFrameSibling);
         for (int i = 0; i < scanCount; i++)
         {
-            UnitOverheadUI childUi = strip.GetChild(i).GetComponent<UnitOverheadUI>();
+            Transform child = strip.GetChild(i);
+            UnitOverheadUI childUi = child != null ? child.GetComponent<UnitOverheadUI>() : null;
             if (childUi != null && childUi.enemy != null)
                 lastEnemyOverheadSibling = i;
         }
@@ -761,8 +875,8 @@ public class UnitOverheadUI : MonoBehaviour
         if (!enableOverlappingStack)
             return false;
 
-        // Stack enemy bars as before, and include compact player/world HP-only bars.
-        return enemy != null || _hpBarOnlyLayout;
+        // Stack enemy bars as before, and include compact player/minion HP bars on a fixed baseline.
+        return enemy != null || _hpBarOnlyLayout || _isMinionOverheadCached;
     }
 
     /// <summary>
@@ -770,19 +884,42 @@ public class UnitOverheadUI : MonoBehaviour
     /// </summary>
     private void GetHorizontalSpanInCanvas(out float minX, out float maxX)
     {
-        minX = maxX = _stackBaseAnchored.x;
+        RefreshHorizontalSpanBoundsIfNeeded();
+        minX = _cachedSpanMinX;
+        maxX = _cachedSpanMaxX;
+    }
 
+    private void RefreshHorizontalSpanBoundsIfNeeded()
+    {
         if (root == null)
+        {
+            _cachedSpanMinX = _cachedSpanMaxX = _stackBaseAnchored.x;
             return;
+        }
 
         if (canvasRect == null && parentCanvas != null)
             canvasRect = parentCanvas.transform as RectTransform;
 
         if (canvasRect == null)
+        {
+            _cachedSpanMinX = _cachedSpanMaxX = _stackBaseAnchored.x;
+            return;
+        }
+
+        bool anchorMoved =
+            Mathf.Abs(_stackBaseAnchored.x - _lastSpanBoundsBaseAnchored.x) > SpanBoundsAnchorDeltaPx ||
+            Mathf.Abs(_stackBaseAnchored.y - _lastSpanBoundsBaseAnchored.y) > SpanBoundsAnchorDeltaPx;
+        bool due = Time.unscaledTime >= _nextSpanBoundsRefreshTime;
+
+        if (!_spanBoundsDirty && !anchorMoved && !due)
             return;
 
-        minX = float.MaxValue;
-        maxX = float.MinValue;
+        _spanBoundsDirty = false;
+        _lastSpanBoundsBaseAnchored = _stackBaseAnchored;
+        _nextSpanBoundsRefreshTime = Time.unscaledTime + SpanBoundsRefreshInterval;
+
+        float minX = float.MaxValue;
+        float maxX = float.MinValue;
 
         root.GetWorldCorners(UnitOverheadUIWorkCorners);
         for (int c = 0; c < 4; c++)
@@ -792,7 +929,13 @@ public class UnitOverheadUI : MonoBehaviour
             if (local.x > maxX) maxX = local.x;
         }
 
-        ExpandHorizontalSpanWithTmpMeshBounds(canvasRect, ref minX, ref maxX);
+        ExpandHorizontalSpanWithKnownTmpBounds(canvasRect, ref minX, ref maxX);
+
+        if (minX > maxX)
+            minX = maxX = _stackBaseAnchored.x;
+
+        _cachedSpanMinX = minX;
+        _cachedSpanMaxX = maxX;
     }
 
     private float GetMeasuredCanvasHalfHeight()
@@ -825,67 +968,177 @@ public class UnitOverheadUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Root rect can be bar-sized while TMP draws past it; <see cref="TMP_Text.textBounds"/> matches rendered glyphs.
+    /// Root rect can be bar-sized while TMP draws past it; uses known TMP refs only (no GetComponentsInChildren).
     /// </summary>
+    private void ExpandHorizontalSpanWithKnownTmpBounds(RectTransform canvasRt, ref float minX, ref float maxX)
+    {
+        ExpandSingleTmpHorizontalSpan(canvasRt, nameText, ref minX, ref maxX);
+        ExpandSingleTmpHorizontalSpan(canvasRt, combatProfileText, ref minX, ref maxX);
+        ExpandSingleTmpHorizontalSpan(canvasRt, hpValueText, ref minX, ref maxX);
+        ExpandSingleTmpHorizontalSpan(canvasRt, guardValueText, ref minX, ref maxX);
+    }
+
+    private static void ExpandSingleTmpHorizontalSpan(
+        RectTransform canvasRt,
+        TMP_Text tmp,
+        ref float minX,
+        ref float maxX)
+    {
+        if (tmp == null || !tmp.gameObject.activeInHierarchy)
+            return;
+
+        tmp.ForceMeshUpdate();
+        Bounds b = tmp.textBounds;
+        Vector3 c = b.center;
+        Vector3 e = b.extents;
+        if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+            return;
+
+        for (int ix = -1; ix <= 1; ix += 2)
+        for (int iy = -1; iy <= 1; iy += 2)
+        for (int iz = -1; iz <= 1; iz += 2)
+        {
+            Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
+            Vector3 world = tmp.transform.TransformPoint(localCorner);
+            Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
+            if (canvasLocal.x < minX) minX = canvasLocal.x;
+            if (canvasLocal.x > maxX) maxX = canvasLocal.x;
+        }
+    }
+
     private void ExpandHorizontalSpanWithTmpMeshBounds(RectTransform canvasRt, ref float minX, ref float maxX)
     {
-        TMP_Text[] tmps = root.GetComponentsInChildren<TMP_Text>(true);
-        for (int i = 0; i < tmps.Length; i++)
-        {
-            TMP_Text tmp = tmps[i];
-            if (!tmp || !tmp.gameObject.activeInHierarchy)
-                continue;
-
-            tmp.ForceMeshUpdate();
-            Bounds b = tmp.textBounds;
-            Vector3 c = b.center;
-            Vector3 e = b.extents;
-            if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
-                continue;
-
-            for (int ix = -1; ix <= 1; ix += 2)
-            for (int iy = -1; iy <= 1; iy += 2)
-            for (int iz = -1; iz <= 1; iz += 2)
-            {
-                Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
-                Vector3 world = tmp.transform.TransformPoint(localCorner);
-                Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
-                if (canvasLocal.x < minX) minX = canvasLocal.x;
-                if (canvasLocal.x > maxX) maxX = canvasLocal.x;
-            }
-        }
+        ExpandHorizontalSpanWithKnownTmpBounds(canvasRt, ref minX, ref maxX);
     }
 
     private void ExpandVerticalSpanWithTmpMeshBounds(RectTransform canvasRt, ref float minY, ref float maxY)
     {
-        TMP_Text[] tmps = root.GetComponentsInChildren<TMP_Text>(true);
-        for (int i = 0; i < tmps.Length; i++)
+        ExpandSingleTmpVerticalSpan(canvasRt, nameText, ref minY, ref maxY);
+        ExpandSingleTmpVerticalSpan(canvasRt, combatProfileText, ref minY, ref maxY);
+        ExpandSingleTmpVerticalSpan(canvasRt, hpValueText, ref minY, ref maxY);
+        ExpandSingleTmpVerticalSpan(canvasRt, guardValueText, ref minY, ref maxY);
+    }
+
+    private static void ExpandSingleTmpVerticalSpan(
+        RectTransform canvasRt,
+        TMP_Text tmp,
+        ref float minY,
+        ref float maxY)
+    {
+        if (tmp == null || !tmp.gameObject.activeInHierarchy)
+            return;
+
+        tmp.ForceMeshUpdate();
+        Bounds b = tmp.textBounds;
+        Vector3 c = b.center;
+        Vector3 e = b.extents;
+        if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+            return;
+
+        for (int ix = -1; ix <= 1; ix += 2)
+        for (int iy = -1; iy <= 1; iy += 2)
+        for (int iz = -1; iz <= 1; iz += 2)
         {
-            TMP_Text tmp = tmps[i];
-            if (!tmp || !tmp.gameObject.activeInHierarchy)
-                continue;
-
-            tmp.ForceMeshUpdate();
-            Bounds b = tmp.textBounds;
-            Vector3 c = b.center;
-            Vector3 e = b.extents;
-            if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
-                continue;
-
-            for (int ix = -1; ix <= 1; ix += 2)
-            for (int iy = -1; iy <= 1; iy += 2)
-            for (int iz = -1; iz <= 1; iz += 2)
-            {
-                Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
-                Vector3 world = tmp.transform.TransformPoint(localCorner);
-                Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
-                if (canvasLocal.y < minY) minY = canvasLocal.y;
-                if (canvasLocal.y > maxY) maxY = canvasLocal.y;
-            }
+            Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
+            Vector3 world = tmp.transform.TransformPoint(localCorner);
+            Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
+            if (canvasLocal.y < minY) minY = canvasLocal.y;
+            if (canvasLocal.y > maxY) maxY = canvasLocal.y;
         }
     }
 
     private static readonly Vector3[] UnitOverheadUIWorkCorners = new Vector3[4];
+
+    /// <summary>Finds the strip overhead UI following this combat unit (player, minion, or enemy).</summary>
+    public static bool TryFindOverheadForTransform(Transform victim, out UnitOverheadUI ui)
+    {
+        ui = null;
+        if (!victim)
+            return false;
+
+        for (int i = 0; i < s_instances.Count; i++)
+        {
+            UnitOverheadUI candidate = s_instances[i];
+            if (candidate == null || !candidate.isActiveAndEnabled)
+                continue;
+
+            if (candidate.enemy != null && candidate.enemy.transform == victim)
+            {
+                ui = candidate;
+                return true;
+            }
+
+            if (candidate.characterStats != null && candidate.characterStats.transform == victim)
+            {
+                ui = candidate;
+                return true;
+            }
+
+            if (candidate.followTarget != null &&
+                (candidate.followTarget == victim || victim.IsChildOf(candidate.followTarget)))
+            {
+                ui = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// World anchor for lingering status text beside this overhead strip.
+    /// <paramref name="sideSign"/> &lt; 0 = left of UI on screen, &gt; 0 = right, 0 = horizontal center.
+    /// </summary>
+    public static bool TryGetStatusPopupWorldPosBesideOverhead(
+        Transform victim,
+        float sideSign,
+        float screenPixelOffset,
+        out Vector3 worldPos)
+    {
+        worldPos = default;
+        if (!TryFindOverheadForTransform(victim, out UnitOverheadUI ui))
+            return false;
+
+        return ui.TryGetWorldPosBesideOverheadForStatusPopup(sideSign, screenPixelOffset, out worldPos);
+    }
+
+    private bool TryGetWorldPosBesideOverheadForStatusPopup(
+        float sideSign,
+        float screenPixelOffset,
+        out Vector3 worldPos)
+    {
+        worldPos = default;
+        if (root == null || !root.gameObject.activeSelf || targetCamera == null)
+            return false;
+
+        root.GetWorldCorners(UnitOverheadUIWorkCorners);
+        float centerX = (UnitOverheadUIWorkCorners[0].x + UnitOverheadUIWorkCorners[2].x) * 0.5f;
+        float centerY = (UnitOverheadUIWorkCorners[1].y + UnitOverheadUIWorkCorners[2].y) * 0.5f;
+
+        if (!Mathf.Approximately(sideSign, 0f))
+        {
+            float halfWidth = Mathf.Abs(UnitOverheadUIWorkCorners[2].x - UnitOverheadUIWorkCorners[0].x) * 0.5f;
+            centerX += sideSign * (halfWidth + screenPixelOffset);
+        }
+
+        Transform ft = followTarget != null
+            ? followTarget
+            : characterStats != null
+                ? characterStats.transform
+                : enemy != null
+                    ? enemy.transform
+                    : null;
+
+        float depthZ = ft != null
+            ? targetCamera.WorldToScreenPoint(ft.position).z
+            : targetCamera.WorldToScreenPoint(root.position).z;
+
+        worldPos = targetCamera.ScreenToWorldPoint(new Vector3(centerX, centerY, depthZ));
+        if (ft != null)
+            worldPos.z = ft.position.z;
+
+        return true;
+    }
 
     /// <summary>
     /// World position above the top of this enemy's strip overhead UI (name + HP bar), for world-space target markers.
@@ -952,7 +1205,7 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         match.EnsureShadowStrikeMarksSubscription();
-        match.RefreshDebuffIcons();
+        match.RefreshDebuffIconStrip();
     }
 
     private void EnsureShadowStrikeMarksSubscription()
@@ -965,11 +1218,11 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         if (_shadowStrikeMarks != null)
-            _shadowStrikeMarks.OnMarksChanged -= RefreshDebuffIcons;
+            _shadowStrikeMarks.OnMarksChanged -= HandleShadowStrikeMarksChanged;
 
         _shadowStrikeMarks = marks;
         if (_shadowStrikeMarks != null)
-            _shadowStrikeMarks.OnMarksChanged += RefreshDebuffIcons;
+            _shadowStrikeMarks.OnMarksChanged += HandleShadowStrikeMarksChanged;
     }
 
     private static UnitOverheadUI FindOverheadForEnemy(EnemyBaseController enemyController)
@@ -1137,8 +1390,6 @@ public class UnitOverheadUI : MonoBehaviour
         if (ft == null || targetCamera == null)
             return false;
 
-        Canvas.ForceUpdateCanvases();
-
         Vector3 baseWorld = ft.position + worldOffset + _additionalWorldOffset;
         Vector3 baseScreen = targetCamera.WorldToScreenPoint(baseWorld);
 
@@ -1287,12 +1538,12 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (ailments != null)
         {
-            ailments.OnAilmentsChanged += RefreshDebuffIcons;
+            ailments.OnAilmentsChanged += HandleAilmentsChanged;
         }
 
         _shadowStrikeMarks = enemy != null ? enemy.GetComponent<EnemyShadowStrikeMarks>() : null;
         if (_shadowStrikeMarks != null)
-            _shadowStrikeMarks.OnMarksChanged += RefreshDebuffIcons;
+            _shadowStrikeMarks.OnMarksChanged += HandleShadowStrikeMarksChanged;
 
         ToggleSettingsStore.Changed += HandleToggleSettingChanged;
     }
@@ -1319,11 +1570,11 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (ailments != null)
         {
-            ailments.OnAilmentsChanged -= RefreshDebuffIcons;
+            ailments.OnAilmentsChanged -= HandleAilmentsChanged;
         }
 
         if (_shadowStrikeMarks != null)
-            _shadowStrikeMarks.OnMarksChanged -= RefreshDebuffIcons;
+            _shadowStrikeMarks.OnMarksChanged -= HandleShadowStrikeMarksChanged;
         _shadowStrikeMarks = null;
     }
 
@@ -1356,6 +1607,17 @@ public class UnitOverheadUI : MonoBehaviour
             HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
         else
             guardValueText.gameObject.SetActive(false);
+    }
+
+    private void HandleAilmentsChanged()
+    {
+        RefreshPlayerOverheadAilmentPresentation();
+        RefreshDebuffIconStrip();
+    }
+
+    private void HandleShadowStrikeMarksChanged()
+    {
+        RefreshDebuffIconStrip();
     }
 
     private void RefreshAll()
@@ -1494,7 +1756,7 @@ public class UnitOverheadUI : MonoBehaviour
 
         root.anchoredPosition = _stackBaseAnchored;
         ApplyCombinedRootScale();
-        RefreshTargetMarkerWorldCache();
+        MaybeRefreshTargetMarkerWorldCache();
     }
 
     private void ApplyStackedPosition()
@@ -1507,6 +1769,18 @@ public class UnitOverheadUI : MonoBehaviour
 
         root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
         ApplyCombinedRootScale();
+        MaybeRefreshTargetMarkerWorldCache();
+    }
+
+    private void MaybeRefreshTargetMarkerWorldCache()
+    {
+        if (targetMarkerImage == null || !targetMarkerImage.enabled)
+            return;
+
+        if (Time.unscaledTime < _nextTargetMarkerWorldCacheTime)
+            return;
+
+        _nextTargetMarkerWorldCacheTime = Time.unscaledTime + TargetMarkerWorldCacheInterval;
         RefreshTargetMarkerWorldCache();
     }
 
@@ -1529,13 +1803,20 @@ public class UnitOverheadUI : MonoBehaviour
         ApplyCombinedRootScale();
     }
 
+    private float _cachedCombinedRootScale = -1f;
+
     private void ApplyCombinedRootScale()
     {
         if (root == null)
             return;
 
         float s = Mathf.Max(0.01f, _externalScale) * _overheadBarResizeSlider / _hudResizeSlider;
+        if (Mathf.Approximately(s, _cachedCombinedRootScale))
+            return;
+
+        _cachedCombinedRootScale = s;
         root.localScale = Vector3.one * s;
+        InvalidateSpanBounds();
     }
 
     private void HandleStatsChanged()
@@ -1583,12 +1864,20 @@ public class UnitOverheadUI : MonoBehaviour
         if (nameText != null)
         {
             nameText.richText = true;
+            string nextName;
             if (characterStats == null || isAllyMinion)
-                nameText.text = baseName;
+                nextName = baseName;
             else
             {
                 int cp = Mathf.RoundToInt(characterStats.GetCombatPowerBreakdown().TotalCombatPower);
-                nameText.text = $"{baseName} <size=75%><color=#AAAAAA>CP {cp}</color></size>";
+                nextName = $"{baseName} <size=75%><color=#AAAAAA>CP {cp}</color></size>";
+            }
+
+            if (nextName != _cachedNameDisplay)
+            {
+                _cachedNameDisplay = nextName;
+                nameText.text = nextName;
+                InvalidateSpanBounds();
             }
         }
 
@@ -1597,7 +1886,13 @@ public class UnitOverheadUI : MonoBehaviour
             bool showCombatProfile = enemy != null && characterStats != null && !isAllyMinion;
             if (!showCombatProfile)
             {
-                combatProfileText.text = string.Empty;
+                if (_cachedCombatProfileDisplay.Length > 0)
+                {
+                    _cachedCombatProfileDisplay = string.Empty;
+                    combatProfileText.text = string.Empty;
+                    InvalidateSpanBounds();
+                }
+
                 combatProfileText.color = Color.white;
                 combatProfileText.gameObject.SetActive(false);
             }
@@ -1605,7 +1900,14 @@ public class UnitOverheadUI : MonoBehaviour
             {
                 combatProfileText.gameObject.SetActive(true);
                 combatProfileText.richText = true;
-                combatProfileText.text = characterStats.GetCombatProfileRichTextLabel();
+                string nextProfile = characterStats.GetCombatProfileRichTextLabel();
+                if (nextProfile != _cachedCombatProfileDisplay)
+                {
+                    _cachedCombatProfileDisplay = nextProfile;
+                    combatProfileText.text = nextProfile;
+                    InvalidateSpanBounds();
+                }
+
                 combatProfileText.color = Color.white;
             }
         }
@@ -1615,15 +1917,26 @@ public class UnitOverheadUI : MonoBehaviour
     {
         _vitalsVisible = characterStats == null || !characterStats.IsDead;
         float fill = max > 0f ? current / max : 0f;
+        int fillMilli = Mathf.RoundToInt(fill * 1000f);
 
-        if (hpFill != null)
+        if (hpFill != null && fillMilli != _lastHpFillAmountMilli)
+        {
+            _lastHpFillAmountMilli = fillMilli;
             hpFill.fillAmount = Mathf.Clamp01(fill);
+        }
 
         RefreshHpSegmentMarks(Mathf.RoundToInt(max));
 
         if (hpValueText != null)
         {
-            hpValueText.text = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
+            string next = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
+            if (next != _cachedHpValueDisplay)
+            {
+                _cachedHpValueDisplay = next;
+                hpValueText.text = next;
+                InvalidateSpanBounds();
+            }
+
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
         }
     }
@@ -1655,7 +1968,13 @@ public class UnitOverheadUI : MonoBehaviour
             else
             {
                 guardValueText.gameObject.SetActive(true);
-                guardValueText.text = $"{Mathf.CeilToInt(current)}";
+                string next = $"{Mathf.CeilToInt(current)}";
+                if (next != _cachedGuardValueDisplay)
+                {
+                    _cachedGuardValueDisplay = next;
+                    guardValueText.text = next;
+                    InvalidateSpanBounds();
+                }
             }
         }
     }
@@ -1682,15 +2001,26 @@ public class UnitOverheadUI : MonoBehaviour
     {
         ApplyHpFillColorByOwner();
         float fill = max > 0 ? (float)current / max : 0f;
+        int fillMilli = Mathf.RoundToInt(fill * 1000f);
 
-        if (hpFill != null)
+        if (hpFill != null && fillMilli != _lastEnemyHpFillAmountMilli)
+        {
+            _lastEnemyHpFillAmountMilli = fillMilli;
             hpFill.fillAmount = Mathf.Clamp01(fill);
+        }
 
         RefreshHpSegmentMarks(max);
 
         if (hpValueText != null)
         {
-            hpValueText.text = $"{current}/{max}";
+            string next = $"{current}/{max}";
+            if (next != _cachedHpValueDisplay)
+            {
+                _cachedHpValueDisplay = next;
+                hpValueText.text = next;
+                InvalidateSpanBounds();
+            }
+
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
         }
     }
@@ -1982,10 +2312,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void RefreshPlayerOverheadAilmentPresentation()
     {
-        if (hpFill == null || enemy != null || characterStats == null)
-            return;
-
-        if (characterStats.GetComponentInParent<PlayerController>() == null)
+        if (hpFill == null || !_isPlayerOverheadCached || characterStats == null)
             return;
 
         GetAilmentPresentationColors(
@@ -2024,20 +2351,36 @@ public class UnitOverheadUI : MonoBehaviour
     }
 
     private static Vector3 ResolvePlayerAilmentStatusPopupWorldPos(
+        Transform victim,
         Vector3 anchorPos,
         PlayerController pc,
         AilmentController ailments,
         string statusMessage)
     {
-        if (ailments != null && ailments.TryGetStatusPopupDealerWorld(statusMessage, out Vector3 dealerWorld))
-            return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
-
-        if (pc != null)
+        Vector3 dealerWorld = default;
+        bool hasDealer = false;
+        if (ailments != null && ailments.TryGetStatusPopupDealerWorld(statusMessage, out dealerWorld))
+            hasDealer = true;
+        else if (pc != null)
         {
             PlayerCombatController combat = pc.GetComponent<PlayerCombatController>();
             if (combat != null && combat.TryGetRecentIncomingDamageDealerWorld(8f, out dealerWorld))
-                return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
+                hasDealer = true;
         }
+
+        if (DamagePopupSystem.Instance != null)
+        {
+            float? facing = pc != null ? pc.FacingDirectionX : null;
+            return DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
+                victim,
+                anchorPos,
+                dealerWorld,
+                hasDealer,
+                facing);
+        }
+
+        if (hasDealer)
+            return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
 
         return anchorPos + Vector3.up * 0.12f;
     }
@@ -2059,6 +2402,7 @@ public class UnitOverheadUI : MonoBehaviour
             if (activeNow && !wasActive)
             {
                 Vector3 pos = ResolvePlayerAilmentStatusPopupWorldPos(
+                    victim,
                     anchorPos,
                     pc,
                     ailments,
@@ -2081,7 +2425,11 @@ public class UnitOverheadUI : MonoBehaviour
     {
         RefreshPlayerOverheadAilmentPresentation();
         EnsureShadowStrikeMarksSubscription();
+        RefreshDebuffIconStrip();
+    }
 
+    private void RefreshDebuffIconStrip()
+    {
         ClearDebuffIcons();
 
         if (_hpBarOnlyLayout)
@@ -2117,11 +2465,71 @@ public class UnitOverheadUI : MonoBehaviour
         }
     }
 
+    private void ReturnAllDebuffIconsToPool()
+    {
+        for (int i = 0; i < spawnedDebuffIcons.Count; i++)
+            ReturnDebuffIconToPool(spawnedDebuffIcons[i]);
+        spawnedDebuffIcons.Clear();
+    }
+
+    private void ReturnDebuffIconToPool(GameObject icon)
+    {
+        if (icon == null)
+            return;
+
+        ResetDebuffIconForReuse(icon);
+        icon.SetActive(false);
+        _debuffIconPool.Add(icon);
+    }
+
+    private void CaptureDebuffIconPrefabSizeIfNeeded()
+    {
+        if (_debuffIconPrefabSizeCaptured || debuffIconPrefab == null)
+            return;
+
+        if (debuffIconPrefab.transform is RectTransform rt)
+        {
+            _debuffIconPrefabSize = rt.sizeDelta;
+            if (_debuffIconPrefabSize.x <= 0f && rt.rect.width > 0f)
+                _debuffIconPrefabSize.x = rt.rect.width;
+            if (_debuffIconPrefabSize.y <= 0f && rt.rect.height > 0f)
+                _debuffIconPrefabSize.y = rt.rect.height;
+        }
+
+        _debuffIconPrefabSizeCaptured = true;
+    }
+
+    private void ResetDebuffIconForReuse(GameObject icon)
+    {
+        if (icon == null)
+            return;
+
+        icon.transform.localScale = Vector3.one;
+
+        CaptureDebuffIconPrefabSizeIfNeeded();
+        if (icon.transform is RectTransform rt && _debuffIconPrefabSize.x > 0f && _debuffIconPrefabSize.y > 0f)
+            rt.sizeDelta = _debuffIconPrefabSize;
+
+        LayoutElement le = icon.GetComponent<LayoutElement>();
+        if (le != null)
+        {
+            le.minWidth = -1f;
+            le.minHeight = -1f;
+            le.preferredWidth = -1f;
+            le.preferredHeight = -1f;
+            le.flexibleWidth = -1f;
+            le.flexibleHeight = -1f;
+        }
+    }
+
     private void SpawnDebuffIcon(Sprite sprite, string iconName, int stacks)
     {
         if (sprite == null) return;
 
-        GameObject icon = Instantiate(debuffIconPrefab, debuffContainer);
+        GameObject icon = RentDebuffIcon();
+        ResetDebuffIconForReuse(icon);
+        icon.transform.SetParent(debuffContainer, false);
+        icon.SetActive(true);
         icon.name = $"Debuff_{iconName}";
 
         DebuffIconUI iconUI = icon.GetComponent<DebuffIconUI>();
@@ -2153,23 +2561,23 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         float s = Mathf.Max(0.05f, debuffIconScale);
+        icon.transform.localScale = Mathf.Approximately(s, 1f) ? Vector3.one : new Vector3(s, s, 1f);
 
-        if (Mathf.Approximately(s, 1f))
-            icon.transform.localScale = Vector3.one;
-        else
-            icon.transform.localScale = new Vector3(s, s, 1f);
-
-        Vector2 baseSize = Vector2.zero;
-        if (icon.transform is RectTransform rt)
+        CaptureDebuffIconPrefabSizeIfNeeded();
+        Vector2 baseSize = _debuffIconPrefabSize;
+        if (baseSize.x <= 0f || baseSize.y <= 0f)
         {
-            baseSize = rt.rect.size;
-            if (baseSize.x <= 0f && rt.sizeDelta.x > 0f) baseSize.x = rt.sizeDelta.x;
-            if (baseSize.y <= 0f && rt.sizeDelta.y > 0f) baseSize.y = rt.sizeDelta.y;
+            if (icon.transform is RectTransform rt)
+            {
+                baseSize = rt.sizeDelta;
+                if (baseSize.x <= 0f && rt.rect.width > 0f) baseSize.x = rt.rect.width;
+                if (baseSize.y <= 0f && rt.rect.height > 0f) baseSize.y = rt.rect.height;
+            }
         }
 
+        LayoutElement le = icon.GetComponent<LayoutElement>();
         if (!Mathf.Approximately(s, 1f) && baseSize.x > 0f && baseSize.y > 0f)
         {
-            LayoutElement le = icon.GetComponent<LayoutElement>();
             if (le == null)
                 le = icon.AddComponent<LayoutElement>();
 
@@ -2179,6 +2587,15 @@ public class UnitOverheadUI : MonoBehaviour
             le.preferredHeight = baseSize.y * s;
             le.flexibleWidth = 0f;
             le.flexibleHeight = 0f;
+        }
+        else if (le != null)
+        {
+            le.minWidth = -1f;
+            le.minHeight = -1f;
+            le.preferredWidth = -1f;
+            le.preferredHeight = -1f;
+            le.flexibleWidth = -1f;
+            le.flexibleHeight = -1f;
         }
 
         ApplyDebuffStackPresentation(icon, s);
@@ -2240,13 +2657,23 @@ public class UnitOverheadUI : MonoBehaviour
         _playerCombatCache.EngageTargetFromPlayerInput(enemy);
     }
 
+    private GameObject RentDebuffIcon()
+    {
+        for (int i = _debuffIconPool.Count - 1; i >= 0; i--)
+        {
+            GameObject pooled = _debuffIconPool[i];
+            _debuffIconPool.RemoveAt(i);
+            if (pooled != null)
+                return pooled;
+        }
+
+        return Instantiate(debuffIconPrefab, debuffContainer);
+    }
+
     private void ClearDebuffIcons()
     {
         for (int i = 0; i < spawnedDebuffIcons.Count; i++)
-        {
-            if (spawnedDebuffIcons[i] != null)
-                Destroy(spawnedDebuffIcons[i]);
-        }
+            ReturnDebuffIconToPool(spawnedDebuffIcons[i]);
 
         spawnedDebuffIcons.Clear();
     }

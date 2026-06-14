@@ -33,6 +33,8 @@ public class DamagePopupSystem : MonoBehaviour
     [Tooltip("Extra screen-space Y (pixels) for status labels (Poisoned, Stunned, Blocked, etc.). Negative moves down, below overhead debuff icons.")]
     [SerializeField] private float statusPopupScreenYOffset = -36f;
     [SerializeField] private float statusPopupXJitter = 3f;
+    [Tooltip("Extra screen pixels beyond the overhead UI half-width when placing status labels beside the strip bar.")]
+    [SerializeField] private float statusPopupBesideOverheadScreenPx = 72f;
     [Tooltip("Vertical screen offset between simultaneous status labels on the same unit (Burnt / Shocked, etc.).")]
     [SerializeField] private float statusPopupStackYOffsetStep = 18f;
     [SerializeField] private float statusPopupStackBatchSeconds = 0.2f;
@@ -346,6 +348,55 @@ public class DamagePopupSystem : MonoBehaviour
 
         return victimAnchor + new Vector3(awayFromDealerX * sideOffset, yOffset, 0f);
     }
+
+    /// <summary>
+    /// Horizontal screen side for status text beside overhead UI: dealer on the right → text on the left (-1), and vice versa.
+    /// When no dealer is known, uses victim facing: facing right → left of UI (-1), facing left → right of UI (+1).
+    /// </summary>
+    public static float ResolveStatusPopupSideSign(
+        Vector3 victimAnchorPos,
+        Vector3 dealerWorld,
+        bool hasDealer,
+        float? victimFacingDirX)
+    {
+        if (hasDealer)
+        {
+            float awayFromDealerX = Mathf.Sign(victimAnchorPos.x - dealerWorld.x);
+            return Mathf.Approximately(awayFromDealerX, 0f) ? 1f : awayFromDealerX;
+        }
+
+        if (victimFacingDirX.HasValue)
+            return victimFacingDirX.Value >= 0f ? -1f : 1f;
+
+        return 0f;
+    }
+
+    /// <summary>
+    /// Prefer a world anchor beside the victim's strip overhead UI; fall back to legacy behind-victim placement.
+    /// </summary>
+    public Vector3 ResolveLingeringStatusWorldPos(
+        Transform victim,
+        Vector3 fallbackAnchorPos,
+        Vector3 dealerWorld,
+        bool hasDealer,
+        float? victimFacingDirX = null)
+    {
+        if (victim != null && MinionCombatTarget.IsMinionTransform(victim))
+            return fallbackAnchorPos;
+
+        float sideSign = ResolveStatusPopupSideSign(fallbackAnchorPos, dealerWorld, hasDealer, victimFacingDirX);
+        float pixelOffset = statusPopupBesideOverheadScreenPx;
+
+        if (UnitOverheadUI.TryGetStatusPopupWorldPosBesideOverhead(victim, sideSign, pixelOffset, out Vector3 besideOverhead))
+            return besideOverhead;
+
+        if (hasDealer)
+            return GetWorldPosBehindVictim(fallbackAnchorPos, dealerWorld);
+
+        return fallbackAnchorPos;
+    }
+
+    public float GetStatusPopupBesideOverheadScreenPx() => statusPopupBesideOverheadScreenPx;
 
     public void Spawn(
         Vector3 worldPos,
