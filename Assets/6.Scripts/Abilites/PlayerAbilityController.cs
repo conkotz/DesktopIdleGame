@@ -9099,8 +9099,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return Mathf.Max(0f, flatAmount);
 
         float scaled = flatAmount * def.GetEffectiveAllDamageMultiplier() * Mathf.Max(0f, def.fireDamageMultiplier);
-        if (stats.CurrentMagicAttackType == MagicAttackType.Fire)
-            scaled *= AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        scaled *= AbilityElementScaling.GetFireSkillDamageMultiplier(stats);
         return scaled;
     }
 

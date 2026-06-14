@@ -534,24 +534,30 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 $"Minion Max Life: {FormatSignedPercentPoints(stats.FinalMinionMaxLifePercentPoints)}";
 
         if (globalPhysicalAllText)
-            globalPhysicalAllText.text = $"Physical: {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
+            globalPhysicalAllText.text =
+                $"{OffenseBonusDisplayNames.PhysicalDamagePercent}: {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
         if (globalMagicAllText)
-            globalMagicAllText.text = $"Magic: {FormatSignedPercentPoints(stats.GlobalMagicDamageBonusPercentPoints)}";
+            globalMagicAllText.text =
+                $"{OffenseBonusDisplayNames.MagicDamagePercent}: {FormatSignedPercentPoints(stats.GlobalMagicDamageBonusPercentPoints)}";
         if (globalCorruptionAllText)
-            globalCorruptionAllText.text = $"Corruption: {FormatSignedPercentPoints(stats.GlobalCorruptionDamageBonusPercentPoints)}";
+            globalCorruptionAllText.text =
+                $"{OffenseBonusDisplayNames.CorruptionDamagePercent}: {FormatSignedPercentPoints(stats.GlobalCorruptionDamageBonusPercentPoints)}";
         if (globalFireBonusText)
-            globalFireBonusText.text = $"Fire: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
+            globalFireBonusText.text =
+                $"{OffenseBonusDisplayNames.FireDamagePercent}: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
         if (globalIceBonusText)
-            globalIceBonusText.text = $"Ice: {FormatSignedPercentPoints(stats.IceSkillDamageTotalScalingPercentPoints)}";
+            globalIceBonusText.text =
+                $"{OffenseBonusDisplayNames.IceDamagePercent}: {FormatSignedPercentPoints(stats.IceSkillDamageTotalScalingPercentPoints)}";
         if (globalLightningBonusText)
-            globalLightningBonusText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
+            globalLightningBonusText.text =
+                $"{OffenseBonusDisplayNames.LightningDamagePercent}: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
 
         if (meleeDamageBonusText)
             meleeDamageBonusText.text =
-                $"Melee total: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
+                $"{OffenseBonusDisplayNames.MeleeDamage}: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
         if (rangedDamageBonusText)
             rangedDamageBonusText.text =
-                $"Ranged total: {FormatSignedPercentPoints(stats.RangedTotalDamageBonusPercentPoints)}";
+                $"{OffenseBonusDisplayNames.RangedDamage}: {FormatSignedPercentPoints(stats.RangedTotalDamageBonusPercentPoints)}";
 
         PopulateDetailedAilmentLines();
         ApplyOffenceBonusLineColors();

@@ -71,6 +71,9 @@ public static class InventoryContextMenuBuilder
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));
 
+        if (slot.CanIdentifyStats())
+            entries.Add(new ContextMenuEntry("Identify Stats", slot.PerformIdentifyStatsAction));
+
         entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));
 
         AddDropEntry(entries, slot.PerformDropAction);

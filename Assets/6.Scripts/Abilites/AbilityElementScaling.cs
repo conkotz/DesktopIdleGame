@@ -53,6 +53,14 @@ public static class AbilityElementScaling
         return 1f + Mathf.Max(0f, stats.ElementSkillDamageScalingFractionForCurrentType());
     }
 
+    /// <summary>Fire skill % for fire-tagged abilities (e.g. Flame Charge), regardless of equipped weapon element.</summary>
+    public static float GetFireSkillDamageMultiplier(CharacterStats stats)
+    {
+        if (!stats)
+            return 1f;
+        return 1f + Mathf.Max(0f, stats.ElementSkillDamageScalingFractionFor(MagicAttackType.Fire));
+    }
+
     /// <summary>Apply <see cref="GetElementSkillDamageMultiplier"/> to magic and element bonus portions only.</summary>
     public static void ScaleMagicAbilityContributions(
         float scaledMagic,

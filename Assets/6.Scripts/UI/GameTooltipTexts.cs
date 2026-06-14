@@ -167,56 +167,61 @@ public static class GameTooltipTexts
 
             case "PhysicalBonusText":
             case "GlobalPhysicalBonusText":
-                title = "All physical";
+                title = OffenseBonusDisplayNames.PhysicalDamagePercent;
                 description =
-                    "Increases all Physical damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
+                    "Bonus to all Physical damage you deal — both melee and ranged weapon physical portions.\n\n" +
+                    "Stacks with weapon-class bonuses (Melee Damage / Ranged Damage).";
                 return true;
 
             case "MagBonusText":
             case "GlobalMagBonusText":
-                title = "All magic";
+                title = OffenseBonusDisplayNames.MagicDamagePercent;
                 description =
-                    "Increases all Magic damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
+                    "Bonus to Magic damage while using magic weapons or magic-tagged attacks.\n\n" +
+                    "Included in your weapon damage range on elemental gear.";
                 return true;
 
             case "CorruptionBonusText":
             case "GlobalCorruptionBonusText":
-                title = "All corruption";
+                title = OffenseBonusDisplayNames.CorruptionDamagePercent;
                 description =
-                    "Increases all Corruption damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
+                    "Bonus to Corruption damage on hits that include a corruption portion.\n\n" +
+                    "Applies to weapon corruption splits and corruption-tagged skills.";
                 return true;
 
             case "FireBonusText":
-                title = "Fire damage";
-                description = "Extra fire damage on hits that use fire (gear and supports).";
+                title = OffenseBonusDisplayNames.FireDamagePercent;
+                description = "Bonus fire damage on hits and skills that use fire.";
                 return true;
 
             case "IceBonusText":
-                title = "Ice damage";
-                description = "Extra ice damage on hits that use ice (gear and supports).";
+                title = OffenseBonusDisplayNames.IceDamagePercent;
+                description = "Bonus ice damage on hits and skills that use ice.";
                 return true;
 
             case "LightningBonusText":
-                title = "Lightning damage";
-                description = "Extra lightning damage on hits that use lightning (gear and supports).";
+                title = OffenseBonusDisplayNames.LightningDamagePercent;
+                description = "Bonus lightning damage on hits and skills that use lightning.";
                 return true;
 
             case "MeleePhysBonusText":
             case "MeleeDamageBonusText":
             case "ConditionalMeleePhysBonusText":
-                title = "Melee damage";
+                title = OffenseBonusDisplayNames.MeleeDamage;
                 description =
-                    "Increases all damage on your melee weapon hit (Physical, Magic/elemental, and Corruption). " +
-                    "While using a melee weapon, this % is included in Melee Damage above.";
+                    "Bonus damage while using a melee weapon or melee-tagged attacks.\n\n" +
+                    "Applies to the full hit (physical, magic/elemental, and corruption portions). " +
+                    "Only active when a melee weapon is equipped.";
                 return true;
 
             case "RangedPhysBonusText":
             case "RangedDamageBonusText":
             case "ConditionalRangedPhysBonusText":
-                title = "Ranged damage";
+                title = OffenseBonusDisplayNames.RangedDamage;
                 description =
-                    "Increases all damage you deal from ranged attacks: Physical, Magic (elemental on the weapon), " +
-                    "and Corruption portions of the hit.";
+                    "Bonus damage while using a ranged weapon or ranged-tagged attacks.\n\n" +
+                    "Applies to the full hit (physical, magic/elemental, and corruption portions). " +
+                    "Only active when a ranged weapon is equipped.";
                 return true;
 
             case "BleedText":

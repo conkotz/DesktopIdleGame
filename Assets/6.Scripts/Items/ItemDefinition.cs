@@ -233,12 +233,12 @@ public struct CombatSupportStats
     public float attackSpeedPercent;
 
     [Header("Damage % (multipliers)")]
-    [Tooltip("Extra global physical damage on all attack styles (0.1 = +10%). Former all-physical % rolls into this field.")]
+    [Tooltip("Extra physical damage on all attack styles — melee and ranged physical (0.1 = +10%).")]
     [FormerlySerializedAs("physicalDamagePercent")]
     public float globalPhysicalDamagePercent;
-    [Tooltip("Extra physical damage with ranged weapons only (0.1 = +10%).")]
+    [Tooltip("Extra ranged weapon damage only (0.1 = +10%).")]
     public float rangedPhysicalDamagePercent;
-    [Tooltip("Extra magic damage on elemental weapon totals (0.1 = +10%).")]
+    [Tooltip("Extra magic weapon damage (0.1 = +10%).")]
     public float magicDamagePercent;
     [Tooltip("Extra fire damage on fire-tagged hits and skills (0.1 = +10%).")]
     public float fireDamagePercent;
@@ -361,20 +361,20 @@ public struct BonusStats
     [Tooltip("Flat physical damage added to attacks.")]
     public float physicalDamage;
 
-    [Tooltip("Extra physical damage with melee weapons only (0.1 = +10%).")]
+    [Tooltip("Extra melee weapon damage only (0.1 = +10%). Shown as Melee Damage on gear.")]
     public float meleePhysicalDamagePercent;
 
-    [Tooltip("Extra global physical damage on all attack styles (0.1 = +10%). Former all-physical % rolls into this field.")]
+    [Tooltip("Extra physical damage on all attack styles — melee and ranged physical (0.1 = +10%). Shown as Physical damage.")]
     [FormerlySerializedAs("physicalDamagePercent")]
     public float globalPhysicalDamagePercent;
 
-    [Tooltip("Extra physical damage with ranged weapons (0.1 = +10%).")]
+    [Tooltip("Extra ranged weapon damage only (0.1 = +10%). Shown as Ranged Damage on gear.")]
     public float rangedPhysicalDamagePercent;
 
     [Tooltip("Flat magic damage added to elemental weapon totals.")]
     public float magicDamage;
 
-    [Tooltip("Extra magic damage on elemental weapon totals (0.1 = +10%).")]
+    [Tooltip("Extra magic weapon damage (0.1 = +10%). Shown as Magic on gear.")]
     public float magicDamagePercent;
 
     [Tooltip("Extra fire damage on fire skills and instant magic (0.1 = +10%).")]
@@ -386,7 +386,7 @@ public struct BonusStats
     [Tooltip("Extra lightning damage on lightning skills and instant magic (0.1 = +10%).")]
     public float lightningSkillDamagePercent;
 
-    [Tooltip("Extra corruption on attack split (0.1 = +10%).")]
+    [Tooltip("Extra corruption on attack split (0.1 = +10%). Shown as Corruption Damage on gear.")]
     public float corruptionDamagePercent;
 
     [Tooltip("Flat corruption damage on attacks.")]
@@ -931,7 +931,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Bonus Stats (Equippables: Armour/Jewelry/Weapons optional)")]
     public BonusStats bonusStats;
 
-    [Header("Random Stat Pool")]
+    [Header("Additional Random Stat Pool")]
     [Tooltip(
         "Optional affixes rolled when this item enters the player's inventory. " +
         "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4). " +
@@ -1041,7 +1041,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return "";
 
         var lines = new System.Text.StringBuilder();
-        lines.Append("Possible additional stat rolls");
+        lines.Append(ItemStatDisplayNames.AdditionalRandomStatPoolHeader);
 
         var sortedEntries = new List<RandomStatPoolEntry>(RandomStatPoolEntries);
         sortedEntries.Sort(CompareRandomStatPoolEntriesForDisplay);
@@ -1056,7 +1056,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             lines.Append(line);
         }
 
-        return lines.Length > "Possible additional stat rolls".Length
+        return lines.Length > ItemStatDisplayNames.AdditionalRandomStatPoolHeader.Length
             ? lines.ToString()
             : "";
     }
@@ -2208,19 +2208,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
             if (SupportGlobalPhysicalDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportGlobalPhysicalDamagePercent, "Global physical")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportGlobalPhysicalDamagePercent, OffenseBonusDisplayNames.PhysicalDamagePercent)}";
             if (SupportRangedPhysicalDamagePercent != 0f)
-                s += $"\nRanged Dmg: {FormatSignedPercent01(SupportRangedPhysicalDamagePercent)}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportRangedPhysicalDamagePercent, OffenseBonusDisplayNames.RangedDamage)}";
             if (SupportMagicDamagePercent != 0f)
-                s += $"\nMagic Damage {FormatSignedPercent01(SupportMagicDamagePercent)}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportMagicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent)}";
             if (SupportFireDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, "Fire skills")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, OffenseBonusDisplayNames.FireDamagePercent)}";
             if (SupportIceDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportIceDamagePercent, "Ice skills")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportIceDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}";
             if (SupportColdDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportColdDamagePercent, "Cold skills")}";
             if (SupportCorruptionDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, "Corruption")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
             if (SupportCritMultiplierBonus != 0f) s += $"\nCrit Multi: {FormatSignedPercent01(SupportCritMultiplierBonus)}";
             if (SupportAttackSpeedPercent != 0f)
@@ -2761,9 +2761,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.meleePhysicalDamagePercent, baselineStats.meleePhysicalDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.meleePhysicalDamagePercent, "Melee physical"),
+                FormatScalingCoefficientPercentLine(baselineStats.meleePhysicalDamagePercent, OffenseBonusDisplayNames.MeleeDamage),
 
-                FormatScalingCoefficientPercentLine(cur.meleePhysicalDamagePercent, "Melee physical"),
+                FormatScalingCoefficientPercentLine(cur.meleePhysicalDamagePercent, OffenseBonusDisplayNames.MeleeDamage),
 
                 HasFloatDelta(cur.meleePhysicalDamagePercent, baselineStats.meleePhysicalDamagePercent),
 
@@ -2775,9 +2775,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.globalPhysicalDamagePercent, baselineStats.globalPhysicalDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.globalPhysicalDamagePercent, "Global physical"),
+                FormatScalingCoefficientPercentLine(baselineStats.globalPhysicalDamagePercent, OffenseBonusDisplayNames.PhysicalDamagePercent),
 
-                FormatScalingCoefficientPercentLine(cur.globalPhysicalDamagePercent, "Global physical"),
+                FormatScalingCoefficientPercentLine(cur.globalPhysicalDamagePercent, OffenseBonusDisplayNames.PhysicalDamagePercent),
 
                 HasFloatDelta(cur.globalPhysicalDamagePercent, baselineStats.globalPhysicalDamagePercent),
 
@@ -2789,9 +2789,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent);
             AppendCompared(
 
-                $"Ranged Dmg: {FormatSignedPercent01(baselineStats.rangedPhysicalDamagePercent)}",
+                FormatScalingCoefficientPercentLine(baselineStats.rangedPhysicalDamagePercent, OffenseBonusDisplayNames.RangedDamage),
 
-                $"Ranged Dmg: {FormatSignedPercent01(cur.rangedPhysicalDamagePercent)}",
+                FormatScalingCoefficientPercentLine(cur.rangedPhysicalDamagePercent, OffenseBonusDisplayNames.RangedDamage),
 
                 HasFloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent),
 
@@ -2817,9 +2817,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent);
             AppendCompared(
 
-                $"Magic Dmg: {FormatSignedPercent01(baselineStats.magicDamagePercent)}",
+                FormatScalingCoefficientPercentLine(baselineStats.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent),
 
-                $"Magic Dmg: {FormatSignedPercent01(cur.magicDamagePercent)}",
+                FormatScalingCoefficientPercentLine(cur.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent),
 
                 HasFloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent),
 
@@ -2831,9 +2831,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.fireSkillDamagePercent, "Fire skills"),
+                FormatScalingCoefficientPercentLine(baselineStats.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent),
 
-                FormatScalingCoefficientPercentLine(cur.fireSkillDamagePercent, "Fire skills"),
+                FormatScalingCoefficientPercentLine(cur.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent),
 
                 HasFloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent),
 
@@ -2845,9 +2845,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.iceSkillDamagePercent, "Ice skills"),
+                FormatScalingCoefficientPercentLine(baselineStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent),
 
-                FormatScalingCoefficientPercentLine(cur.iceSkillDamagePercent, "Ice skills"),
+                FormatScalingCoefficientPercentLine(cur.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent),
 
                 HasFloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent),
 
@@ -2859,9 +2859,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.lightningSkillDamagePercent, "Lightning skills"),
+                FormatScalingCoefficientPercentLine(baselineStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent),
 
-                FormatScalingCoefficientPercentLine(cur.lightningSkillDamagePercent, "Lightning skills"),
+                FormatScalingCoefficientPercentLine(cur.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent),
 
                 HasFloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent),
 
@@ -2873,9 +2873,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.corruptionDamagePercent, "Corruption"),
+                FormatScalingCoefficientPercentLine(baselineStats.corruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent),
 
-                FormatScalingCoefficientPercentLine(cur.corruptionDamagePercent, "Corruption"),
+                FormatScalingCoefficientPercentLine(cur.corruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent),
 
                 HasFloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent),
 
@@ -3216,22 +3216,22 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
         if (bonusStats.meleePhysicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.meleePhysicalDamagePercent, "Melee physical")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.meleePhysicalDamagePercent, OffenseBonusDisplayNames.MeleeDamage)}\n";
         if (bonusStats.globalPhysicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.globalPhysicalDamagePercent, "Global physical")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.globalPhysicalDamagePercent, OffenseBonusDisplayNames.PhysicalDamagePercent)}\n";
         if (bonusStats.rangedPhysicalDamagePercent != 0f)
-            s += $"Ranged Dmg: {FormatSignedPercent01(bonusStats.rangedPhysicalDamagePercent)}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, OffenseBonusDisplayNames.RangedDamage)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f)
-            s += $"Magic Dmg: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent)}\n";
         if (bonusStats.fireSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, "Fire skills")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent)}\n";
         if (bonusStats.iceSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, "Ice skills")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}\n";
         if (bonusStats.lightningSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, "Lightning skills")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent)}\n";
         if (bonusStats.corruptionDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, "Corruption")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
         if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";

@@ -12,10 +12,12 @@ public class StorageSlotUI : MonoBehaviour,
     IItemTooltipHoverSource
 {
     private const float BorderThicknessMul = 0.65f;
+    private const float IdentifyGlowSeconds = 1.1f;
 
     [Header("UI")]
     [SerializeField] private Image background;
     [SerializeField] private Image icon;
+    [SerializeField] private Image identifyIcon;
     [SerializeField] private TMP_Text countText;
     [SerializeField] private Outline rarityOutline;
 
@@ -55,6 +57,8 @@ public class StorageSlotUI : MonoBehaviour,
     private int _slotIndex;
     private string _itemId;
     private int _amount;
+    private bool _identifyPendingCached;
+    private Coroutine _identifyRoutine;
 
     public int SlotIndex => _slotIndex;
 
@@ -95,6 +99,15 @@ public class StorageSlotUI : MonoBehaviour,
             rarityOutline.effectDistance = rarityBorderThickness;
         }
 
+        if (!identifyIcon)
+            identifyIcon = transform.Find("IdentifyIcon")?.GetComponent<Image>();
+
+        if (identifyIcon)
+        {
+            identifyIcon.raycastTarget = false;
+            identifyIcon.gameObject.SetActive(false);
+        }
+
         if (icon) icon.raycastTarget = false;
         if (countText) countText.raycastTarget = false;
 
@@ -122,6 +135,16 @@ public class StorageSlotUI : MonoBehaviour,
         RectTransform storagePanelRect,
         Canvas rootCanvas)
     {
+        bool identifyPending = IsIdentifyPending(def, amount, itemId);
+
+        bool sameVisual =
+            ReferenceEquals(_storage, storage) &&
+            _slotIndex == slotIndex &&
+            _amount == amount &&
+            ReferenceEquals(_def, def) &&
+            ItemIdEquals(_itemId, itemId) &&
+            _identifyPendingCached == identifyPending;
+
         _def = def;
         _amount = amount;
         _itemId = itemId;
@@ -134,6 +157,15 @@ public class StorageSlotUI : MonoBehaviour,
 
         if (!_inventory)
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (sameVisual)
+        {
+            RefreshIdentifyIcon(identifyPending);
+            ApplySlotBackground();
+            return;
+        }
+
+        _identifyPendingCached = identifyPending;
 
         if (icon)
         {
@@ -151,7 +183,43 @@ public class StorageSlotUI : MonoBehaviour,
         if (def == null || amount <= 0 || string.IsNullOrEmpty(itemId))
             AutoBattleLootHighlight.ClearStorageSlot(slotIndex);
 
+        RefreshIdentifyIcon(identifyPending);
         ApplySlotBackground();
+    }
+
+    private static bool IsIdentifyPending(ItemDefinition def, int amount, string itemId)
+    {
+        if (def == null || amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        ItemDatabase db = ResolveItemDatabase();
+        return ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(db, itemId);
+    }
+
+    private static ItemDatabase ResolveItemDatabase()
+    {
+        Inventory inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inventory != null)
+            return inventory.GetItemDatabase();
+
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (db != null)
+            return db;
+
+        return Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+    }
+
+    private static bool ItemIdEquals(string a, string b) =>
+        string.IsNullOrEmpty(a) ? string.IsNullOrEmpty(b) : string.Equals(a, b, System.StringComparison.Ordinal);
+
+    private void RefreshIdentifyIcon(bool show)
+    {
+        if (!identifyIcon)
+            return;
+
+        identifyIcon.gameObject.SetActive(show);
+        if (show)
+            identifyIcon.enabled = true;
     }
 
     public void SetTooltipDocking(
@@ -284,7 +352,65 @@ public class StorageSlotUI : MonoBehaviour,
             }
         }
 
-        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+        ItemDatabase db = ResolveItemDatabase();
+        ItemRandomStatIdentification.GetTooltipRandomStatFlags(
+            db,
+            _def,
+            _itemId,
+            out bool maskUnrolledRandomStats,
+            out bool showRandomStatPoolOptions);
+
+        _tooltip.ShowAt(
+            transform,
+            _def,
+            _amount,
+            compact: false,
+            maskUnrolledRandomStats: maskUnrolledRandomStats,
+            showRandomStatPoolOptions: showRandomStatPoolOptions,
+            itemId: _itemId);
+    }
+
+    public bool CanIdentifyStats()
+    {
+        if (!HasItemContext)
+            return false;
+
+        ItemDatabase db = ResolveItemDatabase();
+        return ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(db, _itemId);
+    }
+
+    public void PerformIdentifyStatsAction()
+    {
+        if (!CanIdentifyStats())
+            return;
+
+        if (_identifyRoutine != null)
+            StopCoroutine(_identifyRoutine);
+
+        _identifyRoutine = StartCoroutine(IdentifyStatsRoutine());
+    }
+
+    private IEnumerator IdentifyStatsRoutine()
+    {
+        UIPulseGlowOverlay glow = UIPulseGlowOverlay.Show(transform as RectTransform);
+        yield return new WaitForSecondsRealtime(IdentifyGlowSeconds);
+        glow?.Clear();
+        _identifyRoutine = null;
+
+        if (!CanIdentifyStats())
+            yield break;
+
+        ItemDatabase db = ResolveItemDatabase();
+        if (!ItemRandomStatIdentification.TryIdentify(db, _itemId, out string activityMessage))
+            yield break;
+
+        GameLog.Add(activityMessage, ItemRandomStatIdentification.ActivityLogColor);
+
+        _identifyPendingCached = false;
+        RefreshIdentifyIcon(false);
+
+        if (_isPointerOver)
+            ShowItemTooltip();
     }
 
     public void PerformLookupAction()

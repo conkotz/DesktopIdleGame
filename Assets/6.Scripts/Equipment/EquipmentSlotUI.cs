@@ -608,7 +608,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (!HasItemContext || inventory == null)
             return false;
 
-        return ItemRandomStatIdentification.IsPending(inventory.GetItemDatabase(), _itemId);
+        return ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(inventory.GetItemDatabase(), _itemId);
     }
 
     public void PerformIdentifyStatsAction()

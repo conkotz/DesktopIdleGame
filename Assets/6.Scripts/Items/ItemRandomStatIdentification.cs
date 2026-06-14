@@ -17,14 +17,99 @@ public static class ItemRandomStatIdentification
         return def && def.randomStatsPendingIdentification;
     }
 
+    /// <summary>Pending identification with at least one rolled affix still hidden from the tooltip.</summary>
+    public static bool HasUnidentifiedRandomAffixes(ItemDatabase db, string itemId) =>
+        IsPending(db, itemId) && CountHiddenRandomAffixes(db, itemId) > 0;
+
     public static string BuildMaskedAppendix(ItemDatabase db, string itemId)
     {
-        if (!IsPending(db, itemId))
-            return "";
+        int hiddenCount = CountHiddenRandomAffixes(db, itemId);
+        return hiddenCount > 0 ? BuildQuestionMarkLines(hiddenCount) : "";
+    }
+
+    /// <summary>Base template when rolled clones clear their pool; otherwise <paramref name="def"/>.</summary>
+    public static ItemDefinition ResolvePoolDefinition(ItemDatabase db, ItemDefinition def, string itemId)
+    {
+        if (def != null && def.HasRandomStatPool)
+            return def;
+
+        if (!db || string.IsNullOrWhiteSpace(itemId))
+            return def;
 
         string baseId = db.GetBaseItemId(itemId);
         ItemDefinition baseDef = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
-        return baseDef != null ? baseDef.BuildMaskedRandomStatTooltipAppendix() : "";
+        if (baseDef != null && baseDef.HasRandomStatPool)
+            return baseDef;
+
+        return def;
+    }
+
+    public static bool HasRevealableRandomStatPool(ItemDatabase db, ItemDefinition def, string itemId)
+    {
+        ItemDefinition poolDef = ResolvePoolDefinition(db, def, itemId);
+        return poolDef != null && poolDef.HasRandomStatPool;
+    }
+
+    public static bool AreRandomAffixesDiscovered(ItemDatabase db, string itemId) =>
+        ItemStatDisplayNames.AreRandomAffixesDiscovered(db, itemId);
+
+    public static void GetTooltipRandomStatFlags(
+        ItemDatabase db,
+        ItemDefinition def,
+        string itemId,
+        out bool maskUnrolledRandomStats,
+        out bool showRandomStatPoolOptions)
+    {
+        bool hasPool = HasRevealableRandomStatPool(db, def, itemId);
+        bool showPool = ItemTooltipAdvancedInput.IsHeld && hasPool && !AreRandomAffixesDiscovered(db, itemId);
+        bool isRuntimeClone = db != null && !string.IsNullOrWhiteSpace(itemId) && db.IsRuntimeEnhancedItem(itemId);
+        bool shopStyleMask = !isRuntimeClone && def != null && def.HasRandomStatPool;
+        maskUnrolledRandomStats = !showPool && shopStyleMask;
+        showRandomStatPoolOptions = showPool;
+    }
+
+    public static int CountHiddenRandomAffixes(ItemDatabase db, string itemId)
+    {
+        if (!IsPending(db, itemId))
+            return 0;
+
+        ItemDefinition rolled = db.Get(itemId);
+        string baseId = db.GetBaseItemId(itemId);
+        ItemDefinition baseline = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
+        if (!rolled || baseline == null || ReferenceEquals(rolled, baseline))
+            return 0;
+
+        int count = 0;
+        CountBonusStats(ref count, rolled.bonusStats, baseline.bonusStats);
+
+        if (rolled.IsWeapon)
+            CountWeaponStats(ref count, rolled.weaponStats, baseline.weaponStats);
+
+        if (rolled.IsArmor)
+            CountArmorStats(ref count, rolled.armorStats, baseline.armorStats);
+
+        if (!Mathf.Approximately(
+                rolled.miscEffects.enemyRespawnTimeReductionSeconds,
+                baseline.miscEffects.enemyRespawnTimeReductionSeconds))
+            count++;
+
+        return count;
+    }
+
+    private static string BuildQuestionMarkLines(int count)
+    {
+        if (count <= 0)
+            return "";
+
+        var lines = new StringBuilder();
+        for (int i = 0; i < count; i++)
+        {
+            if (i > 0)
+                lines.Append('\n');
+            lines.Append("??");
+        }
+
+        return lines.ToString();
     }
 
     public static bool TryIdentify(ItemDatabase db, string itemId, out string activityLogMessage)
@@ -36,6 +121,12 @@ public static class ItemRandomStatIdentification
         ItemDefinition rolled = db.Get(itemId);
         if (!rolled || !rolled.randomStatsPendingIdentification)
             return false;
+
+        if (CountHiddenRandomAffixes(db, itemId) <= 0)
+        {
+            rolled.randomStatsPendingIdentification = false;
+            return false;
+        }
 
         string baseId = db.GetBaseItemId(itemId);
         ItemDefinition baseline = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
@@ -93,15 +184,15 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, "Life Steal", cur.lifeSteal, baseline.lifeSteal);
         TryAppendPercent01Delta(sb, "Move Speed", cur.moveSpeedPercent, baseline.moveSpeedPercent);
         TryAppendFloatDelta(sb, "Physical Damage", cur.physicalDamage, baseline.physicalDamage);
-        TryAppendPercent01Delta(sb, "Melee Physical Damage", cur.meleePhysicalDamagePercent, baseline.meleePhysicalDamagePercent);
-        TryAppendPercent01Delta(sb, "Global Physical Damage", cur.globalPhysicalDamagePercent, baseline.globalPhysicalDamagePercent);
-        TryAppendPercent01Delta(sb, "Ranged Physical Damage", cur.rangedPhysicalDamagePercent, baseline.rangedPhysicalDamagePercent);
+        TryAppendPercent01Delta(sb, "Melee Damage", cur.meleePhysicalDamagePercent, baseline.meleePhysicalDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.PhysicalDamagePercent, cur.globalPhysicalDamagePercent, baseline.globalPhysicalDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.RangedDamage, cur.rangedPhysicalDamagePercent, baseline.rangedPhysicalDamagePercent);
         TryAppendFloatDelta(sb, "Magic Damage", cur.magicDamage, baseline.magicDamage);
-        TryAppendPercent01Delta(sb, "Magic Damage %", cur.magicDamagePercent, baseline.magicDamagePercent);
-        TryAppendPercent01Delta(sb, "Fire Skill Damage", cur.fireSkillDamagePercent, baseline.fireSkillDamagePercent);
-        TryAppendPercent01Delta(sb, "Ice Skill Damage", cur.iceSkillDamagePercent, baseline.iceSkillDamagePercent);
-        TryAppendPercent01Delta(sb, "Lightning Skill Damage", cur.lightningSkillDamagePercent, baseline.lightningSkillDamagePercent);
-        TryAppendPercent01Delta(sb, "Corruption Damage %", cur.corruptionDamagePercent, baseline.corruptionDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.MagicDamagePercent, cur.magicDamagePercent, baseline.magicDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.FireDamagePercent, cur.fireSkillDamagePercent, baseline.fireSkillDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.IceDamagePercent, cur.iceSkillDamagePercent, baseline.iceSkillDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.LightningDamagePercent, cur.lightningSkillDamagePercent, baseline.lightningSkillDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.CorruptionDamagePercent, cur.corruptionDamagePercent, baseline.corruptionDamagePercent);
         TryAppendFloatDelta(sb, "Corruption Damage", cur.corruptionDamage, baseline.corruptionDamage);
         TryAppendPercentPointsDelta(sb, "Ability Power", cur.abilityPower, baseline.abilityPower);
         TryAppendPercent01Delta(sb, "Attack Speed", cur.attackSpeedPercent, baseline.attackSpeedPercent);
@@ -166,6 +257,102 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, "Energy Efficiency", cur.energyEfficiency, baseline.energyEfficiency);
         TryAppendIntDelta(sb, "Guard", cur.flatGuard, baseline.flatGuard);
         TryAppendPercent01Delta(sb, "Max Guard", cur.maxGuardPercent, baseline.maxGuardPercent);
+    }
+
+    private static void CountBonusStats(ref int count, BonusStats cur, BonusStats baseline)
+    {
+        CountIntDelta(ref count, cur.bonusHealth, baseline.bonusHealth);
+        CountIntDelta(ref count, cur.bonusEnergy, baseline.bonusEnergy);
+        CountIntDelta(ref count, cur.bonusMana, baseline.bonusMana);
+        CountIntDelta(ref count, cur.armor, baseline.armor);
+        CountIntDelta(ref count, cur.magicResist, baseline.magicResist);
+        CountIntDelta(ref count, cur.corruptionResist, baseline.corruptionResist);
+        CountFloatDelta(ref count, cur.physBlockChance, baseline.physBlockChance);
+        CountFloatDelta(ref count, cur.lifeRegen, baseline.lifeRegen);
+        CountFloatDelta(ref count, cur.energyRegen, baseline.energyRegen);
+        CountFloatDelta(ref count, cur.manaRegen, baseline.manaRegen);
+        CountFloatDelta(ref count, cur.energyEfficiency, baseline.energyEfficiency);
+        CountFloatDelta(ref count, cur.lifeSteal, baseline.lifeSteal);
+        CountFloatDelta(ref count, cur.moveSpeedPercent, baseline.moveSpeedPercent);
+        CountFloatDelta(ref count, cur.physicalDamage, baseline.physicalDamage);
+        CountFloatDelta(ref count, cur.meleePhysicalDamagePercent, baseline.meleePhysicalDamagePercent);
+        CountFloatDelta(ref count, cur.globalPhysicalDamagePercent, baseline.globalPhysicalDamagePercent);
+        CountFloatDelta(ref count, cur.rangedPhysicalDamagePercent, baseline.rangedPhysicalDamagePercent);
+        CountFloatDelta(ref count, cur.magicDamage, baseline.magicDamage);
+        CountFloatDelta(ref count, cur.magicDamagePercent, baseline.magicDamagePercent);
+        CountFloatDelta(ref count, cur.fireSkillDamagePercent, baseline.fireSkillDamagePercent);
+        CountFloatDelta(ref count, cur.iceSkillDamagePercent, baseline.iceSkillDamagePercent);
+        CountFloatDelta(ref count, cur.lightningSkillDamagePercent, baseline.lightningSkillDamagePercent);
+        CountFloatDelta(ref count, cur.corruptionDamagePercent, baseline.corruptionDamagePercent);
+        CountFloatDelta(ref count, cur.corruptionDamage, baseline.corruptionDamage);
+        CountFloatDelta(ref count, cur.abilityPower, baseline.abilityPower);
+        CountFloatDelta(ref count, cur.attackSpeedPercent, baseline.attackSpeedPercent);
+        CountFloatDelta(ref count, cur.abilityCooldownReductionFraction, baseline.abilityCooldownReductionFraction);
+        CountFloatDelta(ref count, cur.minionDamagePercent, baseline.minionDamagePercent);
+        CountFloatDelta(ref count, cur.minionAttackSpeedPercent, baseline.minionAttackSpeedPercent);
+        CountFloatDelta(ref count, cur.minionCritChance, baseline.minionCritChance);
+        CountFloatDelta(ref count, cur.minionMaxLifePercent, baseline.minionMaxLifePercent);
+        CountFloatDelta(ref count, cur.critChanceBonus, baseline.critChanceBonus);
+        CountFloatDelta(ref count, cur.critMultiplierBonus, baseline.critMultiplierBonus);
+        CountFloatDelta(ref count, cur.attackRangeBonus, baseline.attackRangeBonus);
+        CountFloatDelta(ref count, cur.bleedChance, baseline.bleedChance);
+        CountFloatDelta(ref count, cur.bleedMultiplier, baseline.bleedMultiplier);
+        CountFloatDelta(ref count, cur.poisonChance, baseline.poisonChance);
+        CountFloatDelta(ref count, cur.poisonMultiplier, baseline.poisonMultiplier);
+        CountFloatDelta(ref count, cur.poisonDurationBonus, baseline.poisonDurationBonus);
+        CountIntDelta(ref count, cur.poisonMaxStacksBonus, baseline.poisonMaxStacksBonus);
+        CountFloatDelta(ref count, cur.burnChance, baseline.burnChance);
+        CountFloatDelta(ref count, cur.burnExplosionMultiplierBonus, baseline.burnExplosionMultiplierBonus);
+        CountFloatDelta(ref count, cur.chillChance, baseline.chillChance);
+        CountFloatDelta(ref count, cur.chillSlowPerStackBonus, baseline.chillSlowPerStackBonus);
+        CountFloatDelta(ref count, cur.shockChance, baseline.shockChance);
+        CountFloatDelta(ref count, cur.shockDamageTakenMultiplierBonus, baseline.shockDamageTakenMultiplierBonus);
+        CountFloatDelta(ref count, cur.parryChance, baseline.parryChance);
+        CountFloatDelta(ref count, cur.stunChance, baseline.stunChance);
+    }
+
+    private static void CountWeaponStats(ref int count, WeaponStats cur, WeaponStats baseline)
+    {
+        CountIntDelta(ref count, cur.minPhysicalDamage, baseline.minPhysicalDamage);
+        CountIntDelta(ref count, cur.maxPhysicalDamage, baseline.maxPhysicalDamage);
+        CountIntDelta(ref count, cur.minFireDamage, baseline.minFireDamage);
+        CountIntDelta(ref count, cur.maxFireDamage, baseline.maxFireDamage);
+        CountIntDelta(ref count, cur.minIceDamage, baseline.minIceDamage);
+        CountIntDelta(ref count, cur.maxIceDamage, baseline.maxIceDamage);
+        CountIntDelta(ref count, cur.minLightningDamage, baseline.minLightningDamage);
+        CountIntDelta(ref count, cur.maxLightningDamage, baseline.maxLightningDamage);
+        CountIntDelta(ref count, cur.minCorruptionDamage, baseline.minCorruptionDamage);
+        CountIntDelta(ref count, cur.maxCorruptionDamage, baseline.maxCorruptionDamage);
+        CountFloatDelta(ref count, cur.attacksPerSecond, baseline.attacksPerSecond);
+        CountFloatDelta(ref count, cur.critChance, baseline.critChance);
+        CountFloatDelta(ref count, cur.critMultiplier, baseline.critMultiplier);
+        CountFloatDelta(ref count, cur.attackRange, baseline.attackRange);
+        CountFloatDelta(ref count, cur.magicAilmentApplyChance, baseline.magicAilmentApplyChance);
+    }
+
+    private static void CountArmorStats(ref int count, ArmorStats cur, ArmorStats baseline)
+    {
+        CountIntDelta(ref count, cur.armor, baseline.armor);
+        CountIntDelta(ref count, cur.magicResist, baseline.magicResist);
+        CountIntDelta(ref count, cur.corruptionResist, baseline.corruptionResist);
+        CountFloatDelta(ref count, cur.physBlockChance, baseline.physBlockChance);
+        CountIntDelta(ref count, cur.bonusHealth, baseline.bonusHealth);
+        CountIntDelta(ref count, cur.bonusEnergy, baseline.bonusEnergy);
+        CountFloatDelta(ref count, cur.energyEfficiency, baseline.energyEfficiency);
+        CountIntDelta(ref count, cur.flatGuard, baseline.flatGuard);
+        CountFloatDelta(ref count, cur.maxGuardPercent, baseline.maxGuardPercent);
+    }
+
+    private static void CountIntDelta(ref int count, int current, int baseline)
+    {
+        if (current != baseline)
+            count++;
+    }
+
+    private static void CountFloatDelta(ref int count, float current, float baseline)
+    {
+        if (!Mathf.Approximately(current, baseline))
+            count++;
     }
 
     private static void TryAppendIntDelta(StringBuilder sb, string label, int current, int baseline)

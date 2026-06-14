@@ -684,7 +684,17 @@ public static class AbilityTooltipDamagePreview
 
         if (IsFlameCharge(def))
         {
-            scaling.AppendLine(S("Scales with Fire damage"));
+            if (stats != null)
+            {
+                float firePct = stats.FireSkillDamageTotalScalingPercentPoints;
+                if (firePct > 0.05f)
+                    scaling.AppendLine(S($"+{firePct:0.#}% scaling from {OffenseBonusDisplayNames.FireDamagePercent}"));
+                else
+                    scaling.AppendLine(S($"Scales with {OffenseBonusDisplayNames.FireDamagePercent}"));
+            }
+            else
+                scaling.AppendLine(S($"Scales with {OffenseBonusDisplayNames.FireDamagePercent}"));
+
             return scaling.ToString().TrimEnd();
         }
 

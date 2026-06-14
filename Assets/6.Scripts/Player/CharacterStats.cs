@@ -2351,18 +2351,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
             meleeBonuses);
 
         float magicPct = GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent;
+        float corrPct = GetEquippedCorruptionDamagePercent();
+        float meleeGearPct = GetEquippedMeleePhysicalDamagePercent();
         if (skill == AttackSkill.Melee)
-            magicPct += meleeBonuses.meleeDamagePercent;
+        {
+            magicPct += meleeBonuses.meleeDamagePercent + meleeGearPct;
+            corrPct += meleeBonuses.meleeDamagePercent + meleeGearPct;
+        }
         if (skill == AttackSkill.Ranged)
             magicPct += rangedTotalPct;
-        if (skill == AttackSkill.Magic)
-            magicPct += skillBonuses.magicDamagePercent;
-
-        float corrPct = GetEquippedCorruptionDamagePercent();
-        if (skill == AttackSkill.Melee)
-            corrPct += meleeBonuses.meleeDamagePercent;
         if (skill == AttackSkill.Ranged)
             corrPct += rangedTotalPct;
+        if (skill == AttackSkill.Magic)
+            magicPct += skillBonuses.magicDamagePercent;
 
         if (skill == AttackSkill.Melee)
         {
@@ -2474,6 +2475,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ? GetActiveMeleeMinorBonuses()
             : GetUnlockedMeleeMinorBonuses();
         float pts = m.meleeDamagePercent * 100f;
+        if (GetCurrentAttackSkill() == AttackSkill.Melee)
+            pts += GetEquippedMeleePhysicalDamagePercent() * 100f;
         if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
             pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
         pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;

@@ -920,101 +920,8 @@ public static class ItemRandomStatRoller
     }
 
     /// <summary>Player-facing label for a random pool stat (database / encyclopedia tooltips).</summary>
-    public static string GetRandomStatDisplayName(RandomItemStatType stat, ItemDefinition item = null)
-    {
-        switch (stat)
-        {
-            case RandomItemStatType.BonusHealth:
-            case RandomItemStatType.ArmorBonusHealth:
-                return "Health";
-            case RandomItemStatType.BonusEnergy:
-            case RandomItemStatType.ArmorBonusEnergy:
-                return "Energy";
-            case RandomItemStatType.BonusMana:
-                return "Mana";
-            case RandomItemStatType.BonusArmor:
-            case RandomItemStatType.ArmorFlatArmor:
-                return "Armour";
-            case RandomItemStatType.BonusMagicResist:
-            case RandomItemStatType.ArmorMagicResist:
-                return "Magic Res";
-            case RandomItemStatType.BonusCorruptionResist:
-            case RandomItemStatType.ArmorCorruptionResist:
-                return "Corruption Res";
-            case RandomItemStatType.BonusPhysBlockChance:
-            case RandomItemStatType.ArmorPhysBlockChance:
-                return "Phys Block";
-            case RandomItemStatType.ManaRegen:
-                return "Mana Regen";
-            case RandomItemStatType.LifeRegen:
-                return "Life Regen";
-            case RandomItemStatType.EnergyRegen:
-                return "Energy Regen";
-            case RandomItemStatType.CritChanceBonus:
-            case RandomItemStatType.WeaponCritChance:
-                return "Crit Chance";
-            case RandomItemStatType.CritMultiplierBonus:
-            case RandomItemStatType.WeaponCritMultiplier:
-                return "Crit Multi";
-            case RandomItemStatType.AttackRangeBonus:
-            case RandomItemStatType.WeaponAttackRange:
-                return "Range";
-            case RandomItemStatType.WeaponAttacksPerSecond:
-                return "Speed";
-            case RandomItemStatType.WeaponMinPhysicalDamage:
-                return "Min Physical Damage";
-            case RandomItemStatType.WeaponMaxPhysicalDamage:
-                return "Max Physical Damage";
-            case RandomItemStatType.WeaponMinFireDamage:
-                return "Min Fire Damage";
-            case RandomItemStatType.WeaponMaxFireDamage:
-                return "Max Fire Damage";
-            case RandomItemStatType.WeaponMinIceDamage:
-                return "Min Ice Damage";
-            case RandomItemStatType.WeaponMaxIceDamage:
-                return "Max Ice Damage";
-            case RandomItemStatType.WeaponMinLightningDamage:
-                return "Min Lightning Damage";
-            case RandomItemStatType.WeaponMaxLightningDamage:
-                return "Max Lightning Damage";
-            case RandomItemStatType.WeaponMinCorruptionDamage:
-                return "Min Corruption Damage";
-            case RandomItemStatType.WeaponMaxCorruptionDamage:
-                return "Max Corruption Damage";
-            case RandomItemStatType.ArmorFlatGuard:
-                return "Guard";
-            case RandomItemStatType.ArmorMaxGuardPercent:
-                return "Max Guard";
-            case RandomItemStatType.BurnChance:
-                return "Burn Chance";
-            case RandomItemStatType.ChillChance:
-                return "Chill Chance";
-            case RandomItemStatType.ShockChance:
-                return "Shock Chance";
-            case RandomItemStatType.BurnMultiplier:
-                return "Burn Multiplier";
-            case RandomItemStatType.ChillMultiplier:
-                return "Chill Effect";
-            case RandomItemStatType.ShockMultiplier:
-                return "Shock Damage Amount";
-            case RandomItemStatType.BleedMultiplier:
-                return "Bleed Multi";
-            case RandomItemStatType.PoisonMultiplier:
-                return "Poison Multi";
-            case RandomItemStatType.WeaponMagicAilmentApplyChance:
-                return GetMagicAilmentChanceRollName(item);
-            case RandomItemStatType.ParryChance:
-                return "Parry Chance";
-            case RandomItemStatType.StunChance:
-                return "Stun Chance";
-            case RandomItemStatType.WeaponCorruptionDamageRange:
-                return "Corruption Damage";
-            case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
-                return "Enemy Respawn Reduction";
-            default:
-                return SplitCamelCase(stat.ToString());
-        }
-    }
+    public static string GetRandomStatDisplayName(RandomItemStatType stat, ItemDefinition item = null) =>
+        ItemStatDisplayNames.ForRandomPoolStat(stat, item);
 
     /// <summary>One line for the database item tooltip random-stat pool section.</summary>
     public static string FormatPoolEntryDatabaseLine(RandomStatPoolEntry entry, ItemDefinition item = null)
@@ -1025,20 +932,6 @@ public static class ItemRandomStatRoller
         string name = GetRandomStatDisplayName(entry.stat, item);
         string range = FormatPoolEntryValueRange(entry);
         return string.IsNullOrWhiteSpace(range) ? name : $"{name} ({range})";
-    }
-
-    private static string GetMagicAilmentChanceRollName(ItemDefinition item)
-    {
-        if (!item || !item.IsWeapon)
-            return "Magic Ailment Apply Chance";
-
-        return item.weaponStats.magicAttackType switch
-        {
-            MagicAttackType.Fire => "Burn Chance",
-            MagicAttackType.Ice => "Chill Chance",
-            MagicAttackType.Lightning => "Shock Chance",
-            _ => "Magic Ailment Apply Chance"
-        };
     }
 
     private static string FormatPoolEntryValueRange(RandomStatPoolEntry entry)
@@ -1102,22 +995,5 @@ public static class ItemRandomStatRoller
         if (abs >= 1f)
             return value.ToString("0.##");
         return value.ToString("0.###");
-    }
-
-    private static string SplitCamelCase(string raw)
-    {
-        if (string.IsNullOrEmpty(raw))
-            return raw;
-
-        var sb = new System.Text.StringBuilder(raw.Length + 8);
-        for (int i = 0; i < raw.Length; i++)
-        {
-            char c = raw[i];
-            if (i > 0 && char.IsUpper(c) && (char.IsLower(raw[i - 1]) || (i + 1 < raw.Length && char.IsLower(raw[i + 1]))))
-                sb.Append(' ');
-            sb.Append(c);
-        }
-
-        return sb.ToString();
     }
 }

@@ -180,6 +180,7 @@ public class ItemDatabase : ScriptableObject
         clone.itemId = id;
         clone.maxStack = 1;
         clone.hideFlags = HideFlags.DontSave;
+        clone.ClearRandomStatPool();
         RegisterRuntimeItem(clone, baseDef.itemId);
         return clone;
     }
@@ -261,6 +262,7 @@ public class ItemDatabase : ScriptableObject
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
             clone.randomStatsPendingIdentification = saved.randomStatsPendingIdentification;
+            clone.ClearRandomStatPool();
             clone.NormalizeEnhancementState();
         }
     }

@@ -555,13 +555,13 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Damage % (0.1 = +10%)", EditorStyles.boldLabel);
-        PropertyField(globalPhysicalDamagePercentCs, "Global physical %");
-        PropertyField(rangedPhysicalDamagePercentCs, "Ranged physical %");
-        PropertyField(magicDamagePercentCs, "All magic %");
-        PropertyField(fireDamagePercent, "Fire skills %");
-        PropertyField(iceDamagePercent, "Ice skills %");
-        PropertyField(coldDamagePercent, "Cold skills %");
-        PropertyField(corruptionDamagePercent, "Corruption %");
+        PropertyField(globalPhysicalDamagePercentCs, "Physical damage %");
+        PropertyField(rangedPhysicalDamagePercentCs, "Ranged damage %");
+        PropertyField(magicDamagePercentCs, "Magic %");
+        PropertyField(fireDamagePercent, "Fire damage %");
+        PropertyField(iceDamagePercent, "Ice damage %");
+        PropertyField(coldDamagePercent, "Cold damage %");
+        PropertyField(corruptionDamagePercent, "Corruption damage %");
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Consumption", EditorStyles.boldLabel);
@@ -1534,16 +1534,19 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Offense", EditorStyles.boldLabel);
-        PropertyField(physicalDamage, "Physical damage");
-        PropertyField(meleePhysicalDamagePercent, "Melee physical %");
-        PropertyField(globalPhysicalDamagePercentBonus, "Global physical %");
-        PropertyField(rangedPhysicalDamagePercentBonus, "Ranged physical %");
-        PropertyField(magicDamage, "Magic damage");
-        PropertyField(magicDamagePercent, "All magic %");
-        PropertyField(fireSkillDamagePercent, "Fire skills %");
-        PropertyField(iceSkillDamagePercent, "Ice skills %");
-        PropertyField(lightningSkillDamagePercent, "Lightning skills %");
-        PropertyField(corruptionDamage, "Corruption damage");
+        PropertyField(physicalDamage, "Physical damage (flat)");
+        PropertyField(meleePhysicalDamagePercent, "Melee damage %");
+        PropertyField(globalPhysicalDamagePercentBonus, "Physical damage %");
+        PropertyField(rangedPhysicalDamagePercentBonus, "Ranged damage %");
+        PropertyField(magicDamage, "Magic damage (flat)");
+        PropertyField(magicDamagePercent, "Magic damage %");
+        PropertyField(fireSkillDamagePercent, "Fire damage %");
+        PropertyField(iceSkillDamagePercent, "Ice damage %");
+        PropertyField(lightningSkillDamagePercent, "Lightning damage %");
+        SerializedProperty corruptionDamagePercent = bonusStats.FindPropertyRelative("corruptionDamagePercent");
+        if (corruptionDamagePercent != null)
+            PropertyField(corruptionDamagePercent, "Corruption damage %");
+        PropertyField(corruptionDamage, "Corruption damage (flat)");
         PropertyField(abilityPower, "Ability power %");
         PropertyField(attackSpeedPercent, "Attack speed %");
         PropertyField(critChanceBonus, "Crit chance bonus");
@@ -1620,7 +1623,7 @@ public class ItemDefinitionEditor : Editor
             return;
         }
 
-        DrawModuleHeader("Random Stat Pool");
+        DrawModuleHeader("Additional Random Stat Pool");
 
         EditorGUILayout.HelpBox(
             "Optional affixes rolled when this item enters the player's inventory.\n" +
@@ -1802,7 +1805,7 @@ public class ItemDefinitionEditor : Editor
             return;
 
         RandomItemStatType current = (RandomItemStatType)statProp.enumValueIndex;
-        string currentLabel = ObjectNames.NicifyVariableName(current.ToString());
+        string currentLabel = ItemStatDisplayNames.ForRandomPoolStat(current, (ItemDefinition)target);
 
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.PrefixLabel("Stat");
@@ -1825,7 +1828,7 @@ public class ItemDefinitionEditor : Editor
         foreach (RandomItemStatType value in Enum.GetValues(typeof(RandomItemStatType)))
         {
             string raw = value.ToString();
-            string label = ObjectNames.NicifyVariableName(raw);
+            string label = ItemStatDisplayNames.ForRandomPoolStat(value, (ItemDefinition)target);
             if (!string.IsNullOrEmpty(search) &&
                 raw.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0 &&
                 label.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0)

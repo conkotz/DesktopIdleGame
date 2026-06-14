@@ -587,7 +587,7 @@ public class InventoryGridUI : MonoBehaviour
                 if (!def && itemDb) def = itemDb.Get(s.itemId);
                 defIdentity = def != null ? def.GetInstanceID() : 0;
                 ItemDatabase db = itemDb != null ? itemDb : inventory.GetItemDatabase();
-                identifyPending = ItemRandomStatIdentification.IsPending(db, s.itemId);
+                identifyPending = ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(db, s.itemId);
             }
 
             if (interactiveSlotIndex == _rebindCacheSrcIdx[i] &&

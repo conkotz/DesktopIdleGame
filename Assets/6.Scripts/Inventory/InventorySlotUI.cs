@@ -251,7 +251,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (def == null || amount <= 0 || string.IsNullOrWhiteSpace(itemId) || inventory == null)
             return false;
 
-        return ItemRandomStatIdentification.IsPending(inventory.GetItemDatabase(), itemId);
+        return ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(inventory.GetItemDatabase(), itemId);
     }
 
     private void RefreshIdentifyIcon(bool show)
@@ -734,8 +734,23 @@ public class InventorySlotUI : MonoBehaviour,
             }
         }
 
+        ItemDatabase db = _inventory != null ? _inventory.GetItemDatabase() : null;
+        ItemRandomStatIdentification.GetTooltipRandomStatFlags(
+            db,
+            _def,
+            _itemId,
+            out bool maskUnrolledRandomStats,
+            out bool showRandomStatPoolOptions);
+
         // Use THIS slot as the anchor, so tooltip appears beside hovered slot
-        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+        _tooltip.ShowAt(
+            transform,
+            _def,
+            _amount,
+            compact: false,
+            maskUnrolledRandomStats: maskUnrolledRandomStats,
+            showRandomStatPoolOptions: showRandomStatPoolOptions,
+            itemId: _itemId);
     }
 
     public bool CanIdentifyStats()
@@ -743,7 +758,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (!HasItemContext || _inventory == null)
             return false;
 
-        return ItemRandomStatIdentification.IsPending(_inventory.GetItemDatabase(), _itemId);
+        return ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(_inventory.GetItemDatabase(), _itemId);
     }
 
     public void PerformIdentifyStatsAction()
