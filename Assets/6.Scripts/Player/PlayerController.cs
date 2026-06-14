@@ -410,6 +410,8 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private float reassertCooldown = 0.08f;
     private float _nextReassertTime;
+    private float _locomotionSampleStartX;
+    private const float LocomotionMotionEpsilon = 0.0008f;
 
 
     private bool _hasActionOverride = false;
@@ -577,6 +579,8 @@ public class PlayerController : MonoBehaviour
         if (_isDead)
             return;
 
+        _locomotionSampleStartX = transform.position.x;
+
         PlayerSprintInput.PollSprintKey();
 
         if (_attackLocked && Time.time >= _attackUnlockTime)
@@ -592,6 +596,7 @@ public class PlayerController : MonoBehaviour
         TryEnterAreaHotkey();
 
         TickStateMachine();
+        ApplyKeyboardMovementDelta();
         ApplyActionPresentation();
 
         UpdateSpriteFlip();
@@ -599,8 +604,6 @@ public class PlayerController : MonoBehaviour
         SyncWoodcuttingFlowStateHudBuffIfNeeded();
         TickFishingCalmWatersLingerDecay();
         SyncFishingCalmWatersMajorHudBuffIfNeeded();
-
-        ApplyKeyboardMovementDelta();
     }
 
     private void TickStateMachine()
@@ -671,11 +674,7 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyActionPresentation()
     {
-        bool isMoving =
-            IsPlayerSteeringMovement ||
-            state == State.MoveToPoint ||
-            state == State.MoveToTarget ||
-            state == State.MoveToPickup;
+        bool isLocomoting = ShouldPresentWalkingLocomotion();
 
         bool isGathering =
             state == State.Gather;
@@ -687,16 +686,14 @@ public class PlayerController : MonoBehaviour
 
         // Fighting only after combat has started (swing / soft-combat), not merely because a target is selected.
         bool shouldShowFighting =
-            !isMoving &&
+            !isLocomoting &&
             !isGathering &&
             (_attackLocked || InCombat);
 
         // Steady locomotion: skip SetAction spam, but still recover walk if hurt/combat kicked the Animator to idle.
-        if (isMoving &&
+        if (isLocomoting &&
             !shouldShowFighting &&
-            _action == PlayerAction.Walking &&
-            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup ||
-             _keyboardManualMoveThisFrame))
+            _action == PlayerAction.Walking)
         {
             EnsureWalkAnimatorDuringLocomotion();
             return;
@@ -724,7 +721,12 @@ public class PlayerController : MonoBehaviour
                 case State.MoveToTarget:
                 case State.MoveToPoint:
                 case State.MoveToPickup:
-                    SetAction(PlayerAction.Walking);
+                    if (isLocomoting)
+                        SetAction(PlayerAction.Walking);
+                    else if (hasLiveCombatTarget)
+                        SetAction(PlayerAction.Fighting);
+                    else
+                        SetAction(PlayerAction.Idle);
                     break;
 
                 case State.Gather:
@@ -1974,7 +1976,7 @@ public class PlayerController : MonoBehaviour
                 combat.CurrentTarget != null &&
                 !combat.CurrentTarget.IsDead)
             {
-                // Stay in MoveToPoint so presentation remains Walking while combat retargets micro-steps.
+                state = State.Idle;
                 return;
             }
             else if (_moveToPointFromPlayerInput)
@@ -3673,7 +3675,7 @@ public class PlayerController : MonoBehaviour
         // so we must re-assert the correct state by checking the Animator's REAL current state.
         if (!forceNotify && _action == newAction)
         {
-            if (newAction == PlayerAction.Walking && IsLocomotionPresentationActive())
+            if (newAction == PlayerAction.Walking && ShouldPresentWalkingLocomotion())
             {
                 EnsureWalkAnimatorDuringLocomotion();
                 return;
@@ -3722,27 +3724,46 @@ public class PlayerController : MonoBehaviour
         PlayState(expected, restart: false);
     }
 
+    private bool HasHorizontalLocomotionThisFrame()
+    {
+        return Mathf.Abs(transform.position.x - _locomotionSampleStartX) > LocomotionMotionEpsilon;
+    }
+
+    private bool ShouldPresentWalkingLocomotion()
+    {
+        return _keyboardManualMoveThisFrame || HasHorizontalLocomotionThisFrame();
+    }
+
     private bool IsLocomotionPresentationActive()
     {
-        return _keyboardManualMoveThisFrame ||
-               IsPlayerSteeringMovement ||
-               _action == PlayerAction.Walking ||
-               state == State.MoveToPoint ||
-               state == State.MoveToTarget ||
-               state == State.MoveToPickup;
+        return ShouldPresentWalkingLocomotion();
     }
+
+    private bool _walkAnimatorConfirmedThisSession;
+    private int _lastWalkAnimatorVerifyFrame = -1;
 
     /// <summary>
     /// Lightweight walk recovery during steady locomotion — hurt/combat can kick the Animator to idle without changing <see cref="_action"/>.
     /// </summary>
     private void EnsureWalkAnimatorDuringLocomotion()
     {
-        if (!animator || _attackLocked)
+        if (!animator || _attackLocked || !ShouldPresentWalkingLocomotion())
             return;
+
+        int frame = Time.frameCount;
+        if (_walkAnimatorConfirmedThisSession && frame - _lastWalkAnimatorVerifyFrame < 4)
+            return;
+
+        _lastWalkAnimatorVerifyFrame = frame;
 
         AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(0);
         if (st.IsName(walkStateName))
+        {
+            _walkAnimatorConfirmedThisSession = true;
             return;
+        }
+
+        _walkAnimatorConfirmedThisSession = false;
 
         if (Time.time < _nextReassertTime)
             return;
@@ -3758,11 +3779,8 @@ public class PlayerController : MonoBehaviour
         // During an attack, do not override anything
         if (_attackLocked) return;
 
-        // Moving
-        if (_keyboardManualMoveThisFrame ||
-            state == State.MoveToPoint ||
-            state == State.MoveToTarget ||
-            state == State.MoveToPickup)
+        // Moving — walk only while horizontal speed is actually non-zero (or keyboard steer is held).
+        if (ShouldPresentWalkingLocomotion())
         {
             PlayState(walkStateName, restart: false);
             return;
@@ -3836,13 +3854,29 @@ public class PlayerController : MonoBehaviour
         _clearFightOverrideRoutine = null;
 
         // Force a refresh so we immediately go back to walk / gather / idle as appropriate
-        PlayerAction resume =
-            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup)
-                ? PlayerAction.Walking
-                : state == State.Gather
-                    ? GetGatherAction()
-                    : PlayerAction.Idle;
+        PlayerAction resume = PlayerAction.Idle;
+        if (state == State.Gather)
+            resume = GetGatherAction();
+        else if (HasPendingLocomotionTarget())
+            resume = PlayerAction.Walking;
         SetAction(resume, true);
+    }
+
+    private bool HasPendingLocomotionTarget()
+    {
+        switch (state)
+        {
+            case State.MoveToPoint:
+                return Mathf.Abs(transform.position.x - moveTargetX) > LocomotionMotionEpsilon;
+            case State.MoveToTarget:
+                return targetNode != null &&
+                       Mathf.Abs(transform.position.x - targetNode.workSpot.position.x) > LocomotionMotionEpsilon;
+            case State.MoveToPickup:
+                return _pickupTarget != null &&
+                       Mathf.Abs(transform.position.x - _pickupTarget.transform.position.x) > LocomotionMotionEpsilon;
+            default:
+                return false;
+        }
     }
 
 

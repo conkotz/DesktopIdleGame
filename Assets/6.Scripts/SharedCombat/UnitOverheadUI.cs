@@ -183,6 +183,7 @@ public class UnitOverheadUI : MonoBehaviour
     private bool _spanBoundsDirty = true;
     private float _nextSpanBoundsRefreshTime;
     private Vector2 _lastSpanBoundsBaseAnchored;
+    private float _nextSpanBoundsThrottleTime;
     private const float SpanBoundsRefreshInterval = 0.12f;
     private const float SpanBoundsAnchorDeltaPx = 2f;
     private const float SpanBoundsVerticalDeltaPx = 0.75f;
@@ -409,6 +410,21 @@ public class UnitOverheadUI : MonoBehaviour
     private void InvalidateSpanBounds()
     {
         _spanBoundsDirty = true;
+    }
+
+    /// <summary>
+    /// HP/name digits usually keep the same width; skip span remeasure on every combat tick unless length changes.
+    /// </summary>
+    private void InvalidateSpanBoundsAfterTextChange(string previousText, string nextText)
+    {
+        if (previousText != null && nextText != null && previousText.Length == nextText.Length)
+            return;
+
+        if (Time.unscaledTime < _nextSpanBoundsThrottleTime)
+            return;
+
+        _nextSpanBoundsThrottleTime = Time.unscaledTime + 0.1f;
+        InvalidateSpanBounds();
     }
 
     private static void RemoveStackStateForInstance(int uiId)
@@ -1003,23 +1019,20 @@ public class UnitOverheadUI : MonoBehaviour
         if (tmp == null || !tmp.gameObject.activeInHierarchy)
             return;
 
-        tmp.ForceMeshUpdate();
-        Bounds b = tmp.textBounds;
-        Vector3 c = b.center;
-        Vector3 e = b.extents;
-        if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+        string label = tmp.text;
+        if (string.IsNullOrEmpty(label))
             return;
 
-        for (int ix = -1; ix <= 1; ix += 2)
-        for (int iy = -1; iy <= 1; iy += 2)
-        for (int iz = -1; iz <= 1; iz += 2)
-        {
-            Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
-            Vector3 world = tmp.transform.TransformPoint(localCorner);
-            Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
-            if (canvasLocal.x < minX) minX = canvasLocal.x;
-            if (canvasLocal.x > maxX) maxX = canvasLocal.x;
-        }
+        Vector2 preferred = tmp.GetPreferredValues(label, tmp.fontSize, 0f);
+        if (preferred.x < 1e-4f)
+            return;
+
+        Vector3 canvasLocal = canvasRt.InverseTransformPoint(tmp.rectTransform.position);
+        float halfW = preferred.x * 0.5f;
+        float localMin = canvasLocal.x - halfW;
+        float localMax = canvasLocal.x + halfW;
+        if (localMin < minX) minX = localMin;
+        if (localMax > maxX) maxX = localMax;
     }
 
     private void ExpandHorizontalSpanWithTmpMeshBounds(RectTransform canvasRt, ref float minX, ref float maxX)
@@ -1044,23 +1057,20 @@ public class UnitOverheadUI : MonoBehaviour
         if (tmp == null || !tmp.gameObject.activeInHierarchy)
             return;
 
-        tmp.ForceMeshUpdate();
-        Bounds b = tmp.textBounds;
-        Vector3 c = b.center;
-        Vector3 e = b.extents;
-        if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+        string label = tmp.text;
+        if (string.IsNullOrEmpty(label))
             return;
 
-        for (int ix = -1; ix <= 1; ix += 2)
-        for (int iy = -1; iy <= 1; iy += 2)
-        for (int iz = -1; iz <= 1; iz += 2)
-        {
-            Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
-            Vector3 world = tmp.transform.TransformPoint(localCorner);
-            Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
-            if (canvasLocal.y < minY) minY = canvasLocal.y;
-            if (canvasLocal.y > maxY) maxY = canvasLocal.y;
-        }
+        Vector2 preferred = tmp.GetPreferredValues(label, tmp.fontSize, 0f);
+        if (preferred.y < 1e-4f)
+            return;
+
+        Vector3 canvasLocal = canvasRt.InverseTransformPoint(tmp.rectTransform.position);
+        float halfH = preferred.y * 0.5f;
+        float localMin = canvasLocal.y - halfH;
+        float localMax = canvasLocal.y + halfH;
+        if (localMin < minY) minY = localMin;
+        if (localMax > maxY) maxY = localMax;
     }
 
     private static readonly Vector3[] UnitOverheadUIWorkCorners = new Vector3[4];
@@ -1896,9 +1906,10 @@ public class UnitOverheadUI : MonoBehaviour
 
             if (nextName != _cachedNameDisplay)
             {
+                string previous = _cachedNameDisplay;
                 _cachedNameDisplay = nextName;
                 nameText.text = nextName;
-                InvalidateSpanBounds();
+                InvalidateSpanBoundsAfterTextChange(previous, nextName);
             }
         }
 
@@ -1924,9 +1935,10 @@ public class UnitOverheadUI : MonoBehaviour
                 string nextProfile = characterStats.GetCombatProfileRichTextLabel();
                 if (nextProfile != _cachedCombatProfileDisplay)
                 {
+                    string previous = _cachedCombatProfileDisplay;
                     _cachedCombatProfileDisplay = nextProfile;
                     combatProfileText.text = nextProfile;
-                    InvalidateSpanBounds();
+                    InvalidateSpanBoundsAfterTextChange(previous, nextProfile);
                 }
 
                 combatProfileText.color = Color.white;
@@ -1953,9 +1965,10 @@ public class UnitOverheadUI : MonoBehaviour
             string next = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
             if (next != _cachedHpValueDisplay)
             {
+                string previous = _cachedHpValueDisplay;
                 _cachedHpValueDisplay = next;
                 hpValueText.text = next;
-                InvalidateSpanBounds();
+                InvalidateSpanBoundsAfterTextChange(previous, next);
             }
 
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
@@ -1992,9 +2005,10 @@ public class UnitOverheadUI : MonoBehaviour
                 string next = $"{Mathf.CeilToInt(current)}";
                 if (next != _cachedGuardValueDisplay)
                 {
+                    string previous = _cachedGuardValueDisplay;
                     _cachedGuardValueDisplay = next;
                     guardValueText.text = next;
-                    InvalidateSpanBounds();
+                    InvalidateSpanBoundsAfterTextChange(previous, next);
                 }
             }
         }
@@ -2037,9 +2051,10 @@ public class UnitOverheadUI : MonoBehaviour
             string next = $"{current}/{max}";
             if (next != _cachedHpValueDisplay)
             {
+                string previous = _cachedHpValueDisplay;
                 _cachedHpValueDisplay = next;
                 hpValueText.text = next;
-                InvalidateSpanBounds();
+                InvalidateSpanBoundsAfterTextChange(previous, next);
             }
 
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));

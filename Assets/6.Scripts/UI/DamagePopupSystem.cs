@@ -47,8 +47,12 @@ public class DamagePopupSystem : MonoBehaviour
     [Header("Pooling")]
     [SerializeField, Min(0)] private int popupPoolPrewarmCount = 20;
     [SerializeField, Min(8)] private int maxActivePopups = 48;
+    [Tooltip("Caps numeric damage popups per frame so multi-hit channels (Whirlwind) do not GC-spike.")]
+    [SerializeField, Min(4)] private int maxNumericPopupSpawnsPerFrame = 12;
 
     private int _popupSpawnIndex = 0;
+    private int _numericPopupSpawnsThisFrame;
+    private int _numericPopupSpawnFrame = -1;
 
     private readonly Stack<FloatingDamageTextUI> _pool = new();
     private readonly List<FloatingDamageTextUI> _active = new();
@@ -419,7 +423,20 @@ public class DamagePopupSystem : MonoBehaviour
             ? statusPopupScreenYOffset
             : (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
         if (!isLingeringStatus)
+        {
+            int frame = Time.frameCount;
+            if (frame != _numericPopupSpawnFrame)
+            {
+                _numericPopupSpawnFrame = frame;
+                _numericPopupSpawnsThisFrame = 0;
+            }
+
+            if (_numericPopupSpawnsThisFrame >= maxNumericPopupSpawnsPerFrame)
+                return;
+
+            _numericPopupSpawnsThisFrame++;
             _popupSpawnIndex++;
+        }
 
         if (!TryRentFloater(worldPos, new Vector2(xJitter, yOffset), out FloatingDamageTextUI floater))
             return;

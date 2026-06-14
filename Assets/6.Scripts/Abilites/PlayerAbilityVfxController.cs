@@ -396,7 +396,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private static bool s_LoggedMissingUrParticleMaterial;
     private static Sprite s_RuntimeCircleSprite;
     private static Sprite s_HammerTempestRadialRingSprite;
-    private static Material s_WhirlingBladeTrailMaterial;
+    private static Material s_DefaultSpritesLineMaterial;
+    private static Material s_CachedRuntimeUrParticleMaterial;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
 
@@ -649,7 +650,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.numCapVertices = 0;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
-        trail.material = GetWhirlwindBladeTrailMaterial();
+        trail.sharedMaterial = GetDefaultSpritesLineMaterial();
         trail.widthCurve = new AnimationCurve(
             new Keyframe(0f, 0f),
             new Keyframe(0.05f, 0.015f),
@@ -918,7 +919,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ring.loop = false;
         ring.positionCount = 18;
         ring.widthMultiplier = guardiansHammerShockwaveLineWidth;
-        ring.material = new Material(Shader.Find("Sprites/Default"));
+        ring.sharedMaterial = GetDefaultSpritesLineMaterial();
         ring.startColor = shockwaveColor;
         ring.endColor = shockwaveColor;
         if (!TryApplyPlayerSpriteSortingToRenderer(ring, 16))
@@ -1120,7 +1121,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         GameObject slashGo = new GameObject("FinalSeveranceSlashVfx");
         LineRenderer line = slashGo.AddComponent<LineRenderer>();
-        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.sharedMaterial = GetDefaultSpritesLineMaterial();
         line.positionCount = 2;
         line.startWidth = finalSeveranceLineWidth * widthScale;
         line.endWidth = finalSeveranceLineWidth * 0.55f * widthScale;
@@ -1182,7 +1183,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         GameObject arcGO = new GameObject("CrescentSlashArcVfx");
         arcGO.transform.position = startPos;
         LineRenderer line = arcGO.AddComponent<LineRenderer>();
-        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.sharedMaterial = GetDefaultSpritesLineMaterial();
         line.startWidth = crescentSlashLineWidth;
         line.endWidth = crescentSlashLineWidth * 0.75f;
         line.numCapVertices = 6;
@@ -1360,16 +1361,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    private static Material GetWhirlwindBladeTrailMaterial()
+    private static Material GetDefaultSpritesLineMaterial()
     {
-        if (s_WhirlingBladeTrailMaterial != null)
-            return s_WhirlingBladeTrailMaterial;
+        if (s_DefaultSpritesLineMaterial != null)
+            return s_DefaultSpritesLineMaterial;
 
         Shader shader = Shader.Find("Sprites/Default");
-        if (shader != null)
-            s_WhirlingBladeTrailMaterial = new Material(shader);
+        if (shader == null)
+            return null;
 
-        return s_WhirlingBladeTrailMaterial;
+        s_DefaultSpritesLineMaterial = new Material(shader) { color = Color.white };
+        s_DefaultSpritesLineMaterial.mainTexture = Texture2D.whiteTexture;
+        return s_DefaultSpritesLineMaterial;
     }
 
     private IEnumerator AnimateGaleforceTwister(
@@ -1724,7 +1727,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ring.loop = true;
         ring.positionCount = 24;
         ring.widthMultiplier = shadowStrikeBurstLineWidth;
-        ring.material = new Material(Shader.Find("Sprites/Default"));
+        ring.sharedMaterial = GetDefaultSpritesLineMaterial();
         ring.startColor = burstColor;
         ring.endColor = burstColor;
         if (!TryApplyPlayerSpriteSortingToRenderer(ring, 12))
@@ -1954,7 +1957,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.numCapVertices = 1;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
-        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.sharedMaterial = GetDefaultSpritesLineMaterial();
         trail.widthCurve = new AnimationCurve(
             new Keyframe(0f, 0.95f),
             new Keyframe(0.18f, 1f),
@@ -2151,7 +2154,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         line.endWidth = width * 0.35f;
         line.numCornerVertices = 2;
         line.numCapVertices = 2;
-        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.sharedMaterial = GetDefaultSpritesLineMaterial();
         line.startColor = color;
         line.endColor = color;
         if (!TryApplyPlayerSpriteSortingToRenderer(line, sortingOrderBump))
@@ -2191,7 +2194,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.numCapVertices = 4;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
-        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.sharedMaterial = GetDefaultSpritesLineMaterial();
         trail.emitting = false;
         if (!TryApplyPlayerSpriteSortingToRenderer(trail, 11))
             trail.sortingOrder = 22;
@@ -2812,9 +2815,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
             lr.sortingOrder = woodcuttingTreeOutlineSortingOrder;
         }
 
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault) { color = Color.white };
+        lr.sharedMaterial = GetDefaultSpritesLineMaterial();
 
         _woodcuttingTreeOutlineByNode[node] = lr;
         return lr;
@@ -2891,9 +2892,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         else if (!TryApplyPlayerSpriteSortingToRenderer(lr, cleavingChopIndicatorSortingOrder))
             lr.sortingOrder = cleavingChopIndicatorSortingOrder;
 
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault) { color = Color.white };
+        lr.sharedMaterial = GetDefaultSpritesLineMaterial();
     }
 
     private void RebuildCleavingChopIndicatorCircle(float radius)
@@ -2962,9 +2961,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.numCornerVertices = 2;
         trail.numCapVertices = 2;
 
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            trail.material = new Material(spritesDefault) { color = Color.white };
+        trail.sharedMaterial = GetDefaultSpritesLineMaterial();
 
         var gradient = new Gradient();
         gradient.SetKeys(
@@ -3034,9 +3031,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         else if (!TryApplyPlayerSpriteSortingToRenderer(lr, spectralAxeAreaIndicatorSortingOrder))
             lr.sortingOrder = spectralAxeAreaIndicatorSortingOrder;
 
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault) { color = Color.white };
+        lr.sharedMaterial = GetDefaultSpritesLineMaterial();
 
         _spectralAxeAreaIndicatorAppliedRadius = float.NaN;
     }
@@ -3282,43 +3277,54 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (mat == null)
             return;
 
-        renderer.material = mat;
+        renderer.sharedMaterial = mat;
         renderer.trailMaterial = mat;
     }
 
     private Material TryCreateRuntimeUrParticleMaterial()
     {
+        if (s_CachedRuntimeUrParticleMaterial != null)
+            return s_CachedRuntimeUrParticleMaterial;
+
         if (runtimeParticleMaterialTemplate != null && runtimeParticleMaterialTemplate.shader != null)
-            return new Material(runtimeParticleMaterialTemplate);
-
-        // Tinted billboards: Sprites/Default respects ParticleSystem vertex colors (the original green look in URP 2D).
-        // URP Particles/Unlit can end up fully invisible with some trail + sheet setups; keep it as fallback below.
-        Shader spriteShader = Shader.Find("Sprites/Default");
-        if (spriteShader != null)
+            s_CachedRuntimeUrParticleMaterial = new Material(runtimeParticleMaterialTemplate);
+        else
         {
-            var spriteMat = new Material(spriteShader) { color = Color.white };
-            spriteMat.mainTexture = Texture2D.whiteTexture;
-            return spriteMat;
-        }
-
-        Material fromResources = Resources.Load<Material>(ResourcesUrParticleMaterialPath);
-        if (fromResources != null && fromResources.shader != null)
-            return new Material(fromResources);
-
-        Shader shader = TryResolveUrParticleShader();
-        if (shader == null)
-        {
-            if (!s_LoggedMissingUrParticleMaterial)
+            // Tinted billboards: Sprites/Default respects ParticleSystem vertex colors (the original green look in URP 2D).
+            // URP Particles/Unlit can end up fully invisible with some trail + sheet setups; keep it as fallback below.
+            Shader spriteShader = Shader.Find("Sprites/Default");
+            if (spriteShader != null)
             {
-                s_LoggedMissingUrParticleMaterial = true;
-                Debug.LogWarning(
-                    "PlayerAbilityVfxController: No particle material/shader available (Sprites/Default missing and no URP fallback). Assign Runtime Particle Material Template or keep Assets/Resources/Vfx/AbilityVfx_ParticlesUnlit.mat.");
+                var spriteMat = new Material(spriteShader) { color = Color.white };
+                spriteMat.mainTexture = Texture2D.whiteTexture;
+                s_CachedRuntimeUrParticleMaterial = spriteMat;
             }
+            else
+            {
+                Material fromResources = Resources.Load<Material>(ResourcesUrParticleMaterialPath);
+                if (fromResources != null && fromResources.shader != null)
+                    s_CachedRuntimeUrParticleMaterial = new Material(fromResources);
+                else
+                {
+                    Shader shader = TryResolveUrParticleShader();
+                    if (shader == null)
+                    {
+                        if (!s_LoggedMissingUrParticleMaterial)
+                        {
+                            s_LoggedMissingUrParticleMaterial = true;
+                            Debug.LogWarning(
+                                "PlayerAbilityVfxController: No particle material/shader available (Sprites/Default missing and no URP fallback). Assign Runtime Particle Material Template or keep Assets/Resources/Vfx/AbilityVfx_ParticlesUnlit.mat.");
+                        }
 
-            return null;
+                        return null;
+                    }
+
+                    s_CachedRuntimeUrParticleMaterial = new Material(shader);
+                }
+            }
         }
 
-        return new Material(shader);
+        return s_CachedRuntimeUrParticleMaterial;
     }
 
     private static Shader TryResolveUrParticleShader()
@@ -4024,7 +4030,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         line.positionCount = 48;
         line.startWidth = 0.22f;
         line.endWidth = 0.04f;
-        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.sharedMaterial = GetDefaultSpritesLineMaterial();
         line.startColor = flameChargeVolcanicBurstColor;
         line.endColor = new Color(flameChargeVolcanicBurstColor.r, flameChargeVolcanicBurstColor.g, flameChargeVolcanicBurstColor.b, 0f);
         ApplyFlameChargeGroundSorting(line);
@@ -4244,9 +4250,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ApplyExecutionersDescentSorting(lr);
         lr.sortingOrder = executionersDescentSortingOrder - 1;
 
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault);
+        lr.sharedMaterial = GetDefaultSpritesLineMaterial();
 
         const int segments = 48;
         lr.positionCount = segments;
@@ -4429,9 +4433,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         lr.numCapVertices = 4;
         lr.startWidth = executionersDescentShockwaveLineWidth;
         lr.endWidth = executionersDescentShockwaveLineWidth * 0.65f;
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault);
+        lr.sharedMaterial = GetDefaultSpritesLineMaterial();
         ApplyExecutionersDescentSorting(lr);
         return lr;
     }
