@@ -273,6 +273,32 @@ public class ShopUI : MonoBehaviour
         return null;
     }
 
+    /// <summary>True when embedded inventory grids were built during load prewarm.</summary>
+    public bool IsDisplayPrewarmedForLoad()
+    {
+        TryResolveRefs();
+
+        if (!slotPrefab || !contentRoot)
+            return true;
+
+        GameObject prewarmRoot = ResolveWindowRoot();
+        if (!prewarmRoot)
+            prewarmRoot = panelRoot;
+
+        if (!prewarmRoot)
+            return true;
+
+        InventoryGridUI[] grids = prewarmRoot.GetComponentsInChildren<InventoryGridUI>(true);
+        for (int i = 0; i < grids.Length; i++)
+        {
+            InventoryGridUI grid = grids[i];
+            if (grid && !grid.IsDisplayPrewarmed)
+                return false;
+        }
+
+        return true;
+    }
+
     public IEnumerator CoPrewarmForLoad(Merchant sampleMerchant)
     {
         TryResolveRefs();

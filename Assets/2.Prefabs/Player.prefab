@@ -6303,7 +6303,7 @@ MonoBehaviour:
   groundSkin: 0.05
   fadeDuration: 1
   levelLoadScreenFadeSeconds: 1
-  levelLoadBlackHoldSeconds: 0.5
+  levelLoadBlackHoldSeconds: 0
   debugSnap: 0
 --- !u!114 &8305620475968429046
 MonoBehaviour:
@@ -6581,6 +6581,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLevelTransition
   shrinkDurationSeconds: 2
+  mapTeleportShrinkDurationSeconds: 1
   shrinkToScale: 0.01
 --- !u!114 &5821047392856102844
 MonoBehaviour:

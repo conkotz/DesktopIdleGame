@@ -1418,10 +1418,20 @@ public class SharedTooltipUI : MonoBehaviour
             return;
         }
 
-        RestoreDefaultParent();
-        transform.SetAsLastSibling();
-        _useHudTooltipScalePath = useHudTooltipScale;
-        SetAnchor(anchor);
+        bool alreadyShowingForAnchor = IsShowingFor(anchor);
+
+        if (!alreadyShowingForAnchor)
+        {
+            RestoreDefaultParent();
+            transform.SetAsLastSibling();
+            _useHudTooltipScalePath = useHudTooltipScale;
+            SetAnchor(anchor);
+        }
+        else
+        {
+            _useHudTooltipScalePath = useHudTooltipScale;
+            ApplyDockedTooltipScale();
+        }
 
         if (flipInsideBounds)
         {
@@ -1431,8 +1441,59 @@ public class SharedTooltipUI : MonoBehaviour
             flipInsideBounds.SetPreferredSide(preferredSide);
         }
 
+        if (alreadyShowingForAnchor &&
+            TryRefreshVisibleTextOnly(title, body, titleColor, useStatsDisplayHeader, skillTreeChrome))
+            return;
+
         ShowText(title, body, titleColor, useStatsDisplayHeader, skillTreeChrome);
         ApplyDockedTooltipScale();
+    }
+
+    public bool IsShowingFor(Transform anchor)
+    {
+        return anchor != null &&
+               _scaleAnchor == anchor &&
+               canvasGroup != null &&
+               canvasGroup.alpha > 0.01f;
+    }
+
+    /// <summary>Updates title/body on an already-visible tooltip without reparenting or full layout rebuild.</summary>
+    private bool TryRefreshVisibleTextOnly(
+        string title,
+        string body,
+        Color? titleColor,
+        bool useStatsDisplayHeader,
+        SkillTreeTooltipChrome skillTreeChrome)
+    {
+        if (skillTreeChrome != SkillTreeTooltipChrome.None || useStatsDisplayHeader)
+            return false;
+
+        if (!nameText)
+            return false;
+
+        string nextTitle = title ?? "";
+        bool hasTitle = !string.IsNullOrWhiteSpace(nextTitle);
+        if (nameText.gameObject.activeSelf != hasTitle)
+            return false;
+
+        if (hasTitle && !string.Equals(nameText.text, nextTitle, System.StringComparison.Ordinal))
+            return false;
+
+        if (!descriptionText)
+            return false;
+
+        string nextBody = body ?? "";
+        if (!string.Equals(descriptionText.text, nextBody, System.StringComparison.Ordinal))
+        {
+            descriptionText.text = nextBody;
+            bool hasBody = !string.IsNullOrWhiteSpace(nextBody);
+            descriptionText.gameObject.SetActive(hasBody);
+        }
+
+        if (hasTitle)
+            nameText.color = titleColor ?? defaultNameColor;
+
+        return true;
     }
 }
 

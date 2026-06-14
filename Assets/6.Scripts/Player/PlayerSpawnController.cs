@@ -31,7 +31,9 @@ public class PlayerSpawnController : MonoBehaviour
     [Header("Fade")]
     [SerializeField] private float fadeDuration = 0.2f;
     [SerializeField, Min(0f)] private float levelLoadScreenFadeSeconds = 1f;
-    [SerializeField, Min(0f)] private float levelLoadBlackHoldSeconds = 0.5f;
+    [SerializeField, Min(0f)] private float levelLoadBlackHoldSeconds = 0f;
+    [Tooltip("Extra black-screen hold after prewarm when entering a town map (covers late town UI settle).")]
+    [SerializeField, Min(0f)] private float townLoadBlackHoldSeconds = 0.2f;
 
     [Header("Debug")]
     [SerializeField] private bool debugSnap = false;
@@ -173,7 +175,6 @@ public class PlayerSpawnController : MonoBehaviour
 
         CanvasGroup loadFader = useScreenFade ? CreateOrResolveGameplayBlackFade() : null;
         LevelLoadScreenUI loadScreenUi = null;
-        float blackScreenStartTime = Time.unscaledTime;
 
         try
         {
@@ -395,11 +396,14 @@ public class PlayerSpawnController : MonoBehaviour
                 if (isGameplayScene)
                     yield return MainMenuUIPrewarm.CoWaitUntilComplete();
 
-                float elapsedBlack = Time.unscaledTime - blackScreenStartTime;
-                float targetBlackSeconds = Mathf.Max(levelLoadBlackHoldSeconds, elapsedBlack);
-                float remainingBlack = targetBlackSeconds - elapsedBlack;
-                if (remainingBlack > 0f)
-                    yield return new WaitForSecondsRealtime(remainingBlack);
+                float extraHold = levelLoadBlackHoldSeconds;
+                if (isGameplayScene &&
+                    GameplayLoadDisplayNames.IsActiveTownMap() &&
+                    townLoadBlackHoldSeconds > extraHold)
+                    extraHold = townLoadBlackHoldSeconds;
+
+                if (extraHold > 0.001f)
+                    yield return new WaitForSecondsRealtime(extraHold);
 
                 loadScreenUi?.SetVisible(false);
                 yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);

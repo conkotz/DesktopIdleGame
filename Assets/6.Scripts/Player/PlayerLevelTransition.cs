@@ -11,6 +11,7 @@ public class PlayerLevelTransition : MonoBehaviour
 {
     [Header("Shrink")]
     [SerializeField, Min(0.1f)] private float shrinkDurationSeconds = 2f;
+    [SerializeField, Min(0.1f)] private float mapTeleportShrinkDurationSeconds = 1f;
     [SerializeField, Min(0.001f)] private float shrinkToScale = 0.01f;
 
     private Vector3 _savedRootScale = Vector3.one;
@@ -121,7 +122,7 @@ public class PlayerLevelTransition : MonoBehaviour
         if (_startUniform < 1e-6f)
             _startUniform = 1f;
         _endScale = Mathf.Max(0.001f, shrinkToScale);
-        _dur = Mathf.Max(0.1f, shrinkDurationSeconds);
+        _dur = ResolveShrinkDurationSeconds();
         _elapsed = 0f;
         _pendingScene = sceneName;
         _shrinking = true;
@@ -139,6 +140,14 @@ public class PlayerLevelTransition : MonoBehaviour
         SaveManager.Instance?.SaveBeforeSceneTransition();
         SceneManager.LoadScene(_pendingScene);
         _running = null;
+    }
+
+    private float ResolveShrinkDurationSeconds()
+    {
+        if (MapTravelSession.PeekPendingEntryMethod() == MapTravelSession.EntryMethod.MapTeleport)
+            return Mathf.Max(0.1f, mapTeleportShrinkDurationSeconds);
+
+        return Mathf.Max(0.1f, shrinkDurationSeconds);
     }
 
     private void LateUpdate()

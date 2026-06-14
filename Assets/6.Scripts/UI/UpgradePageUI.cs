@@ -91,6 +91,8 @@ public sealed class UpgradePageUI : MonoBehaviour
     private bool _initialized;
     private bool _displayPrewarmed;
 
+    public bool IsDisplayPrewarmed => _displayPrewarmed;
+
     private const int OptionRowPrewarmBatchSize = 8;
 
     private enum UpgradeOptionFilter

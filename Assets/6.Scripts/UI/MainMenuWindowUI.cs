@@ -917,6 +917,43 @@ public class MainMenuWindowUI : MonoBehaviour
         }
     }
 
+    /// <summary>True when Character + Enhance tab pools/layout were built for this scene's menu instance.</summary>
+    public bool AreHeavyPagesPrewarmed() =>
+        IsMenuPagePrewarmed(characterPage) && IsMenuPagePrewarmed(upgradePage);
+
+    private static bool IsMenuPagePrewarmed(GameObject page)
+    {
+        if (!page)
+            return true;
+
+        InventoryGridUI[] grids = page.GetComponentsInChildren<InventoryGridUI>(true);
+        for (int i = 0; i < grids.Length; i++)
+        {
+            InventoryGridUI grid = grids[i];
+            if (!grid || grid.GetComponent<UpgradeInventoryGridUI>() != null)
+                continue;
+
+            if (!grid.IsDisplayPrewarmed)
+                return false;
+        }
+
+        UpgradeInventoryGridUI[] upgradeGrids = page.GetComponentsInChildren<UpgradeInventoryGridUI>(true);
+        for (int i = 0; i < upgradeGrids.Length; i++)
+        {
+            if (upgradeGrids[i] && !upgradeGrids[i].IsDisplayPrewarmed)
+                return false;
+        }
+
+        UpgradePageUI[] upgradePages = page.GetComponentsInChildren<UpgradePageUI>(true);
+        for (int i = 0; i < upgradePages.Length; i++)
+        {
+            if (upgradePages[i] && !upgradePages[i].IsDisplayPrewarmed)
+                return false;
+        }
+
+        return true;
+    }
+
     private void OnDestroy()
     {
         if (s_instance == this)

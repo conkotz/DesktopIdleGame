@@ -69,6 +69,9 @@ public static class MapTravelSession
         return m;
     }
 
+    /// <summary>Non-destructive read for shrink timing before <see cref="ApplyPendingSpawnDispositionBeforeSceneLoad"/> consumes the entry.</summary>
+    public static EntryMethod PeekPendingEntryMethod() => _pendingEntry;
+
     public static void ClearPendingEntryMethod()
     {
         _pendingEntry = EntryMethod.Unspecified;

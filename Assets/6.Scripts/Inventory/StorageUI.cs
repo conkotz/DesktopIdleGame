@@ -46,6 +46,8 @@ public class StorageUI : MonoBehaviour
             _instance = null;
     }
 
+    public bool IsGridPrewarmedForLoad() => grid != null && grid.IsDisplayPrewarmed;
+
     public IEnumerator CoPrewarmForLoad()
     {
         if (!grid)

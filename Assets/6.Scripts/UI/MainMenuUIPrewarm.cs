@@ -14,6 +14,13 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
 
     private static bool s_registeredSceneHook;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        IsComplete = false;
+        IsRunning = false;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void BootstrapAfterSceneLoad()
     {
@@ -32,6 +39,9 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
 
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (IsGameplayScene(scene))
+            IsComplete = false;
+
         TryStartForScene(scene);
     }
 
@@ -39,6 +49,12 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
     {
         if (!IsGameplayScene(scene))
             return;
+
+        if (IsLoadPrewarmReady())
+        {
+            IsComplete = true;
+            return;
+        }
 
         if (IsRunning)
             return;
@@ -52,17 +68,64 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
     private static bool IsGameplayScene(Scene scene) =>
         scene.IsValid() && scene.name.Equals("GamePlay", System.StringComparison.OrdinalIgnoreCase);
 
+    public static bool AreHeavyPagesPrewarmed()
+    {
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        return menu != null && menu.AreHeavyPagesPrewarmed();
+    }
+
+    /// <summary>Menu pages plus town storage/shops when the active map is a town.</summary>
+    public static bool IsLoadPrewarmReady()
+    {
+        if (!AreHeavyPagesPrewarmed())
+            return false;
+
+        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
+            return false;
+
+        return true;
+    }
+
+    public static bool AreTownServicesPrewarmed()
+    {
+        StorageUI[] storageUis =
+            Object.FindObjectsByType<StorageUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        for (int i = 0; i < storageUis.Length; i++)
+        {
+            StorageUI storageUi = storageUis[i];
+            if (storageUi && !storageUi.IsGridPrewarmedForLoad())
+                return false;
+        }
+
+        ShopUI[] shops = Object.FindObjectsByType<ShopUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < shops.Length; i++)
+        {
+            ShopUI shop = shops[i];
+            if (shop && !shop.IsDisplayPrewarmedForLoad())
+                return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Waits for menu (and town storage) prewarm while the load screen is black.</summary>
     public static IEnumerator CoWaitUntilComplete(float timeoutSeconds = 45f)
     {
-        if (IsComplete)
+        if (IsComplete || IsLoadPrewarmReady())
+        {
+            IsComplete = true;
             yield break;
+        }
 
         float start = Time.unscaledTime;
         while (!IsComplete && Time.unscaledTime - start < timeoutSeconds)
         {
-            if (!IsRunning && !IsComplete && Time.unscaledTime - start > 3f)
+            if (IsLoadPrewarmReady())
+            {
+                IsComplete = true;
                 yield break;
+            }
 
             yield return null;
         }
@@ -78,13 +141,16 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
         yield return CoWaitForGameplayAndSaveReady();
 
         MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
-        if (menu != null)
+        if (menu != null && !AreHeavyPagesPrewarmed())
             yield return menu.CoPrewarmHeavyPages();
 
-        if (GameplayLoadDisplayNames.IsActiveTownMap())
+        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
         {
             yield return CoPrewarmTownStorage();
             yield return GameplayShopPrewarm.CoPrewarmAllShops();
+
+            for (int i = 0; i < 5; i++)
+                yield return null;
         }
 
         IsComplete = true;
