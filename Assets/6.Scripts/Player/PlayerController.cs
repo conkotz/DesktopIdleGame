@@ -691,13 +691,14 @@ public class PlayerController : MonoBehaviour
             !isGathering &&
             (_attackLocked || InCombat);
 
-        // Steady locomotion: skip SetAction/animator reassert every frame during chase or keyboard move.
+        // Steady locomotion: skip SetAction spam, but still recover walk if hurt/combat kicked the Animator to idle.
         if (isMoving &&
             !shouldShowFighting &&
             _action == PlayerAction.Walking &&
             (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup ||
              _keyboardManualMoveThisFrame))
         {
+            EnsureWalkAnimatorDuringLocomotion();
             return;
         }
 
@@ -865,14 +866,8 @@ public class PlayerController : MonoBehaviour
         if (_attackLocked)
             return;
 
-        bool isMoving =
-            state == State.MoveToPoint ||
-            state == State.MoveToTarget ||
-            state == State.MoveToPickup;
-
-        // Don't interrupt locomotion with hurt while moving,
-        // otherwise the character visually slides.
-        if (isMoving)
+        // Never interrupt locomotion — hurt→idle while the transform keeps moving causes sliding.
+        if (IsLocomotionPresentationActive())
             return;
 
         animator.ResetTrigger(attackTriggerName);
@@ -1979,7 +1974,8 @@ public class PlayerController : MonoBehaviour
                 combat.CurrentTarget != null &&
                 !combat.CurrentTarget.IsDead)
             {
-                state = State.Idle;
+                // Stay in MoveToPoint so presentation remains Walking while combat retargets micro-steps.
+                return;
             }
             else if (_moveToPointFromPlayerInput)
             {
@@ -3677,11 +3673,9 @@ public class PlayerController : MonoBehaviour
         // so we must re-assert the correct state by checking the Animator's REAL current state.
         if (!forceNotify && _action == newAction)
         {
-            // Steady locomotion already on walk — avoid GetCurrentAnimatorStateInfo every frame.
-            if (newAction == PlayerAction.Walking &&
-                (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup ||
-                 _keyboardManualMoveThisFrame))
+            if (newAction == PlayerAction.Walking && IsLocomotionPresentationActive())
             {
+                EnsureWalkAnimatorDuringLocomotion();
                 return;
             }
 
@@ -3726,6 +3720,35 @@ public class PlayerController : MonoBehaviour
 
         _nextReassertTime = Time.time + reassertCooldown;
         PlayState(expected, restart: false);
+    }
+
+    private bool IsLocomotionPresentationActive()
+    {
+        return _keyboardManualMoveThisFrame ||
+               IsPlayerSteeringMovement ||
+               _action == PlayerAction.Walking ||
+               state == State.MoveToPoint ||
+               state == State.MoveToTarget ||
+               state == State.MoveToPickup;
+    }
+
+    /// <summary>
+    /// Lightweight walk recovery during steady locomotion — hurt/combat can kick the Animator to idle without changing <see cref="_action"/>.
+    /// </summary>
+    private void EnsureWalkAnimatorDuringLocomotion()
+    {
+        if (!animator || _attackLocked)
+            return;
+
+        AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(0);
+        if (st.IsName(walkStateName))
+            return;
+
+        if (Time.time < _nextReassertTime)
+            return;
+
+        _nextReassertTime = Time.time + reassertCooldown;
+        PlayState(walkStateName, restart: false);
     }
 
     private void UpdateAnimatorFromAction()
