@@ -53,11 +53,13 @@ public class Merchant : MonoBehaviour, ISaveable
     {
         ApplyIdentityToLabel();
         OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Npc, transform);
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
     }
 
     private void OnDisable()
     {
         OffscreenMarkerTargetRegistry.Unregister(transform);
+        WorldFloorFollowerRegistry.Unregister(transform);
     }
 
     private void OnValidate()

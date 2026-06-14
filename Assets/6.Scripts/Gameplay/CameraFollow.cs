@@ -320,6 +320,8 @@ public sealed class CameraFollow : MonoBehaviour
         }
 
         float x = camX + dx;
+        if (Mathf.Abs(dx) < 0.0001f)
+            return;
 
         Vector3 p = transform.position;
         p.x = x;

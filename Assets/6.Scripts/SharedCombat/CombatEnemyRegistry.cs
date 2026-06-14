@@ -8,11 +8,13 @@ using UnityEngine.SceneManagement;
 public static class CombatEnemyRegistry
 {
     private static readonly List<EnemyBaseController> Live = new(32);
+    private static int s_lastPruneFrame = -1;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
         Live.Clear();
+        s_lastPruneFrame = -1;
     }
 
     static CombatEnemyRegistry()
@@ -46,7 +48,13 @@ public static class CombatEnemyRegistry
 
     public static IReadOnlyList<EnemyBaseController> GetLiveEnemies()
     {
-        PruneInvalidEntries();
+        int frame = Time.frameCount;
+        if (frame != s_lastPruneFrame)
+        {
+            PruneInvalidEntries();
+            s_lastPruneFrame = frame;
+        }
+
         return Live;
     }
 

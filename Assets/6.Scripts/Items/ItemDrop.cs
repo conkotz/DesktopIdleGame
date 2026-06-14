@@ -59,6 +59,16 @@ public class ItemDrop : MonoBehaviour
         DropOrder = ++_dropSeq;
     }
 
+    private void OnEnable()
+    {
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.ItemDrop);
+    }
+
+    private void OnDisable()
+    {
+        WorldFloorFollowerRegistry.Unregister(transform);
+    }
+
     /// <param name="disableAutoDespawn">When true, the pickup never auto-destroys (e.g. level-placed one-shot loot).</param>
     public void Init(string itemId, int amount, Sprite icon, bool disableAutoDespawn = false)
     {

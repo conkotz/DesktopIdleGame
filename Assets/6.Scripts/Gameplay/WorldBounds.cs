@@ -30,15 +30,35 @@ public sealed class WorldBounds : MonoBehaviour
     /// <summary>World-space minimum Y from the lane collider (last refresh).</summary>
     public static float Bottom => _cachedBounds.min.y;
 
+    private Vector3 _lastRefreshPosition;
+    private Bounds _lastColliderBounds;
+
     private void Awake()
     {
         _laneCollider = GetComponent<BoxCollider2D>();
         Instance = this;
         RefreshBounds();
+        _lastRefreshPosition = transform.position;
     }
 
     private void LateUpdate()
     {
+        if (!_laneCollider)
+            _laneCollider = GetComponent<BoxCollider2D>();
+        if (!_laneCollider)
+            return;
+
+        Vector3 pos = transform.position;
+        Bounds b = _laneCollider.bounds;
+        if ((pos - _lastRefreshPosition).sqrMagnitude < 0.000001f &&
+            b.center == _lastColliderBounds.center &&
+            b.extents == _lastColliderBounds.extents)
+        {
+            return;
+        }
+
+        _lastRefreshPosition = pos;
+        _lastColliderBounds = b;
         RefreshBounds();
     }
 

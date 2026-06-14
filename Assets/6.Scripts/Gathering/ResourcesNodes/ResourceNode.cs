@@ -137,11 +137,13 @@ public class ResourceNode : MonoBehaviour
             OffscreenMarkerTargetRegistry.Kind.Resource,
             transform,
             ResolveOffscreenMarkerWorldPosition);
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Resource);
     }
 
     private void OnDisable()
     {
         OffscreenMarkerTargetRegistry.Unregister(transform);
+        WorldFloorFollowerRegistry.Unregister(transform);
     }
 
     private static Vector3 ResolveOffscreenMarkerWorldPosition(Transform resourceRoot)

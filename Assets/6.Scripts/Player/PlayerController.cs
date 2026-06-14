@@ -434,6 +434,7 @@ public class PlayerController : MonoBehaviour
     {
         SceneManager.sceneLoaded += HandleSceneLoaded;
         CombatPlayerRefs.Register(this);
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
         RebindCameras();
 
         if (!characterStats)
@@ -491,6 +492,7 @@ public class PlayerController : MonoBehaviour
     {
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         CombatPlayerRefs.Unregister(this);
+        WorldFloorFollowerRegistry.Unregister(transform);
 
         if (characterStats != null)
         {
@@ -684,6 +686,15 @@ public class PlayerController : MonoBehaviour
             !isMoving &&
             !isGathering &&
             (_attackLocked || InCombat);
+
+        // Steady locomotion: skip SetAction/animator reassert every frame during chase or keyboard move.
+        if (isMoving &&
+            !shouldShowFighting &&
+            _action == PlayerAction.Walking &&
+            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup))
+        {
+            return;
+        }
 
         if (shouldShowFighting)
         {
@@ -1838,6 +1849,11 @@ public class PlayerController : MonoBehaviour
         SetAction(PlayerAction.Walking, fromPlayerInput ? false : true);
     }
 
+    public bool IsCombatMoveTargetNear(float worldX, float epsilon)
+    {
+        return state == State.MoveToPoint && Mathf.Abs(moveTargetX - worldX) <= epsilon;
+    }
+
     public void MoveToPointX_Combat(float x)
     {
         if (_isDead) return;
@@ -1855,6 +1871,10 @@ public class PlayerController : MonoBehaviour
                 state = State.Idle;
             return;
         }
+
+        const float retargetEpsilon = 0.04f;
+        if (state == State.MoveToPoint && Mathf.Abs(moveTargetX - clamped) <= retargetEpsilon)
+            return;
 
         moveTargetX = clamped;
         state = State.MoveToPoint;
@@ -3636,6 +3656,13 @@ public class PlayerController : MonoBehaviour
         // so we must re-assert the correct state by checking the Animator's REAL current state.
         if (!forceNotify && _action == newAction)
         {
+            // Steady locomotion already on walk — avoid GetCurrentAnimatorStateInfo every frame.
+            if (newAction == PlayerAction.Walking &&
+                (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup))
+            {
+                return;
+            }
+
             ReassertAnimatorForAction(newAction);
             return;
         }

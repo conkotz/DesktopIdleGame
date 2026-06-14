@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -229,8 +230,8 @@ public class MinionCombatController : MonoBehaviour
         float myX = transform.position.x;
         float faceSign = unit.FacingSignX;
         float r = Mathf.Max(0.1f, range);
-        EnemyBaseController[] all = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
+        IReadOnlyList<EnemyBaseController> all = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < all.Count; i++)
         {
             EnemyBaseController e = all[i];
             if (!e || e.IsDead)
@@ -1052,10 +1053,10 @@ public class MinionCombatController : MonoBehaviour
     private static EnemyBaseController FindNearestEnemyExcluding(Vector3 from, float range, EnemyBaseController exclude)
     {
         float r2 = range * range;
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        IReadOnlyList<EnemyBaseController> candidates = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
         float bestD = float.MaxValue;
-        for (int i = 0; i < candidates.Length; i++)
+        for (int i = 0; i < candidates.Count; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!e || e.IsDead || e == exclude)

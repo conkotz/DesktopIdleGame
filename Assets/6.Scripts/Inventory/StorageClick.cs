@@ -59,6 +59,16 @@ public class StorageClick : MonoBehaviour
             Debug.LogError("[StorageClick] Missing Collider2D.", this);
     }
 
+    private void OnEnable()
+    {
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+    }
+
+    private void OnDisable()
+    {
+        WorldFloorFollowerRegistry.Unregister(transform);
+    }
+
     private void LateUpdate()
     {
         if (_active != this || openedSprite == null)

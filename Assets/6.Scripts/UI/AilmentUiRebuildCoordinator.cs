@@ -1,76 +1,115 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Profiling;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Coalesces multiple <see cref="AilmentController.OnAilmentsChanged"/> UI rebuilds into one pass per frame.
+/// Static API only — uses <see cref="Canvas.willRenderCanvases"/> (no runtime GameObject spawn).
+/// Any legacy scene/runtime object with this component is destroyed in <see cref="Awake"/>.
 /// </summary>
-[DefaultExecutionOrder(1000)]
 [DisallowMultipleComponent]
 public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
 {
-    private static AilmentUiRebuildCoordinator _instance;
-
-    private readonly HashSet<UnitOverheadUI> _pendingOverheads = new();
-    private readonly HashSet<BuffsDebuffsPanel> _pendingPanels = new();
+    private static readonly HashSet<UnitOverheadUI> PendingOverheads = new();
+    private static readonly HashSet<BuffsDebuffsPanel> PendingPanels = new();
+    private static bool _hookSubscribed;
+    private static int _lastFlushFrame = -1;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
-        _instance = null;
+        UnsubscribeHook();
+        PendingOverheads.Clear();
+        PendingPanels.Clear();
+        _lastFlushFrame = -1;
+    }
+
+    static AilmentUiRebuildCoordinator()
+    {
+        SceneManager.sceneUnloaded += OnSceneUnloaded;
+    }
+
+    private static void OnSceneUnloaded(Scene scene)
+    {
+        PendingOverheads.Clear();
+        PendingPanels.Clear();
+        _lastFlushFrame = -1;
+    }
+
+    /// <summary>
+    /// Destroys legacy scene/runtime orphans from the old dynamic-spawn implementation.
+    /// </summary>
+    private void Awake()
+    {
+        Destroy(gameObject);
     }
 
     public static void MarkUnitOverheadDirty(UnitOverheadUI overhead)
     {
-        if (!overhead)
+        if (!overhead || !Application.isPlaying)
             return;
 
-        EnsureInstance();
-        _instance._pendingOverheads.Add(overhead);
+        PendingOverheads.Add(overhead);
+        EnsureHook();
     }
 
     public static void MarkBuffsPanelDirty(BuffsDebuffsPanel panel)
     {
-        if (!panel)
+        if (!panel || !Application.isPlaying)
             return;
 
-        EnsureInstance();
-        _instance._pendingPanels.Add(panel);
+        PendingPanels.Add(panel);
+        EnsureHook();
     }
 
-    private static void EnsureInstance()
+    private static void EnsureHook()
     {
-        if (_instance)
+        if (_hookSubscribed)
             return;
 
-        var go = new GameObject(nameof(AilmentUiRebuildCoordinator));
-        DontDestroyOnLoad(go);
-        _instance = go.AddComponent<AilmentUiRebuildCoordinator>();
+        _hookSubscribed = true;
+        Canvas.willRenderCanvases += OnWillRenderCanvasesFlush;
     }
 
-    private void LateUpdate()
+    private static void UnsubscribeHook()
     {
-        if (_pendingOverheads.Count == 0 && _pendingPanels.Count == 0)
+        if (!_hookSubscribed)
             return;
+
+        Canvas.willRenderCanvases -= OnWillRenderCanvasesFlush;
+        _hookSubscribed = false;
+    }
+
+    private static void OnWillRenderCanvasesFlush()
+    {
+        if (PendingOverheads.Count == 0 && PendingPanels.Count == 0)
+            return;
+
+        int frame = Time.frameCount;
+        if (frame == _lastFlushFrame)
+            return;
+
+        _lastFlushFrame = frame;
 
         Profiler.BeginSample("AilmentUI.RebuildCoalesced");
         try
         {
-            foreach (UnitOverheadUI overhead in _pendingOverheads)
+            foreach (UnitOverheadUI overhead in PendingOverheads)
             {
                 if (overhead)
                     overhead.FlushCoalescedAilmentUiRebuild();
             }
 
-            _pendingOverheads.Clear();
+            PendingOverheads.Clear();
 
-            foreach (BuffsDebuffsPanel panel in _pendingPanels)
+            foreach (BuffsDebuffsPanel panel in PendingPanels)
             {
                 if (panel)
                     panel.FlushCoalescedAilmentUiRebuild();
             }
 
-            _pendingPanels.Clear();
+            PendingPanels.Clear();
         }
         finally
         {

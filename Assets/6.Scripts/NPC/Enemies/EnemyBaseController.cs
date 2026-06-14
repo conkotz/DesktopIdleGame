@@ -106,6 +106,9 @@ public class EnemyBaseController : MonoBehaviour
     private Rigidbody2D _rb;
     private PlayerController _playerController;
     private PlayerCombatState _playerCombatState;
+    private bool _cachedMovingAnimatorValue;
+    private bool _hasCachedMovingAnimatorValue;
+    private float _lastVisualsScaleX = float.NaN;
 
     private float _nextEnemyAttackTime;
     private bool _hitQueued;
@@ -438,11 +441,13 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         CombatEnemyRegistry.Register(this);
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
     }
 
     private void OnDisable()
     {
         CombatEnemyRegistry.Unregister(this);
+        WorldFloorFollowerRegistry.Unregister(transform);
 
         LevelAggroState.AggroPulseTriggered -= HandleAggroPulseTriggered;
 
@@ -701,6 +706,10 @@ public class EnemyBaseController : MonoBehaviour
             maxX = minX;
 
         Vector2 p = _rb.position;
+        float vx = _rb.linearVelocity.x;
+        if (p.x > minX + 0.001f && p.x < maxX - 0.001f && Mathf.Abs(vx) < 0.001f)
+            return;
+
         Vector2 v = _rb.linearVelocity;
 
         p.x = Mathf.Clamp(p.x, minX, maxX);
@@ -1665,6 +1674,11 @@ public class EnemyBaseController : MonoBehaviour
 
     private void SetMoving(bool moving)
     {
+        if (_hasCachedMovingAnimatorValue && _cachedMovingAnimatorValue == moving)
+            return;
+
+        _cachedMovingAnimatorValue = moving;
+        _hasCachedMovingAnimatorValue = true;
         SetBoolSafe(movingBool, moving);
     }
 
@@ -1838,7 +1852,12 @@ public class EnemyBaseController : MonoBehaviour
 
         Vector3 s = visualsRoot.localScale;
         float abs = Mathf.Abs(s.x);
-        s.x = flip ? -abs : abs;
+        float newScaleX = flip ? -abs : abs;
+        if (Mathf.Approximately(newScaleX, _lastVisualsScaleX))
+            return;
+
+        _lastVisualsScaleX = newScaleX;
+        s.x = newScaleX;
         visualsRoot.localScale = s;
 
         ApplyUIUnflip(s.x);

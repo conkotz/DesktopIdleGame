@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Applies <see cref="DropdownSettingId.CapFramerate"/> via <see cref="Application.targetFrameRate"/>.
+/// Applies <see cref="DropdownSettingId.CapFramerate"/> as a maximum FPS cap.
+/// Uses <see cref="FramerateCapPacer"/> only (not <see cref="Application.targetFrameRate"/>, which double-limits on Windows).
 /// </summary>
 public static class FramerateCapController
 {
@@ -35,7 +36,17 @@ public static class FramerateCapController
         int fps = s_capValues[index];
 
         QualitySettings.vSyncCount = 0;
-        Application.targetFrameRate = fps;
+        QualitySettings.maxQueuedFrames = 1;
+
+        if (fps <= 0)
+        {
+            FramerateCapPacer.SetTargetFps(-1);
+            Application.targetFrameRate = -1;
+            return;
+        }
+
+        Application.targetFrameRate = -1;
+        FramerateCapPacer.SetTargetFps(fps);
     }
 
     public static int GetCapValueForIndex(int index)

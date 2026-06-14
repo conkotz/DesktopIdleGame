@@ -188,6 +188,7 @@ public class PlayerSpawnController : MonoBehaviour
             {
                 loadFader.alpha = 1f;
                 BringGameplayBlackFadeToFront(loadFader);
+                GameplayLoadUiSuppressor.Begin();
                 loadScreenUi = LevelLoadScreenUI.EnsureOn(loadFader);
                 loadScreenUi?.SetMapName(GameplayLoadDisplayNames.ResolveActiveMapDisplayName());
             }
@@ -394,7 +395,7 @@ public class PlayerSpawnController : MonoBehaviour
                 loadScreenUi?.SetMapName(GameplayLoadDisplayNames.ResolveActiveMapDisplayName());
 
                 if (isGameplayScene)
-                    yield return MainMenuUIPrewarm.CoWaitUntilComplete();
+                    yield return CoWaitForPrewarmKeepingLoadFaderOnTop(loadFader);
 
                 float extraHold = levelLoadBlackHoldSeconds;
                 if (isGameplayScene &&
@@ -419,6 +420,8 @@ public class PlayerSpawnController : MonoBehaviour
 
             if (loadFader != null)
                 loadFader.alpha = 0f;
+
+            GameplayLoadUiSuppressor.End();
 
             if (isGameplayScene)
                 PlayerController.NotifyGameplayMapSpawnFinished();
@@ -586,6 +589,21 @@ public class PlayerSpawnController : MonoBehaviour
             yield return null;
         }
         cg.alpha = to;
+    }
+
+    private static IEnumerator CoWaitForPrewarmKeepingLoadFaderOnTop(CanvasGroup loadFader)
+    {
+        const float timeoutSeconds = 45f;
+        float start = Time.unscaledTime;
+
+        while (!MainMenuUIPrewarm.IsComplete && !MainMenuUIPrewarm.IsLoadPrewarmReady() &&
+               Time.unscaledTime - start < timeoutSeconds)
+        {
+            if (loadFader)
+                BringGameplayBlackFadeToFront(loadFader);
+
+            yield return null;
+        }
     }
 
     /// <summary>

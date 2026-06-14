@@ -67,6 +67,16 @@ public class MapNodePortalTeleporter : MonoBehaviour
         RefreshNameLabel();
     }
 
+    private void OnEnable()
+    {
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+    }
+
+    private void OnDisable()
+    {
+        WorldFloorFollowerRegistry.Unregister(transform);
+    }
+
     private void Update()
     {
         if (!_pendingEnter || _pendingPlayer == null || _pendingPlayer.IsDead)

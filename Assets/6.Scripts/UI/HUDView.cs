@@ -11,6 +11,10 @@ public class HUDView : MonoBehaviour
     [SerializeField] private bool fadeWhenPlayerOverlaps = true;
     [Tooltip("Also lower alpha when a live enemy overlaps the HUD (same test as the player).")]
     [SerializeField] private bool includeEnemiesInOverlapFade = true;
+    [Tooltip("Seconds between player overlap checks while moving (reduces camera-scroll cost).")]
+    [SerializeField, Min(0.02f)] private float playerOverlapScanInterval = 0.1f;
+    [Tooltip("Seconds between enemy overlap checks when enemy overlap fade is enabled.")]
+    [SerializeField, Min(0.05f)] private float enemyOverlapScanInterval = 0.25f;
     [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.5f;
     [SerializeField] private Camera overlapCamera;
     [SerializeField] private string overlapCameraName = "StripCamera";
@@ -51,6 +55,12 @@ public class HUDView : MonoBehaviour
     private Canvas _parentCanvas;
     private Camera _hudRectEventCamera;
     private Camera _resolvedOverlapCamera;
+    private float _nextEnemyOverlapCheckTime;
+    private float _nextPlayerOverlapCheckTime;
+    private bool _lastHudOverlapState;
+    private bool _lastPlayerOverlapState;
+    private bool _lastEnemyOverlapState;
+    private static readonly Vector3[] s_hudOverlapBoundsPoints = new Vector3[5];
 
     private void Awake()
     {
@@ -67,6 +77,8 @@ public class HUDView : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
+        _nextEnemyOverlapCheckTime = 0f;
+        _lastEnemyOverlapState = false;
         TryCachePlayer();
     }
 
@@ -80,6 +92,8 @@ public class HUDView : MonoBehaviour
         _player = null;
         _playerRenderers = System.Array.Empty<SpriteRenderer>();
         _resolvedOverlapCamera = ResolveOverlapCamera();
+        _nextEnemyOverlapCheckTime = 0f;
+        _lastEnemyOverlapState = false;
         TryCachePlayer();
     }
 
@@ -104,11 +118,25 @@ public class HUDView : MonoBehaviour
             TryCachePlayer();
 
         RefreshPlayerRenderersIfNeeded();
-        bool overlaps = IsPlayerSpriteOverHudRect();
+        bool overlaps = IsPlayerSpriteOverHudRectThrottled();
         if (!overlaps && includeEnemiesInOverlapFade)
             overlaps = IsAnyLiveEnemyOverlappingHud();
 
-        _selfCanvasGroup.alpha = overlaps ? overlapAlpha : 1f;
+        if (overlaps != _lastHudOverlapState)
+        {
+            _lastHudOverlapState = overlaps;
+            _selfCanvasGroup.alpha = overlaps ? overlapAlpha : 1f;
+        }
+    }
+
+    private bool IsPlayerSpriteOverHudRectThrottled()
+    {
+        if (Time.unscaledTime < _nextPlayerOverlapCheckTime)
+            return _lastPlayerOverlapState;
+
+        _nextPlayerOverlapCheckTime = Time.unscaledTime + playerOverlapScanInterval;
+        _lastPlayerOverlapState = IsPlayerSpriteOverHudRect();
+        return _lastPlayerOverlapState;
     }
 
     private bool IsPlayerSpriteOverHudRect()
@@ -138,9 +166,17 @@ public class HUDView : MonoBehaviour
         if (!includeEnemiesInOverlapFade || _selfRect == null)
             return false;
 
+        if (Time.unscaledTime < _nextEnemyOverlapCheckTime)
+            return _lastEnemyOverlapState;
+
+        _nextEnemyOverlapCheckTime = Time.unscaledTime + enemyOverlapScanInterval;
+
         Camera cam = ResolveOverlapCamera();
         if (cam == null)
+        {
+            _lastEnemyOverlapState = false;
             return false;
+        }
 
         Profiler.BeginSample("HUDView.EnemyIteration");
         try
@@ -155,9 +191,13 @@ public class HUDView : MonoBehaviour
                     continue;
 
                 if (IsEnemyVisualOverHudRect(e, cam))
+                {
+                    _lastEnemyOverlapState = true;
                     return true;
+                }
             }
 
+            _lastEnemyOverlapState = false;
             return false;
         }
         finally
@@ -261,18 +301,15 @@ public class HUDView : MonoBehaviour
         Vector3 c = b.center;
         Vector3 e = b.extents;
 
-        Vector3[] points =
-        {
-            c,
-            c + new Vector3(-e.x, -e.y, 0f),
-            c + new Vector3(-e.x,  e.y, 0f),
-            c + new Vector3( e.x, -e.y, 0f),
-            c + new Vector3( e.x,  e.y, 0f)
-        };
+        s_hudOverlapBoundsPoints[0] = c;
+        s_hudOverlapBoundsPoints[1] = c + new Vector3(-e.x, -e.y, 0f);
+        s_hudOverlapBoundsPoints[2] = c + new Vector3(-e.x,  e.y, 0f);
+        s_hudOverlapBoundsPoints[3] = c + new Vector3( e.x, -e.y, 0f);
+        s_hudOverlapBoundsPoints[4] = c + new Vector3( e.x,  e.y, 0f);
 
-        for (int i = 0; i < points.Length; i++)
+        for (int i = 0; i < s_hudOverlapBoundsPoints.Length; i++)
         {
-            Vector3 screen = cam.WorldToScreenPoint(points[i]);
+            Vector3 screen = cam.WorldToScreenPoint(s_hudOverlapBoundsPoints[i]);
             if (screen.z <= 0f)
                 continue;
             if (RectTransformUtility.RectangleContainsScreenPoint(_selfRect, screen, _hudRectEventCamera))

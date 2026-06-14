@@ -126,6 +126,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [SerializeField] private bool debugIncludeSourceRectLayout;
 
     private readonly Vector3[] _corners = new Vector3[4];
+    private static readonly HashSet<Transform> s_movedFollowersScratch = new();
     private float _smoothTargetFloorTopY = float.NaN;
 
     /// <summary>Latched sampled target (world Y for floor top). Updated when measurement moves beyond <see cref="sourceMeasurementLatchWorld"/>.</summary>
@@ -150,6 +151,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         CacheReferences();
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
+        WorldFloorFollowerRegistry.BootstrapLegacyCaveFollowersOnce();
         Apply(force: true, allowCanvasForce: true);
     }
 
@@ -175,6 +177,8 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         _smoothTargetFloorTopY = float.NaN;
     }
 
+    private float _cachedOrthoSize = -1f;
+
     private void LateUpdate()
     {
         if (!updateContinuously)
@@ -187,7 +191,29 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             return;
         }
 
-        Apply(force: false, allowCanvasForce: true);
+        if (Application.isPlaying && _appliedOncePlaying && !NeedsContinuousRealign())
+            return;
+
+        Apply(force: false, allowCanvasForce: false);
+    }
+
+    private bool NeedsContinuousRealign()
+    {
+        if (ScreenOrSourceLayoutChanged())
+            return true;
+
+        CacheReferences();
+        if (worldCamera != null && !Mathf.Approximately(worldCamera.orthographicSize, _cachedOrthoSize))
+        {
+            _cachedOrthoSize = worldCamera.orthographicSize;
+            return true;
+        }
+
+        if (!float.IsNaN(_smoothTargetFloorTopY) && !float.IsNaN(_latchedSourceWorldY) &&
+            Mathf.Abs(_smoothTargetFloorTopY - _latchedSourceWorldY) > minMoveDelta * 0.5f)
+            return true;
+
+        return false;
     }
 
     /// <summary>The transform whose Y tracks the UI edge (serialized <see cref="worldRoot"/>), e.g. UILaneAlignment.</summary>
@@ -325,9 +351,6 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             _smoothTargetFloorTopY = Mathf.Lerp(_smoothTargetFloorTopY, rawTargetTop, t);
             targetFloorTopY = _smoothTargetFloorTopY;
         }
-
-        if (Application.isPlaying)
-            Physics2D.SyncTransforms();
 
         float floorTopY = floorCollider.bounds.max.y;
 
@@ -474,45 +497,26 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
     private void MoveRuntimeFollowers(float deltaY)
     {
-        // Same transform may host multiple follower components; move each root once.
-        var moved = new HashSet<Transform>();
-
-        MoveAllByDelta(moved, FindObjectsByType<PlayerController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-        MoveAllByDelta(moved, FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-
+        WorldFloorFollowerRegistry.Category mask = 0;
+        if (moveRuntimeActorsWithFloor)
+            mask |= WorldFloorFollowerRegistry.Category.Actor;
         if (moveItemDropsWithFloor)
-            MoveAllByDelta(moved, FindObjectsByType<ItemDrop>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-
+            mask |= WorldFloorFollowerRegistry.Category.ItemDrop;
         if (moveResourceNodesWithFloor)
-            MoveAllByDelta(moved, FindObjectsByType<ResourceNode>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-
-        // Town interactables (not under worldRoot) must track the same floor/UI alignment as combat actors.
-        MoveAllByDelta(moved, FindObjectsByType<Merchant>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-        MoveAllByDelta(moved, FindObjectsByType<StorageClick>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-        MoveAllByDelta(moved, FindObjectsByType<NPCInteractionSettings>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-        MoveAllByDelta(moved, FindObjectsByType<MapNodePortalTeleporter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
-
+            mask |= WorldFloorFollowerRegistry.Category.Resource;
         if (moveCavesWithFloor)
-            MoveTaggedByDelta(moved, "Cave", deltaY);
-    }
+            mask |= WorldFloorFollowerRegistry.Category.Cave;
 
-    private void MoveAllByDelta<T>(HashSet<Transform> moved, T[] components, float deltaY) where T : Component
-    {
-        for (int i = 0; i < components.Length; i++)
-        {
-            T component = components[i];
-            if (!component)
-                continue;
+        if (mask == 0)
+            return;
 
-            Transform t = component.transform;
-            if (t == worldRoot || t.IsChildOf(worldRoot))
-                continue;
-
-            if (!moved.Add(t))
-                continue;
-
-            MoveTransformY(t, deltaY);
-        }
+        s_movedFollowersScratch.Clear();
+        WorldFloorFollowerRegistry.MoveAllOutsideRoot(
+            worldRoot,
+            deltaY,
+            s_movedFollowersScratch,
+            MoveTransformY,
+            mask);
     }
 
     private static bool IsFiniteNumber(float v)
@@ -537,25 +541,4 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         }
     }
 
-    private void MoveTaggedByDelta(HashSet<Transform> moved, string tagName, float deltaY)
-    {
-        if (string.IsNullOrWhiteSpace(tagName))
-            return;
-
-        GameObject[] tagged = GameObject.FindGameObjectsWithTag(tagName);
-        for (int i = 0; i < tagged.Length; i++)
-        {
-            GameObject go = tagged[i];
-            if (!go || !go.activeInHierarchy)
-                continue;
-
-            Transform t = go.transform;
-            if (t == worldRoot || t.IsChildOf(worldRoot))
-                continue;
-            if (!moved.Add(t))
-                continue;
-
-            MoveTransformY(t, deltaY);
-        }
-    }
 }

@@ -179,9 +179,18 @@ public class MinionUnit : MonoBehaviour
 
     public void SetMoveTargetX(float worldX, float speed)
     {
+        speed = Mathf.Max(0.01f, speed);
+        const float retargetEpsilon = 0.04f;
+        if (_wantsMove &&
+            Mathf.Abs(_moveTargetX - worldX) <= retargetEpsilon &&
+            Mathf.Approximately(_moveSpeed, speed))
+        {
+            return;
+        }
+
         _wantsMove = true;
         _moveTargetX = worldX;
-        _moveSpeed = Mathf.Max(0.01f, speed);
+        _moveSpeed = speed;
         SetLocomotionMoving(true);
     }
 

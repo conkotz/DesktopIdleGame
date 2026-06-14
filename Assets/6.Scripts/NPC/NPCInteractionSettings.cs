@@ -193,10 +193,12 @@ public class NPCInteractionSettings : MonoBehaviour
     private void OnEnable()
     {
         TrySubscribeQuestProgressForAutoDialogue();
+        WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
     }
 
     private void OnDisable()
     {
+        WorldFloorFollowerRegistry.Unregister(transform);
         StopDeferredQuestAcceptedPlainDialogue();
         TryUnsubscribeQuestProgressForAutoDialogue();
 

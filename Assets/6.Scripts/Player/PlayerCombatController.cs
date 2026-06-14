@@ -782,9 +782,16 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return duration > 0f;
     }
 
+    private EquipmentManager _equipment;
+    private Inventory _inventory;
+
+    private const float CombatChaseRetargetEpsilon = 0.04f;
+
     private void Awake()
     {
         if (!playerCol) playerCol = GetComponent<Collider2D>();
+        _equipment = GetComponent<EquipmentManager>();
+        _inventory = GetComponent<Inventory>();
         TryResolveAutoConsumeRefs();
         if (idleCombatEnabled)
             _nextIdleAutoPickupTime = Time.time + idleAutoPickupIntervalSeconds;
@@ -956,7 +963,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 && TryBladeDancerDashWhileClosingToTarget(_target);
 
             if (!player.IsPlayerSteeringMovement && !bladeDancerDashed)
-                player.MoveToPointX_Combat(desiredX);
+            {
+                if (!player.IsCombatMoveTargetNear(desiredX, CombatChaseRetargetEpsilon))
+                    player.MoveToPointX_Combat(desiredX);
+            }
             else if (player.IsManualKeyboardSteering)
                 player.StopMoveOnly();
             return;
@@ -970,7 +980,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             // Click-to-move repositioning — keep MoveToPoint without combat overriding it.
         }
         else if (kiteAtRangeEdge && _combatChaseMovementEnabled)
-            player.MoveToPointX_Combat(desiredX);
+        {
+            if (!player.IsCombatMoveTargetNear(desiredX, CombatChaseRetargetEpsilon))
+                player.MoveToPointX_Combat(desiredX);
+        }
         else
             player.StopMoveOnly();
 
@@ -1344,8 +1357,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (stats == null) return null;
 
-        var equipment = GetComponent<EquipmentManager>();
-        var inventory = GetComponent<Inventory>();
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inventory = _inventory != null ? _inventory : GetComponent<Inventory>();
 
         if (equipment == null || inventory == null) return null;
         if (string.IsNullOrWhiteSpace(equipment.MainHandItemId)) return null;
@@ -1356,8 +1369,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private bool IsSupportEquippedWithoutCompatibleMainWeapon(out string message)
     {
         message = null;
-        EquipmentManager equipment = GetComponent<EquipmentManager>();
-        Inventory inv = GetComponent<Inventory>();
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inv = _inventory != null ? _inventory : GetComponent<Inventory>();
         if (equipment == null || inv == null)
             return false;
 
