@@ -34,6 +34,14 @@ public static class WorldContextMenuBuilder
             return entries;
         }
 
+        InMapTeleporter inMapTeleporter = col.GetComponentInParent<InMapTeleporter>();
+        if (inMapTeleporter != null)
+        {
+            entries.Add(new ContextMenuEntry("Teleport", () => WorldInteractRouter.RouteContextPortalEnter(col, player)));
+            AddWalkHere(entries, col, player);
+            return entries;
+        }
+
         ResourceNode node = col.GetComponentInParent<ResourceNode>();
         if (node != null)
             return ResourceContextMenuBuilder.Build(node, player);

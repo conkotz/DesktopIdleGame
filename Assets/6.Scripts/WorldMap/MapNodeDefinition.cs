@@ -95,6 +95,9 @@ public class SpawnPrefabCount
     [Tooltip("When set and this row spawns a prefab with MapNodePortalTeleporter, override that instance destination node id.")]
     public string portalTargetMapNodeId = "";
 
+    [Tooltip("When set and this row spawns a prefab with InMapTeleporter, assigns this same-map link id.")]
+    public string teleporterLinkId = "";
+
     /// <summary>
     /// Resolves which prefab to instantiate: <see cref="enemyDefinition"/> first, then <see cref="prefab"/>.
     /// When the definition has no prefab, falls back to <see cref="prefab"/> if set.
@@ -167,6 +170,26 @@ public class LevelSpawnGroupPlan
 
     [Tooltip("If true, points are shuffled before spawning.")]
     public bool shuffleSpawnPoints = true;
+}
+
+/// <summary>
+/// Spawns a same-map teleporter at a named scene spawn point. Teleporters with the same
+/// <see cref="teleporterLinkId"/> form a two-way group.
+/// </summary>
+[Serializable]
+public class InMapTeleporterPlan
+{
+    [Tooltip("Shared link id. Every teleporter on this map with the same id sends players to another member.")]
+    public string teleporterLinkId = "";
+
+    [Tooltip("Optional SpawnPointGroup.groupId when the spawn point lives outside the plan default group.")]
+    public string spawnPointGroupId = "";
+
+    [Tooltip("Exact spawn point transform name in the GamePlay scene.")]
+    public string spawnPointName = "";
+
+    [Tooltip("Teleporter prefab to spawn. Leave empty to use the director default.")]
+    public GameObject teleporterPrefab;
 }
 
 /// <summary>One wave in an EnduranceTrial map: a flat list of spawns (no nested group plans).</summary>
@@ -504,6 +527,18 @@ public class MapNodeDefinition : ScriptableObject
     [Header("Spawn plans (GamePlay scene)")]
     [Tooltip("Concrete spawn plan: which prefabs to instantiate and how many, mapped to SpawnPointGroup ids in the scene.")]
     public List<LevelSpawnGroupPlan> spawnGroupPlans = new();
+
+    [Header("Side play areas")]
+    [Tooltip(
+        "SidePlayArea.areaId values active on this map. Enables side-region bounds for entities in those X ranges " +
+        "and should be paired with spawnGroupPlans that reference the area's SpawnPointGroup id.")]
+    public List<string> enabledSidePlayAreaIds = new();
+
+    [Header("In-map teleporters")]
+    [Tooltip(
+        "Same-map teleporter pairs/groups. Each entry spawns one teleporter at Spawn Point Name. " +
+        "Teleporters sharing Teleporter Link Id send players to each other.")]
+    public List<InMapTeleporterPlan> inMapTeleporters = new();
 
     [Header("Unlock — Previous map completion")]
     [Tooltip("Optional additional progression prerequisites. All enabled rows are required (AND).")]

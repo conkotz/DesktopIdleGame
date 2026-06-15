@@ -697,11 +697,12 @@ public class EnemyBaseController : MonoBehaviour
     /// </summary>
     private void EnforceWorldBoundsX()
     {
-        if (!_rb || !WorldBounds.Instance)
+        if (!_rb)
             return;
 
-        float minX = WorldBounds.Instance.Left + WorldBoundsXPadding;
-        float maxX = WorldBounds.Instance.Right - WorldBoundsXPadding;
+        if (!PlayAreaBounds.TryGetClampXForWorldX(_rb.position.x, WorldBoundsXPadding, out float minX, out float maxX))
+            return;
+
         if (minX > maxX)
             maxX = minX;
 

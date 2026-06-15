@@ -82,7 +82,9 @@ public static class WorldInteractRouter
     }
 
     public static bool IsEnterAreaCollider(Collider2D col) =>
-        col != null && col.GetComponentInParent<MapNodePortalTeleporter>() != null;
+        col != null &&
+        (col.GetComponentInParent<MapNodePortalTeleporter>() != null ||
+         col.GetComponentInParent<InMapTeleporter>() != null);
 
     /// <summary>
     /// Closest map portal / cave entrance / signpost teleporter within horizontal range (enter-area hotkey only).
@@ -175,6 +177,13 @@ public static class WorldInteractRouter
         if (portal != null)
         {
             portal.OnClickedByPlayer(player);
+            return;
+        }
+
+        InMapTeleporter inMapTeleporter = winnerCol.GetComponentInParent<InMapTeleporter>();
+        if (inMapTeleporter != null)
+        {
+            inMapTeleporter.OnClickedByPlayer(player);
             return;
         }
 
@@ -278,6 +287,10 @@ public static class WorldInteractRouter
         if (portal)
             return portal.transform;
 
+        InMapTeleporter inMapTeleporter = col.GetComponentInParent<InMapTeleporter>();
+        if (inMapTeleporter)
+            return inMapTeleporter.transform;
+
         if (IsNoticeBoardCollider(col))
             return col.transform;
 
@@ -296,6 +309,7 @@ public static class WorldInteractRouter
         if (col.GetComponentInParent<NPCInteractionSettings>()) return true;
         if (col.GetComponentInParent<MerchantClick>()) return true;
         if (col.GetComponentInParent<MapNodePortalTeleporter>()) return true;
+        if (col.GetComponentInParent<InMapTeleporter>()) return true;
         if (col.GetComponentInParent<QuestGiver>()) return true;
         if (IsNoticeBoardCollider(col)) return true;
         return false;
@@ -375,11 +389,19 @@ public static class WorldInteractRouter
             return;
 
         MapNodePortalTeleporter portal = col.GetComponentInParent<MapNodePortalTeleporter>();
-        if (!portal)
+        if (portal != null)
+        {
+            PrepareForContextAction(col, player);
+            portal.OnClickedByPlayer(player);
+            return;
+        }
+
+        InMapTeleporter inMapTeleporter = col.GetComponentInParent<InMapTeleporter>();
+        if (inMapTeleporter == null)
             return;
 
         PrepareForContextAction(col, player);
-        portal.OnClickedByPlayer(player);
+        inMapTeleporter.OnClickedByPlayer(player);
     }
 
     public static void RouteContextAttack(Collider2D col, PlayerController player)
@@ -422,6 +444,7 @@ public static class WorldInteractRouter
         MerchantClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
+        InMapTeleporter.CancelPendingApproachForPlayer(player);
 
         ResourceNode node = col.GetComponentInParent<ResourceNode>();
         if (node)
@@ -437,6 +460,16 @@ public static class WorldInteractRouter
         {
             Collider2D portalCol = col.GetComponent<Collider2D>() ?? col;
             Bounds b = portalCol.bounds;
+            float arrivalX = Mathf.Clamp(player.transform.position.x, b.min.x, b.max.x);
+            player.MoveToPointX(arrivalX, fromPlayerInput: true);
+            return;
+        }
+
+        InMapTeleporter inMapTeleporter = col.GetComponentInParent<InMapTeleporter>();
+        if (inMapTeleporter)
+        {
+            Collider2D teleporterCol = col.GetComponent<Collider2D>() ?? col;
+            Bounds b = teleporterCol.bounds;
             float arrivalX = Mathf.Clamp(player.transform.position.x, b.min.x, b.max.x);
             player.MoveToPointX(arrivalX, fromPlayerInput: true);
             return;

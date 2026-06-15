@@ -47,6 +47,17 @@ MonoBehaviour:
   - hunting_grounds
   - spider_lair
   biome: 0
+  enabledSidePlayAreaIds:
+  - SideArea_1
+  inMapTeleporters:
+  - teleporterLinkId: duskwood_combat_practice
+    spawnPointGroupId: AllSpawns
+    spawnPointName: SpawnPoint-11
+    teleporterPrefab: {fileID: 8347273920747777605, guid: d0a7e83ebe494df448ccdaf20648505c, type: 3}
+  - teleporterLinkId: duskwood_combat_practice
+    spawnPointGroupId: CombatPractice
+    spawnPointName: SideArea_Spawn30
+    teleporterPrefab: {fileID: 8347273920747777605, guid: d0a7e83ebe494df448ccdaf20648505c, type: 3}
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
@@ -237,6 +248,20 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: hunting_grounds
+    shuffleSpawnPoints: 0
+  - groupId: CombatPractice
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 30
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []

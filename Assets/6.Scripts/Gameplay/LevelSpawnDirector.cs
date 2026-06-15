@@ -34,6 +34,10 @@ public class LevelSpawnDirector : MonoBehaviour
     [Min(0.02f)]
     [SerializeField] private float respawnQueueRetryIntervalSec = 0.25f;
 
+    [Header("In-map teleporters")]
+    [Tooltip("Default prefab when an InMapTeleporterPlan leaves Teleporter Prefab empty.")]
+    [SerializeField] private GameObject defaultInMapTeleporterPrefab;
+
     [Header("Logging")]
     [Tooltip("When enabled, logs successful spawns/respawns and existing warnings for missing groups, etc.")]
     [SerializeField] private bool logSpawns;
@@ -176,11 +180,7 @@ public class LevelSpawnDirector : MonoBehaviour
             _hasSpawnedForCurrentLevel = true;
             _reservedSpawnCells.Clear();
             ClearPendingRespawnsForNewLevel();
-            return;
-        }
-
-        if (def.spawnGroupPlans == null || def.spawnGroupPlans.Count == 0)
-        {
+            SpawnInMapTeleporters(def, FindAllSpawnPointGroups(), ResolveSpawnParent());
             return;
         }
 
@@ -191,31 +191,36 @@ public class LevelSpawnDirector : MonoBehaviour
         var groups = FindAllSpawnPointGroups();
         Transform parent = ResolveSpawnParent();
 
-        if (logSpawns)
-            Debug.Log($"[LevelSpawnDirector] Spawning level '{def.nodeId}' ({def.displayName}): {def.spawnGroupPlans.Count} spawn plan(s).", this);
+        if (def.spawnGroupPlans != null && def.spawnGroupPlans.Count > 0)
+        {
+            if (logSpawns)
+                Debug.Log($"[LevelSpawnDirector] Spawning level '{def.nodeId}' ({def.displayName}): {def.spawnGroupPlans.Count} spawn plan(s).", this);
 
-        MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
-        var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
+            var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
-        SpawnAllPlans(
-            def,
-            groups,
-            parent,
-            IsFixedPointWorldPrefabRow,
-            requireExactNamedPoint: true,
-            mapEnhancements,
-            extraSpawnBonusesApplied);
+            // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
+            SpawnAllPlans(
+                def,
+                groups,
+                parent,
+                IsFixedPointWorldPrefabRow,
+                requireExactNamedPoint: true,
+                mapEnhancements,
+                extraSpawnBonusesApplied);
 
-        // Pass 2: enemies, items, and anything without a fixed named point.
-        SpawnAllPlans(
-            def,
-            groups,
-            parent,
-            row => !IsFixedPointWorldPrefabRow(row),
-            requireExactNamedPoint: false,
-            mapEnhancements,
-            extraSpawnBonusesApplied);
+            // Pass 2: enemies, items, and anything without a fixed named point.
+            SpawnAllPlans(
+                def,
+                groups,
+                parent,
+                row => !IsFixedPointWorldPrefabRow(row),
+                requireExactNamedPoint: false,
+                mapEnhancements,
+                extraSpawnBonusesApplied);
+        }
+
+        SpawnInMapTeleporters(def, groups, parent);
     }
 
     private void SpawnAllPlans(
@@ -1261,6 +1266,111 @@ public class LevelSpawnDirector : MonoBehaviour
                     continue;
                 portal.SetTargetMapNodeId(nodeId, clearTargetMapAsset: true);
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(entry.teleporterLinkId))
+        {
+            InMapTeleporter[] teleporters = instance.GetComponentsInChildren<InMapTeleporter>(true);
+            string linkId = entry.teleporterLinkId.Trim();
+            for (int i = 0; i < teleporters.Length; i++)
+            {
+                InMapTeleporter teleporter = teleporters[i];
+                if (teleporter == null)
+                    continue;
+                teleporter.SetTeleporterLinkId(linkId);
+            }
+        }
+    }
+
+    private void SpawnInMapTeleporters(
+        MapNodeDefinition def,
+        Dictionary<string, SpawnPointGroup> groupsById,
+        Transform parent)
+    {
+        if (def?.inMapTeleporters == null || def.inMapTeleporters.Count == 0)
+            return;
+
+        for (int i = 0; i < def.inMapTeleporters.Count; i++)
+        {
+            InMapTeleporterPlan plan = def.inMapTeleporters[i];
+            if (plan == null || string.IsNullOrWhiteSpace(plan.teleporterLinkId) ||
+                string.IsNullOrWhiteSpace(plan.spawnPointName))
+            {
+                continue;
+            }
+
+            GameObject prefab = plan.teleporterPrefab != null ? plan.teleporterPrefab : defaultInMapTeleporterPrefab;
+            if (!prefab)
+            {
+                if (logSpawns)
+                    Debug.LogWarning("[LevelSpawnDirector] In-map teleporter plan has no prefab and no default is assigned.", this);
+                continue;
+            }
+
+            string groupId = plan.spawnPointGroupId?.Trim() ?? string.Empty;
+            SpawnPointGroup pointGroup = null;
+            if (!string.IsNullOrEmpty(groupId))
+            {
+                groupsById.TryGetValue(groupId, out pointGroup);
+                if (!pointGroup && logSpawns)
+                {
+                    Debug.LogWarning(
+                        $"[LevelSpawnDirector] In-map teleporter group '{groupId}' not found for link '{plan.teleporterLinkId}'.",
+                        this);
+                    continue;
+                }
+            }
+
+            if (!pointGroup)
+            {
+                foreach (KeyValuePair<string, SpawnPointGroup> kv in groupsById)
+                {
+                    SpawnPointGroup candidate = kv.Value;
+                    if (candidate == null)
+                        continue;
+                    if (TryResolveSpawnPointByName(candidate, plan.spawnPointName.Trim()) != null)
+                    {
+                        pointGroup = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (!pointGroup)
+            {
+                if (logSpawns)
+                    Debug.LogWarning(
+                        $"[LevelSpawnDirector] No spawn group contains point '{plan.spawnPointName}' for teleporter '{plan.teleporterLinkId}'.",
+                        this);
+                continue;
+            }
+
+            Transform point = TryResolveSpawnPointByName(pointGroup, plan.spawnPointName.Trim());
+            if (!point)
+            {
+                if (logSpawns)
+                    Debug.LogWarning(
+                        $"[LevelSpawnDirector] Spawn point '{plan.spawnPointName}' not found for teleporter '{plan.teleporterLinkId}'.",
+                        this);
+                continue;
+            }
+
+            GameObject instance = Instantiate(prefab, point.position, point.rotation, parent);
+            if (alignSpawnPointToColliderBottom)
+                AlignBottomOfColliderToPoint(instance.transform, point.position);
+
+            InMapTeleporter[] teleporters = instance.GetComponentsInChildren<InMapTeleporter>(true);
+            string linkId = plan.teleporterLinkId.Trim();
+            for (int t = 0; t < teleporters.Length; t++)
+            {
+                if (teleporters[t] != null)
+                    teleporters[t].SetTeleporterLinkId(linkId);
+            }
+
+            if (logSpawns)
+                Debug.Log(
+                    $"[LevelSpawnDirector] Spawned in-map teleporter '{linkId}' at '{plan.spawnPointName}'.",
+                    instance);
         }
     }
 

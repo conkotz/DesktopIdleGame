@@ -235,7 +235,11 @@ public sealed class CameraFollow : MonoBehaviour
         float startX = target.position.x;
 
         WorldBounds wb = WorldBounds.Instance;
-        if (wb != null)
+        if (PlayAreaBounds.TryGetCameraClampXForWorldX(startX, halfWidth, out float areaMinX, out float areaMaxX))
+        {
+            startX = Mathf.Clamp(startX, areaMinX, areaMaxX);
+        }
+        else if (wb != null)
         {
             float minX = wb.Left + halfWidth;
             float maxX = wb.Right - halfWidth;
@@ -256,6 +260,48 @@ public sealed class CameraFollow : MonoBehaviour
 
         _didInitialSnapToTarget = true;
         return true;
+    }
+
+    /// <summary>Snaps camera X to the follow target (clamped). Used after same-map warps so the view catches up instantly.</summary>
+    public static void SnapToTargetHorizontal()
+    {
+        CameraFollow[] followers = FindObjectsByType<CameraFollow>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < followers.Length; i++)
+            followers[i]?.SnapToTargetHorizontalInternal();
+    }
+
+    private void SnapToTargetHorizontalInternal()
+    {
+        if (!_cam || !_cam.orthographic || !target)
+            return;
+
+        float halfWidth = _cam.orthographicSize * _cam.aspect;
+        float px = target.position.x;
+
+        if (PlayAreaBounds.TryGetCameraClampXForWorldX(px, halfWidth, out float areaMinX, out float areaMaxX))
+            px = Mathf.Clamp(px, areaMinX, areaMaxX);
+        else
+        {
+            WorldBounds wb = WorldBounds.Instance;
+            if (wb != null)
+            {
+                float minX = wb.Left + halfWidth;
+                float maxX = wb.Right - halfWidth;
+                if (minX > maxX)
+                {
+                    float mid = (wb.Left + wb.Right) * 0.5f;
+                    minX = maxX = mid;
+                }
+
+                px = Mathf.Clamp(px, minX, maxX);
+            }
+        }
+
+        Vector3 p = transform.position;
+        p.x = px;
+        p.y = _fixedY;
+        p.z = _fixedZ;
+        transform.position = p;
     }
 
     private void LateUpdate()
@@ -296,7 +342,12 @@ public sealed class CameraFollow : MonoBehaviour
         }
 
         WorldBounds wb = WorldBounds.Instance;
-        if (wb != null)
+        float playerX = target ? target.position.x : targetCamX;
+        if (PlayAreaBounds.TryGetCameraClampXForWorldX(playerX, halfWidth, out float areaMinX, out float areaMaxX))
+        {
+            targetCamX = Mathf.Clamp(targetCamX, areaMinX, areaMaxX);
+        }
+        else if (wb != null)
         {
             float minX = wb.Left + halfWidth;
             float maxX = wb.Right - halfWidth;

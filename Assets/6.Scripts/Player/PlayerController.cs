@@ -1033,6 +1033,7 @@ public class PlayerController : MonoBehaviour
     {
         NPCInteractionSettings.CancelPendingInteract();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(this);
+        InMapTeleporter.CancelPendingApproachForPlayer(this);
 
         if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
             InterruptWorkIfNeeded();
@@ -1798,6 +1799,43 @@ public class PlayerController : MonoBehaviour
         SyncPlayerRigidbody2DPosition();
         if (Mathf.Abs(faceDirectionSign) > 0.01f)
             FaceTargetX(pos.x + faceDirectionSign);
+    }
+
+    /// <summary>Instant same-map reposition (e.g. in-map teleporter). Uses destination X for play-area bounds.</summary>
+    public void WarpToWorldX(float worldX)
+    {
+        if (_isDead)
+            return;
+
+        InMapTeleporter.CancelPendingApproachForPlayer(this);
+        MapNodePortalTeleporter.CancelPendingApproachForPlayer(this);
+        NPCInteractionSettings.CancelPendingInteract();
+        MerchantClick.CancelPendingOpen();
+
+        float x = PlayAreaBounds.TryGetClampXForWorldX(worldX, WorldBoundsXPadding, out float min, out float max)
+            ? Mathf.Clamp(worldX, min, max)
+            : ClampWorldX(worldX);
+
+        CaptureWoodcuttingFlowLingerOnGatherStop();
+        CaptureFishingCalmWatersOnGatherStop();
+        ResetFishingRuntimeState(clearBonuses: true);
+
+        targetNode = null;
+        _pickupTarget = null;
+        _moveToPointFromPlayerInput = false;
+        if (state == State.MoveToPoint)
+            StopMoveOnly();
+        state = State.Idle;
+
+        Vector3 pos = transform.position;
+        pos.x = x;
+        transform.position = pos;
+        SyncPlayerRigidbody2DPosition();
+        CameraFollow.SnapToTargetHorizontal();
+
+        PlayerCombatController combat = GetComponent<PlayerCombatController>();
+        combat?.ClearTarget();
+        PlayerWorldInteractFocus.ClearForPlayer(this);
     }
 
     /// <summary>Clears manual repositioning so combat can chase the clicked enemy into range.</summary>
@@ -3932,6 +3970,9 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void GetClampXMinMax(out float minX, out float maxX)
     {
+        if (PlayAreaBounds.TryGetClampXForWorldX(transform.position.x, WorldBoundsXPadding, out minX, out maxX))
+            return;
+
         if (WorldBounds.Instance != null)
         {
             minX = WorldBounds.Instance.Left + WorldBoundsXPadding;
