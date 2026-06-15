@@ -13,6 +13,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private const string BackgroundVisualsName = "BackgroundVisuals";
     private const string FullSkyVisualName = "FullSkyVisual";
     private const string CaveBackgroundName = "CaveBackground";
+    private const string AllGrassFloorLayerName = "AllGrass";
     private const string OverlayName = "BiomeCaveOverlay";
 
     private static readonly Color CaveOverlayColor = new Color(0f, 0f, 0f, 0.2f);
@@ -37,6 +38,8 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     [SerializeField] private string backgroundVisualsPath = "BackgroundVisuals";
     [SerializeField] private string defaultBackgroundObjectName = FullSkyVisualName;
     [SerializeField] private string caveBackgroundObjectName = CaveBackgroundName;
+    [Tooltip("Only this FloorVisuals child stays active when biome is Cave.")]
+    [SerializeField] private string caveFloorLayerName = AllGrassFloorLayerName;
 
     [Header("Cave Overlay")]
     [SerializeField, Min(0f)] private float caveOverlayBaseAlpha = 0.2f;
@@ -175,6 +178,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         _activeBiome = def != null ? def.biome : LevelBiome.None;
         Color tint = ResolveFloorTint(_activeBiome);
         ApplyFloorTintToScene(tint);
+        ApplyFloorVisualLayersForBiome(_activeBiome);
         ApplyBackgroundVisualForBiome(_activeBiome);
         EnsureCaveOverlayState(_activeBiome == LevelBiome.Cave);
     }
@@ -232,6 +236,33 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
                     continue;
                 sr.color = tint;
             }
+        }
+    }
+
+    /// <summary>
+    /// Non-cave maps show every <see cref="FloorVisualsName"/> child.
+    /// Cave shows only <see cref="AllGrassFloorLayerName"/> (grass floor); biome props/trees/water are hidden.
+    /// </summary>
+    private void ApplyFloorVisualLayersForBiome(LevelBiome biome)
+    {
+        Transform floorRoot = ResolveFloorVisualsRoot();
+        if (floorRoot == null)
+            return;
+
+        bool caveBiome = biome == LevelBiome.Cave;
+        string grassName = string.IsNullOrWhiteSpace(caveFloorLayerName)
+            ? AllGrassFloorLayerName
+            : caveFloorLayerName.Trim();
+
+        for (int i = 0; i < floorRoot.childCount; i++)
+        {
+            Transform child = floorRoot.GetChild(i);
+            if (child == null)
+                continue;
+
+            bool active = !caveBiome ||
+                          string.Equals(child.name, grassName, System.StringComparison.OrdinalIgnoreCase);
+            child.gameObject.SetActive(active);
         }
     }
 
