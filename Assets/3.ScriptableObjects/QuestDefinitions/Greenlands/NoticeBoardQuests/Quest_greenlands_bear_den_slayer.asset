@@ -52,7 +52,7 @@ MonoBehaviour:
   recommendedLocationNode: {fileID: 11400000, guid: e78127e16d6bb394d9aee351d7dd847a, type: 2}
   requiredSkillLevels: []
   combatSkillGateMode: 3
-  combatRequiredLevel: 5
+  combatRequiredLevel: 10
   combatSingleSkill: 3
   requiredMinMapScalingLevel: 0
   killEnemyIdFilter: enemy_bear

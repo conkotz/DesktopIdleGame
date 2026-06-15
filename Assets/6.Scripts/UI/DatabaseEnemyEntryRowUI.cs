@@ -130,10 +130,12 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             sprite = enemy.icon;
 
         enemyIcon.sprite = sprite;
+        enemyIcon.type = Image.Type.Simple;
         enemyIcon.preserveAspect = true;
         enemyIcon.color = Color.white;
         enemyIcon.enabled = sprite != null;
         enemyIcon.gameObject.SetActive(true);
+        ConfigureEnemyIconRect();
     }
 
     private void WireEnemyIconTooltip(EnemyDefinition enemy, SharedTooltipUI tooltip)
@@ -241,8 +243,9 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         iconRect.anchorMin = Vector2.zero;
         iconRect.anchorMax = Vector2.one;
         iconRect.pivot = new Vector2(0.5f, 0.5f);
-        iconRect.offsetMin = new Vector2(12f, 12f);
-        iconRect.offsetMax = new Vector2(-12f, -12f);
+        iconRect.offsetMin = new Vector2(2f, 2f);
+        iconRect.offsetMax = new Vector2(-2f, -2f);
+        iconRect.sizeDelta = Vector2.zero;
     }
 
     private static void DisableRowLayoutGroup(RectTransform row)

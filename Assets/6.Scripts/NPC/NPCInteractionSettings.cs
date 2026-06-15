@@ -1787,6 +1787,8 @@ public class NPCInteractionSettings : MonoBehaviour
             parts.Add($"+{quest.grantAdditionalNonMainStorageSlotsOnRewardClaim} Storage Slots (non-Main)");
         if (quest.grantCombatXpToAllCombatSkillsOnRewardClaim > 0)
             parts.Add($"{quest.grantCombatXpToAllCombatSkillsOnRewardClaim} XP (all combat skills)");
+        if (quest.grantCombatSkillXpOnRewardClaim > 0)
+            parts.Add($"{quest.grantCombatSkillXpOnRewardClaim} XP ({quest.grantCombatSkillXpSkill})");
         if (!string.IsNullOrWhiteSpace(quest.grantRandomMapEnhancementForNodeIdOnRewardClaim))
             parts.Add($"Random map enhancement ({quest.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim()})");
 

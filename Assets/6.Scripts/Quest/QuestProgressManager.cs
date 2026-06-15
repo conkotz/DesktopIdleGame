@@ -1427,19 +1427,24 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 storage.UnlockAdditionalTabSlots((StorageTabKind)t, nonMainStorageSlots);
         }
 
-        int combatXp = Mathf.Max(0, q.grantCombatXpToAllCombatSkillsOnRewardClaim);
-        if (combatXp > 0)
+        SkillsManager skills = SkillsManager.Instance ??
+            FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+        if (skills != null)
         {
-            SkillsManager skills = SkillsManager.Instance ??
-                FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
-            if (skills != null)
+            string source = string.IsNullOrWhiteSpace(q.displayName) ? "Quest reward" : $"Quest: {q.displayName}";
+
+            int combatXp = Mathf.Max(0, q.grantCombatXpToAllCombatSkillsOnRewardClaim);
+            if (combatXp > 0)
             {
-                string source = string.IsNullOrWhiteSpace(q.displayName) ? "Quest reward" : $"Quest: {q.displayName}";
                 skills.AddXp(SkillType.Melee, combatXp, source);
                 skills.AddXp(SkillType.Ranged, combatXp, source);
                 skills.AddXp(SkillType.Magic, combatXp, source);
                 skills.AddXp(SkillType.Endurance, combatXp, source);
             }
+
+            int singleSkillXp = Mathf.Max(0, q.grantCombatSkillXpOnRewardClaim);
+            if (singleSkillXp > 0)
+                skills.AddXp(q.grantCombatSkillXpSkill, singleSkillXp, source);
         }
 
         if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim) && inv)

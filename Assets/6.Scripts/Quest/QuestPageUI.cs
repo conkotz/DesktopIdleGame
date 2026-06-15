@@ -1627,6 +1627,8 @@ public class QuestPageUI : MonoBehaviour
             parts.Add($"+{q.grantAdditionalNonMainStorageSlotsOnRewardClaim} Storage Slots (non-Main)");
         if (q.grantCombatXpToAllCombatSkillsOnRewardClaim > 0)
             parts.Add($"{q.grantCombatXpToAllCombatSkillsOnRewardClaim} XP (all combat skills)");
+        if (q.grantCombatSkillXpOnRewardClaim > 0)
+            parts.Add($"{q.grantCombatSkillXpOnRewardClaim} XP ({q.grantCombatSkillXpSkill})");
         if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim))
         {
             string mapName = ResolveMapNodeDisplayNameStatic(q.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim());

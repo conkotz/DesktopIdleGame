@@ -109,10 +109,39 @@ public static class DatabaseEnemyAvatarLookup
         _cacheBuilt = true;
         _byAvatarKey = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
 
+        LoadAvatarsFromResourcesCatalog();
 #if UNITY_EDITOR
         LoadAvatarsFromProjectFolders();
 #endif
         LoadAvatarsFromLoadedSprites();
+    }
+
+    private static void LoadAvatarsFromResourcesCatalog()
+    {
+        var catalog = Resources.Load<DatabaseEnemyAvatarCatalog>("Databases/DatabaseEnemyAvatarCatalog");
+        if (!catalog)
+            return;
+
+        IReadOnlyList<Sprite> avatars = catalog.Avatars;
+        if (avatars == null)
+            return;
+
+        for (int i = 0; i < avatars.Count; i++)
+        {
+            Sprite sprite = avatars[i];
+            if (!sprite || sprite.texture == null)
+                continue;
+
+            string textureName = sprite.texture.name;
+            if (!textureName.StartsWith(AvatarTexturePrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string suffix = textureName.Substring(AvatarTexturePrefix.Length);
+            if (string.IsNullOrWhiteSpace(suffix))
+                continue;
+
+            RegisterAvatarKey(suffix, sprite);
+        }
     }
 
 #if UNITY_EDITOR

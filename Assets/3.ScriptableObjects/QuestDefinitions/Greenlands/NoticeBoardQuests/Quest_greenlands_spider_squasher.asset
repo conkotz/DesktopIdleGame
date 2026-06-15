@@ -27,16 +27,15 @@ MonoBehaviour:
   rewardItem: {fileID: 0}
   rewardItemId: 
   rewardItemQuantity: 1
-  additionalItemRewards:
-  - item: {fileID: 11400000, guid: 5e7fbe652bd639140b83bab13fdebfb7, type: 2}
-    itemId: vial_poison
-    quantity: 50
+  additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
   grantAdditionalInventorySlotsOnRewardClaim: 0
   grantAdditionalMainStorageSlotsOnRewardClaim: 0
   grantAdditionalNonMainStorageSlotsOnRewardClaim: 0
   grantCombatXpToAllCombatSkillsOnRewardClaim: 0
+  grantCombatSkillXpOnRewardClaim: 200
+  grantCombatSkillXpSkill: 3
   grantRandomMapEnhancementForNodeIdOnRewardClaim: 
   repeatable: 0
   autoCompleteQuest: 0

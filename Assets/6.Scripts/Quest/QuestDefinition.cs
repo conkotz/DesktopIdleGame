@@ -94,6 +94,13 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Flat combat XP granted to Melee, Ranged, Magic, and Endurance when this quest reward is claimed.")]
     public int grantCombatXpToAllCombatSkillsOnRewardClaim;
 
+    [Min(0)]
+    [Tooltip("Flat XP granted to Grant Combat Skill Xp Skill when this quest reward is claimed.")]
+    public int grantCombatSkillXpOnRewardClaim;
+
+    [Tooltip("Skill that receives Grant Combat Skill Xp On Reward Claim.")]
+    public SkillType grantCombatSkillXpSkill = SkillType.Melee;
+
     [Tooltip(
         "When set, grants one rolled map enhancement item for this MapNodeDefinition.nodeId (e.g. spider_lair).")]
     public string grantRandomMapEnhancementForNodeIdOnRewardClaim = "";
