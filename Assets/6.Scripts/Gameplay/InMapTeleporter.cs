@@ -16,11 +16,17 @@ public sealed class InMapTeleporter : MonoBehaviour
 
     [SerializeField] private TMP_Text nameLabel;
 
+    [Tooltip("Second line shown under \"Teleporter\" (set at spawn from map data).")]
+    [SerializeField] private string destinationLabelOverride = "";
+
     [SerializeField, Min(0f)] private float cooldownSeconds = 0.75f;
 
     [SerializeField, Min(0.01f)] private float arriveDistanceX = 0.08f;
 
     [SerializeField, Min(0f)] private float arrivalOffsetX = 0.35f;
+
+    private const string DestinationLineColorHex = "#FF4444";
+    private const int DestinationLineSizePercent = 85;
 
     private static readonly Dictionary<string, List<InMapTeleporter>> Registry =
         new(StringComparer.OrdinalIgnoreCase);
@@ -145,6 +151,12 @@ public sealed class InMapTeleporter : MonoBehaviour
         RefreshNameLabel();
     }
 
+    public void SetDestinationLabel(string label)
+    {
+        destinationLabelOverride = string.IsNullOrWhiteSpace(label) ? string.Empty : label.Trim();
+        RefreshNameLabel();
+    }
+
     public float GetArrivalWorldX(PlayerController player)
     {
         if (_col == null)
@@ -243,6 +255,27 @@ public sealed class InMapTeleporter : MonoBehaviour
         if (!nameLabel)
             return;
 
-        nameLabel.text = string.IsNullOrWhiteSpace(TeleporterLinkId) ? "Teleporter" : "Teleporter";
+        nameLabel.richText = true;
+
+        string dest = destinationLabelOverride?.Trim();
+        if (string.IsNullOrEmpty(dest))
+        {
+            nameLabel.text = string.IsNullOrWhiteSpace(TeleporterLinkId) ? string.Empty : "Teleporter";
+            return;
+        }
+
+        nameLabel.text = $"Teleporter\n{FormatDestinationLine(dest)}";
+    }
+
+    private static string FormatDestinationLine(string raw)
+    {
+        string dest = raw.Trim();
+        if (dest.StartsWith("->", StringComparison.Ordinal))
+            dest = dest.Substring(2).Trim();
+
+        if (!dest.StartsWith("To ", StringComparison.OrdinalIgnoreCase))
+            dest = "To " + dest;
+
+        return $"<size={DestinationLineSizePercent}%><color={DestinationLineColorHex}>{dest}</color></size>";
     }
 }

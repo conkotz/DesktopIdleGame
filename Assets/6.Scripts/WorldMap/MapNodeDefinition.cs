@@ -98,6 +98,9 @@ public class SpawnPrefabCount
     [Tooltip("When set and this row spawns a prefab with InMapTeleporter, assigns this same-map link id.")]
     public string teleporterLinkId = "";
 
+    [Tooltip("Label line under \"Teleporter\" on in-map teleporter instances spawned from this row (e.g. \"To combat testing area\").")]
+    public string teleporterDestinationLabel = "";
+
     /// <summary>
     /// Resolves which prefab to instantiate: <see cref="enemyDefinition"/> first, then <see cref="prefab"/>.
     /// When the definition has no prefab, falls back to <see cref="prefab"/> if set.
@@ -190,6 +193,9 @@ public class InMapTeleporterPlan
 
     [Tooltip("Teleporter prefab to spawn. Leave empty to use the director default.")]
     public GameObject teleporterPrefab;
+
+    [Tooltip("Second line under \"Teleporter\" on the spawned instance (e.g. \"To combat testing area\").")]
+    public string destinationLabel = "";
 }
 
 /// <summary>One wave in an EnduranceTrial map: a flat list of spawns (no nested group plans).</summary>

@@ -1278,6 +1278,7 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (teleporter == null)
                     continue;
                 teleporter.SetTeleporterLinkId(linkId);
+                teleporter.SetDestinationLabel(entry.teleporterDestinationLabel);
             }
         }
     }
@@ -1364,7 +1365,10 @@ public class LevelSpawnDirector : MonoBehaviour
             for (int t = 0; t < teleporters.Length; t++)
             {
                 if (teleporters[t] != null)
+                {
                     teleporters[t].SetTeleporterLinkId(linkId);
+                    teleporters[t].SetDestinationLabel(plan.destinationLabel);
+                }
             }
 
             if (logSpawns)
