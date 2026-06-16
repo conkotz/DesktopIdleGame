@@ -13,6 +13,10 @@ MonoBehaviour:
   m_Name: DatabaseEnemyAvatarCatalog
   m_EditorClassIdentifier: Assembly-CSharp::DatabaseEnemyAvatarCatalog
   avatars:
+  - {fileID: -4216416322996058909, guid: 856194da2d106b141800bdcd0328ce22, type: 3}
+  - {fileID: -1955488095112409121, guid: 5b745597793774045be0408c14c7f82e, type: 3}
+  - {fileID: -5420103237956391102, guid: ea06d2814cfeae144bd3a0a2ec4cfd6d, type: 3}
+  - {fileID: 8826315335589716350, guid: 15ea15f1b6c52cd458d8e0ec256a358b, type: 3}
   - {fileID: 21300000, guid: 9a1f24026fb5e472a9feb95d3f97ff41, type: 3}
   - {fileID: 21300000, guid: 65602c0b9fc4f4152bc6802be7cd391c, type: 3}
   - {fileID: 21300000, guid: 231acd077d50441dc8c800208a8a508d, type: 3}
@@ -25,15 +29,11 @@ MonoBehaviour:
   - {fileID: 21300000, guid: ef9ae9e2cb8b84e81b8c56aea546a281, type: 3}
   - {fileID: 21300000, guid: 327caefdcf18245b58192e6d50fa930a, type: 3}
   - {fileID: 21300000, guid: 5e42c47f439f04c37a62aec53dbbe7b9, type: 3}
-  - {fileID: 21300000, guid: 5b745597793774045be0408c14c7f82e, type: 3}
-  - {fileID: 21300000, guid: 6cc7134e573c070459adcb591a94ae2e, type: 3}
   - {fileID: 21300000, guid: 3addccd9ed6334cf9b6fa384aba038d0, type: 3}
-  - {fileID: 21300000, guid: 856194da2d106b141800bdcd0328ce22, type: 3}
-  - {fileID: 21300000, guid: b067d8d60861c8646b6135fbe84b6b75, type: 3}
   - {fileID: 21300000, guid: a9f259f952e5f4141a134eb245f1d344, type: 3}
-  - {fileID: 21300000, guid: ea06d2814cfeae144bd3a0a2ec4cfd6d, type: 3}
-  - {fileID: 21300000, guid: 120b15858f1b1514685a4f0c8ccd2016, type: 3}
-  - {fileID: 21300000, guid: 15ea15f1b6c52cd458d8e0ec256a358b, type: 3}
-  - {fileID: 21300000, guid: 3304b726000f8b44dbe2cf65f83e44be, type: 3}
   - {fileID: 21300000, guid: 6b0643aaa67844e2aae806b506ebe8f5, type: 3}
   - {fileID: 21300000, guid: ae483a7a0e01f492ab7488474a21b3e4, type: 3}
+  - {fileID: -4235479094120079693, guid: 6cc7134e573c070459adcb591a94ae2e, type: 3}
+  - {fileID: -3869847325183438214, guid: b067d8d60861c8646b6135fbe84b6b75, type: 3}
+  - {fileID: -196783655812773055, guid: 120b15858f1b1514685a4f0c8ccd2016, type: 3}
+  - {fileID: -303427994593928567, guid: 3304b726000f8b44dbe2cf65f83e44be, type: 3}

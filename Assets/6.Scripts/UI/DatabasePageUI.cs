@@ -627,6 +627,10 @@ public sealed class DatabasePageUI : MonoBehaviour
 
     internal static GameObject ResolveCombatProfileRowPrefab()
     {
+        GameObject fromResources = Resources.Load<GameObject>("UI/EnemyCombatProfileRow");
+        if (fromResources)
+            return fromResources;
+
 #if UNITY_EDITOR
         const string prefabPath = "Assets/2.Prefabs/UI/EnemyCombatProfileRow.prefab";
         GameObject fromAssetDatabase = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);

@@ -12,6 +12,8 @@ using UnityEngine;
 public static class DatabaseEnemyAvatarCatalogBuilder
 {
     private const string CatalogAssetPath = "Assets/Resources/Databases/DatabaseEnemyAvatarCatalog.asset";
+    private const string CombatProfileRowSourcePath = "Assets/2.Prefabs/UI/EnemyCombatProfileRow.prefab";
+    private const string CombatProfileRowResourcesPath = "Assets/Resources/UI/EnemyCombatProfileRow.prefab";
     private const string AvatarTexturePrefix = "Enemy Avatars_";
 
     private static readonly string[] AvatarProjectFolders =
@@ -24,8 +26,29 @@ public static class DatabaseEnemyAvatarCatalogBuilder
     public static void RebuildFromMenu()
     {
         RebuildCatalogAsset();
+        SyncCombatProfileRowPrefabForBuild();
         AssetDatabase.SaveAssets();
         Debug.Log("[DatabaseEnemyAvatarCatalog] Rebuilt enemy avatar catalog for builds.");
+    }
+
+    public static void SyncCombatProfileRowPrefabForBuild()
+    {
+        if (!AssetDatabase.LoadAssetAtPath<GameObject>(CombatProfileRowSourcePath))
+            return;
+
+        EnsureParentFolderExists(CombatProfileRowResourcesPath);
+
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(CombatProfileRowResourcesPath) != null)
+            AssetDatabase.DeleteAsset(CombatProfileRowResourcesPath);
+
+        if (!AssetDatabase.CopyAsset(CombatProfileRowSourcePath, CombatProfileRowResourcesPath))
+        {
+            Debug.LogWarning(
+                "[DatabaseEnemyAvatarCatalog] Failed to copy EnemyCombatProfileRow prefab into Resources/UI for builds.");
+            return;
+        }
+
+        EditorUtility.SetDirty(AssetDatabase.LoadAssetAtPath<GameObject>(CombatProfileRowResourcesPath));
     }
 
     public static void RebuildCatalogAsset()
@@ -118,6 +141,10 @@ public sealed class DatabaseEnemyAvatarCatalogBuildPreprocessor : IPreprocessBui
 {
     public int callbackOrder => 0;
 
-    public void OnPreprocessBuild(BuildReport report) => DatabaseEnemyAvatarCatalogBuilder.RebuildCatalogAsset();
+    public void OnPreprocessBuild(BuildReport report)
+    {
+        DatabaseEnemyAvatarCatalogBuilder.RebuildCatalogAsset();
+        DatabaseEnemyAvatarCatalogBuilder.SyncCombatProfileRowPrefabForBuild();
+    }
 }
 #endif

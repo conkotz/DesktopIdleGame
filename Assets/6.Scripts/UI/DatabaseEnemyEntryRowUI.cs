@@ -8,6 +8,8 @@ using UnityEngine.UI;
 public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
 {
     private const float IconColumnWidth = 200f;
+    private const float IconFrameSize = 200f;
+    private const float IconInsetTotal = 60f;
     private const float RowLabelWidth = 200f;
     private const float RowContentSpacing = 6f;
     private const float LootIconSize = 50f;
@@ -196,7 +198,7 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             iconBorder.anchorMax = new Vector2(0f, 1f);
             iconBorder.pivot = new Vector2(0f, 1f);
             iconBorder.anchoredPosition = Vector2.zero;
-            iconBorder.sizeDelta = new Vector2(IconColumnWidth, rowHeight);
+            iconBorder.sizeDelta = new Vector2(IconFrameSize, IconFrameSize);
         }
 
         RectTransform rightArea = transform.Find("RightArea") as RectTransform;
@@ -240,12 +242,13 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
             return;
 
         RectTransform iconRect = enemyIcon.rectTransform;
-        iconRect.anchorMin = Vector2.zero;
-        iconRect.anchorMax = Vector2.one;
+        float iconSize = Mathf.Max(1f, IconFrameSize - IconInsetTotal);
+
+        iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+        iconRect.anchorMax = new Vector2(0.5f, 0.5f);
         iconRect.pivot = new Vector2(0.5f, 0.5f);
-        iconRect.offsetMin = new Vector2(2f, 2f);
-        iconRect.offsetMax = new Vector2(-2f, -2f);
-        iconRect.sizeDelta = Vector2.zero;
+        iconRect.anchoredPosition = Vector2.zero;
+        iconRect.sizeDelta = new Vector2(iconSize, iconSize);
     }
 
     private static void DisableRowLayoutGroup(RectTransform row)
