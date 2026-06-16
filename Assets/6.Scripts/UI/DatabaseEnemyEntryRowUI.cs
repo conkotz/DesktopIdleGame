@@ -156,15 +156,27 @@ public sealed class DatabaseEnemyEntryRowUI : MonoBehaviour
         if (!combatProfileLabel)
             return;
 
+        combatProfileLabel.richText = true;
+
         if (enemy == null)
         {
             combatProfileLabel.text = string.Empty;
             return;
         }
 
-        string label = EnduranceTrialUIHelpers.GetEnemyCombatProfileLabel(enemy);
-        combatProfileLabel.text = label;
-        combatProfileLabel.color = CombatProfileDisplay.GetColorForDisplayLabel(label);
+        string richLabel = EnduranceTrialUIHelpers.GetEnemyCombatProfileRichTextLabel(enemy);
+        if (!string.IsNullOrWhiteSpace(richLabel))
+        {
+            combatProfileLabel.text = richLabel;
+            combatProfileLabel.color = Color.white;
+        }
+        else
+        {
+            string label = EnduranceTrialUIHelpers.GetEnemyCombatProfileLabel(enemy);
+            combatProfileLabel.text = label;
+            combatProfileLabel.color = CombatProfileDisplay.GetColorForDisplayLabel(label);
+        }
+
         combatProfileLabel.raycastTarget = false;
     }
 

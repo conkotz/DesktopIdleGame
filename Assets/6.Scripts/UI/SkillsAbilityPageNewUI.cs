@@ -38,6 +38,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
     [Header("Optional labels")]
     [SerializeField] private TMP_Text selectedSkillTitleText;
+    [SerializeField] private TMP_Text editingText;
 
     [Header("Details panel")]
     [SerializeField] private SkillNodeDetailsPanelUI skillNodeDetailsPanel;
@@ -103,6 +104,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EnsureSkillLevelTextReference();
         EnsureBottomPanelReferences();
         EnsureDetailsPanelReferences();
+        if (editingText != null)
+            editingText.gameObject.SetActive(false);
     }
 
     private void OnEnable()
@@ -121,6 +124,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         HookTreeGlowAcknowledge();
         ResolveInitialSkillSelection();
         RefreshAbilityPresetButtonLabels();
+        RefreshEditingPresetText();
         RefreshTabSelectionVisuals();
         RefreshCategoryModeButtonVisuals();
         EnsureHorizontalTimelineReference();
@@ -746,6 +750,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
                 && skillsManager.IsAbilityPresetActiveAndMatching(skillType, i);
             UITabBarButtonVisuals.Apply(button, highlight);
         }
+
+        RefreshEditingPresetText();
     }
 
     private static void SetAbilityPresetButtonLabel(Button button, string label)
@@ -791,6 +797,15 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
             return;
 
+        if (IsPresetSlotActive(skillType, slotIndex))
+        {
+            skillsManager.ClearActiveAbilityPresetForSkill(skillType);
+            SaveManager.Instance?.Save();
+            RefreshAbilityPresetButtonLabels();
+            ApplyProgressionRefreshToPage();
+            return;
+        }
+
         if (!skillsManager.TryLoadAbilityPreset(skillType, slotIndex))
         {
             GameLog.Add("Empty preset");
@@ -811,15 +826,25 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         string presetName = skillsManager.GetAbilityPresetResolvedDisplayName(skillType, slotIndex);
-        var entries = new List<ContextMenuEntry>
-        {
-            new ContextMenuEntry("Select", () => OnAbilityPresetLeftClicked(slotIndex)),
-            new ContextMenuEntry($"Save to: {presetName}", () => SaveAbilityPreset(slotIndex)),
-            new ContextMenuEntry("Edit", () => OpenAbilityPresetEditPopup(slotIndex)),
-            new ContextMenuEntry("Reset", () => ResetAbilityPreset(slotIndex))
-        };
+        bool isSelected = IsPresetSlotActive(skillType, slotIndex);
+        var entries = new List<ContextMenuEntry>();
+        if (isSelected)
+            entries.Add(new ContextMenuEntry("Unselect", () => UnselectAbilityPreset(skillType)));
+        else
+            entries.Add(new ContextMenuEntry("Select", () => OnAbilityPresetLeftClicked(slotIndex)));
+
+        entries.Add(new ContextMenuEntry($"Save to: {presetName}", () => SaveAbilityPreset(slotIndex)));
+        entries.Add(new ContextMenuEntry("Edit", () => OpenAbilityPresetEditPopup(slotIndex)));
+        entries.Add(new ContextMenuEntry("Reset", () => ResetAbilityPreset(slotIndex)));
 
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, screenPosition, presetName);
+    }
+
+    private void UnselectAbilityPreset(SkillType skillType)
+    {
+        skillsManager?.ClearActiveAbilityPresetForSkill(skillType);
+        SaveManager.Instance?.Save();
+        RefreshAbilityPresetButtonLabels();
     }
 
     private void SaveAbilityPreset(int slotIndex)
@@ -1028,6 +1053,21 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             if (gatheringSkillsTabBarRoot == null)
                 gatheringSkillsTabBarRoot = FindChildByName(transform, "GatheringSkillsTabBar");
         }
+
+        if (editingText == null)
+        {
+            Transform editing = transform.Find("TopBar/EditingText");
+            if (editing == null)
+                editing = transform.Find("TopBar/Text (TMP)");
+            if (editing == null)
+                editing = FindChildByName(transform, "EditingText");
+
+            if (editing != null)
+                editingText = editing.GetComponent<TMP_Text>();
+        }
+
+        if (editingText != null && !Application.isPlaying)
+            editingText.gameObject.SetActive(false);
     }
 
     private static Transform FindChildByName(Transform root, string leafName)
@@ -1510,6 +1550,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (preservedScroll.HasValue && horizontalSkillTimeline != null)
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
 
+        AutoSaveSelectedPresetForSkill(type);
         RefreshAbilityPresetButtonLabels();
     }
 
@@ -1532,7 +1573,56 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (preservedScroll.HasValue && horizontalSkillTimeline != null)
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
 
+        AutoSaveSelectedPresetForSkill(type);
         RefreshAbilityPresetButtonLabels();
+    }
+
+    private void AutoSaveSelectedPresetForSkill(SkillType skillType)
+    {
+        if (skillsManager == null)
+            return;
+
+        if (!skillsManager.TryGetActiveAbilityPresetSlot(skillType, out int activeSlot))
+            return;
+
+        skillsManager.SaveCurrentSkillTreeToAbilityPreset(skillType, activeSlot);
+        SaveManager.Instance?.Save();
+    }
+
+    private bool IsPresetSlotActive(SkillType skillType, int slotIndex)
+    {
+        if (skillsManager == null)
+            return false;
+        return skillsManager.TryGetActiveAbilityPresetSlot(skillType, out int active)
+               && active == Mathf.Clamp(slotIndex, 0, SkillsManager.AbilityPresetSlotCount - 1);
+    }
+
+    private void RefreshEditingPresetText()
+    {
+        if (editingText == null)
+            return;
+
+        if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
+        {
+            editingText.gameObject.SetActive(false);
+            return;
+        }
+
+        if (!skillsManager.TryGetActiveAbilityPresetSlot(skillType, out int activeSlot))
+        {
+            editingText.gameObject.SetActive(false);
+            return;
+        }
+
+        string presetName = skillsManager.GetAbilityPresetResolvedDisplayName(skillType, activeSlot);
+        string skillName = _selectedSkill != null && _selectedSkill.skillType == skillType
+            ? SkillsAbilityPresentationResolver.ResolveSkillDisplayName(_selectedSkill)
+            : skillType.ToString();
+        if (string.IsNullOrWhiteSpace(skillName))
+            skillName = skillType.ToString();
+
+        editingText.text = $"Making changes to: {presetName} ({skillName.ToLowerInvariant()})";
+        editingText.gameObject.SetActive(true);
     }
 
     private void RefreshTimelineAfterPickOrEnhancementChange()

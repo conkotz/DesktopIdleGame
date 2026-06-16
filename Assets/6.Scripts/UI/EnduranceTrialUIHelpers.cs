@@ -9,6 +9,7 @@ using UnityEngine;
 public static class EnduranceTrialUIHelpers
 {
     private static readonly Dictionary<int, string> CombatProfileLabelCache = new();
+    private static readonly Dictionary<int, string> CombatProfileRichLabelCache = new();
 
     /// <summary>Active playable map if it is an endurance trial; otherwise null.</summary>
     public static MapNodeDefinition TryGetActiveEnduranceMapNode()
@@ -101,6 +102,32 @@ public static class EnduranceTrialUIHelpers
         }
 
         CombatProfileLabelCache[id] = cached;
+        return cached;
+    }
+
+    /// <summary>
+    /// Combat profile rich-text label for an <see cref="EnemyDefinition"/> (same formatting/colors as overhead UI).
+    /// </summary>
+    public static string GetEnemyCombatProfileRichTextLabel(EnemyDefinition def)
+    {
+        if (def == null)
+            return string.Empty;
+
+        int id = def.GetInstanceID();
+        if (CombatProfileRichLabelCache.TryGetValue(id, out string cached))
+            return cached;
+
+        if (!TryCreateTempEnemyStats(def, applyActiveMapModifiers: false, out GameObject go, out CharacterStats stats))
+        {
+            cached = string.Empty;
+        }
+        else
+        {
+            cached = stats.GetCombatProfileRichTextLabel();
+            UnityEngine.Object.Destroy(go);
+        }
+
+        CombatProfileRichLabelCache[id] = cached;
         return cached;
     }
 

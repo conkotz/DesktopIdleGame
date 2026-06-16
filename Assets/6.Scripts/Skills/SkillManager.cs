@@ -667,6 +667,18 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return DoesCurrentSkillTreeMatchPreset(skillType, slotIndex);
     }
 
+    public bool TryGetActiveAbilityPresetSlot(SkillType skillType, out int slotIndex)
+    {
+        if (_activeAbilityPresetSlotBySkill.TryGetValue(skillType, out int active))
+        {
+            slotIndex = Mathf.Clamp(active, 0, AbilityPresetSlotCount - 1);
+            return true;
+        }
+
+        slotIndex = -1;
+        return false;
+    }
+
     public bool DoesCurrentSkillTreeMatchPreset(SkillType skillType, int slotIndex)
     {
         SkillAbilityPresetSave saved = GetAbilityPresetSlot(skillType, slotIndex);
