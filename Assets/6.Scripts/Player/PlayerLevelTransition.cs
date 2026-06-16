@@ -9,9 +9,11 @@ using UnityEngine.SceneManagement;
 [DisallowMultipleComponent]
 public class PlayerLevelTransition : MonoBehaviour
 {
+    public const float StandardShrinkDurationSeconds = 1.5f;
+
     [Header("Shrink")]
-    [SerializeField, Min(0.1f)] private float shrinkDurationSeconds = 2f;
-    [SerializeField, Min(0.1f)] private float mapTeleportShrinkDurationSeconds = 1f;
+    [SerializeField, Min(0.1f)] private float shrinkDurationSeconds = StandardShrinkDurationSeconds;
+    [SerializeField, Min(0.1f)] private float mapTeleportShrinkDurationSeconds = StandardShrinkDurationSeconds;
     [SerializeField, Min(0.001f)] private float shrinkToScale = 0.01f;
 
     private Vector3 _savedRootScale = Vector3.one;
@@ -64,6 +66,23 @@ public class PlayerLevelTransition : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Same-scene teleport effect: shrink out, warp to X, then grow back in.
+    /// Uses the same standardized timing as scene travel transitions.
+    /// </summary>
+    public static bool TryShrinkTeleportWithinScene(PlayerController player, float targetWorldX)
+    {
+        if (player == null || player.IsDead)
+            return false;
+
+        PlayerLevelTransition transition = player.GetComponent<PlayerLevelTransition>();
+        if (transition == null || transition.IsTransitionRunning)
+            return false;
+
+        transition.BeginShrinkTeleportWithinScene(targetWorldX);
+        return true;
+    }
+
     /// <summary>Called from <see cref="PlayerSpawnController"/> after a DDOL scene change.</summary>
     public void RestoreScaleAfterLevelChange()
     {
@@ -88,6 +107,14 @@ public class PlayerLevelTransition : MonoBehaviour
             return;
 
         _running = StartCoroutine(ShrinkThenLoadRoutine(sceneName));
+    }
+
+    public void BeginShrinkTeleportWithinScene(float targetWorldX)
+    {
+        if (_running != null)
+            return;
+
+        _running = StartCoroutine(ShrinkTeleportWithinSceneRoutine(targetWorldX));
     }
 
     private IEnumerator ShrinkThenLoadRoutine(string sceneName)
@@ -144,10 +171,91 @@ public class PlayerLevelTransition : MonoBehaviour
 
     private float ResolveShrinkDurationSeconds()
     {
-        if (MapTravelSession.PeekPendingEntryMethod() == MapTravelSession.EntryMethod.MapTeleport)
-            return Mathf.Max(0.1f, mapTeleportShrinkDurationSeconds);
+        // Standardized globally for all transition types (map teleport, in-world entrance, return-to-town, etc).
+        return StandardShrinkDurationSeconds;
+    }
 
-        return Mathf.Max(0.1f, shrinkDurationSeconds);
+    private IEnumerator ShrinkTeleportWithinSceneRoutine(float targetWorldX)
+    {
+        _savedRootScale = transform.localScale;
+        _pendingRestore = false;
+
+        DisableAnimators();
+
+        PlayerController pc = GetComponent<PlayerController>();
+        if (pc != null)
+        {
+            pc.SetTeleportOutVisualsActive(true);
+            pc.SetTeleportDamageImmune(true);
+            pc.SetMovementLocked(true);
+        }
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+            rb.simulated = false;
+        }
+
+        Vector3 sv = _savedRootScale;
+        _startUniform = (sv.x + sv.y + sv.z) / 3f;
+        if (_startUniform < 1e-6f)
+            _startUniform = 1f;
+
+        _endScale = Mathf.Max(0.001f, shrinkToScale);
+        _dur = Mathf.Max(0.1f, ResolveShrinkDurationSeconds()) * 0.5f;
+        _elapsed = 0f;
+        _teleportLockWorldX = transform.position.x;
+        _shrinking = true;
+
+        while (_elapsed < _dur)
+            yield return null;
+
+        _shrinking = false;
+        transform.localScale = new Vector3(_endScale, _endScale, _endScale);
+
+        if (pc != null)
+            pc.WarpToWorldX(targetWorldX);
+        else
+            transform.position = new Vector3(targetWorldX, transform.position.y, transform.position.z);
+
+        _elapsed = 0f;
+        _dur = Mathf.Max(0.1f, ResolveShrinkDurationSeconds()) * 0.5f;
+        _teleportLockWorldX = transform.position.x;
+        while (_elapsed < _dur)
+        {
+            float dt = Mathf.Min(Time.deltaTime, 0.05f);
+            _elapsed += dt;
+            float u = Mathf.Clamp01(_elapsed / Mathf.Max(0.01f, _dur));
+            float u2 = u * u * (3f - 2f * u);
+            float s = Mathf.Lerp(_endScale, _startUniform, u2);
+            transform.localScale = new Vector3(s, s, s);
+
+            Vector3 p = transform.position;
+            p.x = _teleportLockWorldX;
+            transform.position = p;
+            yield return null;
+        }
+
+        transform.localScale = _savedRootScale;
+        if (pc != null)
+            pc.SnapToActiveLaneAtCurrentX();
+        _shrinking = false;
+
+        if (rb)
+            rb.simulated = true;
+
+        RestoreAnimators();
+
+        if (pc != null)
+        {
+            pc.SetTeleportOutVisualsActive(false);
+            pc.SetTeleportDamageImmune(false);
+            pc.SetMovementLocked(false);
+        }
+
+        _running = null;
     }
 
     private void LateUpdate()

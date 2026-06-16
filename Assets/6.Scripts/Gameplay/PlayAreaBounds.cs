@@ -80,6 +80,106 @@ public static class PlayAreaBounds
         return false;
     }
 
+    /// <summary>
+    /// Resolves the canonical lane anchor Y for a world X position.
+    /// Uses the enabled side-area floor when inside one; otherwise falls back to the main lane floor.
+    /// Anchor is the floor collider center Y (matches spawn-point centerline placement).
+    /// </summary>
+    public static bool TryGetFloorTopYForWorldX(float worldX, out float floorTopY)
+    {
+        if (TryGetEnabledSideAreaContainingWorldX(worldX, out SidePlayArea sideArea) && sideArea != null)
+        {
+            if (TryGetSpawnGroupAnchorY(sideArea.LinkedSpawnGroupId, out floorTopY))
+                return true;
+
+            floorTopY = sideArea.RefreshBounds().center.y;
+            return true;
+        }
+
+        if (TryGetMainLaneAnchorY(out floorTopY))
+            return true;
+
+        WorldFloorToUIEdge edge = WorldFloorToUIEdge.Active;
+        if (edge != null && edge.FloorCollider != null)
+        {
+            floorTopY = edge.FloorCollider.bounds.center.y;
+            return true;
+        }
+
+        Transform laneFloor = LaneGroundEffectPlacement.ResolveLaneFloorTransform();
+        if (laneFloor != null)
+        {
+            Collider2D col = laneFloor.GetComponent<Collider2D>();
+            if (col != null)
+            {
+                floorTopY = col.bounds.center.y;
+                return true;
+            }
+        }
+
+        floorTopY = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        return true;
+    }
+
+    private static bool TryGetMainLaneAnchorY(out float y)
+    {
+        y = 0f;
+
+        WorldFloorToUIEdge edge = WorldFloorToUIEdge.Active;
+        if (edge != null && edge.FloorCollider != null)
+        {
+            y = edge.FloorCollider.bounds.center.y;
+            return true;
+        }
+
+        if (TryGetSpawnGroupAnchorY("AllSpawns", out y))
+            return true;
+
+        GameObject playerSpawn = GameObject.Find("SpawnPoint_Player");
+        if (playerSpawn != null)
+        {
+            y = playerSpawn.transform.position.y;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetSpawnGroupAnchorY(string groupId, out float y)
+    {
+        y = 0f;
+        if (string.IsNullOrWhiteSpace(groupId))
+            return false;
+
+        SpawnPointGroup[] groups = UnityEngine.Object.FindObjectsByType<SpawnPointGroup>(FindObjectsSortMode.None);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            SpawnPointGroup g = groups[i];
+            if (!g || !string.Equals(g.groupId?.Trim(), groupId.Trim(), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            IReadOnlyList<Transform> points = g.Points;
+            float sumY = 0f;
+            int count = 0;
+            for (int p = 0; p < points.Count; p++)
+            {
+                Transform t = points[p];
+                if (!t)
+                    continue;
+                sumY += t.position.y;
+                count++;
+            }
+
+            if (count > 0)
+            {
+                y = sumY / count;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryGetEnabledSideAreaContainingWorldX(float worldX, out SidePlayArea area)
     {
         area = null;

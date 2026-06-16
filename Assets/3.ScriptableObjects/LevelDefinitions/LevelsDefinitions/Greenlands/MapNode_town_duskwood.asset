@@ -332,7 +332,7 @@ MonoBehaviour:
   inMapTeleporters:
   - teleporterLinkId: duskwood_combat_practice
     spawnPointGroupId: AllSpawns
-    spawnPointName: SpawnPoint-11
+    spawnPointName: SpawnPoint24
     teleporterPrefab: {fileID: 8347273920747777605, guid: d0a7e83ebe494df448ccdaf20648505c, type: 3}
     destinationLabel: To combat testing area
   - teleporterLinkId: duskwood_combat_practice

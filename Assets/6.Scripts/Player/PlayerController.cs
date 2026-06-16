@@ -174,6 +174,7 @@ public class PlayerController : MonoBehaviour
     }
 
     private Rigidbody2D _rb;
+    private Collider2D _groundAlignCollider;
 
     private bool _suppressSpriteFlipForTeleport;
     private bool _teleportDamageImmune;
@@ -547,6 +548,7 @@ public class PlayerController : MonoBehaviour
             animator = GetComponentInChildren<Animator>(true);
 
         _rb = GetComponent<Rigidbody2D>();
+        _groundAlignCollider = ResolveGroundAlignCollider();
 
         if (actionPopup)
             actionPopup.SetActive(false);
@@ -1830,12 +1832,67 @@ public class PlayerController : MonoBehaviour
         Vector3 pos = transform.position;
         pos.x = x;
         transform.position = pos;
+        AlignToActiveFloorForCurrentX();
         SyncPlayerRigidbody2DPosition();
         CameraFollow.SnapToTargetHorizontal();
 
         PlayerCombatController combat = GetComponent<PlayerCombatController>();
         combat?.ClearTarget();
         PlayerWorldInteractFocus.ClearForPlayer(this);
+    }
+
+    /// <summary>Re-snap current position to active lane floor (use after visual scale changes).</summary>
+    public void SnapToActiveLaneAtCurrentX()
+    {
+        if (_isDead)
+            return;
+
+        AlignToActiveFloorForCurrentX();
+        SyncPlayerRigidbody2DPosition();
+    }
+
+    private Collider2D ResolveGroundAlignCollider()
+    {
+        Collider2D[] cols = GetComponentsInChildren<Collider2D>(true);
+        if (cols == null || cols.Length == 0)
+            return null;
+
+        Collider2D fallback = null;
+        for (int i = 0; i < cols.Length; i++)
+        {
+            Collider2D c = cols[i];
+            if (!c)
+                continue;
+
+            fallback ??= c;
+
+            // Prefer the physical body collider (not trigger), bound to this player's rigidbody.
+            if (!c.isTrigger && c.attachedRigidbody == _rb)
+                return c;
+        }
+
+        return fallback;
+    }
+
+    private void AlignToActiveFloorForCurrentX()
+    {
+        if (!PlayAreaBounds.TryGetFloorTopYForWorldX(transform.position.x, out float floorTop))
+            return;
+
+        _groundAlignCollider ??= ResolveGroundAlignCollider();
+        if (_groundAlignCollider == null)
+            return;
+
+        Physics2D.SyncTransforms();
+        float colliderBottomBelowRoot = transform.position.y - _groundAlignCollider.bounds.min.y;
+        float targetY = floorTop + colliderBottomBelowRoot;
+
+        Vector3 pos = transform.position;
+        if (Mathf.Abs(pos.y - targetY) <= 0.0001f)
+            return;
+
+        pos.y = targetY;
+        transform.position = pos;
     }
 
     /// <summary>Clears manual repositioning so combat can chase the clicked enemy into range.</summary>

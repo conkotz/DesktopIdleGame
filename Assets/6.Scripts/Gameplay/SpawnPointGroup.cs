@@ -114,6 +114,7 @@ public class SpawnPointGroup : MonoBehaviour
             string name = $"SpawnPoint{idx}";
             EnsureChild(name, new Vector3(positiveAnchor.localPosition.x + i, y, z));
         }
+
     }
 
     private Transform EnsureChild(string name, Vector3 localPosition)

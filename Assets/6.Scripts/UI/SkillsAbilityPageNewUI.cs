@@ -833,7 +833,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         else
             entries.Add(new ContextMenuEntry("Select", () => OnAbilityPresetLeftClicked(slotIndex)));
 
-        entries.Add(new ContextMenuEntry($"Save to: {presetName}", () => SaveAbilityPreset(slotIndex)));
+        entries.Add(new ContextMenuEntry($"Save to: <size=82%>{presetName}</size>", () => SaveAbilityPreset(slotIndex)));
         entries.Add(new ContextMenuEntry("Edit", () => OpenAbilityPresetEditPopup(slotIndex)));
         entries.Add(new ContextMenuEntry("Reset", () => ResetAbilityPreset(slotIndex)));
 

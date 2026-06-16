@@ -130,7 +130,9 @@ public class MinionUnit : MonoBehaviour
         if (!ShouldPreserveLaneHierarchy())
             LaneGroundEffectPlacement.AttachUnitToLane(transform);
 
-        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + feetYOffset;
+        float floorTop = PlayAreaBounds.TryGetFloorTopYForWorldX(transform.position.x, out float activeFloorTop)
+            ? activeFloorTop + feetYOffset
+            : LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + feetYOffset;
         float targetRootY = _hasColliderBottomBelowRoot
             ? floorTop + _colliderBottomBelowRoot
             : floorTop;
@@ -148,7 +150,7 @@ public class MinionUnit : MonoBehaviour
 
     private void CacheColliderBottomBelowRoot()
     {
-        Collider2D minionCol = GetSoldierCollider();
+        Collider2D minionCol = ResolveGroundAlignCollider();
         if (!minionCol)
         {
             _hasColliderBottomBelowRoot = false;
@@ -415,6 +417,29 @@ public class MinionUnit : MonoBehaviour
 
         Transform soldier = _visualFlipRoot.Find("Soldier");
         return soldier ? soldier.GetComponent<Collider2D>() : null;
+    }
+
+    private Collider2D ResolveGroundAlignCollider()
+    {
+        // Prefer soldier collider (best feet alignment with this rig).
+        Collider2D soldier = GetSoldierCollider();
+        if (soldier)
+            return soldier;
+
+        Collider2D fallback = null;
+        Collider2D[] all = GetComponentsInChildren<Collider2D>(true);
+        for (int i = 0; i < all.Length; i++)
+        {
+            Collider2D c = all[i];
+            if (!c)
+                continue;
+
+            fallback ??= c;
+            if (!c.isTrigger && c.attachedRigidbody == _rb)
+                return c;
+        }
+
+        return fallback;
     }
 
     private void PlayState(string stateName)

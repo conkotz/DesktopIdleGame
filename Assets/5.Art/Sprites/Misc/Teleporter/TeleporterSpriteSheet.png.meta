@@ -1,0 +1,333 @@
+fileFormatVersion: 2
+guid: 01490d2423b2fb540af58b20133e94a6
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3707066557807913925
+    second: TeleporterSpriteSheet_0
+  - first:
+      213: -6355607547935794200
+    second: TeleporterSpriteSheet_1
+  - first:
+      213: 4179565316515573237
+    second: TeleporterSpriteSheet_2
+  - first:
+      213: -803991338722153702
+    second: TeleporterSpriteSheet_3
+  - first:
+      213: -8571391920971087725
+    second: TeleporterSpriteSheet_4
+  - first:
+      213: 8016001158140886221
+    second: TeleporterSpriteSheet_5
+  - first:
+      213: -3371650708636314896
+    second: TeleporterSpriteSheet_6
+  - first:
+      213: -4575255295111496787
+    second: TeleporterSpriteSheet_7
+  - first:
+      213: 1935872689247335149
+    second: TeleporterSpriteSheet_8
+  - first:
+      213: 896301747483440839
+    second: TeleporterSpriteSheet_9
+  - first:
+      213: 5023510748671275331
+    second: TeleporterSpriteSheet_10
+  - first:
+      213: 7331595080858717717
+    second: TeleporterSpriteSheet_11
+  - first:
+      213: 8871922799360397714
+    second: TeleporterSpriteSheet_12
+  - first:
+      213: 2025555361129762882
+    second: TeleporterSpriteSheet_13
+  - first:
+      213: 1085525244056105746
+    second: TeleporterSpriteSheet_14
+  - first:
+      213: 1255423160301914404
+    second: TeleporterSpriteSheet_15
+  - first:
+      213: -2125195553562226926
+    second: TeleporterSpriteSheet_16
+  - first:
+      213: 8729474890938081378
+    second: TeleporterSpriteSheet_17
+  - first:
+      213: -1353426134980555240
+    second: TeleporterSpriteSheet_18
+  - first:
+      213: 541837043286775460
+    second: TeleporterSpriteSheet_19
+  - first:
+      213: 433540113341342958
+    second: TeleporterSpriteSheet_20
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_1
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 259
+        width: 122
+        height: 18
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ebde7dcb985cc7a0800000000000000
+      internalID: -6355607547935794200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_2
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 259
+        width: 122
+        height: 25
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5fd2476d28cc00a30800000000000000
+      internalID: 4179565316515573237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_8
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 131
+        width: 122
+        height: 33
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: de2b7f444f99dda10800000000000000
+      internalID: 1935872689247335149
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_9
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 131
+        width: 122
+        height: 41
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c6ff46c0bd407c00800000000000000
+      internalID: 896301747483440839
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_19
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 3
+        width: 122
+        height: 50
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a6914b8bedf48700800000000000000
+      internalID: 541837043286775460
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: TeleporterSpriteSheet_20
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 3
+        width: 122
+        height: 59
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee4e793af6e340600800000000000000
+      internalID: 433540113341342958
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: d0ddd82900e459346b57d410939f6f49
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      TeleporterSpriteSheet_0: -3707066557807913925
+      TeleporterSpriteSheet_1: -6355607547935794200
+      TeleporterSpriteSheet_10: 5023510748671275331
+      TeleporterSpriteSheet_11: 7331595080858717717
+      TeleporterSpriteSheet_12: 8871922799360397714
+      TeleporterSpriteSheet_13: 2025555361129762882
+      TeleporterSpriteSheet_14: 1085525244056105746
+      TeleporterSpriteSheet_15: 1255423160301914404
+      TeleporterSpriteSheet_16: -2125195553562226926
+      TeleporterSpriteSheet_17: 8729474890938081378
+      TeleporterSpriteSheet_18: -1353426134980555240
+      TeleporterSpriteSheet_19: 541837043286775460
+      TeleporterSpriteSheet_2: 4179565316515573237
+      TeleporterSpriteSheet_20: 433540113341342958
+      TeleporterSpriteSheet_3: -803991338722153702
+      TeleporterSpriteSheet_4: -8571391920971087725
+      TeleporterSpriteSheet_5: 8016001158140886221
+      TeleporterSpriteSheet_6: -3371650708636314896
+      TeleporterSpriteSheet_7: -4575255295111496787
+      TeleporterSpriteSheet_8: 1935872689247335149
+      TeleporterSpriteSheet_9: 896301747483440839
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -128,6 +128,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     private readonly Vector3[] _corners = new Vector3[4];
     private static readonly HashSet<Transform> s_movedFollowersScratch = new();
     private float _smoothTargetFloorTopY = float.NaN;
+    private float _floorTopOffsetFromWorldRootY = float.NaN;
 
     /// <summary>Latched sampled target (world Y for floor top). Updated when measurement moves beyond <see cref="sourceMeasurementLatchWorld"/>.</summary>
     private float _latchedSourceWorldY = float.NaN;
@@ -175,6 +176,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     {
         _latchedSourceWorldY = float.NaN;
         _smoothTargetFloorTopY = float.NaN;
+        _floorTopOffsetFromWorldRootY = float.NaN;
     }
 
     private float _cachedOrthoSize = -1f;
@@ -186,7 +188,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             if (!Application.isPlaying)
                 return;
 
-            if (_appliedOncePlaying && ScreenOrSourceLayoutChanged())
+            if (_appliedOncePlaying && (ScreenOrSourceLayoutChanged() || OrthoSizeChanged()))
                 Apply(force: true, allowCanvasForce: true);
             return;
         }
@@ -247,12 +249,32 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     {
         _cachedPixelW = Screen.width;
         _cachedPixelH = Screen.height;
+        _cachedOrthoSize = worldCamera ? worldCamera.orthographicSize : -1f;
 
         if (sourceRect)
         {
             _cachedAnchoredPosition = sourceRect.anchoredPosition;
             _cachedSizeDelta = sourceRect.sizeDelta;
         }
+    }
+
+    private bool OrthoSizeChanged()
+    {
+        CacheReferences();
+        if (!worldCamera)
+            return false;
+
+        if (_cachedOrthoSize < 0f)
+        {
+            _cachedOrthoSize = worldCamera.orthographicSize;
+            return true;
+        }
+
+        if (Mathf.Approximately(worldCamera.orthographicSize, _cachedOrthoSize))
+            return false;
+
+        _cachedOrthoSize = worldCamera.orthographicSize;
+        return true;
     }
 
     private bool ScreenOrSourceLayoutChanged()
@@ -353,15 +375,19 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         }
 
         float floorTopY = floorCollider.bounds.max.y;
+        if (float.IsNaN(_floorTopOffsetFromWorldRootY) || force)
+            _floorTopOffsetFromWorldRootY = floorTopY - worldRoot.position.y;
 
-        if (!IsFiniteNumber(floorTopY) || !IsFiniteNumber(targetFloorTopY))
+        float targetWorldRootY = targetFloorTopY - _floorTopOffsetFromWorldRootY;
+
+        if (!IsFiniteNumber(floorTopY) || !IsFiniteNumber(targetFloorTopY) || !IsFiniteNumber(targetWorldRootY))
         {
             if (debugLaneAlignment)
                 Debug.LogWarning($"[WorldFloorToUIEdge] Non-finite floorTop ({floorTopY}) or target ({targetFloorTopY}); skip apply.", this);
             return;
         }
 
-        float deltaY = targetFloorTopY - floorTopY;
+        float deltaY = targetWorldRootY - worldRoot.position.y;
         float rawDeltaBeforeClamp = deltaY;
 
         if (maxAlignmentStepWorld > 0f)

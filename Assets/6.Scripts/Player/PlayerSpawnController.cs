@@ -267,7 +267,9 @@ public class PlayerSpawnController : MonoBehaviour
                     if (linkedSpawnX.HasValue)
                     {
                         float x = linkedSpawnX.Value;
-                        if (WorldBounds.Instance != null)
+                        if (PlayAreaBounds.TryGetClampXForWorldX(x, 0.25f, out float minX, out float maxX))
+                            x = Mathf.Clamp(x, minX, maxX);
+                        else if (WorldBounds.Instance != null)
                             x = Mathf.Clamp(x, WorldBounds.Instance.Left, WorldBounds.Instance.Right);
                         transform.position = new Vector3(x, basePos.y, basePos.z);
                         restoredFromSavedWorldPosition = true;
@@ -300,7 +302,9 @@ public class PlayerSpawnController : MonoBehaviour
                     if (IsSavedXValidForCurrentMap(savedX))
                     {
                         float x = savedX;
-                        if (WorldBounds.Instance != null)
+                        if (PlayAreaBounds.TryGetClampXForWorldX(x, 0.25f, out float minX, out float maxX))
+                            x = Mathf.Clamp(x, minX, maxX);
+                        else if (WorldBounds.Instance != null)
                             x = Mathf.Clamp(x, WorldBounds.Instance.Left, WorldBounds.Instance.Right);
                         transform.position = new Vector3(x, basePos.y, basePos.z);
                         restoredFromSavedWorldPosition = true;
@@ -355,12 +359,18 @@ public class PlayerSpawnController : MonoBehaviour
             levelTransition?.RestoreScaleAfterLevelChange();
             Physics2D.SyncTransforms();
 
-            bool shouldSnapToGround = snapToGround ||
-                                      restoredFromSavedWorldPosition ||
-                                      (loadedScene.IsValid() &&
-                                       loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase));
+            bool isGameplay = loadedScene.IsValid() &&
+                              loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase);
+            bool shouldSnapToGround = snapToGround || restoredFromSavedWorldPosition || isGameplay;
             if (shouldSnapToGround)
-                SnapToGround_ColliderCast(!isBootstrap);
+            {
+                // In gameplay maps, always use canonical lane snap so spawn near teleporter/signpost colliders
+                // cannot push the player upward.
+                if (isGameplay && playerController != null)
+                    playerController.SnapToActiveLaneAtCurrentX();
+                else
+                    SnapToGround_ColliderCast(!isBootstrap);
+            }
 
             if (rb)
                 rb.position = transform.position;

@@ -23,6 +23,8 @@ public sealed class FpsDisplayText : MonoBehaviour
     private float _smoothedFps = -1f;
     private int _displayedFps = -1;
     private bool _overlayConfigured;
+    private int _cachedCapIndex = int.MinValue;
+    private int _cachedCapValue = -1;
 
     private void Awake()
     {
@@ -47,6 +49,7 @@ public sealed class FpsDisplayText : MonoBehaviour
     private void OnEnable()
     {
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
+        DropdownSettingsStore.Changed += OnDropdownSettingsChanged;
         ResetSmoothing();
         ApplyVisibilityFromSettings();
         EnsureTopmostOverlayCanvas();
@@ -55,12 +58,22 @@ public sealed class FpsDisplayText : MonoBehaviour
     private void OnDisable()
     {
         ToggleSettingsStore.Changed -= OnToggleSettingsChanged;
+        DropdownSettingsStore.Changed -= OnDropdownSettingsChanged;
     }
 
     private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
     {
         if (id == ToggleSettingId.ShowFps)
             ApplyVisibilityFromSettings();
+    }
+
+    private void OnDropdownSettingsChanged(DropdownSettingId id, int _)
+    {
+        if (id == DropdownSettingId.CapFramerate)
+        {
+            _cachedCapIndex = int.MinValue;
+            _cachedCapValue = -1;
+        }
     }
 
     public static void RefreshAllFromSettings()
@@ -129,10 +142,27 @@ public sealed class FpsDisplayText : MonoBehaviour
             _smoothedFps = Mathf.Lerp(_smoothedFps, instantFps, smoothFactor * 0.45f);
 
         int fps = Mathf.RoundToInt(_smoothedFps);
+        int capFps = GetConfiguredFrameCap();
+        if (capFps > 0 && fps > capFps)
+            fps = capFps;
         if (fps == _displayedFps)
             return;
 
         _displayedFps = fps;
         label.text = string.Format(format, fps);
+    }
+
+    private int GetConfiguredFrameCap()
+    {
+        if (!DropdownSettingsStore.HasOptions(DropdownSettingId.CapFramerate))
+            return -1;
+
+        int index = DropdownSettingsStore.Get(DropdownSettingId.CapFramerate);
+        if (index == _cachedCapIndex)
+            return _cachedCapValue;
+
+        _cachedCapIndex = index;
+        _cachedCapValue = FramerateCapController.GetCapValueForIndex(index);
+        return _cachedCapValue;
     }
 }

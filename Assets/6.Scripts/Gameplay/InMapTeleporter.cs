@@ -180,8 +180,13 @@ public sealed class InMapTeleporter : MonoBehaviour
         InMapTeleporter.CancelPendingApproachForPlayer(player);
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
 
-        float destX = destination.GetArrivalWorldX(player);
-        player.WarpToWorldX(destX);
+        float rawDestX = destination.GetArrivalWorldX(player);
+        float destX = rawDestX;
+        if (PlayAreaBounds.TryGetClampXForWorldX(rawDestX, 0.25f, out float minX, out float maxX))
+            destX = Mathf.Clamp(rawDestX, minX, maxX);
+
+        if (!PlayerLevelTransition.TryShrinkTeleportWithinScene(player, destX))
+            player.WarpToWorldX(destX);
 
         PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
         combat?.ClearTarget();
