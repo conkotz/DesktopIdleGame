@@ -431,6 +431,7 @@ public static class AbilityCombatPower
 
     /// <summary>Cleaving Strikes secondary hits: fraction of rolled weapon split (sync with <see cref="PlayerAbilityController.BuildCleavingSecondarySplit"/>).</summary>
     public const float CleavingStrikesSecondaryHitWeaponDamageFraction = 0.6f;
+    /// <summary>Minimum melee reach while Cleaving Strikes is active (cleave anchor radius). Not a global weapon floor.</summary>
     public const float CleavingStrikesMinMeleeReach = 3f;
     public const float CleavingStrikesCleaveRadiusFromAnchor = 3f;
     public const int CleavingStrikesBaseExtraTargets = 2;

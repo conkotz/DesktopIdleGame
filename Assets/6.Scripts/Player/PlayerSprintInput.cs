@@ -78,6 +78,7 @@ public class PlayerSprintInput : MonoBehaviour
     private float _dashStartX;
     private float _dashTargetX;
     private float _dashEndTime;
+    private float _dashLaneReferenceX;
     private float _dashFaceDirectionSign;
     private bool _sprintExhausted;
 
@@ -202,7 +203,7 @@ public class PlayerSprintInput : MonoBehaviour
         float x = Mathf.Lerp(_dashStartX, _dashTargetX, eased);
 
         if (playerController != null)
-            playerController.SetHorizontalPositionForScriptedMove(x, _dashFaceDirectionSign);
+            playerController.SetHorizontalPositionForScriptedMove(x, _dashFaceDirectionSign, _dashLaneReferenceX);
         else
             transform.position = new Vector3(x, transform.position.y, transform.position.z);
 
@@ -256,6 +257,7 @@ public class PlayerSprintInput : MonoBehaviour
 
         _dashStartX = startX;
         _dashTargetX = targetX;
+        _dashLaneReferenceX = startX;
         _dashFaceDirectionSign = directionSign;
         _dashEndTime = Time.time + Mathf.Max(0.01f, sprintDashDurationSeconds);
         _dashCooldownEndsAt = Time.time + SprintDashCooldownSeconds;
@@ -301,7 +303,7 @@ public class PlayerSprintInput : MonoBehaviour
 
     private bool TryClampDashTarget(float startX, float directionSign, out float targetX)
     {
-        targetX = playerController.ClampWorldX(startX + directionSign * SprintDashDistance);
+        targetX = playerController.ClampWorldXForLaneAt(startX, startX + directionSign * SprintDashDistance);
         return Mathf.Abs(targetX - startX) >= 0.001f;
     }
 

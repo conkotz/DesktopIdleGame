@@ -55,6 +55,19 @@ public static class PlayAreaBounds
         return false;
     }
 
+    /// <summary>
+    /// Clamps a desired X using the lane/side-area bounds for <paramref name="laneReferenceWorldX"/>,
+    /// not the destination X. Use when resolving dash/teleport travel so crossing a lane gap does not
+    /// re-resolve to main-lane bounds mid-move.
+    /// </summary>
+    public static float ClampWorldXForLaneAt(float laneReferenceWorldX, float desiredWorldX, float padding)
+    {
+        if (TryGetClampXForWorldX(laneReferenceWorldX, padding, out float minX, out float maxX))
+            return Mathf.Clamp(desiredWorldX, minX, maxX);
+
+        return desiredWorldX;
+    }
+
     public static bool TryGetCameraClampXForWorldX(float worldX, float halfViewportWidth, out float minX, out float maxX)
     {
         if (TryGetEnabledSideAreaContainingWorldX(worldX, out SidePlayArea sideArea))

@@ -342,6 +342,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private readonly Dictionary<ResourceNode, LineRenderer> _woodcuttingTreeOutlineByNode = new();
     private readonly List<ResourceNode> _woodcuttingTreeOutlineScratch = new();
     private readonly List<ResourceNode> _woodcuttingTreeOutlineRemoveScratch = new();
+    private ResourceNode[] _woodcuttingOutlineScanCache;
+    private Vector3 _lastWoodcuttingOutlineScanPos;
+    private float _nextWoodcuttingOutlineRescanAt;
+    private const float WoodcuttingOutlineRescanInterval = 0.2f;
+    private const float WoodcuttingOutlineRescanMoveSqr = 0.25f;
 
     private GameObject _lumberFrenzyAnchorRoot;
     private GameObject _lumberFrenzyOrbitVfxRoot;
@@ -716,6 +721,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
                 buffer.Add(instance);
         }
     }
+
+    public bool HasActiveGaleforceTwisters => _activeGaleforceTwisterRoots.Count > 0;
 
     public void SpawnGaleforceTwister(Vector3 worldCenter, float hitRadius, float damageMultiplier)
     {
@@ -2637,7 +2644,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Vector3 playerPos = player.transform.position;
         float scanRadiusSqr = scanRadius * scanRadius;
 
-        ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        ResourceNode[] all = GetWoodcuttingNodesForOutlineScan(playerPos);
         for (int i = 0; i < all.Length; i++)
         {
             ResourceNode node = all[i];
@@ -2719,6 +2726,21 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         for (int i = 0; i < _woodcuttingTreeOutlineRemoveScratch.Count; i++)
             RemoveWoodcuttingTreeOutline(_woodcuttingTreeOutlineRemoveScratch[i]);
+
+        _woodcuttingOutlineScanCache = null;
+    }
+
+    private ResourceNode[] GetWoodcuttingNodesForOutlineScan(Vector3 playerPos)
+    {
+        bool timeDue = Time.time >= _nextWoodcuttingOutlineRescanAt;
+        bool moved = (playerPos - _lastWoodcuttingOutlineScanPos).sqrMagnitude > WoodcuttingOutlineRescanMoveSqr;
+        if (_woodcuttingOutlineScanCache != null && !timeDue && !moved)
+            return _woodcuttingOutlineScanCache;
+
+        _nextWoodcuttingOutlineRescanAt = Time.time + WoodcuttingOutlineRescanInterval;
+        _lastWoodcuttingOutlineScanPos = playerPos;
+        _woodcuttingOutlineScanCache = FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        return _woodcuttingOutlineScanCache;
     }
 
     private bool IsPlayerWoodcuttingTarget(ResourceNode node)

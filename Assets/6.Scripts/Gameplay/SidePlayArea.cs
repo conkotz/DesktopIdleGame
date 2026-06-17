@@ -29,6 +29,11 @@ public sealed class SidePlayArea : MonoBehaviour
     [SerializeField] private string centerLaneLineChildName = "LaneCenterLine";
 
     private LineRenderer _centerLaneLine;
+    private SpawnPointGroup _cachedSpawnGroup;
+    private Vector3 _lastLineRefreshRootPos;
+    private Bounds _lastLineRefreshBounds;
+    private float _cachedLaneAnchorY = float.NaN;
+    private bool _hasLineRefreshState;
 
     private static readonly Dictionary<string, SidePlayArea> Registry =
         new(StringComparer.OrdinalIgnoreCase);
@@ -42,8 +47,9 @@ public sealed class SidePlayArea : MonoBehaviour
     private void OnEnable()
     {
         Register();
+        CacheLinkedSpawnGroup();
         EnsureCenterLaneLineVisual();
-        RefreshCenterLaneLineVisual();
+        ForceRefreshCenterLaneLineVisual();
     }
     private void OnDisable() => Unregister();
 
@@ -51,16 +57,20 @@ public sealed class SidePlayArea : MonoBehaviour
     {
         if (!boundsCollider)
             boundsCollider = GetComponentInChildren<BoxCollider2D>(true);
+        CacheLinkedSpawnGroup();
         EnsureCenterLaneLineVisual();
-        RefreshCenterLaneLineVisual();
+        ForceRefreshCenterLaneLineVisual();
     }
 
     private void OnValidate()
     {
         if (!boundsCollider)
             boundsCollider = GetComponentInChildren<BoxCollider2D>(true);
+        _cachedSpawnGroup = null;
+        _cachedLaneAnchorY = float.NaN;
+        CacheLinkedSpawnGroup();
         EnsureCenterLaneLineVisual();
-        RefreshCenterLaneLineVisual();
+        ForceRefreshCenterLaneLineVisual();
     }
 
     private void LateUpdate()
@@ -69,8 +79,23 @@ public sealed class SidePlayArea : MonoBehaviour
             return;
 
         EnsureCenterLaneLineVisual();
-        if (_centerLaneLine != null)
-            RefreshCenterLaneLineVisual();
+        if (_centerLaneLine == null)
+            return;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            RefreshCenterLaneLineIfDirty();
+            return;
+        }
+#endif
+
+        // Play mode: skip bounds work when this side area hasn't moved since last refresh.
+        if (_hasLineRefreshState &&
+            (transform.position - _lastLineRefreshRootPos).sqrMagnitude <= 0.000001f)
+            return;
+
+        RefreshCenterLaneLineIfDirty();
     }
 
     public Bounds RefreshBounds()
@@ -177,7 +202,13 @@ public sealed class SidePlayArea : MonoBehaviour
             _centerLaneLine.gameObject.SetActive(true);
     }
 
-    private void RefreshCenterLaneLineVisual()
+    private void ForceRefreshCenterLaneLineVisual()
+    {
+        _hasLineRefreshState = false;
+        RefreshCenterLaneLineIfDirty();
+    }
+
+    private void RefreshCenterLaneLineIfDirty()
     {
         if (_centerLaneLine == null || !showCenterLaneLine)
             return;
@@ -186,7 +217,22 @@ public sealed class SidePlayArea : MonoBehaviour
         if (b.size.sqrMagnitude < 0.0001f)
             return;
 
-        float y = ResolveLaneAnchorY(b);
+        Vector3 rootPos = transform.position;
+        if (_hasLineRefreshState &&
+            (rootPos - _lastLineRefreshRootPos).sqrMagnitude <= 0.000001f &&
+            b.center == _lastLineRefreshBounds.center &&
+            b.extents == _lastLineRefreshBounds.extents &&
+            !float.IsNaN(_cachedLaneAnchorY))
+        {
+            return;
+        }
+
+        _lastLineRefreshRootPos = rootPos;
+        _lastLineRefreshBounds = b;
+        _cachedLaneAnchorY = ResolveLaneAnchorY(b);
+        _hasLineRefreshState = true;
+
+        float y = _cachedLaneAnchorY;
         Vector3 start = new Vector3(b.min.x, y, centerLaneLineZ);
         Vector3 end = new Vector3(b.max.x, y, centerLaneLineZ);
 
@@ -198,33 +244,54 @@ public sealed class SidePlayArea : MonoBehaviour
         _centerLaneLine.SetPosition(1, end);
     }
 
+    private void CacheLinkedSpawnGroup()
+    {
+        _cachedSpawnGroup = null;
+        if (string.IsNullOrWhiteSpace(linkedSpawnGroupId))
+            return;
+
+        string wantId = linkedSpawnGroupId.Trim();
+        SpawnPointGroup onSelf = GetComponent<SpawnPointGroup>();
+        if (onSelf != null && string.Equals(onSelf.groupId?.Trim(), wantId, StringComparison.OrdinalIgnoreCase))
+        {
+            _cachedSpawnGroup = onSelf;
+            return;
+        }
+
+        SpawnPointGroup[] groups = FindObjectsByType<SpawnPointGroup>(FindObjectsSortMode.None);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            SpawnPointGroup g = groups[i];
+            if (!g || !string.Equals(g.groupId?.Trim(), wantId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            _cachedSpawnGroup = g;
+            return;
+        }
+    }
+
     private float ResolveLaneAnchorY(Bounds fallbackBounds)
     {
-        // Keep the side-area center line on the same Y as its spawn row, if available.
-        if (!string.IsNullOrWhiteSpace(linkedSpawnGroupId))
+        if (_cachedSpawnGroup == null)
+            CacheLinkedSpawnGroup();
+
+        SpawnPointGroup group = _cachedSpawnGroup;
+        if (group != null)
         {
-            SpawnPointGroup[] groups = FindObjectsByType<SpawnPointGroup>(FindObjectsSortMode.None);
-            for (int i = 0; i < groups.Length; i++)
+            IReadOnlyList<Transform> points = group.Points;
+            float sumY = 0f;
+            int count = 0;
+            for (int p = 0; p < points.Count; p++)
             {
-                SpawnPointGroup g = groups[i];
-                if (!g || !string.Equals(g.groupId?.Trim(), linkedSpawnGroupId.Trim(), StringComparison.OrdinalIgnoreCase))
+                Transform t = points[p];
+                if (!t)
                     continue;
-
-                IReadOnlyList<Transform> points = g.Points;
-                float sumY = 0f;
-                int count = 0;
-                for (int p = 0; p < points.Count; p++)
-                {
-                    Transform t = points[p];
-                    if (!t)
-                        continue;
-                    sumY += t.position.y;
-                    count++;
-                }
-
-                if (count > 0)
-                    return sumY / count;
+                sumY += t.position.y;
+                count++;
             }
+
+            if (count > 0)
+                return sumY / count;
         }
 
         return fallbackBounds.center.y;

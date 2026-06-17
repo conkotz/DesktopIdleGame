@@ -125,6 +125,9 @@ public class HUDPresenter : MonoBehaviour
     /// </summary>
     private void HandleStatsChangedForCombatPower()
     {
+        if (stats != null && !stats.LastStatsChangeAffectsCombatPower)
+            return;
+
         RefreshNameAndCombatPower();
     }
 

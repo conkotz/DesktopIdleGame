@@ -495,7 +495,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null)
             return rangePadding;
 
-        return Mathf.Max(AbilityCombatPower.CleavingStrikesMinMeleeReach, Mathf.Max(0f, stats.Range)) + rangePadding;
+        float weaponRange = Mathf.Max(0f, stats.Range);
+        if (!abilityController)
+            abilityController = GetComponent<PlayerAbilityController>();
+
+        // Cleaving Strikes needs extended reach for cleave anchors; do not apply to normal weapon range.
+        if (abilityController != null && abilityController.IsCleavingStrikesActive)
+            weaponRange = Mathf.Max(weaponRange, AbilityCombatPower.CleavingStrikesMinMeleeReach);
+
+        return weaponRange + rangePadding;
     }
 
     public float GetAttackCycleNormalized()

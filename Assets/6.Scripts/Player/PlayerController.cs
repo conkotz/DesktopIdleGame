@@ -1793,10 +1793,25 @@ public class PlayerController : MonoBehaviour
         return Mathf.Clamp(x, min, max);
     }
 
+    /// <summary>
+    /// Clamps X using the lane bounds for <paramref name="laneReferenceWorldX"/> (where the move started),
+    /// so dashes cannot travel past the edge of the current lane into a gap or another play area.
+    /// </summary>
+    public float ClampWorldXForLaneAt(float laneReferenceWorldX, float x)
+    {
+        GetClampXMinMax(out float min, out float max, laneReferenceWorldX);
+        return Mathf.Clamp(x, min, max);
+    }
+
     public void SetHorizontalPositionForScriptedMove(float x, float faceDirectionSign)
     {
+        SetHorizontalPositionForScriptedMove(x, faceDirectionSign, transform.position.x);
+    }
+
+    public void SetHorizontalPositionForScriptedMove(float x, float faceDirectionSign, float laneReferenceWorldX)
+    {
         Vector3 pos = transform.position;
-        pos.x = ClampWorldX(x);
+        pos.x = ClampWorldXForLaneAt(laneReferenceWorldX, x);
         transform.position = pos;
         SyncPlayerRigidbody2DPosition();
         if (Mathf.Abs(faceDirectionSign) > 0.01f)
@@ -4025,9 +4040,10 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Horizontal limits for player position: <see cref="WorldBounds"/> with edge padding when present, else <see cref="LaneBounds"/>.
     /// </summary>
-    private void GetClampXMinMax(out float minX, out float maxX)
+    private void GetClampXMinMax(out float minX, out float maxX, float laneReferenceWorldX = float.NaN)
     {
-        if (PlayAreaBounds.TryGetClampXForWorldX(transform.position.x, WorldBoundsXPadding, out minX, out maxX))
+        float refX = float.IsNaN(laneReferenceWorldX) ? transform.position.x : laneReferenceWorldX;
+        if (PlayAreaBounds.TryGetClampXForWorldX(refX, WorldBoundsXPadding, out minX, out maxX))
             return;
 
         if (WorldBounds.Instance != null)

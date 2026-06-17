@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// When <see cref="ToggleSettingId.ExpandStripBackground"/> is on, the strip uses the scene
-/// <see cref="FullSkyVisualName"/> with clouds hidden; <see cref="FullCamera"/> draws a clone with clouds only in
+/// <see cref="FullSkyDefaultVisualName"/> with clouds hidden; <see cref="FullCamera"/> draws a clone with clouds only in
 /// the viewport above the strip. Collapsed: full-window clear with alpha 0 for desktop transparency (UniWindow Alpha mode).
 /// </summary>
 [DisallowMultipleComponent]
@@ -14,10 +14,11 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
 {
     public const string BackgroundLayerName = "WindowBackground";
     private const string BackgroundVisualsName = "BackgroundVisuals";
-    private const string FullSkyVisualName = "FullSkyVisual";
+    private const string FullSkyDefaultVisualName = "FullSkyDefaultVisual";
+    private const string LegacyFullSkyVisualName = "FullSkyVisual";
     private const string CloudsBackName = "CloudsBack";
     private const string CloudsFrontName = "CloudsFront";
-    private const string FullSkyVisualCloneName = "FullSkyVisual_FullWindow";
+    private const string FullSkyVisualCloneName = "FullSkyDefaultVisual_FullWindow";
     private const int BackgroundLayerFallbackIndex = 11;
 
     /// <summary>Clear color for empty framebuffer pixels. Alpha must be 0 for UniWindow Alpha transparency.</summary>
@@ -494,7 +495,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
         if (!_backgroundRoot)
             return false;
 
-        stripFullSky = FindChildRecursive(_backgroundRoot, FullSkyVisualName);
+        stripFullSky = FindFullSkyVisual(_backgroundRoot);
         return stripFullSky != null;
     }
 
@@ -510,12 +511,21 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
             if (!biomeRoot.gameObject.activeInHierarchy)
                 continue;
 
-            Transform fullSky = FindChildRecursive(biomeRoot, FullSkyVisualName);
+            Transform fullSky = FindFullSkyVisual(biomeRoot);
             skyVisualRoot = fullSky != null ? fullSky : biomeRoot;
             return true;
         }
 
         return false;
+    }
+
+    private static Transform FindFullSkyVisual(Transform root)
+    {
+        Transform found = FindChildRecursive(root, FullSkyDefaultVisualName);
+        if (found != null)
+            return found;
+
+        return FindChildRecursive(root, LegacyFullSkyVisualName);
     }
 
     private static Transform FindChildRecursive(Transform root, string childName)

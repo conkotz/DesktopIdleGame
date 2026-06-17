@@ -96,8 +96,8 @@ public partial class PlayerCombatController
         if (Mathf.Abs(dir) < 0.001f)
             return false;
 
-        float newX = player.ClampWorldX(myX + dir * dash);
-        player.SetHorizontalPositionForScriptedMove(newX, dir);
+        float newX = player.ClampWorldXForLaneAt(myX, myX + dir * dash);
+        player.SetHorizontalPositionForScriptedMove(newX, dir, myX);
         _nextBladeDancerDashTime = Time.time + AbilityCombatPower.WayOfTheBladeDancerDashCooldownSeconds;
         return true;
     }

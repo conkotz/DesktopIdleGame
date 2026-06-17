@@ -26,6 +26,14 @@ public class PlayerCombatState : MonoBehaviour
             OnCombatStateChanged?.Invoke(now);
     }
 
+    public bool IsEngagedWith(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return false;
+
+        return _engagers.Contains(enemy.GetInstanceID());
+    }
+
     public void SetEngaged(EnemyBaseController enemy, bool engaged)
     {
         if (!enemy) return;

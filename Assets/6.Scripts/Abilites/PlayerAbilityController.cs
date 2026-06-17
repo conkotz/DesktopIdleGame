@@ -183,6 +183,24 @@ public partial class PlayerAbilityController : MonoBehaviour
     private readonly Dictionary<int, float> _whirlwindLastHitTimeByEnemyId = new();
     private readonly HashSet<int> _whirlwindEnemiesInContactThisFrame = new();
     private readonly List<int> _whirlwindContactRemovalBuffer = new();
+    private int _lastSyncedWhirlwindHudStacks = int.MinValue;
+    private Camera _whirlwindCachedCamera;
+    private bool _whirlwindScreenBoundsValid;
+    private float _whirlwindScreenWorldMinX;
+    private float _whirlwindScreenWorldMaxX;
+    private float _whirlwindScreenWorldMinY;
+    private float _whirlwindScreenWorldMaxY;
+    private float _nextWhirlwindScreenBoundsRefreshAt;
+    private float _nextWhirlwindAutoBattlePresenceCheckAt;
+    private bool _whirlwindAutoBattleAnyOnScreen;
+    private bool _whirlwindAutoBattleAnyWithinStopDistance;
+    private const float WhirlwindAutoBattlePresenceRecheckInterval = 0.15f;
+    private float _nextWhirlwindAdvanceRecalcAt;
+    private float _cachedWhirlwindAdvanceX;
+    private bool _hasCachedWhirlwindAdvanceX;
+    private float _nextIdleAbilityMaintenanceAt;
+    private const float IdleAbilityMaintenanceInterval = 1f;
+    private const float IdleLingeringActionBarCheckInterval = 1f;
     private int _crusaderStrikeComboStep;
     private int _crusaderStrikePrimedStage;
     private bool _crusaderStrikeQueued;
@@ -510,10 +528,16 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private void TickLingeringActionBarRemovalIfDue()
     {
+        if (!HasLingeringAbilityRuntimeState())
+            return;
+
+        float interval = RequiresPerFrameAbilityRuntimeWork()
+            ? 0.25f
+            : IdleLingeringActionBarCheckInterval;
         if (Time.time < _nextLingeringActionBarCheckAt)
             return;
 
-        _nextLingeringActionBarCheckAt = Time.time + 0.25f;
+        _nextLingeringActionBarCheckAt = Time.time + interval;
         MaybeReclaimOrphanedSoulforgedMinions();
         EndActiveLingeringAbilitiesNotOnActionBar();
     }
@@ -603,6 +627,99 @@ public partial class PlayerAbilityController : MonoBehaviour
     }
 
     private void Update()
+    {
+        if (!RequiresPerFrameAbilityRuntimeWork())
+        {
+            if (Time.time >= _nextIdleAbilityMaintenanceAt)
+            {
+                _nextIdleAbilityMaintenanceAt = Time.time + IdleAbilityMaintenanceInterval;
+                RunIdleAbilityMaintenance();
+            }
+
+            return;
+        }
+
+        RunActiveAbilityUpdate();
+    }
+
+    private bool RequiresPerFrameAbilityRuntimeWork()
+    {
+        if (_whirlwindChanneling || _finalSeveranceChanneling || _bladestormChanneling)
+            return true;
+        if (_bladestormRoutine != null || _flameChargeRoutine != null || _executionersDescentRoutine != null)
+            return true;
+        if (_warBannerActive && _warBannerDeployed)
+            return true;
+        if (IsHammerTempestActive)
+            return true;
+        if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive)
+            return true;
+        if (_avatarOfForestActive || _cleavingChopActive || _spectralAxeActive)
+            return true;
+        if (_cleavingBuffActive)
+            return true;
+        if (_crusaderStrikeComboStep > 0 && _crusaderStrikeComboStep < CrusaderStrikeFinalComboStep)
+            return true;
+        if (_crusaderStrikeQueued || _powerSlashQueued || _tripleShotQueued || _rendQueued || _envenomQueued || _crescentSlashQueued)
+            return true;
+        if (!string.IsNullOrEmpty(_pendingMeleeApproachAbilityId))
+            return true;
+        if (abilityVfx != null && abilityVfx.HasActiveGaleforceTwisters)
+            return true;
+        return false;
+    }
+
+    private bool HasLingeringAbilityRuntimeState()
+    {
+        if (_cleavingBuffActive || _lumberFrenzyActive || _fishingFrenzyActive)
+            return true;
+        if (_cleavingChopActive || _spectralAxeActive || _avatarOfForestActive)
+            return true;
+        if (_energyInfusionActive || _warBannerActive || IsHammerTempestActive)
+            return true;
+        if (_whirlwindChanneling)
+            return true;
+        if (_crusaderStrikeComboStep > 0)
+            return true;
+        if (_battleEngineOverloadStacks > 0)
+            return true;
+        if (_activeSoulforgedWeaponMinions.Count > 0 || _activeSoulforgedWarriorMinions.Count > 0)
+            return true;
+        return false;
+    }
+
+    private void RunIdleAbilityMaintenance()
+    {
+        TickLingeringActionBarRemovalIfDue();
+        CleanupCrusaderStrikeIfExpired();
+        SyncCrusaderStrikeHudBuff();
+        CleanupCrusaderStrikeFireBalanceIfExpired();
+        SyncCrusaderStrikeFireBalanceHudBuff();
+        CleanupCleavingStrikesIfExpired();
+        SyncCleavingStrikesHudBuff();
+        CleanupLumberFrenzyIfExpired();
+        CleanupFishingFrenzyIfExpired();
+        SyncLumberFrenzyHudBuff();
+        SyncFishingFrenzyHudBuff();
+        CleanupCleavingChopIfExpired();
+        SyncCleavingChopHudBuff();
+        CleanupAvatarOfTheForestIfExpired();
+        SyncAvatarOfTheForestHudBuff();
+        SyncSpectralAxeHudBuff();
+        CleanupWarBannerIfExpired();
+        SyncWarBannerHudBuff();
+        CleanupHammerTempestIfExpired();
+        SyncHammerTempestHudBuff();
+        TickBattleEngineOverloadExpiry();
+        TickGuardiansHammerProtectorResolveGuardExpiry();
+        if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
+            ClearBattleEngineOverloadStacksIfAny();
+        TickPhoenixSoulBurnRegen(Time.deltaTime);
+        SyncSoulforgedWeaponHudBuff();
+        SyncSoulforgedWarriorHudBuff();
+    }
+
+    private void RunActiveAbilityUpdate()
     {
         TryAutoReleaseQueuedCrescentSlash();
         TickPendingMeleeApproachAbility();
@@ -1005,12 +1122,16 @@ public partial class PlayerAbilityController : MonoBehaviour
     public void HandleActionBarAssignmentsChanged()
     {
         _nextLingeringActionBarCheckAt = 0f;
+        _nextIdleAbilityMaintenanceAt = 0f;
         MaybeReclaimOrphanedSoulforgedMinions();
         EndActiveLingeringAbilitiesNotOnActionBar();
     }
 
     private void EndActiveLingeringAbilitiesNotOnActionBar()
     {
+        if (!HasLingeringAbilityRuntimeState())
+            return;
+
         ResolveActionBarReference();
         if (!actionBar)
             return;
@@ -4928,7 +5049,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             approachSign = 1f;
 
         float landX = enemyX + approachSign * Mathf.Max(0f, behindDistance);
-        landX = player.ClampWorldX(landX);
+        float laneRefX = player.transform.position.x;
+        landX = player.ClampWorldXForLaneAt(laneRefX, landX);
 
         Vector3 pos = player.transform.position;
         pos.x = landX;
@@ -4969,7 +5091,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             facing = 1f;
 
         // Land on the forward-arc side (same side you dashed from), then face the target.
-        float desiredX = player.ClampWorldX(enemyX - facing * desiredCenterDist);
+        float laneRefX = player.transform.position.x;
+        float desiredX = player.ClampWorldXForLaneAt(laneRefX, enemyX - facing * desiredCenterDist);
 
         Vector3 pos = player.transform.position;
         pos.x = desiredX;
@@ -5556,6 +5679,14 @@ public partial class PlayerAbilityController : MonoBehaviour
         _whirlwindNextGaleforceTwisterAt = GetWhirlwindSelectedChoice() == 0
             ? Time.time + AbilityCombatPower.WhirlwindGaleforceTwisterIntervalSeconds
             : 0f;
+        _lastSyncedWhirlwindHudStacks = int.MinValue;
+        if (autoBattleChannel)
+        {
+            _nextWhirlwindAutoBattlePresenceCheckAt = 0f;
+            _nextWhirlwindAdvanceRecalcAt = 0f;
+            RefreshWhirlwindScreenWorldBoundsIfDue();
+            RefreshWhirlwindAutoBattlePresenceIfDue();
+        }
         ApplyWhirlwindChannelMoveSpeedPenalty();
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
@@ -5609,16 +5740,20 @@ public partial class PlayerAbilityController : MonoBehaviour
             }
         }
 
-        if (_whirlwindAutoChanneling && !HasAnyLiveEnemyOnScreen())
+        if (_whirlwindAutoChanneling)
         {
-            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
-            return;
-        }
+            RefreshWhirlwindAutoBattlePresenceIfDue();
+            if (!_whirlwindAutoBattleAnyOnScreen)
+            {
+                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+                return;
+            }
 
-        if (_whirlwindAutoChanneling && !HasAnyLiveEnemyWithinAutoBattleWhirlwindStopDistance())
-        {
-            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
-            return;
+            if (!_whirlwindAutoBattleAnyWithinStopDistance)
+            {
+                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+                return;
+            }
         }
 
         ApplyWhirlwindChannelMoveSpeedPenalty();
@@ -5652,23 +5787,17 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private bool HasAnyLiveEnemyOnScreen()
+    private void RefreshWhirlwindAutoBattlePresenceIfDue()
     {
-        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
-        for (int i = 0; i < allEnemies.Count; i++)
-        {
-            EnemyBaseController enemy = allEnemies[i];
-            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
-                continue;
-            if (IsEnemyRoughlyOnScreen(enemy))
-                return true;
-        }
+        if (Time.time < _nextWhirlwindAutoBattlePresenceCheckAt)
+            return;
 
-        return false;
-    }
+        _nextWhirlwindAutoBattlePresenceCheckAt = Time.time + WhirlwindAutoBattlePresenceRecheckInterval;
+        _whirlwindAutoBattleAnyOnScreen = false;
+        _whirlwindAutoBattleAnyWithinStopDistance = false;
 
-    private bool HasAnyLiveEnemyWithinAutoBattleWhirlwindStopDistance()
-    {
+        RefreshWhirlwindScreenWorldBoundsIfDue();
+
         float stopDistance = AbilityCombatPower.WhirlwindAutoBattleStopIfNoEnemyWithinDistance;
         float ownerX = transform.position.x;
         float ownerHalf = GetOwnerHalfWidthX();
@@ -5679,11 +5808,39 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
                 continue;
 
-            if (IsEnemyWithinWhirlRange(enemy, stopDistance, ownerX, ownerHalf, out _))
-                return true;
+            if (!_whirlwindAutoBattleAnyOnScreen && IsEnemyRoughlyOnScreen(enemy))
+                _whirlwindAutoBattleAnyOnScreen = true;
+
+            if (!_whirlwindAutoBattleAnyWithinStopDistance &&
+                IsEnemyWithinWhirlRange(enemy, stopDistance, ownerX, ownerHalf, out _))
+                _whirlwindAutoBattleAnyWithinStopDistance = true;
+
+            if (_whirlwindAutoBattleAnyOnScreen && _whirlwindAutoBattleAnyWithinStopDistance)
+                break;
+        }
+    }
+
+    private void RefreshWhirlwindScreenWorldBoundsIfDue()
+    {
+        if (Time.time < _nextWhirlwindScreenBoundsRefreshAt && _whirlwindCachedCamera != null)
+            return;
+
+        _nextWhirlwindScreenBoundsRefreshAt = Time.time + 0.1f;
+        _whirlwindCachedCamera = Camera.main;
+        if (_whirlwindCachedCamera == null || !_whirlwindCachedCamera.orthographic)
+        {
+            _whirlwindScreenBoundsValid = false;
+            return;
         }
 
-        return false;
+        float halfH = _whirlwindCachedCamera.orthographicSize;
+        float halfW = halfH * _whirlwindCachedCamera.aspect;
+        Vector3 camPos = _whirlwindCachedCamera.transform.position;
+        _whirlwindScreenWorldMinX = camPos.x - halfW - halfW * 0.05f;
+        _whirlwindScreenWorldMaxX = camPos.x + halfW + halfW * 0.05f;
+        _whirlwindScreenWorldMinY = camPos.y - halfH - halfH * 0.15f;
+        _whirlwindScreenWorldMaxY = camPos.y + halfH + halfH * 0.15f;
+        _whirlwindScreenBoundsValid = true;
     }
 
     private void TickWhirlwindAutoBattleRetarget()
@@ -5706,10 +5863,17 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (!_whirlwindAutoChanneling || player == null)
             return;
 
-        if (!TryFindWhirlwindAutoBattleAdvanceX(out float moveToX))
+        if (Time.time >= _nextWhirlwindAdvanceRecalcAt)
+        {
+            _nextWhirlwindAdvanceRecalcAt = Time.time + 0.1f;
+            RefreshWhirlwindScreenWorldBoundsIfDue();
+            _hasCachedWhirlwindAdvanceX = TryFindWhirlwindAutoBattleAdvanceX(out _cachedWhirlwindAdvanceX);
+        }
+
+        if (!_hasCachedWhirlwindAdvanceX)
             return;
 
-        player.MoveToPointX_Combat(moveToX);
+        player.MoveToPointX_Combat(_cachedWhirlwindAdvanceX);
     }
 
     private bool TryFindWhirlwindAutoBattleAdvanceX(out float moveToX)
@@ -5779,6 +5943,15 @@ public partial class PlayerAbilityController : MonoBehaviour
     {
         if (enemy == null)
             return false;
+
+        if (_instance != null && _instance._whirlwindScreenBoundsValid)
+        {
+            Vector3 pos = enemy.transform.position;
+            return pos.x >= _instance._whirlwindScreenWorldMinX
+                   && pos.x <= _instance._whirlwindScreenWorldMaxX
+                   && pos.y >= _instance._whirlwindScreenWorldMinY
+                   && pos.y <= _instance._whirlwindScreenWorldMaxY;
+        }
 
         Camera cam = Camera.main;
         if (cam == null)
@@ -5968,10 +6141,15 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             if (buffController.IsHudAbilityBuffActive(WhirlwindId))
                 buffController.ClearHudAbilityBuff(WhirlwindId);
+            _lastSyncedWhirlwindHudStacks = int.MinValue;
             return;
         }
 
         int stacks = Mathf.Clamp(1 + Mathf.FloorToInt(GetWhirlwindChannelElapsedSeconds()), 1, WhirlwindMaxChannelStacks);
+        if (_lastSyncedWhirlwindHudStacks == stacks)
+            return;
+
+        _lastSyncedWhirlwindHudStacks = stacks;
         buffController.SetHudAbilityBuff(WhirlwindId, stacks, 0f, 0f, persistActiveOverlay: true);
     }
 
@@ -7273,6 +7451,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         _lastSyncedCleavingChopHudEnd = _cleavingChopEndsAt;
         buffController.SetHudAbilityBuff(CleavingChopId, 1, _cleavingChopEndsAt, _cleavingChopDuration);
     }
+
+    /// <summary>True while the Cleaving Strikes empowered-hit window is active.</summary>
+    public bool IsCleavingStrikesActive => _cleavingBuffActive;
 
     /// <summary>True while the Cleaving Chop buff window is open (drives the secondary tree gather logic).</summary>
     public bool IsCleavingChopActive
@@ -9191,7 +9372,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         Vector3 start = player.transform.position;
         float dashDist = AbilityCombatPower.FlameChargeDashDistance;
         float dashDuration = Mathf.Max(0.05f, AbilityCombatPower.FlameChargeDashDurationSeconds);
+        float laneRefX = start.x;
         Vector3 end = start + new Vector3(facing * dashDist, 0f, 0f);
+        end.x = player.ClampWorldXForLaneAt(laneRefX, end.x);
         int enhance = GetFlameChargeSelectedChoice();
         bool volcanic = enhance == 1;
         bool blockOverlappingTrails = enhance == 0;
@@ -9214,7 +9397,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             float u = Mathf.Clamp01(t / dashDuration);
             Vector3 pos = Vector3.Lerp(start, end, u);
-            player.transform.position = pos;
+            player.SetHorizontalPositionForScriptedMove(pos.x, facing, laneRefX);
 
             traveled = Vector3.Distance(start, pos);
             while (traveled >= nextTrailAt)
@@ -9226,7 +9409,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             yield return null;
         }
 
-        player.transform.position = end;
+        player.SetHorizontalPositionForScriptedMove(end.x, facing, laneRefX);
         while (traveled >= nextTrailAt - 0.001f)
         {
             TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);

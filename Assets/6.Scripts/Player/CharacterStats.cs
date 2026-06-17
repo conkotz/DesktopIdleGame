@@ -432,7 +432,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         _shadowHunterAttackSpeedEndsAt = -1f;
         if (buffController)
             buffController.ClearHudAbilityBuff(ShadowHunterHudBuffId);
-        NotifyStatsChanged();
+        NotifyStatsChanged(affectsCombatPower: false);
     }
 
     private float GetShadowHunterAttackSpeedBonusFraction()
@@ -737,7 +737,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AbilityChannelMoveSpeedMultiplier
     {
         get => _abilityChannelMoveSpeedMultiplier;
-        set => SetCombatStatMultiplier(ref _abilityChannelMoveSpeedMultiplier, value);
+        set => SetCombatStatMultiplier(ref _abilityChannelMoveSpeedMultiplier, value, notify: false);
     }
 
     /// <summary>Combat-only incoming damage multiplier (1.10 = +10% damage taken).</summary>
@@ -3928,7 +3928,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             1,
             _shadowHunterAttackSpeedEndsAt,
             ShadowHunterAttackSpeedDurationSeconds);
-        NotifyStatsChanged();
+        NotifyStatsChanged(affectsCombatPower: false);
     }
 
     private static void ApplyMeleeMinorOption(MeleeMinorNodeStatOption option, ref MeleeMinorNodeBonuses total)
@@ -5549,10 +5549,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     private bool _statsChangedPending;
+    private bool _pendingStatsChangeAffectsCombatPower;
+    /// <summary>Set during <see cref="LateUpdate"/> before <see cref="OnStatsChanged"/>; cleared after invoke.</summary>
+    public bool LastStatsChangeAffectsCombatPower { get; private set; }
 
-    public void NotifyStatsChanged()
+    public void NotifyStatsChanged(bool affectsCombatPower = true)
     {
         _statsChangedPending = true;
+        if (affectsCombatPower)
+            _pendingStatsChangeAffectsCombatPower = true;
     }
 
     private void LateUpdate()
@@ -5560,8 +5565,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!_statsChangedPending)
             return;
 
+        LastStatsChangeAffectsCombatPower = _pendingStatsChangeAffectsCombatPower;
         _statsChangedPending = false;
-        _combatPowerBreakdownCacheFrame = -1;
+        _pendingStatsChangeAffectsCombatPower = false;
+        if (LastStatsChangeAffectsCombatPower)
+            _combatPowerBreakdownCacheFrame = -1;
         OnStatsChanged?.Invoke();
     }
 }

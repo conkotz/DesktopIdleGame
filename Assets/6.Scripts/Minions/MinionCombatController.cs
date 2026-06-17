@@ -992,8 +992,21 @@ public class MinionCombatController : MonoBehaviour
     /// </summary>
     private float GetOwnerAttackRangeSnapshot() => Mathf.Max(0f, _ownerMeleeRange);
 
-    private float GetMinionMeleeReach() =>
-        Mathf.Max(AbilityCombatPower.CleavingStrikesMinMeleeReach, GetOwnerAttackRangeSnapshot()) + _ownerMeleeRangePadding;
+    private float GetMinionMeleeReach()
+    {
+        float weaponRange = GetOwnerAttackRangeSnapshot();
+        if (_ownerStats != null)
+        {
+            PlayerAbilityController abilities = _ownerStats.GetComponent<PlayerAbilityController>();
+            if (abilities == null)
+                abilities = _ownerStats.GetComponentInParent<PlayerAbilityController>();
+
+            if (abilities != null && abilities.IsCleavingStrikesActive)
+                weaponRange = Mathf.Max(weaponRange, AbilityCombatPower.CleavingStrikesMinMeleeReach);
+        }
+
+        return weaponRange + _ownerMeleeRangePadding;
+    }
 
     private Collider2D GetStrikeTargetCollider(EnemyBaseController enemy)
     {

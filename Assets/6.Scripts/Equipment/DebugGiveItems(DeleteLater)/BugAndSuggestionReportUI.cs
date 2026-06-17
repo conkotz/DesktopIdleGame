@@ -64,11 +64,22 @@ public class BugAndSuggestionReportUI : MonoBehaviour
         WireThanksCloseButton();
     }
 
+    private bool _devTestingPanelLookupFailed;
+
     private void Update()
     {
-        CacheDevTestingPanel();
         if (!devTestingPanel)
-            return;
+        {
+            if (_devTestingPanelLookupFailed)
+                return;
+
+            CacheDevTestingPanel();
+            if (!devTestingPanel)
+            {
+                _devTestingPanelLookupFailed = true;
+                return;
+            }
+        }
 
         if (ShouldSuppressDevHotkeys())
             return;
@@ -104,7 +115,6 @@ public class BugAndSuggestionReportUI : MonoBehaviour
 
     private bool ShouldSuppressDevHotkeys()
     {
-        TryResolveHierarchy();
         return reportInputField != null && reportInputField.isFocused;
     }
 

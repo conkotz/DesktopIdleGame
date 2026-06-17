@@ -79,6 +79,11 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Canvas parentCanvas;
     [SerializeField] private Camera targetCamera;
 
+    [Header("Enemy overhead visibility")]
+    [Tooltip("Enemy name/HP/debuff overhead is shown when engaged in combat or within this world distance of the player.")]
+    [SerializeField, Min(0.5f)] private float enemyOverheadRevealDistance = 5f;
+    [SerializeField, Min(0.02f)] private float enemyOverheadProximityRecheckInterval = 0.1f;
+
     [Header("Target marker (enemy)")]
     [Tooltip("Optional anchor at the top of the overhead strip. When unset, one is created on OverheadUIRoot at runtime.")]
     [SerializeField] private RectTransform targetMarkerAnchor;
@@ -156,6 +161,12 @@ public class UnitOverheadUI : MonoBehaviour
     private bool _hpBarOnlyLayout;
     private bool _vitalsVisible = true;
     private PlayerCombatState _playerCombatState;
+    private float _nextEnemyOverheadProximityCheckAt;
+    private bool _cachedEnemyOverheadProximityVisible;
+
+    private static PlayerController s_cachedPlayerForEnemyOverhead;
+    private static float s_nextPlayerForEnemyOverheadResolveAt;
+    private const float PlayerForEnemyOverheadResolveInterval = 1f;
 
     private Color _playerHpFillCapturedBase = Color.white;
     private bool _playerHpFillBaseCaptured;
@@ -1732,7 +1743,8 @@ public class UnitOverheadUI : MonoBehaviour
         // viewport test keeps nameplates on-screen when the point is in front of the camera frustum.
         bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos) &&
                        _vitalsVisible &&
-                       ShouldShowPlayerOverheadByCombatSetting();
+                       ShouldShowPlayerOverheadByCombatSetting() &&
+                       ShouldShowEnemyOverheadByProximityOrEngagement();
         _worldBandVisible = visible;
 
         // Toggle only the UI root, not this behaviour's GameObject — otherwise LateUpdate stops
@@ -1775,6 +1787,65 @@ public class UnitOverheadUI : MonoBehaviour
             ResolvePlayerCombatState();
 
         return _playerCombatState != null && _playerCombatState.InCombat;
+    }
+
+    /// <summary>
+    /// Enemy overhead (name, HP, debuff icons) only when the player is fighting them or within
+    /// <see cref="enemyOverheadRevealDistance"/> world units. Player/minion overheads are unchanged.
+    /// </summary>
+    private bool ShouldShowEnemyOverheadByProximityOrEngagement()
+    {
+        if (enemy == null || _isMinionOverheadCached)
+            return true;
+
+        return EvaluateEnemyOverheadProximityOrEngagement();
+    }
+
+    private bool EvaluateEnemyOverheadProximityOrEngagement()
+    {
+        PlayerController player = ResolveCachedPlayerForEnemyOverhead();
+        if (player == null)
+            return true;
+
+        PlayerCombatState combatState = player.GetComponent<PlayerCombatState>();
+        if (combatState != null && combatState.IsEngagedWith(enemy))
+        {
+            _cachedEnemyOverheadProximityVisible = true;
+            return true;
+        }
+
+        PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+        if (combat != null && combat.CurrentTarget == enemy && !enemy.IsDead)
+        {
+            _cachedEnemyOverheadProximityVisible = true;
+            return true;
+        }
+
+        if (Time.time < _nextEnemyOverheadProximityCheckAt)
+            return _cachedEnemyOverheadProximityVisible;
+
+        _nextEnemyOverheadProximityCheckAt = Time.time + enemyOverheadProximityRecheckInterval;
+
+        Vector3 enemyPos = enemy.transform.position;
+        Vector3 playerPos = player.transform.position;
+        float dx = enemyPos.x - playerPos.x;
+        float dy = enemyPos.y - playerPos.y;
+        float revealSqr = enemyOverheadRevealDistance * enemyOverheadRevealDistance;
+        _cachedEnemyOverheadProximityVisible = dx * dx + dy * dy <= revealSqr;
+        return _cachedEnemyOverheadProximityVisible;
+    }
+
+    private static PlayerController ResolveCachedPlayerForEnemyOverhead()
+    {
+        if (s_cachedPlayerForEnemyOverhead != null)
+            return s_cachedPlayerForEnemyOverhead;
+
+        if (Time.time < s_nextPlayerForEnemyOverheadResolveAt)
+            return null;
+
+        s_nextPlayerForEnemyOverheadResolveAt = Time.time + PlayerForEnemyOverheadResolveInterval;
+        s_cachedPlayerForEnemyOverhead = Object.FindFirstObjectByType<PlayerController>();
+        return s_cachedPlayerForEnemyOverhead;
     }
 
     private void ApplyDirectPosition()
@@ -1852,6 +1923,17 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleStatsChanged()
     {
+        if (characterStats != null && !characterStats.LastStatsChangeAffectsCombatPower)
+        {
+            if (characterStats != null)
+            {
+                HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
+                RefreshPlayerResourceBarFills();
+            }
+
+            return;
+        }
+
         HandleNameChanged(string.Empty);
         if (characterStats != null)
         {

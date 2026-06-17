@@ -11,10 +11,13 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private const string FloorVisualsName = "FloorVisuals";
     private const string WorldVisualsName = "WorldVisuals";
     private const string BackgroundVisualsName = "BackgroundVisuals";
-    private const string FullSkyVisualName = "FullSkyVisual";
+    private const string FullSkyDefaultVisualName = "FullSkyDefaultVisual";
+    private const string LegacyFullSkyVisualName = "FullSkyVisual";
     private const string CaveBackgroundName = "CaveBackground";
     private const string AllGrassFloorLayerName = "AllGrass";
     private const string OverlayName = "BiomeCaveOverlay";
+    private const string DefaultDuskwoodVisualsObjectName = "DukswoodVisuals";
+    private const string DuskwoodMapNodeId = "duskwood";
 
     private static readonly Color CaveOverlayColor = new Color(0f, 0f, 0f, 0.2f);
 
@@ -36,10 +39,15 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     [SerializeField] private Transform worldVisualsRoot;
     [SerializeField] private string floorVisualsPath = "FloorVisuals";
     [SerializeField] private string backgroundVisualsPath = "BackgroundVisuals";
-    [SerializeField] private string defaultBackgroundObjectName = FullSkyVisualName;
+    [SerializeField] private string defaultBackgroundObjectName = FullSkyDefaultVisualName;
     [SerializeField] private string caveBackgroundObjectName = CaveBackgroundName;
     [Tooltip("Only this FloorVisuals child stays active when biome is Cave.")]
     [SerializeField] private string caveFloorLayerName = AllGrassFloorLayerName;
+
+    [Header("Map-Specific Visuals")]
+    [Tooltip("WorldVisuals child shown only while playing the Duskwood map node.")]
+    [SerializeField] private string duskwoodVisualsObjectName = DefaultDuskwoodVisualsObjectName;
+    [SerializeField] private string duskwoodMapNodeId = DuskwoodMapNodeId;
 
     [Header("Cave Overlay")]
     [SerializeField, Min(0f)] private float caveOverlayBaseAlpha = 0.2f;
@@ -60,6 +68,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private float _caveFlickerFromAlpha;
     private float _caveFlickerToAlpha;
     private bool _caveFlickerReturningToBase = true;
+    private Transform _cachedDuskwoodVisualsRoot;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
@@ -180,6 +189,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         ApplyFloorTintToScene(tint);
         ApplyFloorVisualLayersForBiome(_activeBiome);
         ApplyBackgroundVisualForBiome(_activeBiome);
+        ApplyMapSpecificVisuals(def);
         EnsureCaveOverlayState(_activeBiome == LevelBiome.Cave);
     }
 
@@ -273,15 +283,13 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
             return;
 
         string defaultName = string.IsNullOrWhiteSpace(defaultBackgroundObjectName)
-            ? FullSkyVisualName
+            ? FullSkyDefaultVisualName
             : defaultBackgroundObjectName.Trim();
         string caveName = string.IsNullOrWhiteSpace(caveBackgroundObjectName)
             ? CaveBackgroundName
             : caveBackgroundObjectName.Trim();
 
-        Transform defaultBg = backgroundRoot.Find(defaultName);
-        if (defaultBg == null && !string.Equals(defaultName, FullSkyVisualName, System.StringComparison.Ordinal))
-            defaultBg = backgroundRoot.Find(FullSkyVisualName);
+        Transform defaultBg = ResolveDefaultBackgroundTransform(backgroundRoot, defaultName);
         Transform caveBg = backgroundRoot.Find(caveName);
         bool useCave = biome == LevelBiome.Cave && caveBg != null;
 
@@ -298,6 +306,65 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
             else
                 child.gameObject.SetActive(false);
         }
+    }
+
+    private static Transform ResolveDefaultBackgroundTransform(Transform backgroundRoot, string preferredName)
+    {
+        if (backgroundRoot == null)
+            return null;
+
+        Transform found = backgroundRoot.Find(preferredName);
+        if (found != null)
+            return found;
+
+        if (!string.Equals(preferredName, FullSkyDefaultVisualName, System.StringComparison.OrdinalIgnoreCase))
+            found = backgroundRoot.Find(FullSkyDefaultVisualName);
+        if (found != null)
+            return found;
+
+        if (!string.Equals(preferredName, LegacyFullSkyVisualName, System.StringComparison.OrdinalIgnoreCase))
+            found = backgroundRoot.Find(LegacyFullSkyVisualName);
+
+        return found;
+    }
+
+    private void ApplyMapSpecificVisuals(MapNodeDefinition def)
+    {
+        Transform duskwoodVisuals = ResolveDuskwoodVisualsRoot();
+        if (duskwoodVisuals == null)
+            return;
+
+        string nodeId = def != null ? def.nodeId?.Trim() : null;
+        string requiredId = string.IsNullOrWhiteSpace(duskwoodMapNodeId)
+            ? DuskwoodMapNodeId
+            : duskwoodMapNodeId.Trim();
+        bool showDuskwoodVisuals = !string.IsNullOrEmpty(nodeId) &&
+                                   string.Equals(nodeId, requiredId, System.StringComparison.OrdinalIgnoreCase);
+        duskwoodVisuals.gameObject.SetActive(showDuskwoodVisuals);
+    }
+
+    private Transform ResolveDuskwoodVisualsRoot()
+    {
+        if (_cachedDuskwoodVisualsRoot != null)
+            return _cachedDuskwoodVisualsRoot;
+
+        Transform worldRoot = ResolveWorldVisualsRoot();
+        if (worldRoot == null)
+            return null;
+
+        string primaryName = string.IsNullOrWhiteSpace(duskwoodVisualsObjectName)
+            ? DefaultDuskwoodVisualsObjectName
+            : duskwoodVisualsObjectName.Trim();
+
+        _cachedDuskwoodVisualsRoot = worldRoot.Find(primaryName);
+        if (_cachedDuskwoodVisualsRoot == null &&
+            !string.Equals(primaryName, "DuskwoodVisuals", System.StringComparison.OrdinalIgnoreCase))
+            _cachedDuskwoodVisualsRoot = worldRoot.Find("DuskwoodVisuals");
+        if (_cachedDuskwoodVisualsRoot == null &&
+            !string.Equals(primaryName, DefaultDuskwoodVisualsObjectName, System.StringComparison.OrdinalIgnoreCase))
+            _cachedDuskwoodVisualsRoot = worldRoot.Find(DefaultDuskwoodVisualsObjectName);
+
+        return _cachedDuskwoodVisualsRoot;
     }
 
     private Transform ResolveWorldVisualsRoot()
