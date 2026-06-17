@@ -151,7 +151,11 @@ public partial class PlayerCombatController
         if (!stats.TryConsumeBladeDancerTripleHitFollowUp())
             return;
 
-        SplitDamage followUpHit = rolled * AbilityCombatPower.WayOfTheBladeDancerTripleHitDamageFraction;
+        SplitDamage followUpHit = stats.RollSplitAttackDamage(out bool followUpWasCrit) *
+                                  AbilityCombatPower.WayOfTheBladeDancerTripleHitDamageFraction;
+        if (followUpHit.IsEmpty)
+            return;
+
         var followUpAttribution = new SwingOutgoingAttribution(
             AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel,
             null,
@@ -160,7 +164,7 @@ public partial class PlayerCombatController
         DamageResult doubleDealt = ApplySplitDamageToTarget(
             targetToHit,
             followUpHit,
-            wasCrit,
+            followUpWasCrit,
             AbilityCombatPower.WayOfTheBladeDancerTripleHitSourceLabel,
             followUpAttribution);
 

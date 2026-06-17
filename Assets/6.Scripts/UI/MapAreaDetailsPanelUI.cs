@@ -103,11 +103,20 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
         if (collapseIcon)
         {
             if (_collapsed && collapsedIcon)
+            {
                 collapseIcon.sprite = collapsedIcon;
+                collapseIcon.rectTransform.localEulerAngles = Vector3.zero;
+            }
             else if (!_collapsed && expandedIcon)
+            {
                 collapseIcon.sprite = expandedIcon;
+                collapseIcon.rectTransform.localEulerAngles = Vector3.zero;
+            }
             else
-                collapseIcon.rectTransform.localEulerAngles = new Vector3(0f, 0f, _collapsed ? 180f : 0f);
+            {
+                // Default sprite points down: up when expanded (active), down when collapsed.
+                collapseIcon.rectTransform.localEulerAngles = new Vector3(0f, 0f, _collapsed ? 0f : 180f);
+            }
         }
     }
 

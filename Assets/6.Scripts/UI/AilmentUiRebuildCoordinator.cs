@@ -13,6 +13,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
 {
     private static readonly HashSet<UnitOverheadUI> PendingOverheads = new();
     private static readonly HashSet<BuffsDebuffsPanel> PendingPanels = new();
+    private static readonly HashSet<BuffsDebuffsPanel> PendingBuffPanels = new();
     private static bool _hookSubscribed;
     private static int _lastFlushFrame = -1;
 
@@ -22,6 +23,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
         UnsubscribeHook();
         PendingOverheads.Clear();
         PendingPanels.Clear();
+        PendingBuffPanels.Clear();
         _lastFlushFrame = -1;
     }
 
@@ -34,6 +36,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
     {
         PendingOverheads.Clear();
         PendingPanels.Clear();
+        PendingBuffPanels.Clear();
         _lastFlushFrame = -1;
     }
 
@@ -63,6 +66,15 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
         EnsureHook();
     }
 
+    public static void MarkBuffsPanelDirtyForBuffs(BuffsDebuffsPanel panel)
+    {
+        if (!panel || !Application.isPlaying)
+            return;
+
+        PendingBuffPanels.Add(panel);
+        EnsureHook();
+    }
+
     private static void EnsureHook()
     {
         if (_hookSubscribed)
@@ -83,7 +95,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
 
     private static void OnWillRenderCanvasesFlush()
     {
-        if (PendingOverheads.Count == 0 && PendingPanels.Count == 0)
+        if (PendingOverheads.Count == 0 && PendingPanels.Count == 0 && PendingBuffPanels.Count == 0)
             return;
 
         int frame = Time.frameCount;
@@ -110,6 +122,14 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
             }
 
             PendingPanels.Clear();
+
+            foreach (BuffsDebuffsPanel panel in PendingBuffPanels)
+            {
+                if (panel)
+                    panel.FlushCoalescedBuffUiRebuild();
+            }
+
+            PendingBuffPanels.Clear();
         }
         finally
         {

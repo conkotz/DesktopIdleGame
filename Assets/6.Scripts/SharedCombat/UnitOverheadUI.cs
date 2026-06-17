@@ -76,6 +76,10 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private AilmentController ailments;
     private EnemyShadowStrikeMarks _shadowStrikeMarks;
 
+    [Header("Minion overhead layout")]
+    [Tooltip("Extra canvas-pixel nudge when projecting minion HP/name overhead (x negative = left on screen).")]
+    [SerializeField] private Vector2 minionOverheadScreenNudge = new Vector2(12f, 20f);
+
     [Header("Follow")]
     [SerializeField] private Transform followTarget;
     [SerializeField] private Vector3 worldOffset = Vector3.zero;
@@ -2098,7 +2102,7 @@ public class UnitOverheadUI : MonoBehaviour
             return;
         }
 
-        root.anchoredPosition = _stackBaseAnchored;
+        root.anchoredPosition = ApplyMinionScreenNudge(_stackBaseAnchored);
         ApplyCombinedRootScale();
         MaybeRefreshTargetMarkerWorldCache();
     }
@@ -2111,9 +2115,16 @@ public class UnitOverheadUI : MonoBehaviour
             return;
         }
 
-        root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
+        root.anchoredPosition = ApplyMinionScreenNudge(_stackBaseAnchored + new Vector2(0f, _stackYOffset));
         ApplyCombinedRootScale();
         MaybeRefreshTargetMarkerWorldCache();
+    }
+
+    private Vector2 ApplyMinionScreenNudge(Vector2 anchored)
+    {
+        if (!_isMinionOverheadCached)
+            return anchored;
+        return anchored + minionOverheadScreenNudge;
     }
 
     private void MaybeRefreshTargetMarkerWorldCache()
@@ -2768,7 +2779,11 @@ public class UnitOverheadUI : MonoBehaviour
                     ailments,
                     message);
 
-                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color, victim);
+                DamagePopupSystem.Instance.SpawnAilmentStatus(
+                    pos,
+                    message,
+                    color,
+                    DamagePopupSystem.ResolveStatusStackAnchor(victim));
             }
 
             wasActive = activeNow;

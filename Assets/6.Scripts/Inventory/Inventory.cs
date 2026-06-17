@@ -195,6 +195,8 @@ public class Inventory : MonoBehaviour, ISaveable
     }
 
     private readonly List<Slot> _slots = new List<Slot>(32);
+    private bool _totalValueCacheValid;
+    private int _cachedTotalInventoryValue;
 
     public event Action OnInventoryChanged;
     public event Action OnInventoryFull;
@@ -278,6 +280,8 @@ public class Inventory : MonoBehaviour, ISaveable
 
     private void NotifyInventoryChanged()
     {
+        _totalValueCacheValid = false;
+
         if (_batchChangeNotifyDepth > 0)
             _batchChangeNotifyPending = true;
         else
@@ -596,9 +600,15 @@ public class Inventory : MonoBehaviour, ISaveable
 
     public int GetTotalInventoryValue()
     {
+        if (_totalValueCacheValid)
+            return _cachedTotalInventoryValue;
+
         int total = 0;
         for (int i = 0; i < _slots.Count; i++)
             total += GetSlotValue(i);
+
+        _cachedTotalInventoryValue = total;
+        _totalValueCacheValid = true;
         return total;
     }
 

@@ -170,15 +170,8 @@ public class PlayerSpawnController : MonoBehaviour
         return false;
     }
 
-    private static bool IsSavedXValidForCurrentMap(float savedX)
-    {
-        if (WorldBounds.Instance == null)
-            return true;
-
-        float left = WorldBounds.Instance.Left;
-        float right = WorldBounds.Instance.Right;
-        return savedX >= left - 1f && savedX <= right + 1f;
-    }
+    private static bool IsSavedXValidForCurrentMap(float savedX) =>
+        PlayAreaBounds.IsWorldXInGameplayPlayArea(savedX);
 
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {

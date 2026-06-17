@@ -6,6 +6,8 @@ public class GoldUI : MonoBehaviour
     [SerializeField] private TMP_Text goldText;
     [SerializeField] private CurrencyWallet wallet;
 
+    private bool _refreshQueued;
+
     private void Awake()
     {
         if (!goldText) goldText = GetComponentInChildren<TMP_Text>(true);
@@ -14,13 +16,31 @@ public class GoldUI : MonoBehaviour
         Refresh();
 
         if (wallet != null)
-            wallet.OnGoldChanged += Refresh;
+            wallet.OnGoldChanged += QueueRefresh;
     }
 
     private void OnDestroy()
     {
         if (wallet != null)
-            wallet.OnGoldChanged -= Refresh;
+            wallet.OnGoldChanged -= QueueRefresh;
+    }
+
+    private void QueueRefresh()
+    {
+        if (!isActiveAndEnabled || goldText == null || !goldText.gameObject.activeInHierarchy)
+            return;
+
+        _refreshQueued = true;
+        InventoryUiRefreshCoordinator.MarkGoldLabelDirty(this);
+    }
+
+    internal void FlushCoalescedRefresh()
+    {
+        if (!_refreshQueued)
+            return;
+
+        _refreshQueued = false;
+        Refresh();
     }
 
     private void Refresh()

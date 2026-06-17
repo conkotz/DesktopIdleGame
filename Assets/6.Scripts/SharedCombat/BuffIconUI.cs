@@ -1,9 +1,11 @@
+using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text valueText;
@@ -31,6 +33,8 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private bool _persistActiveOverlay;
     private bool _isPointerOver;
     private bool _hasValidData;
+    private bool _dismissOnRightClick;
+    private Action _onRightClickDismiss;
 
     public void SetData(
         Sprite sprite,
@@ -96,6 +100,23 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         UpdateTimer(remainingSeconds);
         RefreshHoveredTooltip();
+    }
+
+    public void SetRightClickDismissHandler(Action onDismiss)
+    {
+        _onRightClickDismiss = onDismiss;
+        _dismissOnRightClick = onDismiss != null;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
+            return;
+
+        if (!_dismissOnRightClick)
+            return;
+
+        _onRightClickDismiss?.Invoke();
     }
 
     public void UpdateTimer(float remainingSeconds)

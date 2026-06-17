@@ -22,11 +22,11 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private int damageFxCanvasSortOrder = 10060;
 
     [Header("Spawn Offset")]
-    [SerializeField] private float popupYOffsetStep = 16f;
-    [SerializeField] private float popupXJitter = 8f;
-    [SerializeField] private int popupYOffsetCycle = 4;
-    [SerializeField] private float numericSpawnSideOffsetWorld = 0.18f;
-    [SerializeField] private float numericSpawnYOffsetWorld = 0.08f;
+    [SerializeField] private float popupYOffsetStep = 4f;
+    [SerializeField] private float popupXJitter = 1f;
+    [SerializeField] private int popupYOffsetCycle = 2;
+    [SerializeField] private float numericSpawnSideOffsetWorld = 0.04f;
+    [SerializeField] private float numericSpawnYOffsetWorld = 0.05f;
 
     public const float LingeringStatusLifetimeSeconds = 1.5f;
     [SerializeField] private float statusPopupSideOffset = 0.35f;
@@ -472,7 +472,7 @@ public class DamagePopupSystem : MonoBehaviour
             ? Random.Range(-statusPopupXJitter, statusPopupXJitter)
             : Random.Range(-popupXJitter, popupXJitter);
         float yOffset = isLingeringStatus
-            ? statusPopupScreenYOffset
+            ? GetStatusLabelScreenYOffset(target)
             : (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
         if (!isLingeringStatus)
         {
@@ -529,8 +529,31 @@ public class DamagePopupSystem : MonoBehaviour
         floater.InitLingeringStatus(message, color);
     }
 
-    private float GetStatusLabelScreenYOffset(Transform stackAnchor = null) =>
-        GetStatusBaseScreenYOffset(stackAnchor) + ResolveStatusPopupStackYOffset(stackAnchor);
+    private float GetStatusLabelScreenYOffset(Transform stackAnchor = null)
+    {
+        stackAnchor = ResolveStatusStackAnchor(stackAnchor);
+        return GetStatusBaseScreenYOffset(stackAnchor) + ResolveStatusPopupStackYOffset(stackAnchor);
+    }
+
+    /// <summary>
+    /// Player status popups use <see cref="PlayerController"/> root while overhead UI uses the anchor child —
+    /// normalize so Blocked, Bleeding, Parry, etc. share one vertical stack.
+    /// </summary>
+    public static Transform ResolveStatusStackAnchor(Transform stackAnchor)
+    {
+        if (!stackAnchor)
+            return null;
+
+        PlayerController player = stackAnchor.GetComponentInParent<PlayerController>();
+        if (player)
+            return player.transform;
+
+        MinionCombatTarget minion = stackAnchor.GetComponentInParent<MinionCombatTarget>();
+        if (minion)
+            return minion.transform;
+
+        return stackAnchor;
+    }
 
     private float GetStatusBaseScreenYOffset(Transform stackAnchor = null)
     {
@@ -593,7 +616,7 @@ public class DamagePopupSystem : MonoBehaviour
     {
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
 
-        float yOffset = GetStatusBaseScreenYOffset(stackAnchor);
+        float yOffset = GetStatusLabelScreenYOffset(stackAnchor);
         if (!TryRentFloater(worldPos, new Vector2(xJitter, yOffset), out FloatingDamageTextUI floater))
             return;
 

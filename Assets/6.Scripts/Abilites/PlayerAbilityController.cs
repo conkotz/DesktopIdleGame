@@ -1011,6 +1011,43 @@ public partial class PlayerAbilityController : MonoBehaviour
         return false;
     }
 
+    private static readonly HashSet<string> HudBuffIdsNotDismissableFromPanel =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            CrusaderStrikeId,
+            CrusaderStrikeFireBalanceHudBuffId,
+            CharacterStats.TacticianDualityHudBuffId,
+            CharacterStats.ShadowHunterHudBuffId,
+            CharacterStats.BattleEngineOverloadHudBuffId,
+            PlayerController.WoodcuttingFlowStateHudBuffId,
+            PlayerController.FishingCalmWatersMajorHudBuffId,
+            AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId,
+            PlayerCombatController.WayOfTheBerserkerHudBuffId,
+            PlayerCombatController.WayOfTheBerserkerLeechHudBuffId,
+            PlayerSprintInput.SprintHudBuffId,
+        };
+
+    /// <summary>Right-click dismiss on the buff strip — ends lingering abilities/minions; not combo-phase trackers.</summary>
+    public bool TryDismissHudBuffFromPanel(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId) || HudBuffIdsNotDismissableFromPanel.Contains(abilityId))
+            return false;
+
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (buffController == null || !buffController.IsHudAbilityBuffActive(abilityId))
+            return false;
+
+        if (string.Equals(abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: true);
+            return true;
+        }
+
+        ForceEndLingeringAbilityForSkillTreeReset(abilityId);
+        return true;
+    }
+
     /// <summary>
     /// When the skill tree row is reset while this ability is active, ends buff/lingering state and applies cooldown
     /// the same way natural expiry would (Cleaving Strikes only clears its window — it already cooled down on cast).

@@ -1166,7 +1166,9 @@ public class EnemyBaseController : MonoBehaviour
         if (hit.IsEmpty)
             return;
 
-        mct.TakeDamageFromEnemy(hit, wasCrit, transform, this);
+        int totalApplied = mct.TakeDamageFromEnemy(hit, wasCrit, transform, this);
+        if (totalApplied > 0)
+            ApplyAilmentsToMinion(mct, hit);
     }
 
     private float GetWarriorTauntShoutOutgoingDamageMultiplier()
@@ -1238,6 +1240,91 @@ public class EnemyBaseController : MonoBehaviour
 
         if (dealtAnyDamage)
             ApplyAilmentsToPlayer(hit, forcePoison);
+    }
+
+    private void ApplyAilmentsToMinion(MinionCombatTarget minionTarget, SplitDamage hit, bool forcePoison = false)
+    {
+        if (minionTarget == null || stats == null || !minionTarget.IsAlive)
+            return;
+
+        AilmentController targetAilments = minionTarget.GetComponent<AilmentController>();
+        if (targetAilments == null)
+            targetAilments = minionTarget.GetComponentInChildren<AilmentController>();
+
+        if (targetAilments == null)
+            return;
+
+        if (stats.BleedChance > 0f && stats.BleedBaseTotalDamage > 0f)
+        {
+            if (UnityEngine.Random.value < stats.BleedChance)
+            {
+                BleedPayload bleed = new BleedPayload
+                {
+                    totalDamage = stats.BleedBaseTotalDamage,
+                    ticks = stats.BleedTicks,
+                    source = transform
+                };
+
+                targetAilments.ApplyBleedFromHit(bleed);
+            }
+        }
+
+        if (stats.PoisonPerStackTotalDamage > 0f && (forcePoison || stats.PoisonChance > 0f))
+        {
+            if (forcePoison || UnityEngine.Random.value < stats.PoisonChance)
+            {
+                PoisonPayload poison = new PoisonPayload
+                {
+                    totalDamage = stats.PoisonPerStackTotalDamage,
+                    ticks = stats.PoisonTicks,
+                    maxStacks = stats.PoisonMaxStacks,
+                    source = transform
+                };
+
+                targetAilments.ApplyPoisonFromHit(poison);
+            }
+        }
+
+        bool isFireHit =
+            stats.CurrentMagicAttackType == MagicAttackType.Fire &&
+            hit.Total > 0f;
+
+        if (isFireHit)
+        {
+            targetAilments.TryApplyBurnFromFireHit(
+                hit.Total,
+                stats.BurnApplyChance,
+                stats.BurnExplosionMultiplier,
+                transform);
+            return;
+        }
+
+        if (hit.magic <= 0f || stats.MagicAilmentApplyChance <= 0f)
+            return;
+
+        if (UnityEngine.Random.value > stats.MagicAilmentApplyChance)
+            return;
+
+        switch (stats.CurrentMagicAttackType)
+        {
+            case MagicAttackType.Ice:
+                targetAilments.ApplyChillFromHit(new ChillPayload(
+                    duration: stats.ChillDuration,
+                    maxStacks: stats.ChillMaxStacks,
+                    slowPerStack: stats.ChillSlowPerStack,
+                    source: transform
+                ));
+                break;
+
+            case MagicAttackType.Lightning:
+            default:
+                targetAilments.ApplyShockFromHit(new ShockPayload(
+                    duration: stats.ShockDuration,
+                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                    source: transform
+                ));
+                break;
+        }
     }
 
     private void ApplyAilmentsToPlayer(SplitDamage hit, bool forcePoison = false)

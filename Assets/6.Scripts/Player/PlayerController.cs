@@ -121,6 +121,9 @@ public class PlayerController : MonoBehaviour
     private bool _keyboardSteerNotified;
     private int _cachedMoveSpeedFrame = -1;
     private float _cachedMoveSpeedValue;
+    private int _cachedClampFrame = -1;
+    private float _cachedClampMinX;
+    private float _cachedClampMaxX;
     private bool _moveToPointFromPlayerInput;
     public bool IsManualKeyboardSteering => _keyboardManualMoveThisFrame;
     public bool IsPerformingAttackAnimation => _attackLocked;
@@ -583,7 +586,6 @@ public class PlayerController : MonoBehaviour
         if (_isDead)
             return;
 
-        _cachedMoveSpeedFrame = -1;
         _locomotionSampleStartX = transform.position.x;
 
         PlayerSprintInput.PollSprintKey();
@@ -698,9 +700,16 @@ public class PlayerController : MonoBehaviour
         // Steady locomotion: skip SetAction spam, but still recover walk if hurt/combat kicked the Animator to idle.
         if (isLocomoting &&
             !shouldShowFighting &&
-            _action == PlayerAction.Walking)
+            (_action == PlayerAction.Walking ||
+             _keyboardManualMoveThisFrame ||
+             state == State.MoveToPoint ||
+             state == State.MoveToTarget ||
+             state == State.MoveToPickup))
         {
-            EnsureWalkAnimatorDuringLocomotion();
+            if (_action != PlayerAction.Walking)
+                SetAction(PlayerAction.Walking);
+            else
+                EnsureWalkAnimatorDuringLocomotion();
             return;
         }
 
@@ -1008,10 +1017,9 @@ public class PlayerController : MonoBehaviour
         if (!_keyboardSteerNotified)
         {
             NotifyPlayerInitiatedMovement();
+            CancelAutoMovementFromKeyboardSteering();
             _keyboardSteerNotified = true;
         }
-
-        CancelAutoMovementFromKeyboardSteering();
     }
 
     private void ApplyKeyboardMovementDelta()
@@ -1062,7 +1070,7 @@ public class PlayerController : MonoBehaviour
 
         float px = transform.position.x;
         float py = transform.position.y;
-        LayerMask combinedMask = pickupMask | interactableMask | enemyMask;
+        LayerMask combinedMask = pickupMask | interactableMask;
 
         if (!WorldInteractRouter.TryFindClosestRoutableCollider(
                 px,
@@ -1070,10 +1078,7 @@ public class PlayerController : MonoBehaviour
                 combinedMask,
                 WorldInteractRouter.InteractHotkeyHalfRangeX,
                 out Collider2D winner))
-        {
-            WorldInteractRouter.ApplyCombatTargetForInteractHotkeyMiss(this);
             return;
-        }
 
         WorldInteractRouter.RouteInteract(winner, this);
     }
@@ -4045,19 +4050,42 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void GetClampXMinMax(out float minX, out float maxX, float laneReferenceWorldX = float.NaN)
     {
+        int frame = Time.frameCount;
+        if (float.IsNaN(laneReferenceWorldX) && frame == _cachedClampFrame)
+        {
+            minX = _cachedClampMinX;
+            maxX = _cachedClampMaxX;
+            return;
+        }
+
         float refX = float.IsNaN(laneReferenceWorldX) ? transform.position.x : laneReferenceWorldX;
         if (PlayAreaBounds.TryGetClampXForWorldX(refX, WorldBoundsXPadding, out minX, out maxX))
+        {
+            if (float.IsNaN(laneReferenceWorldX))
+                CacheClampBounds(frame, minX, maxX);
             return;
+        }
 
         if (WorldBounds.Instance != null)
         {
             minX = WorldBounds.Instance.Left + WorldBoundsXPadding;
             maxX = WorldBounds.Instance.Right - WorldBoundsXPadding;
+            if (float.IsNaN(laneReferenceWorldX))
+                CacheClampBounds(frame, minX, maxX);
             return;
         }
 
         minX = laneBounds ? laneBounds.MinX : -999f;
         maxX = laneBounds ? laneBounds.MaxX : 999f;
+        if (float.IsNaN(laneReferenceWorldX))
+            CacheClampBounds(frame, minX, maxX);
+    }
+
+    private void CacheClampBounds(int frame, float minX, float maxX)
+    {
+        _cachedClampFrame = frame;
+        _cachedClampMinX = minX;
+        _cachedClampMaxX = maxX;
     }
 
     private float GetMoveSpeed()
@@ -4271,9 +4299,6 @@ public class PlayerController : MonoBehaviour
         if (_teleportDamageImmune)
             return;
 
-        if (combat != null && attacker != null)
-            combat.TryRetaliateFromAttacker(attacker);
-
         float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
         float finalDamage = characterStats.TakeDamage(
@@ -4291,6 +4316,9 @@ public class PlayerController : MonoBehaviour
         }
 
         AwardEnduranceXpFromIncomingDamage(preMitigatedDamage, attacker);
+
+        if (combat != null && attacker != null && hpDamage > 0.001f)
+            combat.TryRetaliateFromAttacker(attacker);
 
         if (blocked)
             wasCrit = false;

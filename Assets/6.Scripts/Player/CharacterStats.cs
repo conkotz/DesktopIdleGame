@@ -423,7 +423,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
         PreferRuntimeSkillsManager();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
-        _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
+        // Minion vitals must not inherit the player as owner from hierarchy (causes capstone/heal UI on minion hits).
+        if (GetComponent<MinionCombatTarget>() != null)
+            _ownerPlayer = null;
+        else
+            _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
         if (_ownerPlayer)
             _playerCombatState = _ownerPlayer.GetComponent<PlayerCombatState>();
         ResolveOwnerEnemy();

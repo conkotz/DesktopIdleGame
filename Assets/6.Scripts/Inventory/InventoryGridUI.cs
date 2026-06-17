@@ -241,9 +241,17 @@ public class InventoryGridUI : MonoBehaviour
     {
         _dirty = true;
         _displayPrewarmed = false;
-        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        InventoryUiRefreshCoordinator.MarkGridDirty(this);
+    }
+
+    internal void FlushCoalescedRebuild()
+    {
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy || !_dirty || inventory == null)
             return;
-        _pendingLateRebuild = true;
+
+        _pendingLateRebuild = false;
+        _dirty = false;
+        Rebuild();
     }
 
     public static void RefreshAllGrids()
@@ -269,19 +277,6 @@ public class InventoryGridUI : MonoBehaviour
             if (grid)
                 grid.RefreshNow();
         }
-    }
-
-    private void LateUpdate()
-    {
-        if (!_pendingLateRebuild)
-            return;
-        _pendingLateRebuild = false;
-
-        if (!isActiveAndEnabled || !_dirty || inventory == null)
-            return;
-
-        _dirty = false;
-        Rebuild();
     }
 
     private void OnRectTransformDimensionsChange()

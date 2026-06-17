@@ -1420,9 +1420,7 @@ public class SaveManager : MonoBehaviour
         if (WorldBounds.Instance == null)
             return true;
 
-        float left = WorldBounds.Instance.Left;
-        float right = WorldBounds.Instance.Right;
-        outOfGameplayBounds = pos.x < left - 1f || pos.x > right + 1f;
+        outOfGameplayBounds = !PlayAreaBounds.IsWorldXInGameplayPlayArea(pos.x);
         return !outOfGameplayBounds;
     }
 

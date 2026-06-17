@@ -103,6 +103,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [SerializeField] private AilmentController ailments;
     [SerializeField] private PlayerBuffController buffs;
     [SerializeField] private Inventory inventory;
+    [SerializeField] private PlayerAbilityController abilityController;
 
     [Header("Refresh")]
     [Tooltip("How often (seconds) the buff icon timers tick down on the HUD. Display only — does not affect actual buff expiry.")]
@@ -125,6 +126,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
         public Sprite sprite;
         public float totalDurationSeconds;
         public bool persistActiveOverlay;
+        public bool isHudAbilityBuff;
+        public bool dismissable;
     }
 
     /// <summary>
@@ -166,6 +169,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ailments = FindFirstObjectByType<AilmentController>(FindObjectsInactive.Include);
         if (!buffs)
             buffs = FindFirstObjectByType<PlayerBuffController>(FindObjectsInactive.Include);
+        if (!abilityController && player)
+            abilityController = player.GetComponent<PlayerAbilityController>();
+        if (!abilityController)
+            abilityController = FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
         if (!inventory)
             inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
@@ -238,7 +245,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
     }
 
     internal void FlushCoalescedAilmentUiRebuild() => RefreshDebuffs();
-    private void HandleBuffsChanged() => RefreshBuffs();
+    internal void FlushCoalescedBuffUiRebuild() => RefreshBuffs();
+    private void HandleBuffsChanged() => AilmentUiRebuildCoordinator.MarkBuffsPanelDirtyForBuffs(this);
 
     public void RefreshAll()
     {
@@ -406,7 +414,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
             body = GetBuffBody(buff),
             sprite = GetBuffSpriteFromItem(buff),
             totalDurationSeconds = buff.duration,
-            persistActiveOverlay = buff.hudPersistActiveOverlay
+            persistActiveOverlay = buff.hudPersistActiveOverlay,
+            isHudAbilityBuff = buff.type == ConsumableEffectType.HudAbilityBuff,
+            dismissable = CanDismissBuffFromPanel(buff)
         };
 
     private static bool BuffIconSnapshotEquals(BuffIconVisualSnapshot a, BuffIconVisualSnapshot b) =>
@@ -443,6 +453,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
             snapshot.totalDurationSeconds,
             snapshot.persistActiveOverlay);
 
+        WireBuffDismiss(iconUI, snapshot);
+
         if (spawnedBuffIcons[index] != null)
             spawnedBuffIcons[index].name = $"HUDBuff_{snapshot.key}";
 
@@ -475,6 +487,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 snapshot.totalDurationSeconds,
                 snapshot.persistActiveOverlay);
         }
+
+        WireBuffDismiss(iconUI, snapshot);
 
         spawnedBuffIcons.Add(icon);
         spawnedBuffIconUis.Add(iconUI);
@@ -1016,6 +1030,73 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             _ => "Temporary buff"
         };
+    }
+
+    private static bool CanDismissBuffFromPanel(PlayerBuffController.ActiveBuff buff)
+    {
+        if (buff == null)
+            return false;
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+        {
+            if (string.IsNullOrWhiteSpace(buff.id))
+                return false;
+
+            return !string.Equals(buff.id, "crusader_strike", StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerLeechHudBuffId, StringComparison.OrdinalIgnoreCase)
+                   && !string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return buff.type != ConsumableEffectType.None && buff.duration > 0f;
+    }
+
+    private void WireBuffDismiss(BuffIconUI iconUI, BuffIconVisualSnapshot snapshot)
+    {
+        if (!iconUI)
+            return;
+
+        if (!snapshot.dismissable)
+        {
+            iconUI.SetRightClickDismissHandler(null);
+            return;
+        }
+
+        iconUI.SetRightClickDismissHandler(() => RequestDismissBuff(snapshot.key, snapshot.isHudAbilityBuff));
+    }
+
+    private void RequestDismissBuff(string buffKey, bool isHudAbilityBuff)
+    {
+        if (buffs == null || string.IsNullOrWhiteSpace(buffKey))
+            return;
+
+        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            PlayerBuffController.ActiveBuff buff = activeBuffs[i];
+            if (buff == null || GetBuffIconKey(buff) != buffKey)
+                continue;
+
+            if (isHudAbilityBuff)
+            {
+                if (!abilityController && player)
+                    abilityController = player.GetComponent<PlayerAbilityController>();
+                abilityController?.TryDismissHudBuffFromPanel(buff.id);
+            }
+            else
+            {
+                buffs.TryDismissConsumableBuff(buff);
+            }
+
+            return;
+        }
     }
 
     private CharacterStats GetPlayerStats() =>

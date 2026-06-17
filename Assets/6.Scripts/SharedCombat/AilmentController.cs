@@ -189,7 +189,7 @@ public class AilmentController : MonoBehaviour
 
     private void TrySpawnEnemyAilmentActivationPopup(string message, Color color, Transform source)
     {
-        if (IsPlayerVictim || MinionCombatTarget.IsMinionTransform(transform) || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
+        if (IsPlayerVictim || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
             return;
 
         DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
@@ -201,7 +201,11 @@ public class AilmentController : MonoBehaviour
             dealerPos,
             source != null,
             null);
-        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, message, color, transform);
+        DamagePopupSystem.Instance.SpawnLingeringStatus(
+            pos,
+            message,
+            color,
+            DamagePopupSystem.ResolveStatusStackAnchor(transform));
     }
 
     private static Color ResolveAilmentStatusColor(FloatingDamageTextUI prefab, System.Func<FloatingDamageTextUI, Color> pick, Color fallback)

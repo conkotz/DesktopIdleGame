@@ -31,6 +31,9 @@ public class PlayerBuffController : MonoBehaviour
     private CharacterStats stats;
     private AilmentController ailmentController;
 
+    private int _buffBatchDepth;
+    private bool _buffBatchDirty;
+
     public event Action OnBuffsChanged;
 
     public IReadOnlyList<ActiveBuff> ActiveBuffs => activeBuffs;
@@ -77,6 +80,40 @@ public class PlayerBuffController : MonoBehaviour
             duration = effect.duration, // ✅ ADD THIS
             displayStacks = 0
         });
+
+        FlushBuffBatchIfNeeded();
+    }
+
+    /// <summary>Defer stat/buff UI refresh until <see cref="EndBuffBatch"/> (e.g. food applies several timed buffs at once).</summary>
+    public void BeginBuffBatch()
+    {
+        _buffBatchDepth++;
+    }
+
+    public void EndBuffBatch()
+    {
+        if (_buffBatchDepth <= 0)
+            return;
+
+        _buffBatchDepth--;
+        if (_buffBatchDepth > 0)
+            return;
+
+        if (!_buffBatchDirty)
+            return;
+
+        _buffBatchDirty = false;
+        RecalculateBuffTotals();
+        NotifyChanged();
+    }
+
+    private void FlushBuffBatchIfNeeded()
+    {
+        if (_buffBatchDepth > 0)
+        {
+            _buffBatchDirty = true;
+            return;
+        }
 
         RecalculateBuffTotals();
         NotifyChanged();
@@ -275,6 +312,30 @@ public class PlayerBuffController : MonoBehaviour
         RecalculateBuffTotals();
         NotifyChanged();
         return true;
+    }
+
+    /// <summary>Removes a single consumable/food/potion buff row (right-click dismiss on buff strip).</summary>
+    public bool TryDismissConsumableBuff(ActiveBuff buff)
+    {
+        if (buff == null || buff.type == ConsumableEffectType.HudAbilityBuff || buff.type == ConsumableEffectType.None)
+            return false;
+
+        for (int i = activeBuffs.Count - 1; i >= 0; i--)
+        {
+            ActiveBuff row = activeBuffs[i];
+            if (row.type != buff.type)
+                continue;
+            if (!string.Equals(row.id, buff.id, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            activeBuffs.RemoveAt(i);
+            RecalculateBuffTotals();
+            NotifyChanged();
+            stats?.NotifyStatsChanged(affectsCombatPower: false);
+            return true;
+        }
+
+        return false;
     }
 
     public void RemoveAllBuffs()

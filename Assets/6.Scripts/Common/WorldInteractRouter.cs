@@ -159,20 +159,6 @@ public static class WorldInteractRouter
             return;
         }
 
-        var enemyClick = winnerCol.GetComponentInParent<EnemyClick>();
-        if (enemyClick != null)
-        {
-            EnemyBaseController clickedEnemy = enemyClick.GetEnemy();
-            if (clickedEnemy != null)
-            {
-                PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
-                if (combat != null)
-                    combat.EngageTargetFromPlayerInput(clickedEnemy);
-            }
-
-            return;
-        }
-
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {
@@ -303,7 +289,6 @@ public static class WorldInteractRouter
             return false;
 
         if (col.GetComponentInParent<StorageClick>()) return true;
-        if (col.GetComponentInParent<EnemyClick>()) return true;
         if (col.GetComponentInParent<ItemDrop>()) return true;
         if (col.GetComponentInParent<ResourceNode>()) return true;
         if (col.GetComponentInParent<NPCInteractionSettings>()) return true;

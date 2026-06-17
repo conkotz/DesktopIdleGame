@@ -81,7 +81,19 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!_dirty)
+            return;
+
         RebuildIfDirty();
+    }
+
+    internal void FlushCoalescedRebuild()
+    {
+        if (!_dirty || !isActiveAndEnabled || !gameObject.activeInHierarchy)
+            return;
+
+        _dirty = false;
+        Rebuild();
     }
 
     public void SetUpgradeDropTarget(RectTransform dropTarget) => _upgradeDropTarget = dropTarget;
@@ -145,6 +157,8 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
         _displayPrewarmed = false;
         if (_selectedSourceSlot >= 0 && !IsUpgradableGearSlot(_selectedSourceSlot))
             SetSelectedSourceSlot(-1);
+
+        InventoryUiRefreshCoordinator.MarkUpgradeGridDirty(this);
     }
 
     private void AdoptLegacyGridBindings()

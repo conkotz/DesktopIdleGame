@@ -295,8 +295,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             QueueStatsRefresh();
     }
 
-    private void HandleRefresh(string _) => QueueImmediateRefresh();
-    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueImmediateRefresh();
+    private void HandleRefresh(string _) => QueueStatsRefresh();
+    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueStatsRefresh();
     private void HandleToolChanged(int _, string __) => QueueImmediateRefresh();
     private void HandleActiveSetChanged(int _)
     {

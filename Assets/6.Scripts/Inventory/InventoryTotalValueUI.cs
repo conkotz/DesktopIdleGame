@@ -61,14 +61,6 @@ public class InventoryTotalValueUI : MonoBehaviour
         RefreshNow();
     }
 
-    private void LateUpdate()
-    {
-        if (!_valueLabelDirty)
-            return;
-        _valueLabelDirty = false;
-        RefreshNow();
-    }
-
     private void OnDisable()
     {
         Unsubscribe();
@@ -105,6 +97,15 @@ public class InventoryTotalValueUI : MonoBehaviour
         if (!isActiveAndEnabled || label == null || !label.gameObject.activeInHierarchy)
             return;
         _valueLabelDirty = true;
+        InventoryUiRefreshCoordinator.MarkValueLabelDirty(this);
+    }
+
+    internal void FlushCoalescedRefresh()
+    {
+        if (!_valueLabelDirty)
+            return;
+        _valueLabelDirty = false;
+        RefreshNow();
     }
 
     private void RefreshNow()

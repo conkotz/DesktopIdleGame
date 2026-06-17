@@ -26,14 +26,22 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private RectTransform rect;
 
     [Header("Motion")]
-    [SerializeField] private float distance = 65f;
-    [SerializeField] private float arcHeight = 25f;
-    [SerializeField] private float maxAngleOffset = 35f;
+    [SerializeField] private float distance = 70f;
+    [SerializeField] private float arcHeight = 5f;
+    [SerializeField] private float maxAngleOffset = 10f;
+    [SerializeField] private float critAngleOffsetBonus = 4f;
+    [SerializeField] private float critDistanceMultiplier = 1.12f;
+    [Tooltip("Horizontal weight for drift away from the dealer (higher = steeper diagonal, less vertical).")]
+    [SerializeField, Range(0.2f, 1.2f)] private float horizontalDriftWeight = 0.72f;
+    [Tooltip("Minimum upward component so numbers still rise even when dealer is directly above/below.")]
+    [SerializeField, Range(0.2f, 1f)] private float minUpwardDrift = 0.5f;
 
     [Header("Timing")]
     [SerializeField] private float fadeInSeconds = 0.08f;
     [SerializeField] private float visibleSeconds = 0.35f;
     [SerializeField] private float fadeOutSeconds = 0.25f;
+    [Tooltip("Movement speed multiplier (lower = slower drift). Fade timings are unchanged.")]
+    [SerializeField, Range(0.1f, 2f)] private float floatTravelSpeed = 0.5f;
 
     [Header("Crit")]
     [SerializeField] private float normalHitSizeMultiplier = 0.88f;
@@ -191,10 +199,10 @@ public class FloatingDamageTextUI : MonoBehaviour
         float totalVisible = visibleSeconds + fadeOutSeconds;
         // Crit numbers now dissipate at the same speed as normal hits.
 
-        Vector2 dir = BuildDirection(worldDirection);
+        Vector2 dir = BuildDirection(worldDirection, isCrit);
 
         if (_run != null) StopCoroutine(_run);
-        _run = StartCoroutine(Run(dir, totalVisible));
+        _run = StartCoroutine(Run(dir, totalVisible, isCrit));
     }
 
     public void InitCompactDamage(int amount, bool pulseCrit)
@@ -375,25 +383,32 @@ public class FloatingDamageTextUI : MonoBehaviour
         );
     }
 
-    private Vector2 BuildDirection(Vector3 worldDirection)
+    private Vector2 BuildDirection(Vector3 worldDirection, bool isCrit)
     {
-        Vector2 dir = new Vector2(worldDirection.x, worldDirection.y).normalized;
+        float spread = maxAngleOffset + (isCrit ? critAngleOffsetBonus : 0f);
+
+        float awayX = Mathf.Abs(worldDirection.x) > 0.02f
+            ? Mathf.Sign(worldDirection.x)
+            : 1f;
+        Vector2 dir = new Vector2(
+            awayX * horizontalDriftWeight,
+            Mathf.Max(minUpwardDrift, Mathf.Abs(worldDirection.y) + minUpwardDrift * 0.35f));
 
         if (dir.sqrMagnitude < 0.0001f)
-            dir = Vector2.up;
+            dir = new Vector2(0.65f, 0.75f);
 
-        dir.y = Mathf.Abs(dir.y) + 0.5f;
         dir.Normalize();
 
-        float randomAngle = Random.Range(-maxAngleOffset, maxAngleOffset);
-        dir = Rotate(dir, randomAngle);
-
-        return dir;
+        float randomAngle = Random.Range(-spread, spread);
+        if (isCrit)
+            randomAngle += Random.value < 0.5f ? -2f : 2f;
+        return Rotate(dir, randomAngle);
     }
 
-    private IEnumerator Run(Vector2 direction, float lifeTime)
+    private IEnumerator Run(Vector2 direction, float lifeTime, bool isCrit)
     {
-        Vector2 travel = direction * distance;
+        float travelDistance = distance * (isCrit ? critDistanceMultiplier : 1f);
+        Vector2 travel = direction * travelDistance;
         Vector2 legacyStart = rect.anchoredPosition;
         Vector2 legacyEnd = legacyStart + travel;
 
@@ -416,19 +431,20 @@ public class FloatingDamageTextUI : MonoBehaviour
         while (elapsed < lifeTime)
         {
             elapsed += Time.deltaTime;
-            float p = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
+            float moveElapsed = elapsed * Mathf.Max(0.01f, floatTravelSpeed);
+            float p = Mathf.Clamp01(moveElapsed / Mathf.Max(0.0001f, lifeTime));
 
             if (HasWorldFollow)
             {
                 Vector2 anim = Vector2.Lerp(Vector2.zero, travel, p);
-                float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
+                float arc = Mathf.Sin(p * Mathf.PI * 0.5f) * arcHeight;
                 anim.y += arc;
                 rect.anchoredPosition = GetAnchorLocal() + _spawnJitter + anim;
             }
             else
             {
                 Vector2 pos = Vector2.Lerp(legacyStart, legacyEnd, p);
-                float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
+                float arc = Mathf.Sin(p * Mathf.PI * 0.5f) * arcHeight;
                 pos.y += arc;
                 rect.anchoredPosition = pos;
             }

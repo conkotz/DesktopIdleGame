@@ -194,11 +194,24 @@ public class PlayerConsumableController : MonoBehaviour
         if (def.EnergyAmount > 0)
             player.AddEnergy(def.EnergyAmount);
 
-        if (def.HasGrantedEffect)
-            ApplyGrantedEffect(def);
+        PlayerBuffController buffController = GetComponent<PlayerBuffController>();
+        bool batchBuffs = buffController != null && (def.HasGrantedEffect || def.HasFoodTimedBuffs);
+        if (batchBuffs)
+            buffController.BeginBuffBatch();
 
-        if (def.HasFoodTimedBuffs)
-            ApplyFoodTimedBuffs(def);
+        try
+        {
+            if (def.HasGrantedEffect)
+                ApplyGrantedEffect(def);
+
+            if (def.HasFoodTimedBuffs)
+                ApplyFoodTimedBuffs(def);
+        }
+        finally
+        {
+            if (batchBuffs)
+                buffController.EndBuffBatch();
+        }
 
         player.ShowPopup($"Used {def.displayName}");
     }

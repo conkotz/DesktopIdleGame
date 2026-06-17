@@ -115,6 +115,9 @@ public class SoulforgedWarriorMinion : MonoBehaviour
             ownerCombat = ownerStats.GetComponentInParent<PlayerCombatController>();
         combatTarget.BindOwnerCombat(ownerCombat);
 
+        if (unit != null)
+            unit.VisualFacingChanged += ApplyOverheadAnchorOffset;
+
         SnapToSpawnPosition();
         unit?.AlignToLaneFloor();
         _initialized = true;
@@ -189,6 +192,9 @@ public class SoulforgedWarriorMinion : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (unit != null)
+            unit.VisualFacingChanged -= ApplyOverheadAnchorOffset;
+
         StopWarcryRoutine();
         StopFuriousSlamRoutine();
         if (minionStats)
@@ -444,28 +450,25 @@ public class SoulforgedWarriorMinion : MonoBehaviour
     private void ApplyPositionAdjustment()
     {
         unit?.ApplyExtraVisualLocalOffset(positionAdjustment.soldierVisualLocalOffset);
-        BindOverheadToFlipRoot();
+        ApplyOverheadAnchorOffset();
     }
 
-    private void BindOverheadToFlipRoot()
+    /// <summary>
+    /// Keeps the overhead anchor on the minion root so facing flips do not shift the body or HP bar.
+    /// </summary>
+    private void ApplyOverheadAnchorOffset()
     {
-        if (!overheadAnchor || !unit || !unit.TryGetVisualFlipRoot(out Transform flipRoot))
+        if (!overheadAnchor || !unit)
             return;
 
-        if (overheadAnchor.parent != flipRoot)
-        {
-            Vector3 worldPos = overheadAnchor.position;
-            overheadAnchor.SetParent(flipRoot, true);
-            Vector3 localOnFlip = flipRoot.InverseTransformPoint(worldPos);
-            localOnFlip.x = positionAdjustment.overheadAnchorLocalOffset.x;
-            localOnFlip.y += positionAdjustment.overheadAnchorLocalOffset.y;
-            localOnFlip.z += positionAdjustment.overheadAnchorLocalOffset.z;
-            overheadAnchor.localPosition = localOnFlip;
-            return;
-        }
+        Transform minionRoot = transform;
+        if (overheadAnchor.parent != minionRoot)
+            overheadAnchor.SetParent(minionRoot, true);
 
-        Vector3 lp = overheadAnchor.localPosition;
-        lp.x = positionAdjustment.overheadAnchorLocalOffset.x;
+        Vector3 lp = _baseOverheadAnchorLocal;
+        lp.x = unit.GetSoldierRigCenterLocalX() + positionAdjustment.overheadAnchorLocalOffset.x;
+        lp.y += positionAdjustment.overheadAnchorLocalOffset.y;
+        lp.z += positionAdjustment.overheadAnchorLocalOffset.z;
         overheadAnchor.localPosition = lp;
     }
 

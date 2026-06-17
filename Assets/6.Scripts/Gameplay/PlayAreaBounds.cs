@@ -56,6 +56,26 @@ public static class PlayAreaBounds
     }
 
     /// <summary>
+    /// True when <paramref name="worldX"/> is inside the main lane or an enabled side play area.
+    /// Used for save/spawn validation so side-area positions are not treated as out-of-bounds.
+    /// </summary>
+    public static bool IsWorldXInGameplayPlayArea(float worldX, float slack = 1f)
+    {
+        if (float.IsNaN(worldX) || float.IsInfinity(worldX))
+            return false;
+
+        if (TryGetEnabledSideAreaContainingWorldX(worldX, out _))
+            return true;
+
+        if (WorldBounds.Instance == null)
+            return true;
+
+        float left = WorldBounds.Instance.Left - slack;
+        float right = WorldBounds.Instance.Right + slack;
+        return worldX >= left && worldX <= right;
+    }
+
+    /// <summary>
     /// Clamps a desired X using the lane/side-area bounds for <paramref name="laneReferenceWorldX"/>,
     /// not the destination X. Use when resolving dash/teleport travel so crossing a lane gap does not
     /// re-resolve to main-lane bounds mid-move.

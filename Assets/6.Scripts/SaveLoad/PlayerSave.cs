@@ -76,11 +76,9 @@ public class PlayerSave : MonoBehaviour, ISaveable
             bool isGameplayScene = active.IsValid() &&
                                    active.name.Equals("GamePlay", System.StringComparison.OrdinalIgnoreCase);
             bool outOfGameplayBounds = false;
-            if (isGameplayScene && validPos && WorldBounds.Instance != null)
+            if (isGameplayScene && validPos)
             {
-                float left = WorldBounds.Instance.Left;
-                float right = WorldBounds.Instance.Right;
-                outOfGameplayBounds = pos.x < left - 1f || pos.x > right + 1f;
+                outOfGameplayBounds = !PlayAreaBounds.IsWorldXInGameplayPlayArea(pos.x);
             }
 
             if (outOfGameplayBounds)
@@ -102,13 +100,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
                             System.StringComparison.Ordinal);
                     }
 
-                    bool prevBoundsOk = true;
-                    if (WorldBounds.Instance != null)
-                    {
-                        float left = WorldBounds.Instance.Left;
-                        float right = WorldBounds.Instance.Right;
-                        prevBoundsOk = prev.playerWorldPosX >= left - 1f && prev.playerWorldPosX <= right + 1f;
-                    }
+                    bool prevBoundsOk = PlayAreaBounds.IsWorldXInGameplayPlayArea(prev.playerWorldPosX);
 
                     if (prevMapOk && prevBoundsOk)
                     {

@@ -108,12 +108,29 @@ public class MinionUnit : MonoBehaviour
         return _animator != null;
     }
 
+    public event System.Action VisualFacingChanged;
+
     public void ApplyExtraVisualLocalOffset(Vector3 offset)
     {
         if (!visualsRoot || offset.sqrMagnitude <= 1e-8f)
             return;
 
         visualsRoot.localPosition += offset;
+    }
+
+    /// <summary>
+    /// Soldier rig center X in minion-root local space (uses rig offsets only — not animated bones).
+    /// </summary>
+    public float GetSoldierRigCenterLocalX()
+    {
+        if (!visualsRoot || !_visualFlipRoot)
+            return 0f;
+
+        Transform soldier = _visualFlipRoot.Find("Soldier");
+        if (!soldier)
+            return visualsRoot.localPosition.x;
+
+        return visualsRoot.localPosition.x + soldier.localPosition.x * _visualFlipRoot.localScale.x;
     }
 
     public void AlignFloorToOwnerSoldier(Transform ownerRoot)
@@ -372,21 +389,14 @@ public class MinionUnit : MonoBehaviour
         if (Mathf.Approximately(newScaleX, _visualFlipScaleX))
             return;
 
-        Transform soldier = _visualFlipRoot.Find("Soldier");
-        if (soldier)
-        {
-            Vector3 lp = soldier.localPosition;
-            lp.x = -lp.x;
-            soldier.localPosition = lp;
-        }
-
         _visualFlipScaleX = newScaleX;
         _visualFlipRoot.localScale = new Vector3(newScaleX, 1f, 1f);
+        VisualFacingChanged?.Invoke();
     }
 
     private void SetLocomotionMoving(bool moving)
     {
-        if (_isDeadVisual || !_animator || _attackLocked)
+        if (_isDeadVisual || !_animator || _attackLocked || !CanDriveAnimator())
             return;
 
         if (_isMoving == moving)
@@ -400,7 +410,7 @@ public class MinionUnit : MonoBehaviour
 
     private void ReassertLocomotion(string expectedStateName)
     {
-        if (!_animator || string.IsNullOrWhiteSpace(expectedStateName))
+        if (!_animator || string.IsNullOrWhiteSpace(expectedStateName) || !CanDriveAnimator())
             return;
 
         AnimatorStateInfo st = _animator.GetCurrentAnimatorStateInfo(0);
@@ -444,7 +454,7 @@ public class MinionUnit : MonoBehaviour
 
     private void PlayState(string stateName)
     {
-        if (!_animator || string.IsNullOrWhiteSpace(stateName))
+        if (!_animator || string.IsNullOrWhiteSpace(stateName) || !CanDriveAnimator())
             return;
 
         AnimatorStateInfo st = _animator.GetCurrentAnimatorStateInfo(0);
@@ -453,6 +463,9 @@ public class MinionUnit : MonoBehaviour
 
         _animator.Play(stateName, 0, 0f);
     }
+
+    private bool CanDriveAnimator() =>
+        isActiveAndEnabled && _animator.isActiveAndEnabled;
 
     private void EnsureVisualHierarchy()
     {

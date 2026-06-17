@@ -20,7 +20,7 @@ public struct SoulforgedWarriorPositionAdjustment
     public static SoulforgedWarriorPositionAdjustment Default => new SoulforgedWarriorPositionAdjustment
     {
         soldierVisualLocalOffset = new Vector3(0f, -0.22f, 0f),
-        overheadAnchorLocalOffset = new Vector3(0f, 0.2f, 0f),
+        overheadAnchorLocalOffset = new Vector3(0.2f, 0.42f, 0f),
         visualScaleMultiplier = 1.12f
     };
 }

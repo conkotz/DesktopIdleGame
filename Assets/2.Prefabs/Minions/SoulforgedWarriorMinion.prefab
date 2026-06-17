@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 7123456789012345691}
   - component: {fileID: 7123456789012345684}
   - component: {fileID: 7123456789012345685}
+  - component: {fileID: 7123456789012345692}
   m_Layer: 0
   m_Name: SoulforgedWarriorMinion
   m_TagString: Untagged
@@ -274,7 +275,7 @@ MonoBehaviour:
   debugLogs: 0
   positionAdjustment:
     soldierVisualLocalOffset: {x: 0, y: -0.22, z: 0}
-    overheadAnchorLocalOffset: {x: 0, y: 0.2, z: 0}
+    overheadAnchorLocalOffset: {x: 0.2, y: 0.42, z: 0}
     visualScaleMultiplier: 1.12
   spawnDistanceFromPlayer: 3
   spawnSideSign: 1
@@ -297,11 +298,29 @@ MonoBehaviour:
   overheadAnchor: {fileID: 7123456789012345687}
   characterStats: {fileID: 7123456789012345682}
   enemy: {fileID: 0}
-  ailments: {fileID: 0}
+  ailments: {fileID: 7123456789012345692}
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
   hpBarOnly: 0
   eliteOverheadExtraYOffset: 0.12
+--- !u!114 &7123456789012345692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7123456789012345678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae267ce04eb93d240b2c46f7bc5b9624, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AilmentController
+  showDotPopups: 1
+  debugLogs: 0
+  burnWallClockDurationSeconds: 15
+  burnDurationTicks: 5
+  burnDamageFractionOfHitPerTick: 0.15
+  burnCombustTicksWorth: 10
 --- !u!1 &7123456789012345688
 GameObject:
   m_ObjectHideFlags: 0
