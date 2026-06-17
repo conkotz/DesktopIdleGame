@@ -153,6 +153,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Enemy guard regen: no regen/decay until this many seconds after last damage to guard or HP.</summary>
     private float _lastIncomingDamageTimeForGuard = -999f;
+    /// <summary>Last time guard or HP took damage (any unit). Used for enemy overhead reveal after hits.</summary>
+    private float _lastVitalsDamageTime = -999f;
 
     public string UnitDisplayName => unitDisplayName;
     public float HP => currentHP;
@@ -161,6 +163,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Current guard pool (absorbs damage before HP). May exceed <see cref="NaturalGuardCap"/> from future abilities.</summary>
     public float Guard => Mathf.Max(0f, currentGuard);
     public bool IsDead => _isDead;
+
+    /// <summary>True when guard or HP took damage within the last <paramref name="seconds"/> (hits and DoT ticks).</summary>
+    public bool HasTakenIncomingDamageWithinSeconds(float seconds)
+    {
+        if (seconds <= 0f)
+            return false;
+
+        return Time.time - _lastVitalsDamageTime <= seconds;
+    }
 
     [Header("Base Stats")]
     [SerializeField] private int baseMaxHP = 100;
@@ -5398,6 +5409,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float hpLoss = damage;
         currentHP = Mathf.Max(0f, currentHP - hpLoss);
+
+        if (absorb > 0f || hpLoss > 0.0001f)
+            _lastVitalsDamageTime = Time.time;
 
         ResolveOwnerEnemy();
         if (_ownerEnemy && (absorb > 0f || hpLoss > 0.0001f))

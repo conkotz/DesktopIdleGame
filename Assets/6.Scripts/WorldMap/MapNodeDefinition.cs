@@ -542,6 +542,11 @@ public class MapNodeDefinition : ScriptableObject
 
     [Header("Player spawn (GamePlay scene)")]
     [Tooltip(
+        "When enabled, world map / Locations menu / return-to-town use the default spawn point instead of last saved position. " +
+        "In-world signposts, caves, and linked portals are unchanged.")]
+    public bool useDefaultSpawnOnMapTeleport;
+
+    [Tooltip(
         "Optional spawn point GameObject name for default map entry (Locations teleport, save restore base position, " +
         "and other non-portal loads). Empty = SpawnPoint_Player. Linked signposts / in-world portals are unchanged.")]
     public string defaultPlayerSpawnPointName = "";
@@ -555,6 +560,10 @@ public class MapNodeDefinition : ScriptableObject
             return FallbackPlayerSpawnPointName;
         return defaultPlayerSpawnPointName.Trim();
     }
+
+    /// <summary>True when this map uses a non-default spawn point for loads that are not linked portal entry.</summary>
+    public bool UsesCustomDefaultPlayerSpawnPoint() =>
+        !string.IsNullOrWhiteSpace(defaultPlayerSpawnPointName);
 
     [Header("In-map teleporters")]
     [Tooltip(

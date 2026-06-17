@@ -55,7 +55,26 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 20
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint20_Middle
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: b72fe15ec48f8ea4289bc2fdbea9eb81, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: duskwood
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     shuffleSpawnPoints: 1
+  enabledSidePlayAreaIds: []
+  useDefaultSpawnOnMapTeleport: 0
+  defaultPlayerSpawnPointName: 
+  inMapTeleporters: []
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

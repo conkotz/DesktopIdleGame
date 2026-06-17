@@ -80,8 +80,10 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Camera targetCamera;
 
     [Header("Enemy overhead visibility")]
-    [Tooltip("Enemy name/HP/debuff overhead is shown when engaged in combat or within this world distance of the player.")]
+    [Tooltip("Enemy name/HP/debuff overhead is shown when engaged in combat, within this world distance of the player, or recently damaged.")]
     [SerializeField, Min(0.5f)] private float enemyOverheadRevealDistance = 5f;
+    [Tooltip("Keep enemy overhead visible for this many seconds after guard or HP damage.")]
+    [SerializeField, Min(0.1f)] private float enemyOverheadRecentDamageRevealSeconds = 5f;
     [SerializeField, Min(0.02f)] private float enemyOverheadProximityRecheckInterval = 0.1f;
 
     [Header("Target marker (enemy)")]
@@ -1790,8 +1792,9 @@ public class UnitOverheadUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Enemy overhead (name, HP, debuff icons) only when the player is fighting them or within
-    /// <see cref="enemyOverheadRevealDistance"/> world units. Player/minion overheads are unchanged.
+    /// Enemy overhead (name, HP, debuff icons) when the player is fighting them, within
+    /// <see cref="enemyOverheadRevealDistance"/> world units, or they took damage recently.
+    /// Player/minion overheads are unchanged.
     /// </summary>
     private bool ShouldShowEnemyOverheadByProximityOrEngagement()
     {
@@ -1816,6 +1819,14 @@ public class UnitOverheadUI : MonoBehaviour
 
         PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
         if (combat != null && combat.CurrentTarget == enemy && !enemy.IsDead)
+        {
+            _cachedEnemyOverheadProximityVisible = true;
+            return true;
+        }
+
+        CharacterStats stats = characterStats != null ? characterStats : enemy.Stats;
+        if (stats != null &&
+            stats.HasTakenIncomingDamageWithinSeconds(enemyOverheadRecentDamageRevealSeconds))
         {
             _cachedEnemyOverheadProximityVisible = true;
             return true;

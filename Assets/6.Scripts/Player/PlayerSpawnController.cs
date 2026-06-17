@@ -137,6 +137,15 @@ public class PlayerSpawnController : MonoBehaviour
         if (saveData == null)
             return false;
 
+        MapNodeDefinition activeMap = ActiveLevelContext.Current;
+        if (activeMap != null && activeMap.UsesCustomDefaultPlayerSpawnPoint())
+            return false;
+
+        if (activeMap != null &&
+            activeMap.useDefaultSpawnOnMapTeleport &&
+            disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable)
+            return false;
+
         string nodeId = ResolveDestinationMapNodeId();
 
         if (disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable ||
@@ -410,6 +419,9 @@ public class PlayerSpawnController : MonoBehaviour
             if (debugSnap)
                 Debug.Log($"[SpawnDebug] FINAL pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
 
+            if (isGameplayScene)
+                CameraFollow.SnapToTargetHorizontalAfterSpawnPlacement();
+
             if (combat != null)
                 combat.NotifyPlayerTeleported();
 
@@ -436,6 +448,9 @@ public class PlayerSpawnController : MonoBehaviour
 
                 if (extraHold > 0.001f)
                     yield return new WaitForSecondsRealtime(extraHold);
+
+                if (isGameplayScene)
+                    CameraFollow.SnapToTargetHorizontalAfterSpawnPlacement();
 
                 loadScreenUi?.SetVisible(false);
                 yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);

@@ -67,6 +67,10 @@ public class EnemyAbilityController : MonoBehaviour
 
     private int _activeGlowCount;
 
+    private Collider2D _groundAlignCollider;
+    private float _colliderBottomBelowRoot;
+    private bool _hasColliderBottomBelowRoot;
+
 
 
     public bool IsMovementLocked { get; private set; }
@@ -616,13 +620,14 @@ public class EnemyAbilityController : MonoBehaviour
 
         Vector3 depart = transform.position;
 
-        Vector3 arrive = new Vector3(targetWorld.x, depart.y, depart.z);
+        Vector3 groundPoint = ResolvePounceGroundPoint(targetWorld);
+        Vector3 bearLandPoint = ResolvePounceBearLandPoint(depart, targetWorld);
 
         float telegraphSeconds = Mathf.Max(0.05f, def.pounceTelegraphSeconds);
 
         float shockwaveRadius = Mathf.Max(0.1f, def.pounceShockwaveRadius);
         float directHitRadius = Mathf.Max(0.1f, def.pounceDirectHitRadius);
-        GameObject mark = SpawnPounceTargetMark(arrive, shockwaveRadius, directHitRadius);
+        GameObject mark = SpawnPounceTargetMark(groundPoint, shockwaveRadius, directHitRadius);
 
 
 
@@ -666,21 +671,19 @@ public class EnemyAbilityController : MonoBehaviour
 
             SpawnDisengageDepartVfx(depart, def);
 
-            yield return CoFlightPathMove(depart, arrive, def.pounceMoveSpeed, def.pounceAirHeight);
+            yield return CoFlightPathMove(depart, bearLandPoint, def.pounceMoveSpeed, def.pounceAirHeight);
 
 
 
-            SpawnPounceShockwaveVfx(arrive, shockwaveRadius);
+            SpawnPounceShockwaveVfx(groundPoint, shockwaveRadius);
 
             _enemy.TryApplyAbilityShockwaveDamageToPlayer(
-                arrive,
+                groundPoint,
                 shockwaveRadius,
                 directHitRadius,
                 def.pounceDirectHitDamageMultiplier);
 
-            SpawnDisengageLandVfx(arrive, def);
-
-
+            SpawnDisengageLandVfx(groundPoint, def);
 
             if (_player && _enemy != null && !_enemy.IsDead)
 
@@ -806,28 +809,72 @@ public class EnemyAbilityController : MonoBehaviour
 
 
 
-    private float ClampWorldX(float x)
+    private float ClampWorldX(float x) =>
+        PlayAreaBounds.ClampWorldXForLaneAt(transform.position.x, x, 0f);
 
+    private Collider2D ResolveGroundAlignCollider()
     {
+        Collider2D[] cols = GetComponentsInChildren<Collider2D>(true);
+        if (cols == null || cols.Length == 0)
+            return null;
 
-        if (!WorldBounds.Instance)
+        Collider2D fallback = null;
+        for (int i = 0; i < cols.Length; i++)
+        {
+            Collider2D col = cols[i];
+            if (!col)
+                continue;
 
-            return x;
+            fallback ??= col;
+            if (!col.isTrigger && col.attachedRigidbody == _rb)
+                return col;
+        }
 
+        return fallback;
+    }
 
+    private void EnsureGroundAlignColliderCached()
+    {
+        if (_hasColliderBottomBelowRoot)
+            return;
 
-        float minX = WorldBounds.Instance.Left;
+        _groundAlignCollider = ResolveGroundAlignCollider();
+        if (_groundAlignCollider == null)
+            return;
 
-        float maxX = WorldBounds.Instance.Right;
+        Physics2D.SyncTransforms();
+        _colliderBottomBelowRoot = transform.position.y - _groundAlignCollider.bounds.min.y;
+        _hasColliderBottomBelowRoot = true;
+    }
 
-        if (minX > maxX)
+    /// <summary>Lane floor anchor for pounce telegraph, shockwave, and hit checks (unchanged from original).</summary>
+    private Vector3 ResolvePounceGroundPoint(Vector3 targetWorld)
+    {
+        float landX = ClampWorldX(targetWorld.x);
+        float groundY = transform.position.y;
+        if (PlayAreaBounds.TryGetFloorTopYForWorldX(landX, out float floorY))
+            groundY = floorY;
 
-            maxX = minX;
+        return new Vector3(landX, groundY, transform.position.z);
+    }
 
+    /// <summary>Bear root position at end of arc — keeps pre-pounce Y on the same floor, adjusts only if landing X uses a different floor height.</summary>
+    private Vector3 ResolvePounceBearLandPoint(Vector3 depart, Vector3 targetWorld)
+    {
+        float landX = ClampWorldX(targetWorld.x);
+        float landY = depart.y;
 
+        if (PlayAreaBounds.TryGetFloorTopYForWorldX(landX, out float landFloorAnchorY) &&
+            PlayAreaBounds.TryGetFloorTopYForWorldX(depart.x, out float departFloorAnchorY) &&
+            !Mathf.Approximately(landFloorAnchorY, departFloorAnchorY))
+        {
+            EnsureGroundAlignColliderCached();
+            landY = _hasColliderBottomBelowRoot
+                ? landFloorAnchorY + _colliderBottomBelowRoot
+                : depart.y;
+        }
 
-        return Mathf.Clamp(x, minX, maxX);
-
+        return new Vector3(landX, landY, depart.z);
     }
 
 

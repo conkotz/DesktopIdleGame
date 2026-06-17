@@ -277,6 +277,24 @@ public sealed class CameraFollow : MonoBehaviour
             followers[i]?.SnapToTargetHorizontalInternal();
     }
 
+    /// <summary>
+    /// Snaps to the player after spawn placement and marks the initial load snap complete so LateUpdate does not ease in.
+    /// </summary>
+    public static void SnapToTargetHorizontalAfterSpawnPlacement()
+    {
+        CameraFollow[] followers = FindObjectsByType<CameraFollow>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < followers.Length; i++)
+        {
+            CameraFollow follower = followers[i];
+            if (!follower)
+                continue;
+
+            follower.RebindTargetFromTag();
+            follower.SnapToTargetHorizontalInternal();
+            follower._didInitialSnapToTarget = true;
+        }
+    }
+
     private void SnapToTargetHorizontalInternal()
     {
         if (!_cam || !_cam.orthographic || !target)

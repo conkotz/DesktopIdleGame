@@ -30,8 +30,8 @@ MonoBehaviour:
   pounceTelegraphSeconds: 2
   pounceMoveSpeed: 14
   pounceAirHeight: 0.5
-  pounceShockwaveRadius: 7
-  pounceDirectHitRadius: 1.1
+  pounceShockwaveRadius: 5
+  pounceDirectHitRadius: 0.85
   pounceDirectHitDamageMultiplier: 1.5
   enrageHealthThreshold: 0.3
   enrageScaleMultiplier: 1.25

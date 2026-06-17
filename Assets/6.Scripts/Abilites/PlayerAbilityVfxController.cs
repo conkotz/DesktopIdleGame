@@ -140,6 +140,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.05f)] private float executionersDescentShockwaveDuration = 0.45f;
     [SerializeField, Min(0.01f)] private float executionersDescentShockwaveLineWidth = 0.22f;
     [SerializeField] private float executionersDescentShockwaveGroundOffset = 0.15f;
+    [SerializeField] private float enemyPounceTelegraphGroundOffset = 0.02f;
 
     [Header("Shadow Strike (Melee Lv25) VFX")]
     [SerializeField] private Color shadowStrikeBurstColor = new Color(0.35f, 0.15f, 0.55f, 0.9f);
@@ -4190,7 +4191,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         directHitRadius = Mathf.Clamp(Mathf.Max(0.1f, directHitRadius), 0.1f, shockwaveRadius);
         Vector3 groundCenter = new Vector3(
             worldPosition.x,
-            worldPosition.y + executionersDescentShockwaveGroundOffset,
+            worldPosition.y + enemyPounceTelegraphGroundOffset,
             worldPosition.z);
 
         var root = new GameObject("EnemyPounceTelegraph");

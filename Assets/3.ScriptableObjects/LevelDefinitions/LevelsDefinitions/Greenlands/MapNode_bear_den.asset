@@ -41,10 +41,10 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 6
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: SideAreaSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: 
+      spawnPointName: SideArea_Spawn29
       enemyDefinition: {fileID: 11400000, guid: 6db01b26b24bad24bb757a286586614d, type: 2}
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
@@ -54,10 +54,27 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
-    shuffleSpawnPoints: 1
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SideArea_Spawn15
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: b72fe15ec48f8ea4289bc2fdbea9eb81, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: hunting_grounds
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    shuffleSpawnPoints: 0
   enabledSidePlayAreaIds:
   - SideArea_1
+  useDefaultSpawnOnMapTeleport: 0
   defaultPlayerSpawnPointName: SpawnPoint_Player_SideArea_1
+  inMapTeleporters: []
   requiredPreviousMapCompletions:
   - enabled: 1
     requiredMapNodeId: hunting_grounds

@@ -329,6 +329,7 @@ MonoBehaviour:
     shuffleSpawnPoints: 0
   enabledSidePlayAreaIds:
   - SideArea_1
+  useDefaultSpawnOnMapTeleport: 1
   inMapTeleporters:
   - teleporterLinkId: duskwood_combat_practice
     spawnPointGroupId: AllSpawns

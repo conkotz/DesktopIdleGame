@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 /// <summary>
 /// Click-to-enter portal that loads <c>GamePlay</c> with <see cref="ActiveLevelContext"/> set to the target <see cref="MapNodeDefinition"/>.
@@ -40,6 +41,12 @@ public class MapNodePortalTeleporter : MonoBehaviour
     [Tooltip("How close (world units) the player must be to the portal collider X before entering.")]
     [SerializeField, Min(0.01f)] private float arriveDistanceX = 0.08f;
 
+    [Header("Lane placement")]
+    [Tooltip(
+        "When > 0, aligns this portal's collider bottom to the lane floor top plus this offset on Start. " +
+        "Leave at 0 for signposts and other manually placed portals.")]
+    [SerializeField, Min(0f)] private float laneBottomOffsetAboveFloor = 0f;
+
 #if UNITY_EDITOR
     private void Reset()
     {
@@ -65,6 +72,12 @@ public class MapNodePortalTeleporter : MonoBehaviour
             Debug.LogError("[MapNodePortalTeleporter] Missing Collider2D.", this);
 
         RefreshNameLabel();
+    }
+
+    private void Start()
+    {
+        if (laneBottomOffsetAboveFloor > 0f)
+            StartCoroutine(CoAlignBottomEdgeToLaneWhenReady());
     }
 
     private void OnEnable()
@@ -315,5 +328,38 @@ public class MapNodePortalTeleporter : MonoBehaviour
         nameLabel.text = string.IsNullOrWhiteSpace(node.displayName)
             ? node.nodeId
             : node.displayName.Trim();
+
+        WorldNameLabelStyle.Apply(nameLabel, GetComponent<SpriteRenderer>());
+    }
+
+    private IEnumerator CoAlignBottomEdgeToLaneWhenReady()
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            if (TryAlignBottomEdgeToLaneFloor())
+                yield break;
+
+            yield return null;
+        }
+
+        TryAlignBottomEdgeToLaneFloor();
+    }
+
+    private bool TryAlignBottomEdgeToLaneFloor()
+    {
+        if (laneBottomOffsetAboveFloor <= 0f)
+            return true;
+
+        if (_col == null)
+            _col = GetComponent<Collider2D>();
+        if (_col == null)
+            return false;
+
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        if (float.IsNaN(floorTop))
+            return false;
+
+        LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(_col, transform, laneBottomOffsetAboveFloor);
+        return true;
     }
 }

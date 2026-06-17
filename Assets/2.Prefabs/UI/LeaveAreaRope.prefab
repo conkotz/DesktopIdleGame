@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &2311579734409841320
+--- !u!1 &7522110646413016690
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4027456976643532019}
-  - component: {fileID: 3070030112699516718}
-  - component: {fileID: 4175952197952072599}
+  - component: {fileID: 5438064923824728764}
+  - component: {fileID: 414092464195914253}
+  - component: {fileID: 867567591862121303}
   m_Layer: 7
   m_Name: NameLabel
   m_TagString: Untagged
@@ -18,32 +18,32 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!224 &4027456976643532019
+--- !u!224 &5438064923824728764
 RectTransform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2311579734409841320}
+  m_GameObject: {fileID: 7522110646413016690}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.54785156, y: 0.54785156, z: 0.54785156}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2099460763131803018}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 1.3}
-  m_SizeDelta: {x: 4, y: 1}
+  m_AnchoredPosition: {x: 0, y: 2.5}
+  m_SizeDelta: {x: 5, y: 2.5}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!23 &3070030112699516718
+--- !u!23 &414092464195914253
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2311579734409841320}
+  m_GameObject: {fileID: 7522110646413016690}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -83,16 +83,16 @@ MeshRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: -461134989
   m_SortingLayer: 3
-  m_SortingOrder: 3
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &4175952197952072599
+--- !u!114 &867567591862121303
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2311579734409841320}
+  m_GameObject: {fileID: 7522110646413016690}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
@@ -106,7 +106,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Spider Lair
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -115,8 +115,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4279577324
-  m_fontColor: {r: 0.9245283, g: 0.16470589, b: 0.08198643, a: 1}
+    rgba: 4279611372
+  m_fontColor: {r: 0.8039216, g: 0.45490196, b: 0, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -133,8 +133,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 4
-  m_fontSizeBase: 4
+  m_fontSize: 10
+  m_fontSizeBase: 10
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -172,14 +172,14 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -0.5314541, y: 0.39198494, z: -0.36777878, w: 0.6663748}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
-  _SortingLayer: 3
-  _SortingLayerID: -461134989
-  _SortingOrder: 3
+  _SortingLayer: 0
+  _SortingLayerID: 0
+  _SortingOrder: 0
   m_hasFontAssetChanged: 0
-  m_renderer: {fileID: 3070030112699516718}
+  m_renderer: {fileID: 414092464195914253}
   m_maskType: 0
 --- !u!1 &8347273920747777605
 GameObject:
@@ -193,9 +193,10 @@ GameObject:
   - component: {fileID: 433244304700921957}
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
+  - component: {fileID: 7123456789012345678}
   m_Layer: 7
-  m_Name: SpiderLairEntrance
-  m_TagString: Cave
+  m_Name: LeaveAreaRope
+  m_TagString: SignPost
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -209,11 +210,11 @@ Transform:
   m_GameObject: {fileID: 8347273920747777605}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1280, y: -291.36545, z: 0}
-  m_LocalScale: {x: 1.825312, y: 1.825312, z: 1.825312}
+  m_LocalPosition: {x: -1282.9834, y: -286.6373, z: 0}
+  m_LocalScale: {x: 0.4173, y: 0.38440892, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4027456976643532019}
+  - {fileID: 5438064923824728764}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &433244304700921957
@@ -265,7 +266,7 @@ SpriteRenderer:
   m_SortingLayer: 3
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -6554640010792854403, guid: 7c874d2f4591e334aaaa5de54a2a2956, type: 3}
+  m_Sprite: {fileID: 7576702557309696862, guid: d5e9a206367f06d43955da0029d193a9, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -309,17 +310,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.02552864, y: -0.018021822}
+  m_Offset: {x: 0.047744453, y: 0.0032200813}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.48720172, y: 0.36600104}
-    oldSize: {x: 3.645, y: 1.55}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 10.24, y: 15.36}
     newSize: {x: 15.26, y: 10.24}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.0700893, y: 1.0374873}
+  m_Size: {x: 1.9651772, y: 15.310594}
   m_EdgeRadius: 0
 --- !u!114 &8747681271539130883
 MonoBehaviour:
@@ -333,11 +334,35 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59144c916a032ea4184e9ab853139175, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapNodePortalTeleporter
-  targetMap: {fileID: 11400000, guid: 616c8679b7aa0f240833f30fb8cd152e, type: 2}
-  targetMapNodeId: spider_lair
-  nameLabel: {fileID: 4175952197952072599}
+  targetMap: {fileID: 0}
+  targetMapNodeId: 
+  nameLabel: {fileID: 867567591862121303}
   gameplaySceneName: GamePlay
   cooldownSeconds: 0.75
   logWhenBlocked: 1
   blockedMessage: You cannot enter this area yet.
   arriveDistanceX: 0.08
+  laneBottomOffsetAboveFloor: 1
+--- !u!114 &7123456789012345678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8347273920747777605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c03584356f4bb1448b48be6cfdb06853, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleHoverHighlight2D
+  enableScale: 1
+  enableDarken: 1
+  hoverScaleMul: 1.06
+  targetedScaleMul: 1.08
+  scaleLerpSpeed: 14
+  hoverDarkenMul: 0.92
+  targetedDarkenMul: 0.85
+  colorLerpSpeed: 14
+  pulseWhenTargeted: 1
+  pulseSpeed: 5
+  pulseAmount: 0.015

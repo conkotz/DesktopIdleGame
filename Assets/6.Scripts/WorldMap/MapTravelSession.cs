@@ -41,9 +41,21 @@ public static class MapTravelSession
         switch (entry)
         {
             case EntryMethod.MapTeleport:
-                SaveSlotManager.SetPendingGameplaySpawnDisposition(
-                    SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable);
+            {
+                MapNodeDefinition destination = ActiveLevelContext.Current;
+                if (destination != null && destination.useDefaultSpawnOnMapTeleport)
+                {
+                    SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                        SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+                }
+                else
+                {
+                    SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                        SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable);
+                }
+
                 break;
+            }
             case EntryMethod.InWorldEntrance:
                 if (!string.IsNullOrWhiteSpace(_pendingSourceMapNodeId))
                 {
