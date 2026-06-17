@@ -2,20 +2,21 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Keeps world-space <c>NameLabel</c> text visible when zoomed in by shifting it downward
-/// if the label top would clip above the gameplay camera viewport. Horizontal position is unchanged.
-/// Only updates when strip zoom/layout changes — not every frame at default zoom.
+/// Keeps world-space <c>NameLabel</c> text inside the gameplay strip camera viewport (top edge).
+/// Driven by <see cref="WorldNameLabelScreenClampDriver"/> — updates only on strip zoom/layout changes.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(TMP_Text))]
 public sealed class WorldNameLabelScreenClamp : MonoBehaviour
 {
-    [SerializeField] private Camera targetCamera;
     [SerializeField] private float screenTopMarginPixels = 6f;
 
     private TMP_Text _text;
+    private RectTransform _rectTransform;
     private Vector3 _restLocalPosition;
-    private bool _hasRestLocalPosition;
+    private Vector2 _restAnchoredPosition;
+    private bool _hasRestPosition;
+    private bool _useAnchoredRest;
     private float _restTopWorldOffsetY;
     private bool _hasRestTopWorldOffsetY;
     private bool _isClamped;
@@ -23,126 +24,183 @@ public sealed class WorldNameLabelScreenClamp : MonoBehaviour
     private void Awake()
     {
         _text = GetComponent<TMP_Text>();
-        CacheRestLocalPosition();
-        ResolveCamera();
+        _rectTransform = transform as RectTransform;
+        CacheRestPosition();
     }
 
     private void OnEnable()
     {
-        if (!_hasRestLocalPosition)
-            CacheRestLocalPosition();
+        if (!_hasRestPosition)
+            CacheRestPosition();
 
         if (!Application.isPlaying)
             return;
 
-        StripCameraController.StripLayoutChanged += HandleViewChanged;
-        HandleViewChanged();
+        WorldNameLabelScreenClampDriver.Register(this);
     }
 
     private void OnDisable()
     {
-        StripCameraController.StripLayoutChanged -= HandleViewChanged;
+        WorldNameLabelScreenClampDriver.Unregister(this);
     }
 
-    /// <summary>Re-capture the authored local position (e.g. after layout tools move the label).</summary>
     public void RecacheRestLocalPosition()
     {
-        CacheRestLocalPosition();
+        CacheRestPosition();
         _hasRestTopWorldOffsetY = false;
         _isClamped = false;
+
         if (Application.isPlaying)
-            HandleViewChanged();
+            WorldNameLabelScreenClampDriver.RequestRefresh(this);
     }
 
-    private void HandleViewChanged()
+    public void RefreshClamp()
     {
-        if (!_text || !_text.isActiveAndEnabled)
+        _hasRestTopWorldOffsetY = false;
+
+        if (Application.isPlaying)
+            WorldNameLabelScreenClampDriver.RequestRefresh(this);
+    }
+
+    public bool NeedsUpdateForView(WorldNameLabelScreenClampDriver.StripViewState view)
+    {
+        if (!_text || !_text.isActiveAndEnabled || !view.Camera)
+            return false;
+
+        if (_isClamped)
+            return true;
+
+        if (!_hasRestTopWorldOffsetY)
+            return true;
+
+        return WouldClipAtView(view);
+    }
+
+    public void ReleaseToRest()
+    {
+        if (!_isClamped)
             return;
 
-        ResolveCamera();
-        if (!targetCamera || !targetCamera.isActiveAndEnabled)
+        RestoreRestPosition();
+        _isClamped = false;
+    }
+
+    public void UpdateForView(WorldNameLabelScreenClampDriver.StripViewState view, bool forceMeasure)
+    {
+        if (!_text || !_text.isActiveAndEnabled || !view.Camera)
             return;
 
-        transform.localPosition = _restLocalPosition;
+        RestoreRestPosition();
 
-        if (TryFastPathNoClampNeeded())
+        if (!forceMeasure && !_isClamped && _hasRestTopWorldOffsetY && !WouldClipAtView(view))
         {
             _isClamped = false;
             return;
         }
 
-        ApplyClampFromMeshBounds();
-    }
+        if (forceMeasure || !_hasRestTopWorldOffsetY)
+            _text.ForceMeshUpdate();
 
-    private bool TryFastPathNoClampNeeded()
-    {
-        if (!_hasRestTopWorldOffsetY)
-            return false;
-
-        Vector3 topWorld = new Vector3(
-            transform.position.x,
-            transform.position.y + _restTopWorldOffsetY,
-            transform.position.z);
-        Vector3 topScreen = targetCamera.WorldToScreenPoint(topWorld);
-        if (topScreen.z <= 0f)
-            return !_isClamped;
-
-        float maxScreenY = targetCamera.pixelRect.yMax - screenTopMarginPixels;
-        return topScreen.y <= maxScreenY;
-    }
-
-    private void ApplyClampFromMeshBounds()
-    {
-        _text.ForceMeshUpdate();
-        Bounds bounds = _text.bounds;
-        if (bounds.size.sqrMagnitude <= 0f)
+        if (!TryGetLabelTopWorld(out Vector3 topWorld))
             return;
 
-        CacheRestTopWorldOffset(bounds);
+        CacheRestTopWorldOffset(topWorld);
 
-        Vector3 topWorld = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
-        Vector3 topScreen = targetCamera.WorldToScreenPoint(topWorld);
-        if (topScreen.z <= 0f)
+        if (!TryGetLabelTopScreen(topWorld, view.Camera, out Vector3 topScreen))
             return;
 
-        float maxScreenY = targetCamera.pixelRect.yMax - screenTopMarginPixels;
+        float maxScreenY = view.MaxLabelTopScreenY - screenTopMarginPixels;
         if (topScreen.y <= maxScreenY)
         {
             _isClamped = false;
             return;
         }
 
-        Vector3 depthRef = targetCamera.WorldToScreenPoint(transform.position);
-        Vector3 targetTopWorld = targetCamera.ScreenToWorldPoint(
-            new Vector3(topScreen.x, maxScreenY, depthRef.z));
-        float shiftDown = topWorld.y - targetTopWorld.y;
-        if (shiftDown <= 0f)
-            return;
+        float excessScreenY = topScreen.y - maxScreenY;
+        Vector3 pivotScreen = view.Camera.WorldToScreenPoint(transform.position);
+        Vector3 targetPivotScreen = new Vector3(pivotScreen.x, pivotScreen.y - excessScreenY, pivotScreen.z);
+        Vector3 targetPivotWorld = view.Camera.ScreenToWorldPoint(targetPivotScreen);
 
-        Vector3 pos = transform.position;
-        transform.position = new Vector3(pos.x, pos.y - shiftDown, pos.z);
+        Vector3 worldPos = transform.position;
+        transform.position = new Vector3(worldPos.x, targetPivotWorld.y, worldPos.z);
         _isClamped = true;
     }
 
-    private void CacheRestTopWorldOffset(Bounds bounds)
+    private bool WouldClipAtView(WorldNameLabelScreenClampDriver.StripViewState view)
     {
-        _restTopWorldOffsetY = bounds.max.y - transform.position.y;
+        if (!view.Camera || !_hasRestTopWorldOffsetY)
+            return true;
+
+        Vector3 topWorld = new Vector3(
+            transform.position.x,
+            transform.position.y + _restTopWorldOffsetY,
+            transform.position.z);
+
+        if (!TryGetLabelTopScreen(topWorld, view.Camera, out Vector3 topScreen))
+            return _isClamped;
+
+        return topScreen.y > view.MaxLabelTopScreenY - screenTopMarginPixels;
+    }
+
+    private bool TryGetLabelTopWorld(out Vector3 topWorld)
+    {
+        topWorld = default;
+        if (!_text)
+            return false;
+
+        Bounds localBounds = _text.textBounds;
+        if (localBounds.size.sqrMagnitude <= 0f)
+            localBounds = _text.bounds;
+
+        if (localBounds.size.sqrMagnitude <= 0f)
+            return false;
+
+        Vector3 localTop = new Vector3(localBounds.center.x, localBounds.max.y, localBounds.center.z);
+        topWorld = _text.transform.TransformPoint(localTop);
+        return true;
+    }
+
+    private static bool TryGetLabelTopScreen(Vector3 topWorld, Camera camera, out Vector3 topScreen)
+    {
+        topScreen = default;
+        if (!camera)
+            return false;
+
+        topScreen = camera.WorldToScreenPoint(topWorld);
+        return topScreen.z > 0f;
+    }
+
+    private void CacheRestTopWorldOffset(Vector3 topWorld)
+    {
+        _restTopWorldOffsetY = topWorld.y - transform.position.y;
         _hasRestTopWorldOffsetY = true;
     }
 
-    private void CacheRestLocalPosition()
+    private void RestoreRestPosition()
     {
-        _restLocalPosition = transform.localPosition;
-        _hasRestLocalPosition = true;
+        if (!_hasRestPosition)
+            CacheRestPosition();
+
+        if (_useAnchoredRest && _rectTransform)
+            _rectTransform.anchoredPosition = _restAnchoredPosition;
+        else
+            transform.localPosition = _restLocalPosition;
     }
 
-    private void ResolveCamera()
+    private void CacheRestPosition()
     {
-        if (targetCamera && targetCamera.isActiveAndEnabled)
-            return;
+        _rectTransform = transform as RectTransform;
+        if (_rectTransform)
+        {
+            _restAnchoredPosition = _rectTransform.anchoredPosition;
+            _useAnchoredRest = true;
+        }
+        else
+        {
+            _restLocalPosition = transform.localPosition;
+            _useAnchoredRest = false;
+        }
 
-        targetCamera = GameplayScreenOverlayLayout.TryResolveStripCamera();
-        if (!targetCamera)
-            targetCamera = Camera.main;
+        _hasRestPosition = true;
     }
 }

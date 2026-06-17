@@ -193,7 +193,6 @@ GameObject:
   - component: {fileID: 6974607422188367864}
   - component: {fileID: 3678239188401076600}
   - component: {fileID: 661633069377667575}
-  - component: {fileID: 486337227848624524}
   - component: {fileID: -5161748566951480440}
   - component: {fileID: 8821044556677889900}
   m_Layer: 7
@@ -387,18 +386,3 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldTargetIndicatorAnchor
   anchor: {fileID: 0}
   localOffset: {x: 0, y: 0.9, z: 0}
---- !u!114 &486337227848624524
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6284140584376777183}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
-  nameLabels: []
-  searchInactiveChildren: 1
-  sortingReference: {fileID: 6974607422188367864}

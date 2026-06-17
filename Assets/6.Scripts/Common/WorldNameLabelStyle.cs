@@ -40,7 +40,16 @@ public static class WorldNameLabelStyle
         if (!label || label.name != "NameLabel" || IsScreenSpaceUI(label))
             return false;
 
+        if (label is TextMeshProUGUI || label.GetComponent<CanvasRenderer>() != null)
+            return false;
+
         if (label.GetComponent<NpcNameLabelBinder>() != null)
+            return false;
+
+        if (label.GetComponentInParent<UnitOverheadUI>() != null)
+            return false;
+
+        if (label.GetComponentInParent<SkillTimelineNodeUI>() != null)
             return false;
 
         return true;
@@ -88,14 +97,9 @@ public static class WorldNameLabelStyle
         if (!label || label.GetComponent<WorldNameLabelScreenClamp>() != null)
             return;
 
-#if UNITY_EDITOR
         if (!Application.isPlaying)
-        {
-            label.gameObject.AddComponent<WorldNameLabelScreenClamp>();
-            EditorUtility.SetDirty(label.gameObject);
             return;
-        }
-#endif
+
         label.gameObject.AddComponent<WorldNameLabelScreenClamp>();
     }
 

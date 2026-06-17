@@ -4,22 +4,34 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Adds <see cref="WorldNameLabelResolver"/> to prefab roots that contain embedded world <c>NameLabel</c> children.
+/// Adds <see cref="WorldNameLabelResolver"/> only to whitelisted world-object prefabs.
 /// </summary>
 public static class WorldNameLabelResolverPrefabTools
 {
     private const string MenuRoot = "Tools/World Labels/";
-    private const string ResolverPrefabRootName = "NameLabel";
 
-    [MenuItem(MenuRoot + "Add Resolvers To Prefabs With Embedded NameLabels", false, 0)]
-    public static void AddResolversToPrefabsMenu()
+    private static readonly string[] WhitelistedPrefabPaths =
     {
-        int added = AddResolversToAllPrefabs(logSummary: true);
+        "Assets/2.Prefabs/UI/LeaveAreaRope.prefab",
+        "Assets/2.Prefabs/UI/SignPost.prefab",
+        "Assets/2.Prefabs/UI/BearDenEntrance.prefab",
+        "Assets/2.Prefabs/UI/SpiderLairEntrance.prefab",
+        "Assets/2.Prefabs/ResourcesNodes/Trees/SplitwoodTree.prefab",
+        "Assets/2.Prefabs/ResourcesNodes/Trees/HardwoodTree.prefab",
+        "Assets/2.Prefabs/ResourcesNodes/Trees/WildwoodTree.prefab",
+        "Assets/2.Prefabs/ResourcesNodes/StoneDeposit.prefab",
+        "Assets/2.Prefabs/ResourcesNodes/SmallPond.prefab",
+    };
+
+    [MenuItem(MenuRoot + "Install Resolvers On Whitelisted Prefabs", false, 0)]
+    public static void InstallWhitelistedResolversMenu()
+    {
+        int changed = InstallWhitelistedResolvers(logSummary: true);
         EditorUtility.DisplayDialog(
             "World Name Labels",
-            added > 0
-                ? $"Added or refreshed WorldNameLabelResolver on {added} prefab(s)."
-                : "No prefabs needed changes.",
+            changed > 0
+                ? $"Installed or refreshed WorldNameLabelResolver on {changed} whitelisted prefab(s)."
+                : "Whitelisted prefabs are already up to date.",
             "OK");
     }
 
@@ -34,6 +46,9 @@ public static class WorldNameLabelResolverPrefabTools
             if (string.IsNullOrEmpty(path) || !path.EndsWith(".prefab"))
                 continue;
 
+            if (!IsWhitelistedPath(path))
+                continue;
+
             if (ProcessPrefabAtPath(path, forceRefreshResolver: true))
                 changed++;
         }
@@ -42,21 +57,16 @@ public static class WorldNameLabelResolverPrefabTools
         Debug.Log($"[WorldNameLabelResolver] Resolved NameLabels on {changed} selected prefab(s).");
     }
 
-    public static int AddResolversToAllPrefabs(bool logSummary)
+    public static int InstallWhitelistedResolvers(bool logSummary)
     {
-        string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
         int changed = 0;
 
         AssetDatabase.StartAssetEditing();
         try
         {
-            for (int i = 0; i < prefabGuids.Length; i++)
+            for (int i = 0; i < WhitelistedPrefabPaths.Length; i++)
             {
-                string path = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
-                if (ShouldSkipPrefabPath(path))
-                    continue;
-
-                if (ProcessPrefabAtPath(path, forceRefreshResolver: false))
+                if (ProcessPrefabAtPath(WhitelistedPrefabPaths[i], forceRefreshResolver: true))
                     changed++;
             }
         }
@@ -67,18 +77,20 @@ public static class WorldNameLabelResolverPrefabTools
 
         AssetDatabase.SaveAssets();
         if (logSummary)
-            Debug.Log($"[WorldNameLabelResolver] Updated {changed} prefab(s).");
+            Debug.Log($"[WorldNameLabelResolver] Updated {changed} whitelisted prefab(s).");
 
         return changed;
     }
 
-    private static bool ShouldSkipPrefabPath(string path)
+    private static bool IsWhitelistedPath(string path)
     {
-        if (string.IsNullOrEmpty(path))
-            return true;
+        for (int i = 0; i < WhitelistedPrefabPaths.Length; i++)
+        {
+            if (WhitelistedPrefabPaths[i] == path)
+                return true;
+        }
 
-        string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
-        return string.Equals(fileName, ResolverPrefabRootName, System.StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     private static bool ProcessPrefabAtPath(string path, bool forceRefreshResolver)
@@ -89,14 +101,17 @@ public static class WorldNameLabelResolverPrefabTools
 
         try
         {
-            if (!WorldNameLabelResolver.HasResolvableWorldNameLabels(prefabRoot.transform, includeInactive: true))
+            Transform root = FindResolverRoot(prefabRoot.transform);
+            if (!root || !WorldNameLabelResolver.HasResolvableWorldNameLabels(root, includeInactive: true))
                 return false;
 
-            WorldNameLabelResolver resolver = prefabRoot.GetComponent<WorldNameLabelResolver>();
+            RemoveMisplacedResolvers(prefabRoot.transform, root);
+
+            WorldNameLabelResolver resolver = root.GetComponent<WorldNameLabelResolver>();
             bool addedResolver = false;
             if (!resolver)
             {
-                resolver = prefabRoot.AddComponent<WorldNameLabelResolver>();
+                resolver = root.gameObject.AddComponent<WorldNameLabelResolver>();
                 addedResolver = true;
             }
             else if (!forceRefreshResolver && !addedResolver)
@@ -111,6 +126,34 @@ public static class WorldNameLabelResolverPrefabTools
         finally
         {
             PrefabUtility.UnloadPrefabContents(prefabRoot);
+        }
+    }
+
+    private static Transform FindResolverRoot(Transform prefabRoot)
+    {
+        if (WorldNameLabelResolver.HasResolvableWorldNameLabels(prefabRoot, includeInactive: true))
+            return prefabRoot;
+
+        for (int i = 0; i < prefabRoot.childCount; i++)
+        {
+            Transform child = prefabRoot.GetChild(i);
+            if (child && WorldNameLabelResolver.HasResolvableWorldNameLabels(child, includeInactive: true))
+                return child;
+        }
+
+        return prefabRoot;
+    }
+
+    private static void RemoveMisplacedResolvers(Transform prefabRoot, Transform keepRoot)
+    {
+        WorldNameLabelResolver[] resolvers = prefabRoot.GetComponentsInChildren<WorldNameLabelResolver>(true);
+        for (int i = 0; i < resolvers.Length; i++)
+        {
+            WorldNameLabelResolver resolver = resolvers[i];
+            if (!resolver || resolver.transform == keepRoot)
+                continue;
+
+            Object.DestroyImmediate(resolver, true);
         }
     }
 }

@@ -330,6 +330,8 @@ public class MapNodePortalTeleporter : MonoBehaviour
             : node.displayName.Trim();
 
         WorldNameLabelStyle.PrepareWorldSpaceNameLabel(nameLabel, GetComponent<SpriteRenderer>());
+        if (nameLabel.TryGetComponent(out WorldNameLabelScreenClamp clamp))
+            clamp.RefreshClamp();
     }
 
     private IEnumerator CoAlignBottomEdgeToLaneWhenReady()

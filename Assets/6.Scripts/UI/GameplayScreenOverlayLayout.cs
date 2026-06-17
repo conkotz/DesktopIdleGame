@@ -67,8 +67,32 @@ public static class GameplayScreenOverlayLayout
     public static Camera TryResolveStripCamera()
     {
         StripCameraController ctrl =
-            UnityEngine.Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
-        return ctrl ? ctrl.GetComponent<Camera>() : null;
+            UnityEngine.Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+        if (ctrl)
+        {
+            Camera fromController = ctrl.GetComponent<Camera>();
+            if (fromController && fromController.isActiveAndEnabled)
+                return fromController;
+        }
+
+        Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera cam = cameras[i];
+            if (!cam || cam.hideFlags != HideFlags.None || !cam.gameObject.scene.IsValid())
+                continue;
+
+            if (!string.Equals(cam.gameObject.name, "StripCamera", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (cam.isActiveAndEnabled)
+                return cam;
+        }
+
+        Camera main = Camera.main;
+        return main && main.isActiveAndEnabled ? main : null;
     }
 
     public static bool IsUnderStripUiCanvas(Transform t)

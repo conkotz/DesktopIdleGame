@@ -18,6 +18,12 @@ public sealed class WorldNameLabelResolver : MonoBehaviour
 
     private void Awake()
     {
+        if (GetComponent<UnitOverheadUI>() != null || GetComponent<SkillTimelineNodeUI>() != null)
+        {
+            Destroy(this);
+            return;
+        }
+
         ResolveNameLabels();
     }
 
@@ -53,12 +59,22 @@ public sealed class WorldNameLabelResolver : MonoBehaviour
     {
         nameLabels = CollectWorldNameLabels(transform, searchInactiveChildren);
 
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            return;
+#endif
+
         SpriteRenderer sortRef = sortingReference != null
             ? sortingReference
             : GetComponent<SpriteRenderer>();
 
         for (int i = 0; i < nameLabels.Length; i++)
-            WorldNameLabelStyle.PrepareWorldSpaceNameLabel(nameLabels[i], sortRef);
+        {
+            TMP_Text label = nameLabels[i];
+            WorldNameLabelStyle.PrepareWorldSpaceNameLabel(label, sortRef);
+            if (label && label.TryGetComponent(out WorldNameLabelScreenClamp clamp))
+                clamp.RefreshClamp();
+        }
     }
 
     public static TMP_Text[] CollectWorldNameLabels(Transform root, bool includeInactive = true)
