@@ -12,8 +12,6 @@ public class PlayerLevelTransition : MonoBehaviour
     public const float StandardShrinkDurationSeconds = 1.5f;
 
     [Header("Shrink")]
-    [SerializeField, Min(0.1f)] private float shrinkDurationSeconds = StandardShrinkDurationSeconds;
-    [SerializeField, Min(0.1f)] private float mapTeleportShrinkDurationSeconds = StandardShrinkDurationSeconds;
     [SerializeField, Min(0.001f)] private float shrinkToScale = 0.01f;
 
     private Vector3 _savedRootScale = Vector3.one;
