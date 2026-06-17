@@ -184,7 +184,7 @@ public class MinionCombatController : MonoBehaviour
 
     public bool TryApplyStrikeToEnemy(EnemyBaseController enemy, float damageMultiplier)
     {
-        if (!_initialized || !enemy || enemy.IsDead || !_ownerStats)
+        if (!_initialized || !IsValidEnemyStrikeTarget(enemy) || !_ownerStats)
             return false;
 
         SplitDamage d = _runtimeStats.FinalDamageSplitRange.RollBasicAttackDamage(
@@ -297,7 +297,7 @@ public class MinionCombatController : MonoBehaviour
         if (!_initialized)
             return false;
 
-        if (!enemy || enemy.IsDead)
+        if (!IsValidEnemyStrikeTarget(enemy))
         {
             _strikeTarget = null;
             _state = CombatState.Returning;
@@ -333,8 +333,10 @@ public class MinionCombatController : MonoBehaviour
         if (_attackHitPending && Time.time >= _attackHitTime)
         {
             _attackHitPending = false;
-            ApplyHit(_pendingHitTarget);
+            EnemyBaseController hitTarget = _pendingHitTarget;
             _pendingHitTarget = null;
+            if (hitTarget != null && hitTarget == _strikeTarget)
+                ApplyHit(hitTarget);
         }
 
         TickMinionStanceRules();
@@ -567,7 +569,7 @@ public class MinionCombatController : MonoBehaviour
 
     private void ApplyHit(EnemyBaseController enemy)
     {
-        if (!enemy || enemy.IsDead || !_ownerStats)
+        if (!IsValidEnemyStrikeTarget(enemy) || !_ownerStats)
             return;
 
         SplitDamage d = _runtimeStats.FinalDamageSplitRange.RollBasicAttackDamage(
@@ -743,7 +745,7 @@ public class MinionCombatController : MonoBehaviour
 
     private bool AssignStrikeTarget(EnemyBaseController enemy)
     {
-        if (!enemy)
+        if (!IsValidEnemyStrikeTarget(enemy))
             return false;
 
         CancelWander();
@@ -968,13 +970,33 @@ public class MinionCombatController : MonoBehaviour
         MinionControlStance stance = MinionControlService.CurrentStance;
         if (stance == MinionControlStance.Passive || stance == MinionControlStance.Assist)
         {
-            if (IsOwnerInCombat())
-                return true;
+            if (IsActivelyEngagedInCombat)
+                return false;
 
-            return !HasNearbyEnemy();
+            return true;
         }
 
         return !HasNearbyEnemy();
+    }
+
+    private bool IsValidEnemyStrikeTarget(EnemyBaseController enemy)
+    {
+        if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+
+        if (enemy.GetComponent<PlayerController>() != null || enemy.GetComponentInParent<PlayerController>() != null)
+            return false;
+
+        if (_ownerStats != null)
+        {
+            Transform ownerTransform = _ownerStats.transform;
+            if (enemy.transform == ownerTransform ||
+                enemy.transform.IsChildOf(ownerTransform) ||
+                ownerTransform.IsChildOf(enemy.transform))
+                return false;
+        }
+
+        return true;
     }
 
     private bool ShouldAllowIdleWander()

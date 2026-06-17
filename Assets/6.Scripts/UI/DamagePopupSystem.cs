@@ -39,6 +39,10 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float statusPopupBesideOverheadScreenPx = 90f;
     [Tooltip("Additional downward screen offset for player status/effect labels only (negative = lower).")]
     [SerializeField] private float playerStatusPopupScreenYOffset = -10f;
+    [Tooltip("Additional horizontal spacing for enemy status/effect labels (pixels).")]
+    [SerializeField] private float enemyStatusPopupBesideOverheadExtraScreenPx = 20f;
+    [Tooltip("Additional downward offset for enemy status/effect labels only (negative = lower).")]
+    [SerializeField] private float enemyStatusPopupScreenYOffset = -14f;
     [Tooltip("Vertical screen offset between simultaneous status labels on the same unit (Burnt / Shocked, etc.).")]
     [SerializeField] private float statusPopupStackYOffsetStep = 18f;
     [SerializeField] private float statusPopupStackBatchSeconds = 0.2f;
@@ -435,6 +439,8 @@ public class DamagePopupSystem : MonoBehaviour
 
         float sideSign = ResolveStatusPopupSideSign(fallbackAnchorPos, dealerWorld, hasDealer, victimFacingDirX);
         float pixelOffset = statusPopupBesideOverheadScreenPx;
+        if (victim != null && victim.GetComponentInParent<PlayerController>() == null)
+            pixelOffset += enemyStatusPopupBesideOverheadExtraScreenPx;
 
         if (UnitOverheadUI.TryGetStatusPopupWorldPosBesideOverhead(victim, sideSign, pixelOffset, out Vector3 besideOverhead))
             return besideOverhead;
@@ -529,8 +535,11 @@ public class DamagePopupSystem : MonoBehaviour
     private float GetStatusBaseScreenYOffset(Transform stackAnchor = null)
     {
         float y = statusPopupScreenYOffset;
-        if (stackAnchor != null && stackAnchor.GetComponentInParent<PlayerController>() != null)
+        bool isPlayer = stackAnchor != null && stackAnchor.GetComponentInParent<PlayerController>() != null;
+        if (isPlayer)
             y += playerStatusPopupScreenYOffset;
+        else
+            y += enemyStatusPopupScreenYOffset;
         return y;
     }
 

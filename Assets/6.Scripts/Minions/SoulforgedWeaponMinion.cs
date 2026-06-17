@@ -760,7 +760,17 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     /// <summary>Minion crit on phys/magic; corruption not multiplied (same as player basics).</summary>
     private void ApplyHit(EnemyBaseController enemy)
     {
-        if (!enemy || enemy.IsDead || !_ownerStats) return;
+        if (!enemy || enemy.IsDead || !_ownerStats)
+            return;
+
+        if (enemy.GetComponent<PlayerController>() != null || enemy.GetComponentInParent<PlayerController>() != null)
+            return;
+
+        Transform ownerTransform = _ownerStats.transform;
+        if (enemy.transform == ownerTransform ||
+            enemy.transform.IsChildOf(ownerTransform) ||
+            ownerTransform.IsChildOf(enemy.transform))
+            return;
 
         SplitDamage d = _runtimeStats.FinalDamageSplitRange.RollBasicAttackDamage(
             _runtimeStats.CritChance,

@@ -100,11 +100,17 @@ public class InventoryTotalValueUI : MonoBehaviour
         _valueLabelDirty = false;
     }
 
-    private void QueueRefresh() => _valueLabelDirty = true;
+    private void QueueRefresh()
+    {
+        if (!isActiveAndEnabled || label == null || !label.gameObject.activeInHierarchy)
+            return;
+        _valueLabelDirty = true;
+    }
 
     private void RefreshNow()
     {
-        if (!label) return;
+        if (!label || !isActiveAndEnabled || !label.gameObject.activeInHierarchy)
+            return;
 
         int value = ResolveDisplayedValue();
         string formatted = value.ToString(string.IsNullOrEmpty(numberFormat) ? "N0" : numberFormat);

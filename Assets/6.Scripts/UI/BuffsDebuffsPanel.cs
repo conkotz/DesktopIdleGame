@@ -14,6 +14,11 @@ using UnityEngine;
 /// </summary>
 public class BuffsDebuffsPanel : MonoBehaviour
 {
+    private const string EnergyInfusionBuffId = "energy_infusion";
+    private const string WhirlwindBuffId = "whirlwind";
+    private const string CrusaderStrikeBuffId = "crusader_strike";
+    private const string CleavingStrikesBuffId = "cleaving_strikes";
+
     [Header("Ailment Debuffs")]
     [SerializeField] private Transform debuffContainer;
     [SerializeField] private GameObject debuffIconPrefab;
@@ -120,6 +125,29 @@ public class BuffsDebuffsPanel : MonoBehaviour
         public Sprite sprite;
         public float totalDurationSeconds;
         public bool persistActiveOverlay;
+    }
+
+    /// <summary>
+    /// Some HUD buffs have expensive, stack-dependent tooltip builders. Keep the list tight.
+    /// Everything else can reuse the previous title/body/sprite on stack updates to avoid GC churn.
+    /// </summary>
+    private static bool IsHudBuffTooltipDynamic(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return false;
+
+        // These tooltips commonly include stack-specific lines.
+        if (string.Equals(id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.Equals(id, AbilityCombatPower.BloodbathHudBuffId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.Equals(id, PlayerCombatController.WayOfTheBerserkerHudBuffId, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.Equals(id, PlayerCombatController.WayOfTheCrusaderHudBuffId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Most ability tooltips are static; keep these as static too (we still update stacks/labels).
+        return false;
     }
 
     private void Awake()
@@ -334,7 +362,29 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (buff == null)
                 continue;
 
-            BuffIconVisualSnapshot snapshot = BuildBuffIconSnapshot(buff);
+            // Hot path: stack-based HUD buffs (Whirlwind/Crusader/Cleaving) update frequently during combat.
+            // Avoid rebuilding expensive tooltip text and database icon lookups when only stacks/timers changed.
+            BuffIconVisualSnapshot snapshot;
+            string key = GetBuffIconKey(buff);
+            bool canReuse =
+                i < buffIconSnapshots.Count &&
+                buffIconSnapshots[i].key == key &&
+                buff.type == ConsumableEffectType.HudAbilityBuff &&
+                !IsHudBuffTooltipDynamic(buff.id);
+
+            if (canReuse)
+            {
+                BuffIconVisualSnapshot prev = buffIconSnapshots[i];
+                snapshot = prev;
+                snapshot.displayStacks = buff.displayStacks;
+                snapshot.valueLabel = GetBuffValueLabel(buff);
+                snapshot.totalDurationSeconds = buff.duration;
+                snapshot.persistActiveOverlay = buff.hudPersistActiveOverlay;
+            }
+            else
+            {
+                snapshot = BuildBuffIconSnapshot(buff);
+            }
             if (i >= spawnedBuffIcons.Count)
             {
                 SpawnBuffIcon(snapshot, buff.RemainingSeconds);
@@ -702,6 +752,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, EnergyInfusionBuffId, StringComparison.OrdinalIgnoreCase))
+                return "INF";
+
             if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "+10%";
 
@@ -774,6 +827,18 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, WhirlwindBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Whirlwind";
+
+            if (string.Equals(buff.id, CrusaderStrikeBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Crusader Strike";
+
+            if (string.Equals(buff.id, CleavingStrikesBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Cleaving Strikes";
+
+            if (string.Equals(buff.id, EnergyInfusionBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Energy Infusion";
+
             if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "Shadow Hunter";
 
@@ -847,6 +912,20 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
             CharacterStats playerStats = GetPlayerStats();
+
+            if (string.Equals(buff.id, WhirlwindBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Channel a spinning attack that repeatedly hits nearby enemies.\nStacks increase while channeling.";
+
+            if (string.Equals(buff.id, CrusaderStrikeBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Combo ability. Each stage advances the strike sequence.\nFinal strike applies fire effects based on upgrades.";
+
+            if (string.Equals(buff.id, CleavingStrikesBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Temporary buff that grants additional cleaving strikes.\nStacks show remaining empowered swings.";
+
+            if (string.Equals(buff.id, EnergyInfusionBuffId, StringComparison.OrdinalIgnoreCase))
+                return
+                    "Toggle an infusion buff that converts a portion of energy cost to mana for melee abilities.\n" +
+                    "If mana is insufficient, abilities use full energy cost instead.";
 
             if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "+10% Attack Speed for 7 seconds. Refreshes when you land a critical hit.";

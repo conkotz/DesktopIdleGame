@@ -241,7 +241,6 @@ public class InventoryGridUI : MonoBehaviour
     {
         _dirty = true;
         _displayPrewarmed = false;
-        ClearSlotRebindCache();
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
             return;
         _pendingLateRebuild = true;

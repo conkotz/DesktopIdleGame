@@ -22,6 +22,7 @@ public sealed class StripZoomHudText : MonoBehaviour
 
     private CanvasGroup _canvasGroup;
     private float _lastSeenOrtho = float.NaN;
+    private string _lastDisplayedText;
     private Coroutine _fadeRoutine;
 
     private void Awake()
@@ -42,17 +43,29 @@ public sealed class StripZoomHudText : MonoBehaviour
     private void OnEnable()
     {
         _lastSeenOrtho = float.NaN;
+        _lastDisplayedText = null;
         if (_canvasGroup)
             _canvasGroup.alpha = 1f;
 
-        StopFadeRoutine();
-        if (Application.isPlaying && label && stripCamera)
-            _fadeRoutine = StartCoroutine(FadeIdleRoutine());
+        StripCameraController.StripLayoutChanged += HandleStripLayoutChanged;
+        ResolveStripIfNeeded();
+        RefreshContent();
+        RestartVisibilityTimer();
     }
 
     private void OnDisable()
     {
+        StripCameraController.StripLayoutChanged -= HandleStripLayoutChanged;
         StopFadeRoutine();
+    }
+
+    private void HandleStripLayoutChanged()
+    {
+        if (!isActiveAndEnabled || !Application.isPlaying)
+            return;
+
+        RefreshContent();
+        RestartVisibilityTimer();
     }
 
     private void LateUpdate()
@@ -69,20 +82,31 @@ public sealed class StripZoomHudText : MonoBehaviour
         RestartVisibilityTimer();
     }
 
-    private void RefreshContent()
+    private bool RefreshContent()
     {
+        string next = BuildDisplayText();
+        if (next == _lastDisplayedText)
+            return false;
+
+        _lastDisplayedText = next;
+        label.text = next;
+        return true;
+    }
+
+    private string BuildDisplayText()
+    {
+        if (!stripCamera)
+            return defaultLabel;
+
         float baseline = stripCamera.DefaultOrthoBaseline;
         if (baseline < 1e-4f)
-        {
-            label.text = defaultLabel;
-            return;
-        }
+            return defaultLabel;
 
         float ratio = stripCamera.baseOrthoSize / baseline;
         if (Mathf.Abs(ratio - 1f) <= defaultMatchRatioTolerance)
-            label.text = defaultLabel;
-        else
-            label.text = $"Zoom {Mathf.RoundToInt(ratio * 100f)}%";
+            return defaultLabel;
+
+        return $"Zoom {Mathf.RoundToInt(ratio * 100f)}%";
     }
 
     private void ResolveStripIfNeeded()

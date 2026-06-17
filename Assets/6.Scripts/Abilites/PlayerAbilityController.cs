@@ -775,7 +775,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TickPhoenixSoulBurnRegen(Time.deltaTime);
         SyncSoulforgedWeaponHudBuff();
         SyncSoulforgedWarriorHudBuff();
-        abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
+        // Energy Infusion glow is static once spawned; avoid per-frame transform dirtying.
     }
 
     private void LateUpdate()
@@ -3857,6 +3857,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return false;
 
         _whirlwindEnemiesInContactThisFrame.Clear();
+        float hitInterval = GetWhirlwindChannelHitIntervalSeconds();
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
@@ -3881,7 +3882,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             _whirlwindEnemiesInContactThisFrame.Add(enemyId);
 
             if (_whirlwindLastHitTimeByEnemyId.TryGetValue(enemyId, out float lastHitAt) &&
-                Time.time + 0.0001f < lastHitAt + GetWhirlwindChannelHitIntervalSeconds())
+                Time.time + 0.0001f < lastHitAt + hitInterval)
                 continue;
 
             ApplyWhirlwindHitToTarget(enemy, def, damageMultiplier);
@@ -6146,7 +6147,10 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        int stacks = Mathf.Clamp(1 + Mathf.FloorToInt(GetWhirlwindChannelElapsedSeconds()), 1, WhirlwindMaxChannelStacks);
+        bool showScalingStacks = GetWhirlwindSelectedChoice() == 1;
+        int stacks = showScalingStacks
+            ? Mathf.Clamp(1 + Mathf.FloorToInt(GetWhirlwindChannelElapsedSeconds()), 1, WhirlwindMaxChannelStacks)
+            : 1;
         if (_lastSyncedWhirlwindHudStacks == stacks)
             return;
 

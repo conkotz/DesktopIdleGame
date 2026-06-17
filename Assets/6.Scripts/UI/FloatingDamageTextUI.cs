@@ -37,7 +37,7 @@ public class FloatingDamageTextUI : MonoBehaviour
 
     [Header("Crit")]
     [SerializeField] private float normalHitSizeMultiplier = 0.88f;
-    [SerializeField] private float critSizeMultiplier = 1.55f;
+    [SerializeField] private float critSizeMultiplier = 1.3f;
     [SerializeField] private float critExtraLifetime = 1f;
     [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.15f;
 
@@ -189,8 +189,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         _spawnedAt = Time.unscaledTime;
 
         float totalVisible = visibleSeconds + fadeOutSeconds;
-        if (isCrit)
-            totalVisible += critExtraLifetime;
+        // Crit numbers now dissipate at the same speed as normal hits.
 
         Vector2 dir = BuildDirection(worldDirection);
 

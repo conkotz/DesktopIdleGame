@@ -119,6 +119,8 @@ public class PlayerController : MonoBehaviour
     private bool _keyboardManualMoveThisFrame;
     private float _keyboardSteerDir;
     private bool _keyboardSteerNotified;
+    private int _cachedMoveSpeedFrame = -1;
+    private float _cachedMoveSpeedValue;
     private bool _moveToPointFromPlayerInput;
     public bool IsManualKeyboardSteering => _keyboardManualMoveThisFrame;
     public bool IsPerformingAttackAnimation => _attackLocked;
@@ -581,6 +583,7 @@ public class PlayerController : MonoBehaviour
         if (_isDead)
             return;
 
+        _cachedMoveSpeedFrame = -1;
         _locomotionSampleStartX = transform.position.x;
 
         PlayerSprintInput.PollSprintKey();
@@ -4059,8 +4062,17 @@ public class PlayerController : MonoBehaviour
 
     private float GetMoveSpeed()
     {
+        int frame = Time.frameCount;
+        if (_cachedMoveSpeedFrame == frame)
+            return _cachedMoveSpeedValue;
+
         // fallback so you don't brick movement if stats is missing
-        if (!characterStats) return 3f;
+        if (!characterStats)
+        {
+            _cachedMoveSpeedFrame = frame;
+            _cachedMoveSpeedValue = 3f;
+            return _cachedMoveSpeedValue;
+        }
 
         float speed = characterStats.FinalMoveSpeed;
         if (ailments != null)
@@ -4074,7 +4086,9 @@ public class PlayerController : MonoBehaviour
                 speed *= ailmentMult;
         }
 
-        return PlayerSprintInput.ApplySprintBonus(speed);
+        _cachedMoveSpeedFrame = frame;
+        _cachedMoveSpeedValue = PlayerSprintInput.ApplySprintBonus(speed);
+        return _cachedMoveSpeedValue;
     }
 
     private void UpdateSpriteFlip()

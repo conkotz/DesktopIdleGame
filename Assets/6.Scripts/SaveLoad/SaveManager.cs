@@ -76,9 +76,11 @@ public class SaveManager : MonoBehaviour
     private Inventory _inventory;
     private PlayerStorage _playerStorage;
 
-    private float _lastInventoryImmediateSave;
-    private float _lastStorageImmediateSave;
-    private const float MinSaveGap = 1f;
+    private const float InventorySaveDebounceSeconds = 1f;
+    private const float StorageSaveDebounceSeconds = 1f;
+    private float _inventorySaveDueUnscaled = -1f;
+    private float _storageSaveDueUnscaled = -1f;
+    private int _saveRequestFrame = -1;
 
     private SaveData _lastLoadedData;
     private bool _isApplyingSaveData;
@@ -561,6 +563,20 @@ public class SaveManager : MonoBehaviour
             RequestSave(SaveRequestKind.DebouncedStripZoom);
         }
 
+        if (_inventorySaveDueUnscaled >= 0f && Time.unscaledTime >= _inventorySaveDueUnscaled)
+        {
+            _inventorySaveDueUnscaled = -1f;
+            RequestSave(SaveRequestKind.InventoryChanged);
+        }
+
+        if (_storageSaveDueUnscaled >= 0f && Time.unscaledTime >= _storageSaveDueUnscaled)
+        {
+            _storageSaveDueUnscaled = -1f;
+            RequestSave(SaveRequestKind.StorageChanged);
+        }
+
+        FlushDeferredSaveRequest();
+
         if (!autosave) return;
 
         _autosaveTimer += Time.unscaledDeltaTime;
@@ -569,14 +585,18 @@ public class SaveManager : MonoBehaviour
             _autosaveTimer = 0f;
             RequestSave(SaveRequestKind.AutosaveInterval);
         }
+    }
 
-        if (_saveRequestPending)
-        {
-            SaveRequestKind kind = _pendingSaveKind;
-            _saveRequestPending = false;
-            _pendingSaveKind = SaveRequestKind.Unknown;
-            ExecuteSave(kind);
-        }
+    private void FlushDeferredSaveRequest()
+    {
+        if (!_saveRequestPending || Time.frameCount <= _saveRequestFrame)
+            return;
+
+        SaveRequestKind kind = _pendingSaveKind;
+        _saveRequestPending = false;
+        _pendingSaveKind = SaveRequestKind.Unknown;
+        _saveRequestFrame = -1;
+        ExecuteSave(kind);
     }
 
     private void OnApplicationQuit()
@@ -697,6 +717,7 @@ public class SaveManager : MonoBehaviour
         {
             _saveRequestPending = true;
             _pendingSaveKind = kind;
+            _saveRequestFrame = Time.frameCount;
             return;
         }
 
@@ -1695,11 +1716,8 @@ public class SaveManager : MonoBehaviour
     {
         if (_isApplyingSaveData) return;
 
-        if (Time.unscaledTime - _lastInventoryImmediateSave < MinSaveGap)
-            return;
-
-        _lastInventoryImmediateSave = Time.unscaledTime;
-        RequestSave(SaveRequestKind.InventoryChanged);
+        // Coalesce loot bursts: each change pushes the deadline forward instead of saving on the pickup frame.
+        _inventorySaveDueUnscaled = Time.unscaledTime + InventorySaveDebounceSeconds;
     }
 
     private void TryBindInventory()
@@ -1750,12 +1768,7 @@ public class SaveManager : MonoBehaviour
     {
         if (_isApplyingSaveData) return;
 
-        // Separate debounce from inventory so a recent inv save cannot block persisting storage.
-        if (Time.unscaledTime - _lastStorageImmediateSave < MinSaveGap)
-            return;
-
-        _lastStorageImmediateSave = Time.unscaledTime;
-        RequestSave(SaveRequestKind.StorageChanged);
+        _storageSaveDueUnscaled = Time.unscaledTime + StorageSaveDebounceSeconds;
     }
 
     private ISaveable[] FindSaveables()
@@ -2128,6 +2141,11 @@ public class SaveManager : MonoBehaviour
         _didFinalApplyForCurrentLoad = false;
         _autosaveTimer = 0f;
         _stripZoomSaveDueUnscaled = -1f;
+        _inventorySaveDueUnscaled = -1f;
+        _storageSaveDueUnscaled = -1f;
+        _saveRequestPending = false;
+        _pendingSaveKind = SaveRequestKind.Unknown;
+        _saveRequestFrame = -1;
         _autosaveHoldUntilUnscaled = -1f;
 
         if (_gameplayReadyRoutine != null)

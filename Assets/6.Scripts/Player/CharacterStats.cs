@@ -5351,6 +5351,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public void ApplySummonVitals(int maxHp, string displayName = "Summon")
     {
         _isDead = false;
+        _ownerPlayer = null;
+        _playerCombatState = null;
+        _ownerCombatController = null;
+        _ownerEnemy = null;
         baseMaxHP = Mathf.Max(1, maxHp);
         currentHP = MaxHP;
         currentGuard = 0f;

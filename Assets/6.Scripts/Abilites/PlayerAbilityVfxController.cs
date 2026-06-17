@@ -53,6 +53,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.005f)] private float crusaderStrikeBeamTrailWidth = 0.12f;
     [SerializeField] private Vector3 crusaderStrikeBeamCenterOffset = new Vector3(0f, 0.55f, 0f);
     [SerializeField, Min(1f)] private float crusaderStrikeBeamFinalSizeScale = 1.2f;
+    [SerializeField, Min(0f)] private float crusaderStrikeBeamMinSpawnIntervalSeconds = 0.03f;
+    [SerializeField, Min(1)] private int crusaderStrikeBeamMaxNonFinalSpawnsPerFrame = 1;
 
     [Header("Whirlwind (Melee) VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
@@ -383,6 +385,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private float[] _whirlwindChannelLaneOrbitHeight;
     private float[] _whirlwindChannelLaneHorizontalScale;
     private float _whirlwindChannelFacingSignX = 1f;
+    private float _lastCrusaderStrikeBeamSpawnTime;
+    private int _lastCrusaderStrikeBeamSpawnFrame = -1;
+    private int _crusaderStrikeBeamSpawnsThisFrame;
 
     private sealed class GaleforceTwisterLifetime : MonoBehaviour
     {
@@ -1794,6 +1799,25 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     public void SpawnCrusaderStrikeBeam(Vector3 enemyWorld, bool finalStrike)
     {
+        if (!finalStrike)
+        {
+            int frame = Time.frameCount;
+            if (frame != _lastCrusaderStrikeBeamSpawnFrame)
+            {
+                _lastCrusaderStrikeBeamSpawnFrame = frame;
+                _crusaderStrikeBeamSpawnsThisFrame = 0;
+            }
+
+            if (_crusaderStrikeBeamSpawnsThisFrame >= crusaderStrikeBeamMaxNonFinalSpawnsPerFrame)
+                return;
+
+            if (Time.time < _lastCrusaderStrikeBeamSpawnTime + Mathf.Max(0f, crusaderStrikeBeamMinSpawnIntervalSeconds))
+                return;
+
+            _crusaderStrikeBeamSpawnsThisFrame++;
+            _lastCrusaderStrikeBeamSpawnTime = Time.time;
+        }
+
         StartCoroutine(CoCrusaderStrikeBeam(enemyWorld, finalStrike));
     }
 

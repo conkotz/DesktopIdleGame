@@ -278,6 +278,14 @@ public class GoldPopupSpawner : MonoBehaviour
 
         popup.transform.SetAsLastSibling();
 
+        // Dedicated top overlay canvas already sorts above the HUD. Adding a Canvas per popup
+        // forces a full UI canvas rebuild and causes a visible hitch on every gold/item popup.
+        if (useDedicatedTopPopupCanvas && targetCanvas == _topPopupCanvas)
+        {
+            EnsurePopupNonBlocking(popup);
+            return;
+        }
+
         var popupCanvas = popup.GetComponent<Canvas>();
         if (!popupCanvas)
             popupCanvas = popup.gameObject.AddComponent<Canvas>();
@@ -288,6 +296,14 @@ public class GoldPopupSpawner : MonoBehaviour
         popupCanvas.overrideSorting = true;
         popupCanvas.sortingLayerID = topLayerId;
         popupCanvas.sortingOrder = baseOrder + Mathf.Max(0, popupSortingOrderOffset);
+
+        EnsurePopupNonBlocking(popup);
+    }
+
+    private static void EnsurePopupNonBlocking(GoldPopup popup)
+    {
+        if (!popup)
+            return;
 
         var cg = popup.GetComponent<CanvasGroup>();
         if (!cg)
