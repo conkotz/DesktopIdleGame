@@ -4271,7 +4271,7 @@ Transform:
   m_GameObject: {fileID: 35174181}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0.74813986, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -12429,14 +12429,14 @@ Transform:
   m_GameObject: {fileID: 88544214}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.088, y: 1.0399997, z: 0}
+  m_LocalPosition: {x: 0.29398152, y: 2.9290037, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 767344968}
   - {fileID: 471155273}
   - {fileID: 204339153}
-  m_Father: {fileID: 999888771}
+  m_Father: {fileID: 1101752656}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &89847502
 GameObject:
@@ -57306,11 +57306,11 @@ Transform:
   m_GameObject: {fileID: 412571914}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -5.088, y: -1.6300004, z: 0}
+  m_LocalPosition: {x: -4.706018, y: 0.2590034, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 999888771}
+  m_Father: {fileID: 1101752656}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &412883127
 GameObject:
@@ -57909,11 +57909,14 @@ MonoBehaviour:
   baseOrthoSize: 4
   minOrthoSize: 2.5
   maxOrthoSizeFallback: 9
-  enableKeyboardZoom: 1
   orthoZoomSpeed: 7
   scrollZoomSensitivity: 0.25
   maxScrollOrthoDeltaPerFrame: 0.45
   orthoZoomSmoothTime: 0.05
+  zoomOutCameraLiftPerOrthoUnit: 0.5
+  zoomInCameraDropPerOrthoUnit: 0.5
+  framingBaselineWorldY: 0
+  laneVerticalFramingPixels: 0
   updateContinuously: 0
   persistStripLayout: 1
 --- !u!114 &414385173
@@ -65205,8 +65208,8 @@ LineRenderer:
   m_SortingOrder: 50
   m_MaskInteraction: 0
   m_Positions:
-  - {x: -99, y: 1.8365241, z: -0.1}
-  - {x: -68, y: 1.8365241, z: -0.1}
+  - {x: -99.05, y: -1.5559961, z: -0.1}
+  - {x: -68.05, y: -1.5559961, z: -0.1}
   m_Parameters:
     serializedVersion: 3
     widthMultiplier: 1
@@ -68518,7 +68521,7 @@ Transform:
   m_GameObject: {fileID: 503999389}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -23.47, y: 1.35, z: 0}
+  m_LocalPosition: {x: -23.52, y: 3.8, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -68554,6 +68557,7 @@ Transform:
   - {fileID: 9100000029}
   - {fileID: 9100000030}
   - {fileID: 475094790}
+  - {fileID: 9100000032}
   m_Father: {fileID: 999888771}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &503999391
@@ -68588,7 +68592,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d3603f6a75861544a14f21312b7b92c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpawnPointGroup
-  groupId: CombatPractice
+  groupId: SideAreaSpawns
   points:
   - {fileID: 1241852472}
   - {fileID: 2560061}
@@ -154621,15 +154625,11 @@ Transform:
   m_GameObject: {fileID: 999888770}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.03, y: 0.42892575, z: 0}
+  m_LocalPosition: {x: -0.03, y: -3.413594, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1558580853}
-  - {fileID: 412571915}
-  - {fileID: 2047187991}
-  - {fileID: 1166094644}
-  - {fileID: 88544215}
   - {fileID: 503999390}
   m_Father: {fileID: 1088023133}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -163001,9 +163001,11 @@ MonoBehaviour:
   worldVisualsRoot: {fileID: 2041091447}
   floorVisualsPath: FloorVisuals
   backgroundVisualsPath: BackgroundVisuals
-  defaultBackgroundObjectName: FullSkyVisual
+  defaultBackgroundObjectName: FullSkyDefaultVisual
   caveBackgroundObjectName: CaveBackground
   caveFloorLayerName: AllGrass
+  duskwoodVisualsObjectName: DukswoodVisuals
+  duskwoodMapNodeId: duskwood
   caveOverlayBaseAlpha: 0.2
   caveFlickerFlashMinDuration: 0.08
   caveFlickerFlashMaxDuration: 0.18
@@ -169474,11 +169476,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldFloorToUIEdge
   sourceRect: {fileID: 1463235205}
   sourceEdge: 0
-  sourcePixelOffset: 24
+  sourcePixelOffset: 0
+  alignWorldContentToUiEdge: 0
   worldCamera: {fileID: 414385169}
   worldRoot: {fileID: 999888771}
   floorCollider: {fileID: 1101752655}
   worldYOffset: 0
+  floorVisualsRoot: {fileID: 35174182}
+  floorVisualWorldOffsetFromFloorTop: 0
   orthoAlignmentReferenceHalfHeight: 4
   alignmentWorldYOffsetPerOrthoUnitVsReference: 0
   sourceMeasurementLatchWorld: 0.04
@@ -171256,7 +171261,7 @@ GameObject:
   - component: {fileID: 1101752655}
   - component: {fileID: 1101752657}
   m_Layer: 9
-  m_Name: Floor
+  m_Name: MainFloor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -171320,7 +171325,11 @@ Transform:
   m_LocalPosition: {x: -0.05, y: -2.08, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 412571915}
+  - {fileID: 2047187991}
+  - {fileID: 1166094644}
+  - {fileID: 88544215}
   m_Father: {fileID: 1558580853}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1101752657
@@ -173619,7 +173628,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1125193035}
   m_Layer: 0
-  m_Name: FullSkyVisual
+  m_Name: FullSkyDefaultVisual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -180362,7 +180371,7 @@ Transform:
   m_GameObject: {fileID: 1166094642}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.088, y: 1.0399997, z: 0}
+  m_LocalPosition: {x: 0.29398152, y: 2.9290037, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -180406,7 +180415,7 @@ Transform:
   - {fileID: 1673439573}
   - {fileID: 1404790204}
   - {fileID: 1304916686}
-  m_Father: {fileID: 999888771}
+  m_Father: {fileID: 1101752656}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1166094645
 MonoBehaviour:
@@ -182043,7 +182052,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1179061851
 Transform:
   m_ObjectHideFlags: 0
@@ -231872,7 +231881,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1558580853}
   m_Layer: 9
-  m_Name: Lane
+  m_Name: MainLane
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -231887,7 +231896,7 @@ Transform:
   m_GameObject: {fileID: 1558580852}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.3319815, y: 0.19099589, z: 0}
+  m_LocalPosition: {x: -0.13, y: 2.7, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -301345,22 +301354,11 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2041091446}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d00ddce964342e7448e6cebf719ba8ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FloorVisualZoomNudger
-  targetCamera: {fileID: 414385169}
-  floorVisuals: {fileID: 35174182}
-  stripCameraController: {fileID: 414385172}
-  captureBaselineOnStart: 1
-  baselineLocalPosition: {x: 0, y: 0, z: 0}
-  baselineOrthoSize: 0
-  stepPercent: 10
-  useDiscreteSteps: 0
-  zoomOutPixelsPerStep: 7
-  zoomInPixelsPerStep: 16
-  smoothHz: 50
 --- !u!1 &2041455818
 GameObject:
   m_ObjectHideFlags: 0
@@ -301408,7 +301406,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2041455818}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
   m_Name: 
@@ -302437,7 +302435,7 @@ Transform:
   m_GameObject: {fileID: 2047187989}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.088, y: 1.0399997, z: 0}
+  m_LocalPosition: {x: 0.29398152, y: 2.9290037, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -302539,7 +302537,7 @@ Transform:
   - {fileID: 1650079259}
   - {fileID: 670723728}
   - {fileID: 1351667625}
-  m_Father: {fileID: 999888771}
+  m_Father: {fileID: 1101752656}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2048753830
 GameObject:
@@ -314107,3 +314105,35 @@ SceneRoots:
   - {fileID: 852128585}
   - {fileID: 2041091447}
   - {fileID: 2032161452}
+
+--- !u!1 &9100000031
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9100000032}
+  m_Layer: 0
+  m_Name: SpawnPoint_Player_SideArea_1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9100000032
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9100000031}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -60, y: -3.12, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 503999390}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

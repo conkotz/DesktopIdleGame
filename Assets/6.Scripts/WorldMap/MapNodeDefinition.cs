@@ -540,6 +540,22 @@ public class MapNodeDefinition : ScriptableObject
         "and should be paired with spawnGroupPlans that reference the area's SpawnPointGroup id.")]
     public List<string> enabledSidePlayAreaIds = new();
 
+    [Header("Player spawn (GamePlay scene)")]
+    [Tooltip(
+        "Optional spawn point GameObject name for default map entry (Locations teleport, save restore base position, " +
+        "and other non-portal loads). Empty = SpawnPoint_Player. Linked signposts / in-world portals are unchanged.")]
+    public string defaultPlayerSpawnPointName = "";
+
+    public const string FallbackPlayerSpawnPointName = "SpawnPoint_Player";
+
+    /// <summary>Spawn point name in GamePlay for default entry on this map.</summary>
+    public string ResolveDefaultPlayerSpawnPointName()
+    {
+        if (string.IsNullOrWhiteSpace(defaultPlayerSpawnPointName))
+            return FallbackPlayerSpawnPointName;
+        return defaultPlayerSpawnPointName.Trim();
+    }
+
     [Header("In-map teleporters")]
     [Tooltip(
         "Same-map teleporter pairs/groups. Each entry spawns one teleporter at Spawn Point Name. " +

@@ -112,6 +112,19 @@ public class PlayerSpawnController : MonoBehaviour
         return null;
     }
 
+    private GameObject ResolveActiveMapDefaultSpawn()
+    {
+        string resolvedName = spawnPointName;
+        MapNodeDefinition def = ActiveLevelContext.Current;
+        if (def != null)
+            resolvedName = def.ResolveDefaultPlayerSpawnPointName();
+
+        GameObject spawn = GameObject.Find(resolvedName);
+        if (spawn == null && !string.Equals(resolvedName, spawnPointName, StringComparison.Ordinal))
+            spawn = GameObject.Find(spawnPointName);
+        return spawn;
+    }
+
     /// <summary>
     /// Map teleport: per-map exit X only. Login resume: per-map exit, then legacy global coords. Invalid/missing → false.
     /// </summary>
@@ -224,9 +237,13 @@ public class PlayerSpawnController : MonoBehaviour
                 ? bootstrapSpawnPointName
                 : spawnPointName;
 
-            GameObject spawn = GameObject.Find(targetSpawnName);
+            GameObject spawn = isBootstrap
+                ? GameObject.Find(targetSpawnName)
+                : ResolveActiveMapDefaultSpawn();
             if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
                 spawn = GameObject.Find(spawnPointName);
+
+            GameObject mainLaneSpawn = !isBootstrap ? GameObject.Find(spawnPointName) : null;
 
             bool restoredFromSavedWorldPosition = false;
 
@@ -261,7 +278,11 @@ public class PlayerSpawnController : MonoBehaviour
                         }
                     }
 
-                    Vector3 basePos = spawn != null ? spawn.transform.position : transform.position;
+                    Vector3 basePos = mainLaneSpawn != null
+                        ? mainLaneSpawn.transform.position
+                        : spawn != null
+                            ? spawn.transform.position
+                            : transform.position;
                     transform.position = basePos;
 
                     if (linkedSpawnX.HasValue)
@@ -286,7 +307,7 @@ public class PlayerSpawnController : MonoBehaviour
                         if (debugSnap)
                         {
                             Debug.Log(
-                                $"[SpawnDebug] SKIP_LINKED_PORTAL fromMap='{fromMapId ?? ""}' destMap='{ResolveDestinationMapNodeId() ?? ""}' — no matching portal; using default spawn.");
+                                $"[SpawnDebug] SKIP_LINKED_PORTAL fromMap='{fromMapId ?? ""}' destMap='{ResolveDestinationMapNodeId() ?? ""}' — no matching portal; using map default spawn.");
                         }
                     }
                 }

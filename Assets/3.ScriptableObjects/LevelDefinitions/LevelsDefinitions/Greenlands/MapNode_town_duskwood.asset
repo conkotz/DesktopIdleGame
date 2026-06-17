@@ -220,7 +220,7 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     shuffleSpawnPoints: 0
-  - groupId: CombatPractice
+  - groupId: SideAreaSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: SideArea_Spawn1

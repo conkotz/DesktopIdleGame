@@ -40,21 +40,40 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     [Tooltip("Fallback max ortho half-height only when lane WorldBounds are unavailable (e.g. loading). While playing with WorldBounds, max zoom-out is computed from lane width.")]
     [SerializeField, FormerlySerializedAs("maxOrthoSize")] private float maxOrthoSizeFallback = 9f;
 
-    [Header("Keyboard zoom")]
-    [Tooltip("Uses Settings ▸ Hotkeys ▸ Zoom In / Zoom Out (scroll wheel by default). Keys repeat while held; scroll wheel steps once per tick.")]
-    [SerializeField] private bool enableKeyboardZoom = true;
-
-    [Tooltip("Ortho half-height change per second while a zoom key is held (world units/s).")]
+    [Header("Zoom settings")]
+    [Tooltip("Ortho half-height change per second while a zoom hotkey is held (world units/s).")]
     [SerializeField] private float orthoZoomSpeed = 7f;
 
-    [Tooltip("Ortho half-height change per scroll-wheel unit (applied to zoom target, then smoothed).")]
+    [Tooltip("Ortho half-height change per scroll-wheel notch (applied to zoom target, then smoothed).")]
     [SerializeField] private float scrollZoomSensitivity = 0.25f;
 
-    [Tooltip("Max ortho target change from one scroll-wheel frame (prevents harsh multi-notch jumps).")]
+    [Tooltip("Caps ortho change from a single scroll-wheel frame (prevents harsh multi-notch jumps). Not camera Y movement.")]
     [SerializeField] private float maxScrollOrthoDeltaPerFrame = 0.45f;
 
     [Tooltip("Seconds to ease the camera toward the scroll/key zoom target.")]
     [SerializeField] private float orthoZoomSmoothTime = 0.05f;
+
+    [Tooltip(
+        "When zooming out (ortho increases), camera world Y added per ortho unit above the default. " +
+        "1 keeps the strip bottom anchored like default zoom.")]
+    [SerializeField] private float zoomOutCameraLiftPerOrthoUnit = 1f;
+
+    [Tooltip(
+        "When zooming in (ortho decreases), camera world Y removed per ortho unit below the default. " +
+        "1 keeps the strip bottom anchored like default zoom.")]
+    [SerializeField] private float zoomInCameraDropPerOrthoUnit = 1f;
+
+    [Header("Lane framing")]
+    [Tooltip("Strip camera world Y when Lane Vertical Framing Pixels is 0. Context menu: Capture Framing Baseline From Transform.")]
+    [SerializeField] private float framingBaselineWorldY;
+
+    [Tooltip(
+        "Nudge strip camera height (strip pixels). Positive = camera up = playfield lower in the strip. " +
+        "Works in the editor and in play mode. Does not move MainLane.")]
+    [SerializeField] private float laneVerticalFramingPixels;
+
+    /// <summary>Screen-pixel offset applied to strip camera Y relative to <see cref="framingBaselineWorldY"/>.</summary>
+    public float LaneVerticalFramingPixels => laneVerticalFramingPixels;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;
@@ -82,6 +101,9 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private static float _sessionLaneZoomBaselineStripAspect = -1f;
 
     private static bool s_stripLayoutLockedForExpandBackground;
+
+    /// <summary>Fired when strip viewport rect, screen size, or orthographic zoom changes.</summary>
+    public static event Action StripLayoutChanged;
 
     /// <summary>When expand-background is on, strip position/size cannot be changed (see <see cref="SetExpandBackgroundStripLayoutLocked"/>).</summary>
     public static bool IsStripLayoutLockedForExpandBackground => s_stripLayoutLockedForExpandBackground;
@@ -129,6 +151,10 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private float _lastLeftNormalized = float.NaN;
     private float _lastWidthNormalized = float.NaN;
     private float _lastBaseOrthoSize = float.NaN;
+    private float _lastLaneVerticalFramingPixels = float.NaN;
+    private float _lastZoomOutCameraLiftPerOrthoUnit = float.NaN;
+    private float _lastZoomInCameraDropPerOrthoUnit = float.NaN;
+    private float _lastFramingBaselineWorldY = float.NaN;
 
     private GameplayLevelBootstrapper _subscribedGameplayBootstrapper;
 
@@ -142,10 +168,47 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     /// <summary>Orthographic size captured from the prefab/scene at <see cref="Awake"/> — base for zoom % HUD.</summary>
     public float DefaultOrthoBaseline => _prefabOrthoAtAwake;
 
+    private void Reset()
+    {
+        CacheCamera();
+        CapturePrefabBaselineSnapshotFromSerializedFields();
+        if (stripCamera != null)
+            framingBaselineWorldY = stripCamera.transform.position.y;
+    }
+
     private void Awake()
     {
         CapturePrefabBaselineSnapshotFromSerializedFields();
         SyncTargetOrthoFromBase();
+        CacheCamera();
+        EnsureFramingBaselineFromTransform();
+    }
+
+    private void EnsureFramingBaselineFromTransform()
+    {
+        if (!stripCamera)
+            return;
+
+        if (Mathf.Approximately(framingBaselineWorldY, 0f) &&
+            !Mathf.Approximately(stripCamera.transform.position.y, 0f))
+        {
+            framingBaselineWorldY = stripCamera.transform.position.y;
+        }
+    }
+
+    [ContextMenu("Capture Framing Baseline From Transform")]
+    private void CaptureFramingBaselineFromTransform()
+    {
+        CacheCamera();
+        if (!stripCamera)
+            return;
+
+        framingBaselineWorldY = stripCamera.transform.position.y;
+        laneVerticalFramingPixels = 0f;
+        Apply(force: true);
+#if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+#endif
     }
 
     private void OnEnable()
@@ -267,6 +330,8 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private void OnValidate()
     {
         CacheCamera();
+        if (_prefabOrthoAtAwake < 0.01f)
+            CapturePrefabBaselineSnapshotFromSerializedFields();
         ClampInspectorValues();
         Apply(force: true);
     }
@@ -288,17 +353,17 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             ClampInspectorValues();
         }
 
-        if (Application.isPlaying && enableKeyboardZoom)
-            ApplyKeyboardOrthoZoom();
+        if (Application.isPlaying)
+            ApplyInteractiveOrthoZoom();
 
         if (updateContinuously || HasChanged())
             Apply(force: false);
     }
 
     /// <summary>
-    /// Zoom via Settings ▸ Hotkeys (scroll wheel up/down by default). Keys repeat while held; scroll wheel steps once per tick.
+    /// Zoom via scroll wheel or Settings ▸ Hotkeys (scroll wheel up/down by default).
     /// </summary>
-    private void ApplyKeyboardOrthoZoom()
+    private void ApplyInteractiveOrthoZoom()
     {
         if (HelperGameplayController.BlocksStripGameplay)
             return;
@@ -671,7 +736,11 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
                !Mathf.Approximately(bottomNormalized, _lastBottomNormalized) ||
                !Mathf.Approximately(leftNormalized, _lastLeftNormalized) ||
                !Mathf.Approximately(widthNormalized, _lastWidthNormalized) ||
-               !Mathf.Approximately(baseOrthoSize, _lastBaseOrthoSize);
+               !Mathf.Approximately(baseOrthoSize, _lastBaseOrthoSize) ||
+               !Mathf.Approximately(laneVerticalFramingPixels, _lastLaneVerticalFramingPixels) ||
+               !Mathf.Approximately(framingBaselineWorldY, _lastFramingBaselineWorldY) ||
+               !Mathf.Approximately(zoomOutCameraLiftPerOrthoUnit, _lastZoomOutCameraLiftPerOrthoUnit) ||
+               !Mathf.Approximately(zoomInCameraDropPerOrthoUnit, _lastZoomInCameraDropPerOrthoUnit);
     }
 
     private void Apply(bool force)
@@ -699,7 +768,41 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (stripCamera.orthographic)
             stripCamera.orthographicSize = baseOrthoSize;
 
+        ApplyCameraVerticalPosition();
+
         RememberCurrentState();
+    }
+
+    private void ApplyCameraVerticalPosition()
+    {
+        if (!stripCamera || !stripCamera.orthographic)
+            return;
+
+        float stripPixelHeight = stripCamera.pixelRect.height;
+        if (stripPixelHeight <= 0f)
+            return;
+
+        float ortho = stripCamera.orthographicSize;
+        float worldPerPixel = (2f * ortho) / stripPixelHeight;
+        float framingOffset = laneVerticalFramingPixels * worldPerPixel;
+
+        float zoomAnchorOffset = 0f;
+        if (Application.isPlaying)
+        {
+            float dOrtho = ortho - _prefabOrthoAtAwake;
+            zoomAnchorOffset = dOrtho >= 0f
+                ? dOrtho * zoomOutCameraLiftPerOrthoUnit
+                : dOrtho * zoomInCameraDropPerOrthoUnit;
+        }
+
+        float targetY = framingBaselineWorldY + framingOffset + zoomAnchorOffset;
+
+        Vector3 p = stripCamera.transform.position;
+        if (Mathf.Approximately(p.y, targetY))
+            return;
+
+        p.y = targetY;
+        stripCamera.transform.position = p;
     }
 
     private void TryLoadSavedLayoutQuiet()
@@ -863,6 +966,10 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             !Mathf.Approximately(leftNormalized, _lastLeftNormalized) ||
             !Mathf.Approximately(widthNormalized, _lastWidthNormalized) ||
             !Mathf.Approximately(baseOrthoSize, _lastBaseOrthoSize) ||
+            !Mathf.Approximately(laneVerticalFramingPixels, _lastLaneVerticalFramingPixels) ||
+            !Mathf.Approximately(framingBaselineWorldY, _lastFramingBaselineWorldY) ||
+            !Mathf.Approximately(zoomOutCameraLiftPerOrthoUnit, _lastZoomOutCameraLiftPerOrthoUnit) ||
+            !Mathf.Approximately(zoomInCameraDropPerOrthoUnit, _lastZoomInCameraDropPerOrthoUnit) ||
             Screen.width != _lastScreenWidth ||
             Screen.height != _lastScreenHeight;
 
@@ -873,6 +980,10 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         _lastLeftNormalized = leftNormalized;
         _lastWidthNormalized = widthNormalized;
         _lastBaseOrthoSize = baseOrthoSize;
+        _lastLaneVerticalFramingPixels = laneVerticalFramingPixels;
+        _lastFramingBaselineWorldY = framingBaselineWorldY;
+        _lastZoomOutCameraLiftPerOrthoUnit = zoomOutCameraLiftPerOrthoUnit;
+        _lastZoomInCameraDropPerOrthoUnit = zoomInCameraDropPerOrthoUnit;
 
         if (Application.isPlaying)
         {
@@ -884,8 +995,12 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             !s_stripLayoutLockedForExpandBackground)
             SaveLayoutToPrefs(forceImmediate: false);
 
-        if (Application.isPlaying && layoutChanged)
-            SaveManager.Instance?.NotifyStripZoomChangedDebounced();
+        if (layoutChanged)
+        {
+            if (Application.isPlaying)
+                SaveManager.Instance?.NotifyStripZoomChangedDebounced();
+            StripLayoutChanged?.Invoke();
+        }
     }
 
     public void SaveInto(SaveData data)

@@ -1,14 +1,14 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Aligns the playable lane to a UI <see cref="RectTransform"/> edge (e.g. strip above the bottom HUD).
-/// Assign <see cref="worldRoot"/> to a <b>dedicated child transform</b> (e.g. <c>UILaneAlignment</c>) that contains the
-/// lane, floor, and spawn markers — not the whole playfield folder. That way the editor folder (e.g. <c>PlayfieldRoot</c>)
-/// stays a stable organizing object while only the content that must track the UI strip moves in Y.
+/// Optional UI-edge alignment for the playable lane, plus a shared floor collider reference for spawns and drops.
+/// With <see cref="alignWorldContentToUiEdge"/> off (default), <c>MainLane</c> and spawn points are positioned manually in the editor;
+/// only <see cref="FloorTopWorldY"/> / <see cref="FloorCollider"/> are used at runtime.
 /// <para>
-/// <b>Why some maps jitter more:</b> the source rect (<c>BotomGameBar</c>) sits in a Canvas with sibling layout rows.
-/// Busy maps add tutorial prompts, quests, timers, etc. Each layout pass can flutter the resolved world edge slightly every frame.
+/// When alignment is on, <see cref="worldRoot"/> (e.g. <c>UILaneAlignment</c>) is moved in Y to match a HUD edge.
+/// Vertical framing is handled by <see cref="StripCameraController"/> — not this component.
 /// </para>
 /// </summary>
 [ExecuteAlways]
@@ -61,6 +61,11 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [Tooltip("Positive values place the world floor above the selected UI edge in screen pixels.")]
     [SerializeField] private float sourcePixelOffset;
 
+    [Header("Alignment")]
+    [Tooltip(
+        "When off, MainLane/spawns stay where you place them in the editor. Floor collider is still used for FloorTopWorldY and drops.")]
+    [SerializeField] private bool alignWorldContentToUiEdge;
+
     [Header("World Target")]
     [SerializeField] private Camera worldCamera;
     [Tooltip("Transform that is moved in Y to match the UI edge. Prefer a dedicated child (e.g. UILaneAlignment) that wraps lane + spawns — not only a rename of the spawn-point folder.")]
@@ -68,6 +73,13 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [Tooltip("Floor collider used to measure world-space top; usually on the Floor object under the lane.")]
     [SerializeField] private BoxCollider2D floorCollider;
     [SerializeField] private float worldYOffset;
+
+    [Header("Synced floor visuals")]
+    [Tooltip("Decorative grass/floor art (e.g. WorldVisuals/FloorVisuals). Y is pinned to the gameplay floor collider each alignment.")]
+    [SerializeField] private Transform floorVisualsRoot;
+
+    [Tooltip("World Y offset from floor collider top to floorVisualsRoot (tune if grass art sits above/below the collider line).")]
+    [SerializeField] private float floorVisualWorldOffsetFromFloorTop;
 
     [Header("Orthographic zoom (strip camera)")]
     [Tooltip(
@@ -145,6 +157,8 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
     /// <summary>Logged once when floor collider is not under serialized worldRoot (would break incremental alignment).</summary>
     private bool _loggedFloorHierarchyMismatch;
+    private Coroutine _startupAlignRoutine;
+    private bool _subscribedStripLayout;
 
     private void OnEnable()
     {
@@ -153,11 +167,31 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
         WorldFloorFollowerRegistry.BootstrapLegacyCaveFollowersOnce();
+
+        if (!alignWorldContentToUiEdge)
+            return;
+
+        TrySubscribeStripLayoutChanged();
         Apply(force: true, allowCanvasForce: true);
+
+        if (Application.isPlaying)
+        {
+            if (_startupAlignRoutine != null)
+                StopCoroutine(_startupAlignRoutine);
+            _startupAlignRoutine = StartCoroutine(CoDeferredStartupAlign());
+        }
     }
 
     private void OnDisable()
     {
+        if (_startupAlignRoutine != null)
+        {
+            StopCoroutine(_startupAlignRoutine);
+            _startupAlignRoutine = null;
+        }
+
+        TryUnsubscribeStripLayoutChanged();
+
         if (s_active == this)
             s_active = null;
         _appliedOncePlaying = false;
@@ -168,6 +202,9 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         CacheReferences();
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
+        if (!alignWorldContentToUiEdge)
+            return;
+
         // ForceUpdateCanvases during OnValidate triggers SendMessage on other UI (e.g. layout rows) and spams console warnings.
         Apply(force: true, allowCanvasForce: false);
     }
@@ -180,37 +217,115 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     }
 
     private float _cachedOrthoSize = -1f;
+    private Rect _cachedStripPixelRect;
 
     private void LateUpdate()
     {
+        if (!alignWorldContentToUiEdge)
+            return;
+
+        bool layoutChanged = TryConsumeLayoutChangeFlags(out bool forceFromLayout);
+
         if (!updateContinuously)
         {
             if (!Application.isPlaying)
                 return;
 
-            if (_appliedOncePlaying && (ScreenOrSourceLayoutChanged() || OrthoSizeChanged()))
-                Apply(force: true, allowCanvasForce: true);
+            if (_appliedOncePlaying && layoutChanged)
+                Apply(force: forceFromLayout, allowCanvasForce: forceFromLayout);
             return;
         }
 
-        if (Application.isPlaying && _appliedOncePlaying && !NeedsContinuousRealign())
+        if (Application.isPlaying && _appliedOncePlaying)
+        {
+            if (!layoutChanged && !NeedsContinuousRealign())
+                return;
+
+            if (layoutChanged)
+                ResetLatchAndSmooth();
+
+            Apply(force: layoutChanged, allowCanvasForce: layoutChanged || forceCanvasUpdateEveryFrame);
             return;
+        }
 
         Apply(force: false, allowCanvasForce: false);
     }
 
-    private bool NeedsContinuousRealign()
+    private IEnumerator CoDeferredStartupAlign()
     {
-        if (ScreenOrSourceLayoutChanged())
-            return true;
-
-        CacheReferences();
-        if (worldCamera != null && !Mathf.Approximately(worldCamera.orthographicSize, _cachedOrthoSize))
+        const int frames = 4;
+        for (int i = 0; i < frames; i++)
         {
-            _cachedOrthoSize = worldCamera.orthographicSize;
-            return true;
+            yield return null;
+            if (!this || !isActiveAndEnabled)
+                yield break;
+
+            ResetLatchAndSmooth();
+            SnapshotScreenAndSourceFingerprint();
+            Apply(force: true, allowCanvasForce: true);
         }
 
+        _startupAlignRoutine = null;
+    }
+
+    private void HandleStripLayoutChanged()
+    {
+        if (!alignWorldContentToUiEdge || !isActiveAndEnabled)
+            return;
+
+        ResetLatchAndSmooth();
+        SnapshotScreenAndSourceFingerprint();
+        Apply(force: true, allowCanvasForce: true);
+    }
+
+    private void TrySubscribeStripLayoutChanged()
+    {
+        if (_subscribedStripLayout)
+            return;
+
+        StripCameraController.StripLayoutChanged += HandleStripLayoutChanged;
+        _subscribedStripLayout = true;
+    }
+
+    private void TryUnsubscribeStripLayoutChanged()
+    {
+        if (!_subscribedStripLayout)
+            return;
+
+        StripCameraController.StripLayoutChanged -= HandleStripLayoutChanged;
+        _subscribedStripLayout = false;
+    }
+
+    private bool TryConsumeLayoutChangeFlags(out bool forceRealign)
+    {
+        forceRealign = ScreenOrSourceLayoutChanged() || OrthoSizeChanged() || StripPixelRectChanged();
+        return forceRealign;
+    }
+
+    private bool StripPixelRectChanged()
+    {
+        CacheReferences();
+        if (!worldCamera)
+            return false;
+
+        Rect pr = worldCamera.pixelRect;
+        if (ApproximatelyRect(pr, _cachedStripPixelRect))
+            return false;
+
+        _cachedStripPixelRect = pr;
+        return true;
+    }
+
+    private static bool ApproximatelyRect(Rect a, Rect b)
+    {
+        return Mathf.Approximately(a.x, b.x) &&
+               Mathf.Approximately(a.y, b.y) &&
+               Mathf.Approximately(a.width, b.width) &&
+               Mathf.Approximately(a.height, b.height);
+    }
+
+    private bool NeedsContinuousRealign()
+    {
         if (!float.IsNaN(_smoothTargetFloorTopY) && !float.IsNaN(_latchedSourceWorldY) &&
             Mathf.Abs(_smoothTargetFloorTopY - _latchedSourceWorldY) > minMoveDelta * 0.5f)
             return true;
@@ -243,6 +358,21 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             if (!floorCollider)
                 floorCollider = GetComponentInChildren<BoxCollider2D>(true);
         }
+
+        TryAutoResolveFloorVisualsRoot();
+    }
+
+    private void TryAutoResolveFloorVisualsRoot()
+    {
+        if (floorVisualsRoot)
+            return;
+
+        GameObject worldVisuals = GameObject.Find("WorldVisuals");
+        if (!worldVisuals)
+            return;
+
+        Transform floorVisuals = worldVisuals.transform.Find("FloorVisuals");
+        floorVisualsRoot = floorVisuals ? floorVisuals : worldVisuals.transform;
     }
 
     private void SnapshotScreenAndSourceFingerprint()
@@ -250,6 +380,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         _cachedPixelW = Screen.width;
         _cachedPixelH = Screen.height;
         _cachedOrthoSize = worldCamera ? worldCamera.orthographicSize : -1f;
+        _cachedStripPixelRect = worldCamera ? worldCamera.pixelRect : default;
 
         if (sourceRect)
         {
@@ -308,6 +439,9 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
     private void Apply(bool force, bool allowCanvasForce = true)
     {
+        if (!alignWorldContentToUiEdge)
+            return;
+
         CacheReferences();
 
         if (!sourceRect || !worldCamera || !worldRoot || !floorCollider)
@@ -390,7 +524,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         float deltaY = targetWorldRootY - worldRoot.position.y;
         float rawDeltaBeforeClamp = deltaY;
 
-        if (maxAlignmentStepWorld > 0f)
+        if (maxAlignmentStepWorld > 0f && !force)
             deltaY = Mathf.Clamp(deltaY, -maxAlignmentStepWorld, maxAlignmentStepWorld);
 
         bool skipDueToMinMove = !force && Mathf.Abs(deltaY) < minMoveDelta;
@@ -401,6 +535,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             return;
 
         MoveTransformY(worldRoot, deltaY);
+        SyncFloorVisualsRootToColliderTop();
 
         if (Application.isPlaying && moveRuntimeActorsWithFloor)
             MoveRuntimeFollowers(deltaY);
@@ -519,6 +654,23 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         Vector3 worldPoint = worldCamera.ScreenToWorldPoint(new Vector3(screenX, screenY, planeDistance));
         worldY = worldPoint.y;
         return true;
+    }
+
+    private void SyncFloorVisualsRootToColliderTop()
+    {
+        if (!floorVisualsRoot || !floorCollider)
+            return;
+
+        if (floorVisualsRoot == worldRoot || floorVisualsRoot.IsChildOf(worldRoot))
+            return;
+
+        float targetY = floorCollider.bounds.max.y + floorVisualWorldOffsetFromFloorTop;
+        Vector3 pos = floorVisualsRoot.position;
+        if (Mathf.Abs(pos.y - targetY) <= 0.0001f)
+            return;
+
+        pos.y = targetY;
+        floorVisualsRoot.position = pos;
     }
 
     private void MoveRuntimeFollowers(float deltaY)

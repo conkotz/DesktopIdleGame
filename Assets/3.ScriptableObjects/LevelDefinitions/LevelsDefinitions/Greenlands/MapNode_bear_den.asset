@@ -55,6 +55,9 @@ MonoBehaviour:
       count: 1
       portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
+  enabledSidePlayAreaIds:
+  - SideArea_1
+  defaultPlayerSpawnPointName: SpawnPoint_Player_SideArea_1
   requiredPreviousMapCompletions:
   - enabled: 1
     requiredMapNodeId: hunting_grounds

@@ -4,7 +4,8 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// Orthographic camera: smooth horizontal follow with optional dead zone and world bounds clamp.
 /// On play, X snaps once to the target (clamped) so the view starts on the player instead of easing from the scene pose.
-/// Y/Z stay fixed at initial values. Zoom is via <see cref="orthographicSize"/> only — not altered here each frame.
+/// Y/Z stay fixed at initial values unless a <see cref="StripCameraController"/> on the same rig drives Y (vertical framing).
+/// Zoom is via <see cref="orthographicSize"/> only — not altered here each frame.
 /// View half-width = <see cref="Camera.orthographicSize"/> * <see cref="Camera.aspect"/> (for bounds clamp).
 /// Dead zone scales with <see cref="StripCameraController.widthNormalized"/> (not strip height): narrow strip (≤ half
 /// screen width) → 0 dead zone; full width → <see cref="deadZoneWidth"/>.
@@ -254,12 +255,18 @@ public sealed class CameraFollow : MonoBehaviour
 
         Vector3 p = transform.position;
         p.x = startX;
-        p.y = _fixedY;
-        p.z = _fixedZ;
+        ApplyFixedDepthAxes(ref p);
         transform.position = p;
 
         _didInitialSnapToTarget = true;
         return true;
+    }
+
+    private void ApplyFixedDepthAxes(ref Vector3 p)
+    {
+        p.z = _fixedZ;
+        if (!stripController)
+            p.y = _fixedY;
     }
 
     /// <summary>Snaps camera X to the follow target (clamped). Used after same-map warps so the view catches up instantly.</summary>
@@ -299,8 +306,7 @@ public sealed class CameraFollow : MonoBehaviour
 
         Vector3 p = transform.position;
         p.x = px;
-        p.y = _fixedY;
-        p.z = _fixedZ;
+        ApplyFixedDepthAxes(ref p);
         transform.position = p;
     }
 
@@ -376,8 +382,7 @@ public sealed class CameraFollow : MonoBehaviour
 
         Vector3 p = transform.position;
         p.x = x;
-        p.y = _fixedY;
-        p.z = _fixedZ;
+        ApplyFixedDepthAxes(ref p);
         transform.position = p;
     }
 }
