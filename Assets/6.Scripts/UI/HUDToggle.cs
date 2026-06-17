@@ -10,8 +10,8 @@ public class HUDToggle : MonoBehaviour
     [SerializeField] private HUDPresenter hudPresenter;
 
     private bool _isVisible = true;
-    private bool _collapsedByTownRule;
-    private bool _userExpandedHudInTown;
+    private bool _collapsedByAutoMinimizeRule;
+    private bool _userExpandedHudThisMap;
     private bool _subscribedLevelStarted;
 
     private void Awake()
@@ -24,16 +24,16 @@ public class HUDToggle : MonoBehaviour
     {
         SyncPresenterToHudVisibility();
         UpdateVisual();
-        ApplyTownHudRule();
+        ApplyMinimiseHudRule();
     }
 
     private void OnEnable()
     {
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
         if (!TrySubscribeLevelStarted())
-            StartCoroutine(WaitForBootstrapperThenApplyTownRule());
+            StartCoroutine(WaitForBootstrapperThenApplyMinimiseHudRule());
         else
-            ApplyTownHudRule();
+            ApplyMinimiseHudRule();
     }
 
     private void OnDisable()
@@ -42,13 +42,13 @@ public class HUDToggle : MonoBehaviour
         UnsubscribeLevelStarted();
     }
 
-    public static void RefreshAllFromTownSetting()
+    public static void RefreshAllFromMinimiseHudSetting()
     {
         HUDToggle[] toggles = FindObjectsByType<HUDToggle>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < toggles.Length; i++)
         {
             if (toggles[i])
-                toggles[i].ApplyTownHudRule();
+                toggles[i].ApplyMinimiseHudRule();
         }
     }
 
@@ -56,14 +56,7 @@ public class HUDToggle : MonoBehaviour
     {
         bool opening = !_isVisible;
         SetHudVisible(opening, fromUser: true);
-
-        if (!IsCurrentNodeTown())
-            return;
-
-        if (opening)
-            _userExpandedHudInTown = true;
-        else
-            _userExpandedHudInTown = false;
+        _userExpandedHudThisMap = opening;
     }
 
     public void SetHudVisible(bool visible, bool fromUser = false)
@@ -90,8 +83,8 @@ public class HUDToggle : MonoBehaviour
 
     private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
     {
-        if (id == ToggleSettingId.MinimiseHudDisplayInTown)
-            ApplyTownHudRule();
+        if (id == ToggleSettingId.MinimiseHud)
+            ApplyMinimiseHudRule();
     }
 
     private bool TrySubscribeLevelStarted()
@@ -104,14 +97,14 @@ public class HUDToggle : MonoBehaviour
         return true;
     }
 
-    private IEnumerator WaitForBootstrapperThenApplyTownRule()
+    private IEnumerator WaitForBootstrapperThenApplyMinimiseHudRule()
     {
         const int maxFrames = 120;
         for (int i = 0; i < maxFrames; i++)
         {
             if (TrySubscribeLevelStarted())
             {
-                ApplyTownHudRule();
+                ApplyMinimiseHudRule();
                 yield break;
             }
 
@@ -130,44 +123,32 @@ public class HUDToggle : MonoBehaviour
 
     private void OnLevelStarted(MapNodeDefinition _)
     {
-        _userExpandedHudInTown = false;
-        _collapsedByTownRule = false;
-        ApplyTownHudRule();
+        _userExpandedHudThisMap = false;
+        _collapsedByAutoMinimizeRule = false;
+        ApplyMinimiseHudRule();
     }
 
-    private void ApplyTownHudRule()
+    private void ApplyMinimiseHudRule()
     {
-        bool shouldAutoMinimize = ShouldAutoMinimizeInTown();
+        bool shouldAutoMinimize = ShouldAutoMinimizeOnMapLoad();
 
-        if (shouldAutoMinimize && !_userExpandedHudInTown)
+        if (shouldAutoMinimize && !_userExpandedHudThisMap)
         {
-            _collapsedByTownRule = true;
+            _collapsedByAutoMinimizeRule = true;
             if (_isVisible)
                 SetHudVisible(false, fromUser: false);
             return;
         }
 
-        if (_collapsedByTownRule && !_isVisible)
+        if (_collapsedByAutoMinimizeRule && !_isVisible)
             SetHudVisible(true, fromUser: false);
 
-        _collapsedByTownRule = false;
+        _collapsedByAutoMinimizeRule = false;
     }
 
-    private static bool ShouldAutoMinimizeInTown()
+    private static bool ShouldAutoMinimizeOnMapLoad()
     {
-        if (!ToggleSettingsStore.Get(ToggleSettingId.MinimiseHudDisplayInTown))
-            return false;
-
-        return IsCurrentNodeTown();
-    }
-
-    private static bool IsCurrentNodeTown()
-    {
-        MapNodeDefinition def = ActiveLevelContext.Current;
-        if (!def && GameplayLevelBootstrapper.Instance != null)
-            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
-
-        return def != null && def.nodeType == MapNodeType.Town;
+        return ToggleSettingsStore.Get(ToggleSettingId.MinimiseHud);
     }
 
     private void SyncPresenterToHudVisibility()

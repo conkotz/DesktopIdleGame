@@ -193,6 +193,7 @@ GameObject:
   - component: {fileID: 433244304700921957}
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
+  - component: {fileID: 722630353058482233}
   m_Layer: 7
   m_Name: BearDenEntrance
   m_TagString: Cave
@@ -341,3 +342,18 @@ MonoBehaviour:
   logWhenBlocked: 1
   blockedMessage: You cannot enter this area yet.
   arriveDistanceX: 0.08
+--- !u!114 &722630353058482233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8347273920747777605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
+  nameLabels: []
+  searchInactiveChildren: 1
+  sortingReference: {fileID: 433244304700921957}

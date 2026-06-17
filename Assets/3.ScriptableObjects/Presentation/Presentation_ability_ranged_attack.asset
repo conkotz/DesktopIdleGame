@@ -15,7 +15,8 @@ MonoBehaviour:
   notes: Starter ranged Attack from Ranged Combat unlock
   displayNameOverride: Attack
   icon: {fileID: 1200565681425001165, guid: bf301dd8c35646640bd9c28240c06a75, type: 3}
-  shortDescription: Auto attack the closest enemy with ranged (Unless using a longbow).
+  shortDescription: Auto attack the closest enemy with ranged. Longbows will prioritse
+    furthest enemy in range unless you are being hit.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

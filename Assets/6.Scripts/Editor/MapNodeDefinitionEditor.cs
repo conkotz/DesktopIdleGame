@@ -114,8 +114,9 @@ public sealed class MapNodeDefinitionEditor : Editor
         SerializedProperty element = _spawnGroupPlansProp.GetArrayElementAtIndex(index);
         GUIContent label = new GUIContent(LevelSpawnGroupPlanDrawer.BuildGroupLabel(element));
         rect.y += 2f;
-        rect.height = EditorGUI.GetPropertyHeight(element, label, true);
-        EditorGUI.PropertyField(rect, element, label, true);
+        rect.height = LevelSpawnGroupPlanDrawer.GetGroupInspectorHeight(element, label);
+        rect = SpawnEditorArrayUtility.GetReorderableListElementContentRect(rect);
+        LevelSpawnGroupPlanDrawer.DrawGroupInspector(rect, element, label);
     }
 
     private float GetSpawnGroupPlanElementHeight(int index)
@@ -125,7 +126,7 @@ public sealed class MapNodeDefinitionEditor : Editor
 
         SerializedProperty element = _spawnGroupPlansProp.GetArrayElementAtIndex(index);
         GUIContent label = new GUIContent(LevelSpawnGroupPlanDrawer.BuildGroupLabel(element));
-        return EditorGUI.GetPropertyHeight(element, label, true) + 6f;
+        return LevelSpawnGroupPlanDrawer.GetGroupInspectorHeight(element, label);
     }
 
     private void DrawInMapTeleportersSection()
@@ -153,6 +154,7 @@ public sealed class MapNodeDefinitionEditor : Editor
         GUIContent label = new GUIContent(InMapTeleporterPlanDrawer.BuildLabel(element));
         rect.y += 2f;
         rect.height = EditorGUI.GetPropertyHeight(element, label, true);
+        rect = SpawnEditorArrayUtility.GetReorderableListElementContentRect(rect);
         EditorGUI.PropertyField(rect, element, label, true);
     }
 

@@ -33,7 +33,7 @@ public static class NpcNameLabelFormatting
         label.alignment = TextAlignmentOptions.Center;
         label.richText = true;
         label.text = Build(characterName, role);
-        WorldNameLabelStyle.Apply(label);
+        WorldNameLabelStyle.PrepareWorldSpaceNameLabel(label);
     }
 
     private static string EscapeRichText(string value)

@@ -25,11 +25,35 @@ public static class WorldNameLabelStyle
         for (int i = 0; i < labels.Length; i++)
         {
             TMP_Text label = labels[i];
-            if (!label || label.name != "NameLabel" || IsScreenSpaceUI(label))
+            if (!IsEligibleWorldNameLabel(label))
                 continue;
 
-            Apply(label);
+            if (label.transform.GetComponentInParent<WorldNameLabelResolver>() != null)
+                continue;
+
+            PrepareWorldSpaceNameLabel(label);
         }
+    }
+
+    public static bool IsEligibleWorldNameLabel(TMP_Text label)
+    {
+        if (!label || label.name != "NameLabel" || IsScreenSpaceUI(label))
+            return false;
+
+        if (label.GetComponent<NpcNameLabelBinder>() != null)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>Applies shared styling and ensures <see cref="WorldNameLabelScreenClamp"/> is present.</summary>
+    public static void PrepareWorldSpaceNameLabel(TMP_Text label, SpriteRenderer sortReference = null)
+    {
+        if (!IsEligibleWorldNameLabel(label))
+            return;
+
+        Apply(label, sortReference);
+        EnsureScreenClampComponent(label);
     }
 
     public static void Apply(TMP_Text label, SpriteRenderer sortReference = null)
@@ -57,6 +81,22 @@ public static class WorldNameLabelStyle
         {
             Debug.LogWarning($"[WorldNameLabelStyle] Skipped outline on '{label.name}': {ex.Message}", label);
         }
+    }
+
+    public static void EnsureScreenClampComponent(TMP_Text label)
+    {
+        if (!label || label.GetComponent<WorldNameLabelScreenClamp>() != null)
+            return;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            label.gameObject.AddComponent<WorldNameLabelScreenClamp>();
+            EditorUtility.SetDirty(label.gameObject);
+            return;
+        }
+#endif
+        label.gameObject.AddComponent<WorldNameLabelScreenClamp>();
     }
 
     /// <summary>

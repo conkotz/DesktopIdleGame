@@ -5,8 +5,19 @@ using UnityEngine;
 public sealed class SpawnPrefabCountDrawer : PropertyDrawer
 {
     private const float RemoveButtonWidth = 72f;
+    private const float MoveButtonWidth = 24f;
 
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+    {
+        return GetInspectorHeight(property, label);
+    }
+
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    {
+        DrawInspector(position, property, label);
+    }
+
+    public static float GetInspectorHeight(SerializedProperty property, GUIContent label)
     {
         float total = EditorGUIUtility.singleLineHeight;
         if (!property.isExpanded)
@@ -32,21 +43,62 @@ public sealed class SpawnPrefabCountDrawer : PropertyDrawer
         return total;
     }
 
-    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    public static void DrawInspector(Rect position, SerializedProperty property, GUIContent label)
     {
         float line = EditorGUIUtility.singleLineHeight;
         float vsp = EditorGUIUtility.standardVerticalSpacing;
         Rect row = new Rect(position.x, position.y, position.width, line);
 
         bool canRemove = CanRemoveRow(property);
-        float foldoutWidth = canRemove ? row.width - RemoveButtonWidth - 4f : row.width;
-        Rect foldoutRect = new Rect(row.x, row.y, foldoutWidth, line);
+        SerializedProperty parentArray = null;
+        int rowIndex = -1;
+        bool canMove = canRemove &&
+                       SpawnEditorArrayUtility.TryGetParentArray(property, out parentArray, out rowIndex);
+
+        float trailingWidth = 0f;
+        if (canRemove)
+            trailingWidth += RemoveButtonWidth + 4f;
+        if (canMove)
+            trailingWidth += MoveButtonWidth * 2f + 4f;
+
+        Rect foldoutRect = new Rect(row.x, row.y, Mathf.Max(0f, row.width - trailingWidth), line);
         property.isExpanded = EditorGUI.Foldout(foldoutRect, property.isExpanded, label, true);
 
-        if (canRemove && GUI.Button(new Rect(row.x + row.width - RemoveButtonWidth, row.y, RemoveButtonWidth, line), "Remove"))
+        float buttonX = row.xMax;
+        if (canRemove)
         {
-            SpawnEditorArrayUtility.ScheduleRemoveElement(property);
-            GUIUtility.ExitGUI();
+            buttonX -= RemoveButtonWidth;
+            if (GUI.Button(new Rect(buttonX, row.y, RemoveButtonWidth, line), "Remove"))
+            {
+                SpawnEditorArrayUtility.ScheduleRemoveElement(property);
+                GUIUtility.ExitGUI();
+            }
+        }
+
+        if (canMove)
+        {
+            buttonX -= MoveButtonWidth + 2f;
+            using (new EditorGUI.DisabledScope(rowIndex >= parentArray.arraySize - 1))
+            {
+                if (GUI.Button(new Rect(buttonX, row.y, MoveButtonWidth, line), "Down") &&
+                    rowIndex < parentArray.arraySize - 1)
+                {
+                    parentArray.MoveArrayElement(rowIndex, rowIndex + 1);
+                    parentArray.serializedObject.ApplyModifiedProperties();
+                    GUIUtility.ExitGUI();
+                }
+            }
+
+            buttonX -= MoveButtonWidth + 2f;
+            using (new EditorGUI.DisabledScope(rowIndex <= 0))
+            {
+                if (GUI.Button(new Rect(buttonX, row.y, MoveButtonWidth, line), "Up") && rowIndex > 0)
+                {
+                    parentArray.MoveArrayElement(rowIndex, rowIndex - 1);
+                    parentArray.serializedObject.ApplyModifiedProperties();
+                    GUIUtility.ExitGUI();
+                }
+            }
         }
 
         if (!property.isExpanded)

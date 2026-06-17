@@ -112,6 +112,7 @@ public class HUDPresenter : MonoBehaviour
 
         hud.SetAttackDelay(cycle, aps);
         hud.SetDps(combat != null ? combat.GetCurrentDps() : 0f);
+        hud.SetDashCooldown(PlayerSprintInput.GetSprintDashCooldownReadyFraction());
     }
 
     private void HandleNameChanged(string _)
@@ -160,6 +161,7 @@ public class HUDPresenter : MonoBehaviour
         hud.SetDps(combat != null ? combat.GetCurrentDps() : 0f);
         HandleActionChanged(player.CurrentAction);
         hud.SetGatherDebuff(false, 1f);
+        hud.SetDashCooldown(PlayerSprintInput.GetSprintDashCooldownReadyFraction());
     }
 
     private void RefreshNameAndCombatPower()

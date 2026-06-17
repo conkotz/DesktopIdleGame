@@ -454,6 +454,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private bool _isClosingDistanceForAttack;
     private float _stableCombatSideSign;
     private bool _attackBufferedFromRange;
+    private bool _wasInAttackRangeWithTarget;
+    /// <summary>When retaliation is off, leaving attack range suspends auto-attack/chase until Attack or a combat ability is used again.</summary>
+    private bool _suspendAutoAttackUntilReengage;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
@@ -957,6 +960,24 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _attackBufferedFromRange = true;
         else
             _attackBufferedFromRange = false;
+
+        if (!retaliationEnabled && _target != null)
+        {
+            if (_wasInAttackRangeWithTarget && !inAttackRange)
+                _suspendAutoAttackUntilReengage = true;
+
+            if (_suspendAutoAttackUntilReengage)
+            {
+                _isClosingDistanceForAttack = false;
+                _wasInAttackRangeWithTarget = inAttackRange;
+                player.ClearActionOverride();
+                if (player.IsManualKeyboardSteering)
+                    player.StopMoveOnly();
+                return;
+            }
+        }
+
+        _wasInAttackRangeWithTarget = inAttackRange;
 
         float desiredCenterDist = myRange + myHalf + enemyHalf;
         float dxToEnemy = enemyX - myX;
@@ -2626,6 +2647,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
+        NotifyExplicitCombatEngage();
+
         if (!player)
             player = GetComponent<PlayerController>();
 
@@ -2665,6 +2688,14 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     public void NotifyPlayerInitiatedMovement()
     {
         _combatChaseMovementEnabled = false;
+    }
+
+    /// <summary>Resume auto-attack/chase after the player explicitly uses Attack or a combat ability.</summary>
+    public void NotifyExplicitCombatEngage()
+    {
+        _suspendAutoAttackUntilReengage = false;
+        _attackBufferedFromRange = false;
+        _combatChaseMovementEnabled = true;
     }
 
     /// <summary>Large position snaps (map travel, ability teleports, scene spawn) clear the current combat target.</summary>
@@ -2723,6 +2754,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _target = enemy;
         _isClosingDistanceForAttack = false;
         _attackBufferedFromRange = false;
+        _suspendAutoAttackUntilReengage = false;
+        _wasInAttackRangeWithTarget = false;
         _targetColCached = null;
         _combatChaseMovementEnabled = true;
         TryConsumeBladeDancerDashOnNewTarget(previous, enemy);
@@ -2733,6 +2766,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     {
         _isClosingDistanceForAttack = false;
         _attackBufferedFromRange = false;
+        _suspendAutoAttackUntilReengage = false;
+        _wasInAttackRangeWithTarget = false;
         ClearTargetInternal();
     }
 
@@ -2742,6 +2777,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _targetColCached = null;
         _combatChaseMovementEnabled = true;
         _stableCombatSideSign = 0f;
+        _suspendAutoAttackUntilReengage = false;
+        _wasInAttackRangeWithTarget = false;
 
         if (player)
         {

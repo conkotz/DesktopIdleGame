@@ -1,34 +1,34 @@
-using System.Collections.Generic;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 
 [CustomPropertyDrawer(typeof(LevelSpawnGroupPlan))]
 public sealed class LevelSpawnGroupPlanDrawer : PropertyDrawer
 {
-    private static readonly Dictionary<string, ReorderableList> SpawnsListsByPath = new();
+    public static void InvalidateCachedLists() { }
 
-    public static void InvalidateCachedLists() => SpawnsListsByPath.Clear();
-
-    public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+    public static float GetGroupInspectorHeight(SerializedProperty property, GUIContent label)
     {
+        if (property == null)
+            return EditorGUIUtility.singleLineHeight + 6f;
+
         float h = EditorGUIUtility.singleLineHeight;
         if (!property.isExpanded)
-            return h;
+            return h + 6f;
 
         float vsp = EditorGUIUtility.standardVerticalSpacing;
-        h += vsp + EditorGUIUtility.singleLineHeight * 2f + vsp; // group id + shuffle
-        ReorderableList spawnsList = GetSpawnsList(property);
-        if (spawnsList != null)
-            h += vsp + spawnsList.GetHeight();
-        h += vsp * 2f;
+        h += vsp + EditorGUIUtility.singleLineHeight * 2f + vsp;
+        h += vsp + GetSpawnsListHeight(property.FindPropertyRelative("spawns"));
+        h += vsp * 2f + 6f;
         return h;
     }
 
-    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    public static void DrawGroupInspector(Rect position, SerializedProperty property, GUIContent label)
     {
+        if (property == null)
+            return;
+
         Rect row = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
-        property.isExpanded = EditorGUI.Foldout(row, property.isExpanded, BuildGroupLabel(property), true);
+        property.isExpanded = EditorGUI.Foldout(row, property.isExpanded, label, true);
         if (!property.isExpanded)
             return;
 
@@ -58,12 +58,22 @@ public sealed class LevelSpawnGroupPlanDrawer : PropertyDrawer
             EditorGUI.indentLevel = oldIndent;
         }
 
-        ReorderableList spawnsList = GetSpawnsList(property);
-        if (spawnsList != null)
+        SerializedProperty spawns = property.FindPropertyRelative("spawns");
+        if (spawns != null)
         {
-            Rect listRect = new Rect(row.x, row.y, row.width, spawnsList.GetHeight());
-            spawnsList.DoList(listRect);
+            Rect listRect = new Rect(row.x, row.y, row.width, GetSpawnsListHeight(spawns));
+            DrawSpawnsList(listRect, spawns);
         }
+    }
+
+    public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+    {
+        return GetGroupInspectorHeight(property, label) - 6f;
+    }
+
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    {
+        DrawGroupInspector(position, property, label);
     }
 
     public static string BuildGroupLabel(SerializedProperty property)
@@ -80,52 +90,63 @@ public sealed class LevelSpawnGroupPlanDrawer : PropertyDrawer
         return $"{groupId}  ·  {count} spawn{(count == 1 ? string.Empty : "s")}";
     }
 
-    private static ReorderableList GetSpawnsList(SerializedProperty groupProperty)
+    private static float GetSpawnsListHeight(SerializedProperty spawns)
     {
-        string key = groupProperty.propertyPath;
-        SerializedProperty spawns = groupProperty.FindPropertyRelative("spawns");
-        if (spawns == null)
-            return null;
+        if (spawns == null || !spawns.isArray)
+            return EditorGUIUtility.singleLineHeight;
 
-        if (SpawnsListsByPath.TryGetValue(key, out ReorderableList cached) &&
-            cached.serializedProperty == spawns)
+        float line = EditorGUIUtility.singleLineHeight;
+        float vsp = EditorGUIUtility.standardVerticalSpacing;
+        float h = line + vsp;
+
+        for (int i = 0; i < spawns.arraySize; i++)
         {
-            return cached;
+            SerializedProperty element = spawns.GetArrayElementAtIndex(i);
+            GUIContent rowLabel = SpawnPrefabCountDrawer.BuildRowLabel(element, i);
+            h += SpawnPrefabCountDrawer.GetInspectorHeight(element, rowLabel) + vsp;
         }
 
-        var list = new ReorderableList(groupProperty.serializedObject, spawns, true, true, true, true)
+        h += line + vsp;
+        return h;
+    }
+
+    private static void DrawSpawnsList(Rect listRect, SerializedProperty spawns)
+    {
+        float line = EditorGUIUtility.singleLineHeight;
+        float vsp = EditorGUIUtility.standardVerticalSpacing;
+
+        Rect header = new Rect(listRect.x, listRect.y, listRect.width, line);
+        EditorGUI.LabelField(header, "Spawns", EditorStyles.boldLabel);
+
+        float y = header.yMax + vsp;
+        for (int i = 0; i < spawns.arraySize; i++)
         {
-            drawHeaderCallback = rect =>
-            {
-                EditorGUI.LabelField(rect, "Spawns", EditorStyles.boldLabel);
-            },
-            drawElementCallback = (rect, index, isActive, isFocused) =>
-            {
-                if (!SpawnEditorArrayUtility.IsValidArrayIndex(spawns, index))
-                    return;
+            SerializedProperty element = spawns.GetArrayElementAtIndex(i);
+            GUIContent rowLabel = SpawnPrefabCountDrawer.BuildRowLabel(element, i);
+            float rowHeight = SpawnPrefabCountDrawer.GetInspectorHeight(element, rowLabel);
+            Rect rowRect = new Rect(listRect.x, y, listRect.width, rowHeight);
+            SpawnPrefabCountDrawer.DrawInspector(rowRect, element, rowLabel);
+            y += rowHeight + vsp;
+        }
 
-                SerializedProperty element = spawns.GetArrayElementAtIndex(index);
-                GUIContent rowLabel = SpawnPrefabCountDrawer.BuildRowLabel(element, index);
-                rect.y += 2f;
-                rect.height = EditorGUI.GetPropertyHeight(element, rowLabel, true);
-                EditorGUI.PropertyField(rect, element, rowLabel, true);
-            },
-            elementHeightCallback = index =>
-            {
-                if (!SpawnEditorArrayUtility.IsValidArrayIndex(spawns, index))
-                    return EditorGUIUtility.singleLineHeight + 6f;
+        Rect footer = new Rect(listRect.x, y, listRect.width, line);
+        Rect addButton = new Rect(footer.xMax - 44f, footer.y, 20f, line);
+        Rect removeButton = new Rect(footer.xMax - 20f, footer.y, 20f, line);
 
-                SerializedProperty element = spawns.GetArrayElementAtIndex(index);
-                GUIContent rowLabel = SpawnPrefabCountDrawer.BuildRowLabel(element, index);
-                return EditorGUI.GetPropertyHeight(element, rowLabel, true) + 6f;
-            },
-            onRemoveCallback = list =>
-            {
-                SpawnEditorArrayUtility.ScheduleRemoveAtIndex(spawns, list.index);
-            },
-        };
+        if (GUI.Button(addButton, "+"))
+        {
+            spawns.InsertArrayElementAtIndex(spawns.arraySize);
+            spawns.serializedObject.ApplyModifiedProperties();
+            GUIUtility.ExitGUI();
+        }
 
-        SpawnsListsByPath[key] = list;
-        return list;
+        using (new EditorGUI.DisabledScope(spawns.arraySize <= 0))
+        {
+            if (GUI.Button(removeButton, "-") && spawns.arraySize > 0)
+            {
+                SpawnEditorArrayUtility.ScheduleRemoveAtIndex(spawns, spawns.arraySize - 1);
+                GUIUtility.ExitGUI();
+            }
+        }
     }
 }

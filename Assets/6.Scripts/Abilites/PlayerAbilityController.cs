@@ -2000,6 +2000,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
             combat?.RecordOutgoingSourceUse(GetAbilityOutgoingDamageSourceLabel(def.abilityId));
+            combat?.NotifyExplicitCombatEngage();
         }
 
         ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: true);

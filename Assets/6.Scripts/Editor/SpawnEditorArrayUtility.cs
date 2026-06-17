@@ -65,4 +65,37 @@ internal static class SpawnEditorArrayUtility
 
     public static bool IsValidArrayIndex(SerializedProperty array, int index) =>
         array != null && array.isArray && index >= 0 && index < array.arraySize;
+
+    /// <summary>Space to leave for ReorderableList drag handles so row content does not overlap them.</summary>
+    public const float ReorderableListDragHandleWidth = 18f;
+
+    /// <summary>
+    /// Extra left pad for nested list row content. Unity already indents drawElementCallback ~10px,
+    /// but the drag handle is wider — without this the foldout arrow overlaps the grip.
+    /// </summary>
+    public const float ReorderableListNestedContentLeftPad = 14f;
+
+    public static bool IsInsideReorderableListElement(SerializedProperty element) =>
+        TryGetParentArray(element, out _, out _);
+
+    /// <summary>Insets a list element rect so PropertyField/drawers do not cover the drag handle.</summary>
+    public static Rect GetReorderableListElementContentRect(Rect elementRect, float rightReserve = 0f)
+    {
+        float pad = ReorderableListDragHandleWidth;
+        elementRect.x += pad;
+        elementRect.width = Mathf.Max(0f, elementRect.width - pad - rightReserve);
+        return elementRect;
+    }
+
+    /// <summary>Additional inset for content drawn inside a nested ReorderableList element row.</summary>
+    public static Rect GetNestedReorderableListContentRect(Rect elementRect, float rightReserve = 0f)
+    {
+        float pad = ReorderableListNestedContentLeftPad;
+        elementRect.x += pad;
+        elementRect.width = Mathf.Max(0f, elementRect.width - pad - rightReserve);
+        return elementRect;
+    }
+
+    public static Rect GetReorderableListFoldoutRect(Rect row, float rightReserve = 0f) =>
+        GetReorderableListElementContentRect(row, rightReserve);
 }

@@ -194,6 +194,7 @@ GameObject:
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
   - component: {fileID: 7123456789012345678}
+  - component: {fileID: 400825213290793166}
   m_Layer: 7
   m_Name: LeaveAreaRope
   m_TagString: SignPost
@@ -366,3 +367,18 @@ MonoBehaviour:
   pulseWhenTargeted: 1
   pulseSpeed: 5
   pulseAmount: 0.015
+--- !u!114 &400825213290793166
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8347273920747777605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
+  nameLabels: []
+  searchInactiveChildren: 1
+  sortingReference: {fileID: 433244304700921957}

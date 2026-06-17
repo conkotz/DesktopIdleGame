@@ -21,7 +21,8 @@ public static class ToggleSettingsStore
     private const string DisableScreenOverlayVisualsKey = "Settings.DisableScreenOverlayVisuals";
     private const string ExpandStripBackgroundKey = "Settings.ExpandStripBackground";
     private const string ShowFpsKey = "Settings.ShowFps";
-    private const string MinimiseHudDisplayInTownKey = "Settings.MinimiseHudDisplayInTown";
+    private const string MinimiseHudKey = "Settings.MinimiseHud";
+    private const string LegacyMinimiseHudDisplayInTownKey = "Settings.MinimiseHudDisplayInTown";
     private const string ShowOffscreenMarkersKey = "Settings.ShowOffscreenMarkers";
     private const string ShowIncomingDamageNumbersKey = "Settings.ShowIncomingDamageNumbers";
     private const string ShowOutgoingDamageNumbersKey = "Settings.ShowOutgoingDamageNumbers";
@@ -70,8 +71,8 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
             ToggleSettingId.ShowFps =>
                 PlayerPrefs.GetInt(ShowFpsKey, 0) != 0,
-            ToggleSettingId.MinimiseHudDisplayInTown =>
-                PlayerPrefs.GetInt(MinimiseHudDisplayInTownKey, 0) != 0,
+            ToggleSettingId.MinimiseHud =>
+                GetMinimiseHud(),
             ToggleSettingId.ShowOffscreenMarkers =>
                 PlayerPrefs.GetInt(ShowOffscreenMarkersKey, 1) != 0,
             ToggleSettingId.ShowIncomingDamageNumbers =>
@@ -120,6 +121,23 @@ public static class ToggleSettingsStore
         return true;
     }
 
+    private static bool GetMinimiseHud()
+    {
+        if (PlayerPrefs.HasKey(MinimiseHudKey))
+            return PlayerPrefs.GetInt(MinimiseHudKey, 0) != 0;
+
+        if (PlayerPrefs.HasKey(LegacyMinimiseHudDisplayInTownKey))
+        {
+            bool enabled = PlayerPrefs.GetInt(LegacyMinimiseHudDisplayInTownKey, 0) != 0;
+            PlayerPrefs.SetInt(MinimiseHudKey, enabled ? 1 : 0);
+            PlayerPrefs.DeleteKey(LegacyMinimiseHudDisplayInTownKey);
+            PlayerPrefs.Save();
+            return enabled;
+        }
+
+        return false;
+    }
+
     public static void Set(ToggleSettingId setting, bool value)
     {
         if (Get(setting) == value)
@@ -165,8 +183,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowFps:
                 PlayerPrefs.SetInt(ShowFpsKey, value ? 1 : 0);
                 break;
-            case ToggleSettingId.MinimiseHudDisplayInTown:
-                PlayerPrefs.SetInt(MinimiseHudDisplayInTownKey, value ? 1 : 0);
+            case ToggleSettingId.MinimiseHud:
+                PlayerPrefs.SetInt(MinimiseHudKey, value ? 1 : 0);
+                PlayerPrefs.DeleteKey(LegacyMinimiseHudDisplayInTownKey);
                 break;
             case ToggleSettingId.ShowOffscreenMarkers:
                 PlayerPrefs.SetInt(ShowOffscreenMarkersKey, value ? 1 : 0);
@@ -199,8 +218,8 @@ public static class ToggleSettingsStore
         if (setting == ToggleSettingId.ShowFps)
             FpsDisplayText.RefreshAllFromSettings();
 
-        if (setting == ToggleSettingId.MinimiseHudDisplayInTown)
-            HUDToggle.RefreshAllFromTownSetting();
+        if (setting == ToggleSettingId.MinimiseHud)
+            HUDToggle.RefreshAllFromMinimiseHudSetting();
 
         if (setting == ToggleSettingId.ShowOffscreenMarkers)
             OffscreenMarkersController.RefreshAllFromSettings();
@@ -228,7 +247,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(DisableScreenOverlayVisualsKey);
         PlayerPrefs.DeleteKey(ExpandStripBackgroundKey);
         PlayerPrefs.DeleteKey(ShowFpsKey);
-        PlayerPrefs.DeleteKey(MinimiseHudDisplayInTownKey);
+        PlayerPrefs.DeleteKey(MinimiseHudKey);
+        PlayerPrefs.DeleteKey(LegacyMinimiseHudDisplayInTownKey);
         PlayerPrefs.DeleteKey(ShowOffscreenMarkersKey);
         PlayerPrefs.DeleteKey(ShowIncomingDamageNumbersKey);
         PlayerPrefs.DeleteKey(ShowOutgoingDamageNumbersKey);
@@ -241,7 +261,7 @@ public static class ToggleSettingsStore
         UIWindowCornerResize.RefreshAllHandlesVisibility();
         FullWindowBackgroundPresenter.RefreshAllFromSettings();
         FpsDisplayText.RefreshAllFromSettings();
-        HUDToggle.RefreshAllFromTownSetting();
+        HUDToggle.RefreshAllFromMinimiseHudSetting();
         OffscreenMarkersController.RefreshAllFromSettings();
 
         MovePivotsModeController.RefreshAllFromSettings();
@@ -271,8 +291,8 @@ public static class ToggleSettingsStore
                 "Expand background",
             ToggleSettingId.ShowFps =>
                 "Show FPS",
-            ToggleSettingId.MinimiseHudDisplayInTown =>
-                "Minimise HUD Display in town",
+            ToggleSettingId.MinimiseHud =>
+                "Minimise HUD",
             ToggleSettingId.ShowOffscreenMarkers =>
                 "Show Offscreen Markers",
             ToggleSettingId.ShowIncomingDamageNumbers =>

@@ -329,7 +329,7 @@ public class MapNodePortalTeleporter : MonoBehaviour
             ? node.nodeId
             : node.displayName.Trim();
 
-        WorldNameLabelStyle.Apply(nameLabel, GetComponent<SpriteRenderer>());
+        WorldNameLabelStyle.PrepareWorldSpaceNameLabel(nameLabel, GetComponent<SpriteRenderer>());
     }
 
     private IEnumerator CoAlignBottomEdgeToLaneWhenReady()

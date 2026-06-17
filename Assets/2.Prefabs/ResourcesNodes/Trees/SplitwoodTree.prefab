@@ -111,6 +111,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6659287007320831912}
+  - component: {fileID: 164971398298787503}
   m_Layer: 6
   m_Name: WorkSpotTreeLeft
   m_TagString: Untagged
@@ -643,3 +644,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2658333117554675620}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &164971398298787503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5539026817278968494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
+  nameLabels: []
+  searchInactiveChildren: 1
+  sortingReference: {fileID: 0}

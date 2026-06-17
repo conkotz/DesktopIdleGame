@@ -41,6 +41,21 @@ public class PlayerSprintInput : MonoBehaviour
     public static bool IsSprintDashing { get; private set; }
     public static event Action<bool> SprintStateChanged;
 
+    /// <summary>1 when the sprint mini-dash is off cooldown; 0 immediately after dashing.</summary>
+    public static float GetSprintDashCooldownReadyFraction()
+    {
+        if (_instance == null)
+            return 1f;
+
+        if (Time.time >= _instance._dashCooldownEndsAt)
+            return 1f;
+
+        float remaining = _instance._dashCooldownEndsAt - Time.time;
+        return 1f - Mathf.Clamp01(remaining / SprintDashCooldownSeconds);
+    }
+
+    public static bool IsSprintDashCooldownReady => GetSprintDashCooldownReadyFraction() >= 0.999f;
+
     /// <summary>While true, <see cref="CharacterStats.TickRegen"/> skips energy (stamina) regeneration.</summary>
     public static bool BlocksStaminaRegen { get; private set; }
 

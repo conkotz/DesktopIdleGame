@@ -44,6 +44,13 @@ public class HUDView : MonoBehaviour
     [SerializeField] private Image attackDelayFill;
     [SerializeField] private TMP_Text attackDelayValueText;
 
+    [Header("Dash Cooldown")]
+    [Tooltip("Assign DashCooldown/Fill (sprint mini-dash recharge bar).")]
+    [SerializeField] private Image dashCooldownFill;
+    [Tooltip("Assign DashCooldown/ValueText.")]
+    [SerializeField] private TMP_Text dashCooldownValueText;
+    [SerializeField] private Color dashNotReadyFillColor = new Color(0.62f, 0.28f, 0.28f, 1f);
+
     [Header("Gather Debuff")]
     [SerializeField] private GameObject gatherDebuffRoot;
     [SerializeField] private TMP_Text gatherDebuffText;
@@ -61,6 +68,8 @@ public class HUDView : MonoBehaviour
     private bool _lastPlayerOverlapState;
     private bool _lastEnemyOverlapState;
     private static readonly Vector3[] s_hudOverlapBoundsPoints = new Vector3[5];
+    private bool _dashReadyFillColorCached;
+    private Color _dashReadyFillColor = new Color(0.35f, 0.78f, 0.35f, 1f);
 
     private void Awake()
     {
@@ -413,6 +422,28 @@ public class HUDView : MonoBehaviour
 
         if (attackDelayValueText)
             attackDelayValueText.text = attacksPerSecond > 0f ? $"{attacksPerSecond:0.##} APS" : "0 APS";
+    }
+
+    /// <summary>Sprint mini-dash cooldown (not ability dash). <paramref name="readyFraction"/> is 1 when ready.</summary>
+    public void SetDashCooldown(float readyFraction)
+    {
+        float ready = Mathf.Clamp01(readyFraction);
+        bool isReady = ready >= 0.999f;
+
+        if (dashCooldownFill)
+        {
+            if (!_dashReadyFillColorCached)
+            {
+                _dashReadyFillColor = dashCooldownFill.color;
+                _dashReadyFillColorCached = true;
+            }
+
+            dashCooldownFill.fillAmount = ready;
+            dashCooldownFill.color = isReady ? _dashReadyFillColor : dashNotReadyFillColor;
+        }
+
+        if (dashCooldownValueText)
+            dashCooldownValueText.text = isReady ? "Dash - Ready" : "Dash - Not Ready";
     }
 
     public void SetHealthBarVisible(bool visible)
