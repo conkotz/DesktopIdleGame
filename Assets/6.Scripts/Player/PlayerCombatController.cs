@@ -963,7 +963,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (!retaliationEnabled && _target != null)
         {
-            if (_wasInAttackRangeWithTarget && !inAttackRange)
+            // Only suspend after the player manually disengages chase — not when combat pathing
+            // briefly leaves range while closing on a clicked target.
+            if (_wasInAttackRangeWithTarget && !inAttackRange && !_combatChaseMovementEnabled)
                 _suspendAutoAttackUntilReengage = true;
 
             if (_suspendAutoAttackUntilReengage)
@@ -1751,7 +1753,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         bool riposteLabel = stats != null && stats.GetParryEnhancementPick() == 0;
-        DamagePopupSystem.Instance.SpawnParry(pos, dir, riposteLabel);
+        DamagePopupSystem.Instance.SpawnParry(pos, dir, riposteLabel, transform);
     }
 
     private bool TryPerformParryRiposteAttack(EnemyBaseController attacker)
@@ -2359,6 +2361,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (PlayerAbilityController.SuppressesIdleCombatTargeting)
             return;
 
+        // Manual disengage: do not let idle retargeting re-acquire/repath into melee
+        // until the player explicitly re-engages (attack click/ability).
+        if (!retaliationEnabled && (!_combatChaseMovementEnabled || _suspendAutoAttackUntilReengage))
+            return;
+
         if (Time.time < _nextIdleScanTime) return;
         _nextIdleScanTime = Time.time + Mathf.Max(0.05f, idleRescanInterval);
 
@@ -2683,11 +2690,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private bool _combatChaseMovementEnabled = true;
 
     /// <summary>
-    /// Player moved manually (keyboard, click-to-move, etc.) while a combat target exists — keep target and auto-attack in range, but do not path into range.
+    /// Player moved manually (keyboard, click-to-move, etc.) while a combat target exists — keep target but stop auto-chase and pause auto-attack until re-engage.
     /// </summary>
     public void NotifyPlayerInitiatedMovement()
     {
         _combatChaseMovementEnabled = false;
+        if (!retaliationEnabled && _target != null)
+            _suspendAutoAttackUntilReengage = true;
     }
 
     /// <summary>Resume auto-attack/chase after the player explicitly uses Attack or a combat ability.</summary>

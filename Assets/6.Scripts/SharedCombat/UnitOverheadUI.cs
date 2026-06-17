@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -25,6 +26,8 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("Optional. Shows current guard / natural cap.")]
     [SerializeField] private TMP_Text guardValueText;
     [SerializeField] private TMP_Text hpValueText;
+    [Tooltip("Cumulative compact damage readout — child of HPBar, bottom corner on the unit's back side.")]
+    [SerializeField] private TMP_Text compactDamageText;
     [SerializeField] private Transform debuffContainer;
     [SerializeField] private GameObject debuffIconPrefab;
 
@@ -100,6 +103,16 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField, Min(0.05f)] private float targetMarkerFadeSeconds = 0.75f;
     [SerializeField, Min(0f)] private float targetMarkerHoldAtPeakSeconds = 1.5f;
 
+    [Header("Compact damage (overhead)")]
+    [SerializeField] private Color compactDamageColor = new Color32(220, 40, 40, 255);
+    [SerializeField, Min(8f)] private float compactDamageFontSize = 16f;
+    [SerializeField, Min(0.1f)] private float compactDamageResetAfterSeconds = 5f;
+    [Tooltip("Canvas pixels outside the HP bar midline on the unit's back side (x = horizontal, y = vertical nudge).")]
+    [SerializeField] private Vector2 compactDamageSideOffset = new Vector2(10f, 0f);
+    [SerializeField, Min(0.01f)] private float compactDamagePulseSeconds = 0.085f;
+    [SerializeField, Min(1f)] private float compactDamagePulseMultiplier = 1.2f;
+    [SerializeField, Min(1f)] private float compactDamageCritPulseMultiplier = 1.5f;
+
     [Header("Overlap stack (enemy overhead only)")]
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
     [SerializeField] private bool enableOverlappingStack = true;
@@ -141,6 +154,12 @@ public class UnitOverheadUI : MonoBehaviour
 
     /// <summary>Cached <see cref="SliderSettingId.HudResize"/>; dividing undoes CanvasScaler HUD growth so overhead size follows overhead slider only.</summary>
     private float _hudResizeSlider = 1f;
+
+    private int _compactAccumulatedDamage;
+    private float _compactLastDamageTime;
+    private Coroutine _compactPulseCoroutine;
+    private float _compactBaseFontSize = -1f;
+    private readonly Dictionary<FloatingDamageTextUI.PopupDamageKind, int> _compactDamageByKind = new();
 
     private static readonly List<UnitOverheadUI> s_instances = new();
     private static readonly Dictionary<int, List<UnitOverheadUI>> s_byCanvasScratch = new();
@@ -241,6 +260,8 @@ public class UnitOverheadUI : MonoBehaviour
         if (!ailments) ailments = GetComponentInParent<AilmentController>();
 
         ResolveResourceFillRefs();
+        EnsureCompactDamageText();
+        ClearCompactDamage();
         RefreshOwnerOverheadCaches();
         ApplyPlayerResourceBarVisibility();
         EnsureClickableBacking();
@@ -270,6 +291,7 @@ public class UnitOverheadUI : MonoBehaviour
         ResetPlayerAilmentStatusPopupLatches();
         RemoveStackStateForInstance(GetInstanceID());
         ReturnAllDebuffIconsToPool();
+        ClearCompactDamage();
     }
 
     private void LateUpdate()
@@ -278,6 +300,8 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (_worldBandVisible && root != null && root.gameObject.activeSelf && !ShouldUseOverlapStacking())
             ApplyDirectPosition();
+
+        TickCompactDamage();
 
         if (_isPlayerOverheadCached && Time.unscaledTime >= _nextPlayerOverheadOrderTime)
         {
@@ -1141,6 +1165,26 @@ public class UnitOverheadUI : MonoBehaviour
         return ui.TryGetWorldPosBesideOverheadForStatusPopup(sideSign, screenPixelOffset, out worldPos);
     }
 
+    /// <summary>
+    /// Adds damage to this unit's embedded compact readout when the setting is enabled.
+    /// Returns false when compact mode is off or no overhead UI is bound to <paramref name="victim"/>.
+    /// </summary>
+    public static bool NotifyCompactDamage(
+        Transform victim,
+        int amount,
+        bool isCrit,
+        FloatingDamageTextUI.PopupDamageKind kind)
+    {
+        if (!ToggleSettingsStore.Get(ToggleSettingId.CompactDamageNumbers))
+            return false;
+
+        if (!TryFindOverheadForTransform(victim, out UnitOverheadUI ui))
+            return false;
+
+        ui.AddCompactDamage(amount, isCrit, kind);
+        return true;
+    }
+
     private bool TryGetWorldPosBesideOverheadForStatusPopup(
         float sideSign,
         float screenPixelOffset,
@@ -1177,6 +1221,189 @@ public class UnitOverheadUI : MonoBehaviour
             worldPos.z = ft.position.z;
 
         return true;
+    }
+
+    private void EnsureCompactDamageText()
+    {
+        if (compactDamageText)
+            return;
+
+        Transform searchRoot = root != null ? root : transform;
+        Transform t = searchRoot.Find("OverheadUIRoot/HPBar/CompactDamageText");
+        if (t)
+            compactDamageText = t.GetComponent<TMP_Text>();
+    }
+
+    private void AddCompactDamage(int amount, bool isCrit, FloatingDamageTextUI.PopupDamageKind kind)
+    {
+        if (amount <= 0)
+            return;
+
+        EnsureCompactDamageText();
+        if (!compactDamageText)
+            return;
+
+        _compactAccumulatedDamage += amount;
+        _compactLastDamageTime = Time.unscaledTime;
+
+        if (!_compactDamageByKind.TryGetValue(kind, out int bucket))
+            bucket = 0;
+        _compactDamageByKind[kind] = bucket + amount;
+
+        FloatingDamageTextUI.PopupDamageKind dominantKind = ResolveDominantCompactDamageKind();
+        compactDamageText.text = _compactAccumulatedDamage.ToString();
+        compactDamageText.color = FloatingDamageTextUI.ResolveCompactColor(dominantKind);
+        if (_compactBaseFontSize < 0f)
+            _compactBaseFontSize = compactDamageFontSize > 0f ? compactDamageFontSize : compactDamageText.fontSize;
+        compactDamageText.fontSize = _compactBaseFontSize;
+        compactDamageText.raycastTarget = false;
+
+        if (!compactDamageText.gameObject.activeSelf)
+            compactDamageText.gameObject.SetActive(true);
+
+        ApplyCompactDamageAnchorSide();
+        StartCompactDamagePulse(isCrit);
+    }
+
+    private FloatingDamageTextUI.PopupDamageKind ResolveDominantCompactDamageKind()
+    {
+        int best = -1;
+        FloatingDamageTextUI.PopupDamageKind bestKind = FloatingDamageTextUI.PopupDamageKind.Physical;
+        foreach (var kvp in _compactDamageByKind)
+        {
+            if (kvp.Value > best)
+            {
+                best = kvp.Value;
+                bestKind = kvp.Key;
+            }
+        }
+
+        return bestKind;
+    }
+
+    private void TickCompactDamage()
+    {
+        if (_compactAccumulatedDamage <= 0)
+            return;
+
+        if (Time.unscaledTime - _compactLastDamageTime >= compactDamageResetAfterSeconds)
+        {
+            ClearCompactDamage();
+            return;
+        }
+
+        ApplyCompactDamageAnchorSide();
+    }
+
+    private void ClearCompactDamage()
+    {
+        _compactAccumulatedDamage = 0;
+        _compactLastDamageTime = 0f;
+        _compactDamageByKind.Clear();
+
+        if (_compactPulseCoroutine != null)
+        {
+            StopCoroutine(_compactPulseCoroutine);
+            _compactPulseCoroutine = null;
+        }
+
+        if (!compactDamageText)
+            return;
+
+        RectTransform rt = compactDamageText.rectTransform;
+        if (rt)
+            rt.localScale = Vector3.one;
+
+        compactDamageText.text = string.Empty;
+        compactDamageText.gameObject.SetActive(false);
+    }
+
+    private void ApplyCompactDamageAnchorSide()
+    {
+        if (!compactDamageText)
+            return;
+
+        RectTransform rt = compactDamageText.rectTransform;
+        if (!rt)
+            return;
+
+        bool backsideLeft = ResolveCompactBacksideIsLeft();
+        if (enemy != null)
+            backsideLeft = !backsideLeft;
+
+        if (backsideLeft)
+        {
+            rt.anchorMin = new Vector2(0f, 0.5f);
+            rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.anchoredPosition = new Vector2(-compactDamageSideOffset.x, compactDamageSideOffset.y);
+            compactDamageText.alignment = TextAlignmentOptions.MidlineRight;
+        }
+        else
+        {
+            rt.anchorMin = new Vector2(1f, 0.5f);
+            rt.anchorMax = new Vector2(1f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(compactDamageSideOffset.x, compactDamageSideOffset.y);
+            compactDamageText.alignment = TextAlignmentOptions.MidlineLeft;
+        }
+    }
+
+    private bool ResolveCompactBacksideIsLeft()
+    {
+        if (_isPlayerOverheadCached && characterStats != null)
+        {
+            PlayerController player = characterStats.GetComponentInParent<PlayerController>();
+            if (player != null)
+                return player.FacingDirectionX >= 0f;
+        }
+
+        if (enemy != null)
+        {
+            Transform visuals = enemy.GetVisualsRootTransform();
+            if (visuals != null)
+            {
+                float sx = visuals.localScale.x;
+                if (!Mathf.Approximately(sx, 0f))
+                    return sx >= 0f;
+            }
+        }
+
+        return false;
+    }
+
+    private void StartCompactDamagePulse(bool isCrit)
+    {
+        if (!compactDamageText)
+            return;
+
+        if (_compactPulseCoroutine != null)
+            StopCoroutine(_compactPulseCoroutine);
+
+        _compactPulseCoroutine = StartCoroutine(RunCompactDamagePulse(isCrit));
+    }
+
+    private IEnumerator RunCompactDamagePulse(bool isCrit)
+    {
+        RectTransform rt = compactDamageText ? compactDamageText.rectTransform : null;
+        float pulseMul = isCrit ? compactDamageCritPulseMultiplier : compactDamagePulseMultiplier;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.01f, compactDamagePulseSeconds);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float scale = Mathf.Lerp(pulseMul, 1f, t);
+            if (rt)
+                rt.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        if (rt)
+            rt.localScale = Vector3.one;
+
+        _compactPulseCoroutine = null;
     }
 
     /// <summary>
@@ -1624,6 +1851,10 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (setting == ToggleSettingId.ShowOverheadHealthGuardNumbers)
             ApplyOverheadNumericLabelPreference();
+
+        if (setting == ToggleSettingId.CompactDamageNumbers &&
+            !ToggleSettingsStore.Get(ToggleSettingId.CompactDamageNumbers))
+            ClearCompactDamage();
     }
 
     private void ApplyOverheadNumericLabelPreference()

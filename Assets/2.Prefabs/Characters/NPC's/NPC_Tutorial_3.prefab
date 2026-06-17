@@ -274,6 +274,7 @@ MonoBehaviour:
   dialogueFollowWorldAnchor: {fileID: 5675192697863424119}
   dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 10
+  onlyShowDialogueWhenNoQuestAvailable: 0
   openDialogueOnFirstSighting: 1
   walkPlayerToNpcOnClick: 1
   openWhenWithinXDistance: 0.15
@@ -456,6 +457,7 @@ GameObject:
   - component: {fileID: 5657450656003079448}
   - component: {fileID: 4395583072354246891}
   - component: {fileID: 3195782117559173001}
+  - component: {fileID: -679538171120796170}
   m_Layer: 7
   m_Name: NameLabel
   m_TagString: Untagged
@@ -628,6 +630,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 4395583072354246891}
   m_maskType: 0
+--- !u!114 &-679538171120796170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6925984729412348128}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b2c3d4e5f6789012345678abcdef01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelScreenClamp
+  screenTopMarginPixels: 6
 --- !u!1001 &7374151298560051907
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -36,7 +36,8 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private float fadeOutSeconds = 0.25f;
 
     [Header("Crit")]
-    [SerializeField] private float critSizeMultiplier = 1.85f;
+    [SerializeField] private float normalHitSizeMultiplier = 0.88f;
+    [SerializeField] private float critSizeMultiplier = 1.55f;
     [SerializeField] private float critExtraLifetime = 1f;
     [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.15f;
 
@@ -71,6 +72,10 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
     [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
     [SerializeField] private Color healingColor = new Color32(100, 255, 140, 255);
+    [SerializeField] private Color compactDamageColor = new Color32(220, 40, 40, 255);
+    [SerializeField, Min(0.01f)] private float compactPulseSeconds = 0.085f;
+    [SerializeField, Min(1f)] private float compactPulseMultiplier = 1.2f;
+    [SerializeField, Min(1f)] private float compactCritPulseMultiplier = 1.5f;
 
     [Header("Ailment presentation (HP tint + first-apply status popups)")]
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
@@ -85,6 +90,9 @@ public class FloatingDamageTextUI : MonoBehaviour
 
     private float _baseFontSize;
     private Coroutine _run;
+    private bool _isNumericDamage;
+    private bool _isDotNumeric;
+    private float _spawnedAt;
 
     /// <summary>Set by <see cref="DamagePopupSystem"/> so popups follow world hits while the strip camera pans.</summary>
     private Vector3 _worldAnchor;
@@ -111,6 +119,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         if (!group) group = GetComponent<CanvasGroup>();
         if (!rect) rect = GetComponent<RectTransform>();
         if (!group) group = gameObject.AddComponent<CanvasGroup>();
+        if (text) text.raycastTarget = false;
 
         if (text != null)
             _baseFontSize = text.fontSize;
@@ -157,6 +166,11 @@ public class FloatingDamageTextUI : MonoBehaviour
         _parentRect = null;
         _overlayEventCam = null;
         _hasCachedAnchorLocal = false;
+        _isNumericDamage = false;
+        _isDotNumeric = false;
+        _spawnedAt = 0f;
+        if (rect)
+            rect.localScale = Vector3.one;
     }
 
     public void Init(int amount, PopupDamageKind kind, bool isCrit, bool isDot, Vector3 worldDirection)
@@ -170,6 +184,9 @@ public class FloatingDamageTextUI : MonoBehaviour
         text.text = amount.ToString();
         text.color = GetDisplayColor(kind, isCrit);
         text.fontSize = GetDisplayFontSize(kind, isCrit, isDot);
+        _isNumericDamage = true;
+        _isDotNumeric = isDot;
+        _spawnedAt = Time.unscaledTime;
 
         float totalVisible = visibleSeconds + fadeOutSeconds;
         if (isCrit)
@@ -179,6 +196,26 @@ public class FloatingDamageTextUI : MonoBehaviour
 
         if (_run != null) StopCoroutine(_run);
         _run = StartCoroutine(Run(dir, totalVisible));
+    }
+
+    public void InitCompactDamage(int amount, bool pulseCrit)
+    {
+        if (!text)
+            return;
+
+        if (_run != null)
+            StopCoroutine(_run);
+
+        _isNumericDamage = true;
+        _isDotNumeric = false;
+        _spawnedAt = Time.unscaledTime;
+
+        text.text = Mathf.Max(0, amount).ToString();
+        text.color = compactDamageColor;
+        text.fontSize = _baseFontSize * normalHitSizeMultiplier;
+        text.outlineWidth = 0f;
+        group.alpha = 1f;
+        _run = StartCoroutine(RunCompactPulse(pulseCrit));
     }
 
     public void InitBlocked(Vector3 worldDirection = default)
@@ -228,6 +265,9 @@ public class FloatingDamageTextUI : MonoBehaviour
         text.color = color;
         text.fontSize = GetStatusFontSize();
         ApplyStunStatusOutlineIfNeeded(message);
+        _isNumericDamage = false;
+        _isDotNumeric = false;
+        _spawnedAt = Time.unscaledTime;
 
         if (_run != null) StopCoroutine(_run);
         _run = StartCoroutine(RunLingering(lingeringStatusLifetimeSeconds));
@@ -286,9 +326,20 @@ public class FloatingDamageTextUI : MonoBehaviour
         return c;
     }
 
+    /// <summary>Shared colour lookup for embedded overhead compact damage readouts.</summary>
+    public static Color ResolveCompactColor(PopupDamageKind kind, bool isCrit = false)
+    {
+        FloatingDamageTextUI prefab = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+        if (prefab)
+            return prefab.GetDisplayColor(kind, isCrit);
+        return new Color32(220, 40, 40, 255);
+    }
+
+    public Color GetDisplayColorForKind(PopupDamageKind kind, bool isCrit) => GetDisplayColor(kind, isCrit);
+
     private float GetDisplayFontSize(PopupDamageKind kind, bool isCrit, bool isDot)
     {
-        float size = _baseFontSize;
+        float size = _baseFontSize * normalHitSizeMultiplier;
 
         if (isDot)
         {
@@ -302,6 +353,17 @@ public class FloatingDamageTextUI : MonoBehaviour
             size *= critSizeMultiplier;
 
         return size;
+    }
+
+    public bool IsNumericDamage => _isNumericDamage;
+    public bool IsDotNumeric => _isDotNumeric;
+    public float SpawnedAt => _spawnedAt;
+
+    public void ExpireQuickly(float quickFadeSeconds = 0.12f)
+    {
+        if (_run != null)
+            StopCoroutine(_run);
+        _run = StartCoroutine(RunQuickExpire(Mathf.Max(0.04f, quickFadeSeconds)));
     }
 
     private static Color Brighten(Color c, float mult)
@@ -465,6 +527,47 @@ public class FloatingDamageTextUI : MonoBehaviour
                 group.alpha = 1f - fadeP;
             }
 
+            yield return null;
+        }
+
+        ReleasePopup();
+    }
+
+    private IEnumerator RunCompactPulse(bool pulseCrit)
+    {
+        float pulseMul = pulseCrit ? compactCritPulseMultiplier : compactPulseMultiplier;
+        float elapsed = 0f;
+        float duration = Mathf.Max(0.01f, compactPulseSeconds);
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float scale = Mathf.Lerp(pulseMul, 1f, t);
+            if (rect)
+                rect.localScale = new Vector3(scale, scale, 1f);
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
+            yield return null;
+        }
+
+        if (rect)
+            rect.localScale = Vector3.one;
+        group.alpha = 1f;
+        _run = null;
+    }
+
+    private IEnumerator RunQuickExpire(float seconds)
+    {
+        float startAlpha = group ? group.alpha : 1f;
+        float elapsed = 0f;
+        while (elapsed < seconds)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / seconds);
+            if (group)
+                group.alpha = Mathf.Lerp(startAlpha, 0f, t);
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
             yield return null;
         }
 

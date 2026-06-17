@@ -50,4 +50,7 @@ public enum ToggleSettingId
 
     /// <summary>When true (default), the dev testing toolbar (<see cref="DevTestingPanelUI"/>) is visible.</summary>
     ShowDevPanel = 17,
+
+    /// <summary>When true, numeric damage popups are aggregated into a compact per-target counter.</summary>
+    CompactDamageNumbers = 18,
 }

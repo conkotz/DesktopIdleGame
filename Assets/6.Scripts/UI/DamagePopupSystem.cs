@@ -25,16 +25,20 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float popupYOffsetStep = 16f;
     [SerializeField] private float popupXJitter = 8f;
     [SerializeField] private int popupYOffsetCycle = 4;
+    [SerializeField] private float numericSpawnSideOffsetWorld = 0.18f;
+    [SerializeField] private float numericSpawnYOffsetWorld = 0.08f;
 
     public const float LingeringStatusLifetimeSeconds = 1.5f;
     [SerializeField] private float statusPopupSideOffset = 0.35f;
     [Tooltip("World-space Y added at the victim anchor before projecting to screen.")]
     [SerializeField] private float statusPopupYOffset = 0.12f;
     [Tooltip("Extra screen-space Y (pixels) for status labels (Poisoned, Stunned, Blocked, etc.). Negative moves down, below overhead debuff icons.")]
-    [SerializeField] private float statusPopupScreenYOffset = -36f;
+    [SerializeField] private float statusPopupScreenYOffset = -48f;
     [SerializeField] private float statusPopupXJitter = 3f;
     [Tooltip("Extra screen pixels beyond the overhead UI half-width when placing status labels beside the strip bar.")]
-    [SerializeField] private float statusPopupBesideOverheadScreenPx = 72f;
+    [SerializeField] private float statusPopupBesideOverheadScreenPx = 90f;
+    [Tooltip("Additional downward screen offset for player status/effect labels only (negative = lower).")]
+    [SerializeField] private float playerStatusPopupScreenYOffset = -10f;
     [Tooltip("Vertical screen offset between simultaneous status labels on the same unit (Burnt / Shocked, etc.).")]
     [SerializeField] private float statusPopupStackYOffsetStep = 18f;
     [SerializeField] private float statusPopupStackBatchSeconds = 0.2f;
@@ -49,6 +53,9 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField, Min(8)] private int maxActivePopups = 48;
     [Tooltip("Caps numeric damage popups per frame so multi-hit channels (Whirlwind) do not GC-spike.")]
     [SerializeField, Min(4)] private int maxNumericPopupSpawnsPerFrame = 12;
+    [SerializeField, Min(1)] private int maxActiveHitPopupsPerTarget = 4;
+    [SerializeField, Min(1)] private int maxActiveDotPopupsPerTarget = 2;
+    [SerializeField, Min(0.04f)] private float overflowQuickFadeSeconds = 0.12f;
 
     private int _popupSpawnIndex = 0;
     private int _numericPopupSpawnsThisFrame;
@@ -58,17 +65,29 @@ public class DamagePopupSystem : MonoBehaviour
     private readonly List<FloatingDamageTextUI> _active = new();
     private readonly Dictionary<FloatingDamageTextUI, PopupFollowData> _followers = new();
     private readonly Dictionary<int, StatusPopupStackState> _statusPopupStackByAnchorId = new();
+    private readonly Dictionary<int, TargetPopupState> _targetPopupStates = new();
+    private readonly Dictionary<FloatingDamageTextUI, int> _popupOwnerTargetId = new();
+    private static readonly List<int> DeadTargetIdsScratch = new(32);
 
     private struct PopupFollowData
     {
         public Vector3 WorldAnchor;
         public Vector2 SpawnJitter;
+        public Transform FollowTarget;
+        public Vector3 TargetWorldOffset;
     }
 
     private struct StatusPopupStackState
     {
         public int Count;
         public float LastSpawnTime;
+    }
+
+    private sealed class TargetPopupState
+    {
+        public readonly List<FloatingDamageTextUI> Hits = new(4);
+        public readonly List<FloatingDamageTextUI> Dots = new(2);
+        public float LastDamageTime;
     }
 
     private Camera _worldProjectionCamera;
@@ -91,6 +110,7 @@ public class DamagePopupSystem : MonoBehaviour
     private void LateUpdate()
     {
         RefreshFollowerPositions();
+        RefreshTargetPopupStates();
     }
 
     internal void Release(FloatingDamageTextUI floater)
@@ -101,6 +121,15 @@ public class DamagePopupSystem : MonoBehaviour
         floater.PrepareForPool();
         _followers.Remove(floater);
         _active.Remove(floater);
+        if (_popupOwnerTargetId.TryGetValue(floater, out int ownerId))
+        {
+            _popupOwnerTargetId.Remove(floater);
+            if (_targetPopupStates.TryGetValue(ownerId, out TargetPopupState state))
+            {
+                state.Hits.Remove(floater);
+                state.Dots.Remove(floater);
+            }
+        }
         floater.gameObject.SetActive(false);
         _pool.Push(floater);
     }
@@ -162,7 +191,12 @@ public class DamagePopupSystem : MonoBehaviour
         Release(_active[0]);
     }
 
-    private void RegisterFollower(FloatingDamageTextUI floater, Vector3 worldAnchor, Vector2 spawnJitter)
+    private void RegisterFollower(
+        FloatingDamageTextUI floater,
+        Vector3 worldAnchor,
+        Vector2 spawnJitter,
+        Transform followTarget = null,
+        Vector3 targetWorldOffset = default)
     {
         if (!floater)
             return;
@@ -170,7 +204,9 @@ public class DamagePopupSystem : MonoBehaviour
         _followers[floater] = new PopupFollowData
         {
             WorldAnchor = worldAnchor,
-            SpawnJitter = spawnJitter
+            SpawnJitter = spawnJitter,
+            FollowTarget = followTarget,
+            TargetWorldOffset = targetWorldOffset
         };
     }
 
@@ -197,7 +233,10 @@ public class DamagePopupSystem : MonoBehaviour
             if (!floater || !_followers.TryGetValue(floater, out PopupFollowData data))
                 continue;
 
-            Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(data.WorldAnchor);
+            Vector3 worldAnchor = data.WorldAnchor;
+            if (data.FollowTarget)
+                worldAnchor = data.FollowTarget.position + data.TargetWorldOffset;
+            Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldAnchor);
             if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     rectForMath, screenPos, eventCam, out Vector2 local))
             {
@@ -255,6 +294,8 @@ public class DamagePopupSystem : MonoBehaviour
                 c.overrideSorting = true;
                 c.sortingOrder = damageFxCanvasSortOrder;
                 StretchFullScreen(rt);
+                UnityEngine.UI.GraphicRaycaster existingRay = existing.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+                if (existingRay) existingRay.enabled = false;
                 _popupParentRect = rt;
                 return;
             }
@@ -269,7 +310,11 @@ public class DamagePopupSystem : MonoBehaviour
         overlay.sortingOrder = damageFxCanvasSortOrder;
 
         var ray = root.GetComponent<UnityEngine.UI.GraphicRaycaster>();
-        if (ray) ray.blockingObjects = UnityEngine.UI.GraphicRaycaster.BlockingObjects.None;
+        if (ray)
+        {
+            ray.blockingObjects = UnityEngine.UI.GraphicRaycaster.BlockingObjects.None;
+            ray.enabled = false;
+        }
 
         RectTransform ort = root.GetComponent<RectTransform>();
         StretchFullScreen(ort);
@@ -409,7 +454,8 @@ public class DamagePopupSystem : MonoBehaviour
         bool isCrit,
         bool isDot,
         Vector3 direction,
-        bool blocked = false)
+        bool blocked = false,
+        Transform target = null)
     {
         bool isLingeringStatus =
             blocked ||
@@ -438,6 +484,19 @@ public class DamagePopupSystem : MonoBehaviour
             _popupSpawnIndex++;
         }
 
+        if (!isLingeringStatus && target != null &&
+            UnitOverheadUI.NotifyCompactDamage(target, amount, isCrit, kind))
+            return;
+
+        if (!isLingeringStatus)
+        {
+            float sideSign = Mathf.Sign(direction.x);
+            if (Mathf.Approximately(sideSign, 0f))
+                sideSign = 1f;
+            worldPos.x += sideSign * numericSpawnSideOffsetWorld;
+            worldPos.y += numericSpawnYOffsetWorld;
+        }
+
         if (!TryRentFloater(worldPos, new Vector2(xJitter, yOffset), out FloatingDamageTextUI floater))
             return;
 
@@ -447,6 +506,9 @@ public class DamagePopupSystem : MonoBehaviour
             floater.InitBlocked(direction);
         else
             floater.Init(amount, kind, isCrit, isDot, direction);
+
+        if (!isLingeringStatus && target != null)
+            TrackNumericPopupForTarget(target, floater, isDot);
     }
 
     /// <summary>Lingering status text (ailments, Blocked, Parry) — pinned in place, no travel arc.</summary>
@@ -462,7 +524,15 @@ public class DamagePopupSystem : MonoBehaviour
     }
 
     private float GetStatusLabelScreenYOffset(Transform stackAnchor = null) =>
-        statusPopupScreenYOffset + ResolveStatusPopupStackYOffset(stackAnchor);
+        GetStatusBaseScreenYOffset(stackAnchor) + ResolveStatusPopupStackYOffset(stackAnchor);
+
+    private float GetStatusBaseScreenYOffset(Transform stackAnchor = null)
+    {
+        float y = statusPopupScreenYOffset;
+        if (stackAnchor != null && stackAnchor.GetComponentInParent<PlayerController>() != null)
+            y += playerStatusPopupScreenYOffset;
+        return y;
+    }
 
     private float ResolveStatusPopupStackYOffset(Transform stackAnchor)
     {
@@ -510,11 +580,12 @@ public class DamagePopupSystem : MonoBehaviour
     }
 
     /// <summary>Parry / Riposte on the player (incoming-damage placement), separate colour from Blocked.</summary>
-    public void SpawnParry(Vector3 worldPos, Vector3 direction = default, bool riposteLabel = false)
+    public void SpawnParry(Vector3 worldPos, Vector3 direction = default, bool riposteLabel = false, Transform stackAnchor = null)
     {
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
 
-        if (!TryRentFloater(worldPos, new Vector2(xJitter, statusPopupScreenYOffset), out FloatingDamageTextUI floater))
+        float yOffset = GetStatusBaseScreenYOffset(stackAnchor);
+        if (!TryRentFloater(worldPos, new Vector2(xJitter, yOffset), out FloatingDamageTextUI floater))
             return;
 
         floater.InitParry(direction, riposteLabel ? "Riposte" : "Parry");
@@ -529,8 +600,67 @@ public class DamagePopupSystem : MonoBehaviour
             isCrit,
             false,
             direction,
-            blocked
+            blocked,
+            null
         );
+    }
+
+    private void TrackNumericPopupForTarget(Transform target, FloatingDamageTextUI floater, bool isDot)
+    {
+        if (!target || !floater)
+            return;
+
+        int id = target.GetInstanceID();
+        if (!_targetPopupStates.TryGetValue(id, out TargetPopupState state))
+        {
+            state = new TargetPopupState();
+            _targetPopupStates[id] = state;
+        }
+
+        List<FloatingDamageTextUI> list = isDot ? state.Dots : state.Hits;
+        int maxAllowed = isDot ? maxActiveDotPopupsPerTarget : maxActiveHitPopupsPerTarget;
+        list.Add(floater);
+        _popupOwnerTargetId[floater] = id;
+        state.LastDamageTime = Time.unscaledTime;
+
+        while (list.Count > maxAllowed)
+        {
+            FloatingDamageTextUI oldest = list[0];
+            list.RemoveAt(0);
+            if (oldest)
+                oldest.ExpireQuickly(overflowQuickFadeSeconds);
+        }
+    }
+
+    private void RefreshTargetPopupStates()
+    {
+        if (_targetPopupStates.Count == 0)
+            return;
+
+        DeadTargetIdsScratch.Clear();
+        foreach (var kvp in _targetPopupStates)
+        {
+            int id = kvp.Key;
+            TargetPopupState state = kvp.Value;
+
+            PruneDeadPopups(state.Hits);
+            PruneDeadPopups(state.Dots);
+
+            if (state.Hits.Count == 0 && state.Dots.Count == 0)
+                DeadTargetIdsScratch.Add(id);
+        }
+
+        for (int i = 0; i < DeadTargetIdsScratch.Count; i++)
+            _targetPopupStates.Remove(DeadTargetIdsScratch[i]);
+    }
+
+    private static void PruneDeadPopups(List<FloatingDamageTextUI> list)
+    {
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            if (!list[i])
+                list.RemoveAt(i);
+        }
     }
 
     public static Vector3 GetDamagePopupPos(Transform victim, Transform attacker, float xOffset = 0.35f, float yOffset = 1.2f)

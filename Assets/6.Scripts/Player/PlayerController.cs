@@ -4315,7 +4315,8 @@ public class PlayerController : MonoBehaviour
                 wasCrit,
                 false,
                 dir,
-                blocked
+                blocked,
+                transform
             );
         }
 

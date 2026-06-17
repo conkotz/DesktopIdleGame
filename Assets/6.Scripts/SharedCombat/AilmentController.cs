@@ -1406,7 +1406,8 @@ public class AilmentController : MonoBehaviour
                     wasCrit,
                     true,
                     dir,
-                    false
+                    false,
+                    popupOwner
                 );
             }
         }

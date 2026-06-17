@@ -28,6 +28,7 @@ public static class ToggleSettingsStore
     private const string ShowOutgoingDamageNumbersKey = "Settings.ShowOutgoingDamageNumbers";
     private const string MoveWindowPivotsKey = "Settings.MoveWindowPivots";
     private const string ShowDevPanelKey = "Settings.ShowDevPanel";
+    private const string CompactDamageNumbersKey = "Settings.CompactDamageNumbers";
 
     private static bool _moveWindowPivotsSessionActive;
 
@@ -82,6 +83,8 @@ public static class ToggleSettingsStore
             ToggleSettingId.MoveWindowPivots => _moveWindowPivotsSessionActive,
             ToggleSettingId.ShowDevPanel =>
                 PlayerPrefs.GetInt(ShowDevPanelKey, 1) != 0,
+            ToggleSettingId.CompactDamageNumbers =>
+                PlayerPrefs.GetInt(CompactDamageNumbersKey, 0) != 0,
             _ => false
         };
     }
@@ -204,6 +207,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowDevPanel:
                 PlayerPrefs.SetInt(ShowDevPanelKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.CompactDamageNumbers:
+                PlayerPrefs.SetInt(CompactDamageNumbersKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -254,6 +260,7 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(ShowOutgoingDamageNumbersKey);
         PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
         PlayerPrefs.DeleteKey(ShowDevPanelKey);
+        PlayerPrefs.DeleteKey(CompactDamageNumbersKey);
         PlayerPrefs.Save();
 
         _moveWindowPivotsSessionActive = false;
@@ -303,6 +310,8 @@ public static class ToggleSettingsStore
                 "Move pivots",
             ToggleSettingId.ShowDevPanel =>
                 "Show dev panel (TESTING ONLY SETTING)",
+            ToggleSettingId.CompactDamageNumbers =>
+                "Compact damage numbers",
             _ => setting.ToString()
         };
     }

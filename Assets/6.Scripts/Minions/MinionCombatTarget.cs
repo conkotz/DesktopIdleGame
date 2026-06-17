@@ -125,7 +125,8 @@ public class MinionCombatTarget : MonoBehaviour
                     wasCrit,
                     false,
                     dir,
-                    false);
+                    false,
+                    transform);
             }
         }
 

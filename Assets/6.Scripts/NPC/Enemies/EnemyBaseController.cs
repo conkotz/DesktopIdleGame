@@ -1089,7 +1089,8 @@ public class EnemyBaseController : MonoBehaviour
                 false,
                 false,
                 dir,
-                false);
+                false,
+                transform);
             TrySpawnExecuteStatusPopup(attacker);
         }
 
@@ -1481,7 +1482,8 @@ public class EnemyBaseController : MonoBehaviour
                 wasCrit,
                 false,
                 dir,
-                blocked
+                blocked,
+                transform
             );
         }
 
@@ -1538,7 +1540,8 @@ public class EnemyBaseController : MonoBehaviour
                 wasCrit,
                 true,
                 dir,
-                false
+                false,
+                transform
             );
         }
 
