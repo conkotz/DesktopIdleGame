@@ -15,9 +15,9 @@ MonoBehaviour:
   itemKind: 4
   maxStack: 1
   itemId: crit_ring
-  displayName: Ring of Criticality
+  displayName: Criticality Ring
   displayNameSingular: 
-  icon: {fileID: 2728922230372981397, guid: 5ca973e8ef854ef429412302e7b8f6a9, type: 3}
+  icon: {fileID: 2990212776707475007, guid: ac973c93083da51478234ecaea5660ca, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -33,6 +33,7 @@ MonoBehaviour:
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
+    weaponWeight: 0
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -71,7 +73,6 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -114,7 +115,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0
+    meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -142,6 +143,8 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
@@ -173,6 +176,7 @@ MonoBehaviour:
     secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -186,6 +190,8 @@ MonoBehaviour:
       effectId: 
     baitTier: 0
     fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
     openRequiredAmount: 0
     openableLoot: []
     foodEffectDurationSeconds: 0
@@ -198,6 +204,7 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
   enhancementScrollStats:
     successChance: 0
     targetStat: 0
@@ -208,6 +215,9 @@ MonoBehaviour:
     destroyChanceOnFailure: 0
     cursed: 0
     allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 0
+    modRolls: []
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

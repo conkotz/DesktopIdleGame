@@ -16,7 +16,8 @@ MonoBehaviour:
   maxStack: 1
   itemId: physical_damage_pendant
   displayName: Pendant of Physical Damage
-  icon: {fileID: 975548719773553121, guid: 81a21ba160b98c74c9b3f31ebc80a22f, type: 3}
+  displayNameSingular: 
+  icon: {fileID: 3726802059033397765, guid: ac973c93083da51478234ecaea5660ca, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -28,7 +29,11 @@ MonoBehaviour:
   rarity: 2
   value: 800
   equipSlot: 7
+  uniquelyEquipped: 0
   handVisualKey: 0
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
+  enhancementScrollHistory: []
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
@@ -48,6 +53,8 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
+    rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
     magicAilmentApplyChance: 0
@@ -56,15 +63,16 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
+    weaponWeight: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -82,12 +90,16 @@ MonoBehaviour:
     bonusResourceFindChance: 0
     staminaEfficiency: 0
   armorStats:
+    equipmentTier: 0
     armor: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    energyEfficiency: 0
+    flatGuard: 0
+    maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
@@ -99,10 +111,11 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0.1
+    meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -114,6 +127,11 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
@@ -125,10 +143,16 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
+    chillChance: 0
+    shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool: []
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -140,6 +164,36 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    mapEnhancementTier: 0
+    mapEnhancementModRolls: []
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
+  enhancementOptionId: 
+  enhancementScrollStats:
+    successChance: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 0
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 0
+    modRolls: []
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

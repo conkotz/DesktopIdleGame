@@ -82,7 +82,7 @@ TextureImporter:
   cubemapConvolution: 0
   seamlessCubemap: 0
   textureFormat: 1
-  maxTextureSize: 2048
+  maxTextureSize: 256
   textureSettings:
     serializedVersion: 2
     filterMode: 0
@@ -120,10 +120,10 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 512
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -133,7 +133,7 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 4
     buildTarget: Standalone
-    maxTextureSize: 2048
+    maxTextureSize: 256
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -173,9 +173,9 @@ TextureImporter:
       name: GemSpriteSheet_1
       rect:
         serializedVersion: 2
-        x: 341
+        x: 345
         y: 548
-        width: 309
+        width: 293
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -195,9 +195,9 @@ TextureImporter:
       name: GemSpriteSheet_2
       rect:
         serializedVersion: 2
-        x: 627
+        x: 645
         y: 547
-        width: 312
+        width: 280
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -217,9 +217,9 @@ TextureImporter:
       name: GemSpriteSheet_3
       rect:
         serializedVersion: 2
-        x: 922
+        x: 929
         y: 550
-        width: 309
+        width: 293
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -239,7 +239,7 @@ TextureImporter:
       name: GemSpriteSheet_4
       rect:
         serializedVersion: 2
-        x: 1214
+        x: 1215
         y: 190
         width: 320
         height: 320
@@ -261,9 +261,9 @@ TextureImporter:
       name: GemSpriteSheet_7
       rect:
         serializedVersion: 2
-        x: 1210
+        x: 1221
         y: 556
-        width: 320
+        width: 296
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -283,9 +283,9 @@ TextureImporter:
       name: GemSpriteSheet_8
       rect:
         serializedVersion: 2
-        x: 36
-        y: 193
-        width: 320
+        x: 52
+        y: 194
+        width: 298
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -305,9 +305,9 @@ TextureImporter:
       name: GemSpriteSheet_9
       rect:
         serializedVersion: 2
-        x: 342
+        x: 355
         y: 196
-        width: 308
+        width: 282
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -327,9 +327,9 @@ TextureImporter:
       name: GemSpriteSheet_10
       rect:
         serializedVersion: 2
-        x: 626
+        x: 641
         y: 216
-        width: 312
+        width: 291
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
@@ -349,9 +349,9 @@ TextureImporter:
       name: GemSpriteSheet_11
       rect:
         serializedVersion: 2
-        x: 920
+        x: 932
         y: 206
-        width: 308
+        width: 286
         height: 320
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
