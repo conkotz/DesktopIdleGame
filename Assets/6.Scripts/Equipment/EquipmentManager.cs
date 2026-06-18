@@ -866,17 +866,18 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     }
 
     /// <summary>Returns true if already on that set; false if blocked by cooldown (logs once per cooldown window).</summary>
-    public bool TrySetActiveWeaponSet(int setIndex)
+    public bool TrySetActiveWeaponSet(int setIndex, bool bypassSwapCooldown = false)
     {
         int next = NormalizeSetIndex(setIndex);
         if (activeWeaponSetIndex == next)
             return true;
 
-        if (!CanPerformWeaponSetSwap())
+        if (!bypassSwapCooldown && !CanPerformWeaponSetSwap())
             return false;
 
         ApplyWeaponSetSwap(next);
-        BeginWeaponSetSwapCooldown();
+        if (!bypassSwapCooldown)
+            BeginWeaponSetSwapCooldown();
         return true;
     }
 
@@ -922,6 +923,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         {
             _suppressGearSlotUiEventsForSetSwap = false;
             _suppressSaveForSetSwap = false;
+            NotifyGearSlotsChanged();
         }
     }
 

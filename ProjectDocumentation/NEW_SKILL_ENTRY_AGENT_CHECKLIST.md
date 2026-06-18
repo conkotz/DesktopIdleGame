@@ -1,0 +1,706 @@
+# NEW SKILL ENTRY — AGENT CHECKLIST
+
+> **Required:** Open and follow this checklist **every time** you add or edit a skill, ability, minion summon, or related HUD/tooltip/VFX work — before considering the task done.
+
+**Location:** [`ProjectDocumentation/NEW_SKILL_ENTRY_AGENT_CHECKLIST.md`](NEW_SKILL_ENTRY_AGENT_CHECKLIST.md) (outside `Assets/` so Unity does not import it).
+
+Use this file when adding or editing skills and abilities (ability assets, passives tied to skills, HUD buff rows for abilities, tooltips, action bar). Work top-to-bottom for a new ability; jump to the section that matches your task.
+
+Do **not** use this file for map travel, save/load, quests, NPCs, or other systems — those live elsewhere.
+
+
+### PROJECT DOCUMENTATION (read when relevant — outside Assets/)
+- [PROJECT__RULES.md](PROJECT__RULES.md)
+  - Constraints for all gameplay/UI code; §8 pre-change checklist (Find/GetComponent in Update,
+      combat Instantiate/Destroy, LINQ in hot paths, material instances, scene scans).
+- [SYSTEMS_MAP.md](SYSTEMS_MAP.md)
+  - Architecture map, manager list, folder reference (§13).
+  - §12 Known risky scripts — read BEFORE adding per-frame work, new minion types, or heavy VFX.
+  - Update SYSTEMS_MAP if you add a new per-frame script, manager, or major ability subsystem.
+- [MEMORY_INVESTIGATION.md](MEMORY_INVESTIGATION.md)
+  - Memory Profiler workflow and session test scripts (use when validating summon spam, channels,
+      or particle-heavy abilities in long combat sessions).
+- [MEMORY_SNAPSHOT_REVIEW.md](MEMORY_SNAPSHOT_REVIEW.md)
+  - How to review captured Memory Profiler snapshots after profiling new abilities.
+- [ICON_TEXTURE_AUDIT.md](ICON_TEXTURE_AUDIT.md)
+  - Ability/buff icon texture audit — keep new ability/HUD sprites ≤256px; avoid duplicating huge
+      source textures for presentation.icon and debuff strip sprites.
+
+  New ability or minion pipeline: skim PROJECT__RULES §8 + SYSTEMS_MAP §12 first, then this file.
+
+### UNITY .META GUID RULES (CRITICAL — read before creating assets)
+
+Every ScriptableObject needs a sibling file: `YourAsset.asset.meta`  
+The `.meta` file MUST contain a line: `guid: <32 hex characters>`
+
+**VALID** (32 chars, lowercase hex only):
+
+```
+guid: b47a7e40c0ab4719a8b7c6d5e4f30101
+guid: cef0107d3357c9b4e86a08e4b6e8a0a7
+```
+
+**INVALID** (Unity YAML parser fails — breaks ALL references):
+
+```
+guid: b47a7e40c0ab4719a8b7c6d5e4f3a01     # 31 characters (one digit short)
+guid: b47a7e40-c0ab-4719-a8b7-c6d5e4f3a01 # dashes not allowed
+guid: 00000000000000000000000000000000     # never use placeholder zeros in .meta
+```
+
+**Symptoms when GUID is wrong:**
+
+- Console: "cannot be extracted by the YAML Parser" on .meta
+- Console: ".meta file does not have a valid GUID"
+- Console: "Broken text PPtr ... guid 00000000..." in melee.asset or AbilityDatabase.asset
+- Ability missing from database / skill tree shows Missing script
+
+**PREFERRED workflow** (agents + humans):
+
+1. Create the `.asset` in Unity (duplicate existing `Ability_*` or `Presentation_*`), OR create `.asset` only → open Unity once → let Unity generate `.meta` automatically.
+2. Copy the `guid:` line from the generated `.meta` (must be exactly 32 hex chars).
+3. Wire references in other YAML files using that exact guid:
+
+```
+ability: {fileID: 11400000, guid: <paste 32-char guid here>, type: 2}
+presentation: {fileID: 11400000, guid: <presentation .meta guid>, type: 2}
+- {fileID: 11400000, guid: <paste>, type: 2}   # AbilityDatabase.asset list entry
+```
+
+**If you MUST hand-write a `.meta` GUID:**
+
+- Generate 32 random hex digits (0-9, a-f). Example:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(16))"
+```
+
+- Verify length BEFORE committing:
+
+```bash
+python -c "g='yourguidhere'; print(len(g), len(g)==32)"
+```
+
+- Each new asset needs its OWN unique GUID (never reuse across files).
+
+**After adding assets, scan project** (optional):
+
+```bash
+python -c "
+import re, pathlib
+for path in pathlib.Path('Assets').rglob('*.meta'):
+    m=re.search(r'^guid: ([^\\r\\n]+)', path.read_text(errors='ignore'), re.M)
+    if m and (len(m.group(1))!=32 or not re.fullmatch(r'[0-9a-fA-F]{32}', m.group(1))):
+        print('BAD', len(m.group(1)), path, m.group(1))
+"
+```
+
+
+### QUICK PICK — WHAT ARE YOU ADDING?
+  A) Timed ability buff     → tag Buff, fixed duration, HUD countdown + overlay sweep
+  B) Toggle ability buff    → tag Toggle Buff, on until player toggles off, HUD full overlay
+  C) Minion summon          → tag Minion (or None + minionSpawnDefinition), no fixed HUD timer
+                              unless swarm/timed variant (see Soulforged)
+  D) Active (instant/CD)    → tag Active, usually no HUD buff row
+  E) Gathering Lv15 major   → MajorPassive rows in .skill asset + GatheringPassiveTooltipText
+  F) Major passive HUD only → PlayerController *HudBuffId + TryGetHudBuffTooltip branch
+  G) Skill-tree row only    → SkillDefinition unlock, optional presentation, no new ability
+  H) Channeled / delayed hit → tag Active; coroutine in PlayerAbilityController; VFX tracks target
+                              over time (see Executioner's Descent)
+  I) Mobility / teleport strike → tag Active; instant reposition + hit; does NOT use attack cycle
+                              (see Shadow Strike)
+  J) Enemy debuff mark      → new component on enemy + UnitOverheadUI icon slots (not AilmentController)
+                              (see Shadow Strike enhancements)
+
+### ABILITY TAGS (AbilityDefinition.tag)
+  None        — Hides category line in tooltips. Use when tag is obvious from effects.
+  Active      — Standard press-to-use ability (damage, utility, short CD).
+  Minion      — Spawns a minion from minionSpawnDefinition. Tooltip shows minion damage rules.
+  Buff        — Timed self-buff; shows in HUD buff strip while active; Duration on ability
+                tooltips (skills page / action bar). NOT duplicated on HUD buff hover.
+  Toggle Buff — Player turns on/off at will; stays active until toggled off. Same HUD strip
+                as Buff but use persist overlay (no numeric countdown). Tooltip: no fixed
+                Duration line on action bar; HUD hover shows "Remaining: Until dismissed".
+
+  Legacy: untagged assets with minionSpawnDefinition still show "Minion" in tooltips.
+
+### WHEN TO USE BUFF vs MINION vs TOGGLE BUFF
+  Buff (timed)
+  - Fixed duration (e.g. Lumber Frenzy 20s).
+  - PlayerAbilityController: track _endsAt + _duration, Sync*HudBuff each activation.
+  - SetHudAbilityBuff(abilityId, stacks: 1, endTime, durationSeconds, persistOverlay: false).
+  - HUD: radial overlay sweeps down; icon shows ceil(remaining); tooltip body = effects only
+      + BuffIconUI appends "Remaining: Xs".
+
+  Toggle Buff
+  - No expiry until player toggles off (or forced end e.g. death, zone restriction).
+  - Cast handler: if active → deactivate + ClearHudAbilityBuff; else → activate +
+      SetHudAbilityBuff(abilityId, 1, endTime: 0, duration: 0, persistActiveOverlay: true).
+  - Action bar: IsHudAbilityBuffActive(abilityId) already lights slot while buff row exists.
+  - Do NOT use tooltipBuffMinionDurationSeconds for toggle abilities (leave 0).
+
+  Minion
+  - minionSpawnDefinition + runtime prefab. Cooldown often on dismiss, not cast.
+  - HUD optional: Soulforged Weapon pattern — live minion count as displayStacks;
+      swarm = timed overlay; indefinite = persist overlay; single timed = summonDuration.
+  - Remove duplicate "lingers for X seconds" prose — use Duration: line on ability tooltips only
+      (AppendSoulforgedWeaponDurationLine / GetTooltipBuffMinionDisplayDurationSeconds).
+
+  Active
+  - Typically no SetHudAbilityBuff unless you add a separate short-lived HUD row.
+
+### NUMERIC TOOLTIPS (single source of truth)
+  Do NOT put final % or damage numbers in presentation shortDescription.
+
+  AbilityTooltipDamagePreview.cs
+  - BuildAbilityTooltipStatsSection — full "Effects:" for skills page / ability list.
+  - BuildAbilityTooltipScalingSection — blue scaling line(s) between flavor and Effects.
+  - TryBuildHudBuffTooltip — HUD buff strip (includeDuration: FALSE → no "Duration:" in body).
+  - TryBuildActionBarCompactBody — action bar hover (short desc + effects; Duration when timed buff).
+
+  GatheringPassiveTooltipText.cs
+  - Woodcutting / Fishing Lv15 majors (skill tree + abilities panel bullets).
+  - HUD ids ONLY for major passives (not ability ids):
+        PlayerController.WoodcuttingFlowStateHudBuffId
+        PlayerController.FishingCalmWatersMajorHudBuffId
+  - Timed ability buffs (Lumber/Fishing Frenzy, etc.) use abilityId + AbilityTooltipDamagePreview.
+
+  CombineShortDescriptionWithBody — flavor line + numeric effects block.
+
+  Runtime must use the SAME constants as tooltips (GatheringPassiveTooltipText or shared consts
+  next to Append*TooltipEffects in AbilityTooltipDamagePreview / PlayerAbilityController).
+
+### WEAPON-SCALED DAMAGE TOOLTIPS (Active combat abilities — Power Slash, Crescent, Whirlwind, etc.)
+  When AbilityDefinition.weaponDamageMultiplier > 0, show BOTH of the following (do not pick one):
+
+- Blue scaling line (BuildAbilityTooltipScalingSection) — after flavor, before Effects:
+       "Deals {weaponMult * 100}% of your weapon damage"
+  - weaponMult comes from def.weaponDamageMultiplier + AbilityTooltipAdjustments.ApplySkillTreeChoices
+       (e.g. Power Slash Brutal Cut +0.25 → 175% on a 1.5 base asset).
+  - Do NOT suppress this line when adding combined damage totals in Effects.
+  - Do NOT put this % in presentation shortDescription.
+
+- Effects block — full hit TOTALS, not "+ bonus over auto attack":
+  - Use UsesCombinedTotalHitDamageTooltip(def) OR the same pattern in a dedicated branch:
+         ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out phys, out mag, out corr)
+         AppendAbilityTotalHitDamageEffects(body, O, phys, mag, corr, " on hit")
+       → e.g. "47 Physical damage on hit" (includes weapon × mult + ailment/element lines + AP).
+  - Do NOT use AppendWeaponScaledHitScalerEffects (+20 Physical only) for these abilities.
+  - Do NOT add a separate "+X damage from Ability Power" line when totals already include AP
+       (ComputeAverageAbilityHitSplit applies GetAbilityPowerDamageMultiplier).
+
+  Special cases:
+  - Crescent Slash Elemental Crescent (choice 0): after ComputeAverageAbilityHitSplit, move 50% of
+      phys total to magic on the tooltip (matches runtime conversion preview).
+  - Final Severance Thousand Cuts: AppendPerHitDamageEffectLines with fraction × hit count.
+  - Executioner's Descent: main hit totals + separate shockwave total line (second ComputeAverageAbilityHitSplit
+      with shockwave weapon mult constant).
+  - Whirlwind Twin Cyclone: totals for first wave + orange line for second-wave % (do not double-count in total).
+  - Rend / Envenom / Cleaving Strikes / minions: weaponDamageMultiplier = 0 on asset — no blue % line;
+      use their dedicated Effects branches.
+
+  New ability with weapon scaling:
+  - Set weaponDamageMultiplier on AbilityDefinition asset.
+  - If UsesCombinedTotalHitDamageTooltip would return true (weapon mult > 0, not rend/envenom/minion/buff-only),
+      default else-branch in BuildAbilityTooltipStatsSection already applies — only add a custom branch if you
+      need conversion, multi-hit, or extra effect lines beyond the standard total.
+  - AbilityTooltipAdjustments.ApplySkillTreeChoices: mirror runtime mult/CD tweaks used in combat.
+
+  Skills page — right panel tooltip position (AbilityEntryUI + SkillsAbilityPageUI):
+  - SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left) on each row.
+  - OnPointerEnter: measure/height = full row RectTransform (transform), NOT the icon — tooltip docks
+      beside the list row instead of overlapping the ability name.
+  - FlipInsideBounds may still flip if there is not enough space inside bounds.
+
+### HUD BUFF STRIP (BuffsDebuffsPanel + BuffIconUI + PlayerBuffController)
+  Register: PlayerBuffController.SetHudAbilityBuff(abilityId, displayStacks, endTime, duration,
+            persistActiveOverlay = false).
+
+  abilityId MUST match AbilityDefinition.abilityId exactly.
+
+  Tooltip on hover:
+  - Title/body from TryBuildHudBuffTooltip (or GatheringPassiveTooltipText for major ids).
+  - Body has effect lines only — NO "Duration: Xs" (stripped via includeDuration: false).
+  - BuffIconUI appends "Remaining: Xs" OR "Remaining: Until dismissed" (persist overlay).
+
+  Icon visuals:
+  - Timed: activeOverlay fillAmount = remaining/total; timerText = ceil(remaining).
+  - Toggle / indefinite: persistActiveOverlay → full overlay, no icon timer.
+  - Stacks: pass displayStacks > 1 to show corner count (Cleaving Strikes charges, Soulforged swarm count).
+
+  Clear: ClearHudAbilityBuff(abilityId) when effect ends. Hide HUD row while on cooldown if your
+  ability uses that pattern (see SyncFishingFrenzyHudBuff).
+
+### TOOLTIP TEXT SCALE
+- HUD buff strip tooltips: default scale (useHudTooltipScale: true).
+- Skills ability list + skill tree: ShowTextAt(..., useHudTooltipScale: false) in AbilityEntryUI,
+    SkillTreeViewUI — matches action bar size (avoids 0.8× docked HUD scale).
+
+### LEAGUE ABILITY TOOLTIP LAYOUT (skills page — DO NOT REORDER PER ABILITY)
+  Assembled by AbilityTooltipDamagePreview.AssembleLeagueStyleAbilityTooltipBody via AbilityEntryUI.
+
+  Order (top → bottom):
+  - Tag line (Active / Minion / Buff) — BuildAbilityTooltipTagLine
+  - Required weapon — BuildWeaponRequirementRichLine (green when met, red when not)
+  - Flavor description — presentation shortDescription only (no numbers, no range)
+  - Blue scaling block — BuildAbilityTooltipScalingSection
+         For weapon-scaled actives: "Deals X% of your weapon damage" (see WEAPON-SCALED DAMAGE TOOLTIPS).
+  - Effects block — BuildAbilityTooltipStatsSection
+         Starts with "Effects:" then orange numeric bullets, Duration, Energy • Cooldown.
+         Weapon-scaled actives: full hit totals (e.g. "47 Physical damage on hit"), not "+ bonus" lines.
+         Also append short gameplay effect lines for the committed enhancement (no choice name).
+  - Active Enhancement — green footer via FormatActiveEnhancementLine (name + full choice description).
+         Keep this footer for ALL abilities with a committed choice; Effects may summarize the same upgrade.
+
+  Presentation assets (shortDescription):
+  - Flavor only. No "within X units", hit caps, % damage, or enhancement names.
+  - Put range, target count, channel time, and damage in AbilityTooltipDamagePreview.
+
+  Action bar / HUD compact hover:
+  - CombineShortDescriptionScalingAndEffects = intro + blue scaling + extracted effects.
+  - TryBuildActionBarCompactBody / TryBuildHudBuffTooltip already use this.
+
+  Enhancement choice styling:
+  - Effects (orange): short effect-only lines from AbilityTooltipDamagePreview (no enhancement name).
+  - Footer (green): "Active Enhancement: Title (full description)" — always show when a choice is committed.
+  - Skill tree choice rows: SkillTreeViewUI uses same green for selected enhancement.
+## A) NEW ABILITY (full pipeline — repeat in order)
+
+1) Gameplay asset
+- Duplicate Ability_*.asset in Assets/3.ScriptableObjects/AbilitiesDefinitions/
+     (preferred: duplicate in Unity so .meta GUID is valid — see UNITY .META GUID RULES).
+- abilityId (stable string), displayName, sourceSkill, unlockLevel.
+- tag: None | Active | Minion | Buff | Toggle Buff (see sections above).
+- cooldown, energyCost, requiredWeaponType, scaling multipliers.
+- Buff (timed): tooltipBuffMinionDurationSeconds = BASE seconds before skill-tree bonuses.
+     Leave 0 to use code fallback for that ability id.
+- Toggle Buff: leave tooltipBuffMinionDurationSeconds at 0.
+- Minion: assign minionSpawnDefinition, wire runtime prefab on MinionDefinition.
+
+2) Presentation asset
+- Duplicate Presentation_ability_<similar> → Presentation_ability_<newId> (+ .meta from Unity).
+- Confirm Presentation_ability_<newId>.asset.meta guid is exactly 32 hex characters.
+- Wire ability.presentation using the presentation asset's .meta guid (not the ability guid).
+- icon, displayNameOverride (optional), shortDescription = FLAVOR ONE-LINER ONLY.
+- Optional: primaryDescriptionOverride, flavourText, tooltipCategoryTagOverride.
+- Do NOT duplicate numeric effect lines in presentation assets.
+
+3) Tooltip / effects (CODE)
+- AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection:
+       if (IsYourAbility(def)) { AppendYourEffects(...); Duration if timed buff/minion; return; }
+- REQUIRED for weapon-scaled actives (weaponDamageMultiplier > 0):
+    - Blue scaling: BuildAbilityTooltipScalingSection → "Deals X% of your weapon damage"
+         (include AbilityTooltipAdjustments for enhancement mults, e.g. Power Slash +25%).
+    - Effects: ComputeAverageAbilityHitSplit + AppendAbilityTotalHitDamageEffects (combined total per type).
+         See WEAPON-SCALED DAMAGE TOOLTIPS — never only AppendWeaponScaledHitScalerEffects (+bonus lines).
+- AbilityDefinition: single weaponDamageMultiplier scales Physical/Magic/Corruption equally; leave at 0 for Rend/Envenom/minions
+     on the asset (or minion inherit rules). Do not duplicate the % scaling line inside Effects.
+- IsYourAbility: string.Equals(def.abilityId, "your_id", OrdinalIgnoreCase).
+- Duration line: GetTooltipBuffMinionDisplayDurationSeconds(def, codeBase, additiveBonus).
+- AbilityCombatPower.YourAbilityId for cross-script compares.
+- AbilityEntryUI.BuildActiveEnhancementLineForAbility: add branch for enhancement at bottom (green).
+- Compact UI auto-wires after step 3 (TryBuildHudBuffTooltip / TryBuildActionBarCompactBody).
+
+4) Runtime (PlayerAbilityController unless gathering-only)
+- Cast / toggle / minion spawn logic.
+- Timed buff: _active flag, _endsAt, _duration, Cleanup*IfExpired, Sync*HudBuff.
+- Toggle buff: toggle on/off, SetHudAbilityBuff(..., persistActiveOverlay: true) while on.
+- Minion: spawn list, dismiss cooldown, SyncSoulforgedWeaponHudBuff as reference for HUD timing.
+- Use tooltipBuffMinionDurationSeconds when > 0, then add same enhancement seconds as tooltip.
+
+4b) World VFX (PlayerAbilityVfxController on Player prefab)
+- Add [Header("Your Ability (...) VFX")] + [SerializeField] fields on PlayerAbilityVfxController.cs.
+- Implement spawn/update/cleanup methods; call from PlayerAbilityController (not inline on controller).
+- REQUIRED: register every new serialized field in PlayerAbilityVfxControllerEditor.cs:
+    - Add a private static readonly string[] YourAbilityVfxFieldNames = { "fieldName", ... };
+    - DrawFoldoutPropertyBlock(..., "YourAbilityVfx", "Your Ability (...) VFX", YourAbilityVfxFieldNames);
+     Without the editor foldout, fields exist in code but do NOT appear on the Player prefab inspector.
+- Assign sprites/colors/timing on Player → Player Ability Vfx Controller after compile.
+- Channel / fullscreen tint: GameplayScreenOverlay (see Final Severance) — separate from VfxController.
+
+5) Skill tree / unlocks
+- SkillDefinition / SkillUnlockDefinition: wire AbilityDefinition on correct level row.
+- Lv5 abilities: often two enhancement choices at Lv8 (pattern: Lumber/Fishing Frenzy).
+- Register ability in Resources/Databases/AbilityDatabase.asset:
+    - {fileID: 11400000, guid: <Ability_*.asset.meta guid — 32 hex>, type: 2}
+     Same guid string as in melee.asset (or relevant .skill) ability: {fileID: ...} field.
+- Enhancement choices: parent spine id MUST match SkillTreeViewUI.SpineNodeId(row):
+       Lv{requiredLevel}_{slotAtLevel}  e.g. Lv25_0, Lv45_1
+     Add AbilityCombatPower.*EnhancementParentSpineNodeId constant; read via:
+       skillsManager.GetSkillChoiceSelection(SkillType.Melee, parentSpineId, -1)
+     Legacy int level keys (e.g. "5", "45") still work as fallbacks on some older rows — prefer spine id.
+- Choice rows in .skill asset: requiredLevel on each choice (often ability level + 3, e.g. 28 for Lv25 ability).
+- Wire choice title/description in melee.asset (or relevant .skill); ability/presentation on choice stay {fileID: 0}
+     unless the choice itself unlocks a different ability.
+
+6) UI wiring
+- ActionBarSlotUI → TryBuildActionBarCompactBody.
+- BuffsDebuffsPanel → TryBuildHudBuffTooltip (+ optional custom icon in panel inspector).
+- AbilityEntryUI → BuildLeagueStyleTooltip.
+- SkillsAbilityPageUI → major passive bullets via GatheringPassiveTooltipText.
+
+7) IDs / constants
+- AbilityCombatPower.*AbilityId + gameplay numbers (cooldown fractions, radii, durations, mults).
+- AbilityCombatPower.*EnhancementParentSpineNodeId when the row has Lv{N}_{slot} choices.
+- PlayerAbilityController: private const string YourAbilityId = "your_id" (mirror AbilityCombatPower).
+- Gathering: PlayerController.*ChoiceSpineId, *MajorPassiveSourceLevel, etc.
+- Unity GUIDs: see UNITY .META GUID RULES at top of this file — every new .asset + .meta pair;
+     every cross-reference in .skill / AbilityDatabase must use the exact 32-char guid from .meta.
+
+8) Smoke test
+- Skills page: tag → flavor → blue "Deals X% weapon damage" → Effects (full damage totals) →
+     green Active Enhancement → Required weapon. Hover row: tooltip beside row, not on ability name.
+- Action bar hover: short desc + scaling + numeric effects (timed buffs show Duration here).
+- HUD buff strip: overlay + timer OR persist overlay; hover = effects + Remaining only.
+- Cast/toggle from bar; values match tooltip.
+- Player prefab: VFX foldout visible; sprites/materials assigned; cast shows world VFX in play mode.
+## B) GATHERING SKILL — Lv15 MAJOR PASSIVE (three rows at same level)
+
+- fishing.asset / woodcutting.asset: three unlockType MajorPassive at Lv15; two choices each at Lv18.
+- GatheringPassiveTooltipText: constants + TryBuildSkillTreeMajorPassiveBody + Append*EffectLines.
+- PlayerController: GetSkillAbilityRowPick + *Level15ChoiceSpineId; gameplay in DoOneGatherTick / TickGather.
+- SkillsAbilityPageUI + SkillTreeViewUI: dynamic copy via BuildEffectiveGatheringMajorPassiveDescription.
+- Optional HUD: new *HudBuffId in PlayerController, Sync*HudBuff, panel icon slot,
+    GatheringPassiveTooltipText.TryGetHudBuffTooltip branch (stack-based majors e.g. Calm Waters).
+## C) GATHERING — Lv5 ABILITY BUFF (e.g. Lumber / Fishing Frenzy)
+
+- tag = Buff on AbilityDefinition asset.
+- Mirror existing frenzy: PlayerAbilityController Activate/Cleanup/Sync*HudBuff.
+- Append*FrenzyEffectLines in AbilityTooltipDamagePreview + shared constants in GatheringPassiveTooltipText.
+- Enhancement choices at Lv8 in .skill asset; read choice in tooltip + runtime.
+## D) TOGGLE BUFF ABILITY (new tag)
+
+  Asset:
+  - tag = Toggle Buff.
+  - tooltipBuffMinionDurationSeconds = 0.
+
+  Runtime (PlayerAbilityController):
+  - On cast while OFF: apply effect, SetHudAbilityBuff(id, 1, 0f, 0f, persistActiveOverlay: true).
+  - On cast while ON: remove effect, ClearHudAbilityBuff(id).
+  - No Cleanup*IfExpired unless external force-end (death, zone, weapon swap).
+  - Cooldown: only if design requires (often 0 or GCD on toggle).
+
+  Tooltips:
+  - Action bar: effects via TryBuildActionBarCompactBody (no Duration line — tag Toggle Buff).
+  - HUD hover: "Remaining: Until dismissed" from BuffIconUI (not in body text).
+
+  UI:
+  - Buff strip shows icon with full active overlay while on.
+  - Action bar treats as active while IsHudAbilityBuffActive(id).
+## E) MINION ABILITY (Soulforged Weapon, Soulforged Warrior, Hawk, War Banner allies, etc.)
+
+  Asset:
+  - tag Minion (or None + minionSpawnDefinition — legacy still shows "Minion" in tooltips).
+  - minionSpawnDefinition: runtimePrefab REQUIRED; combatConfig (inherit player weapon vs fixed minion damage).
+  - weaponDamageMultiplier on ability asset = 0 for minion path (damage from MinionDefinition / config).
+  - Ability-specific visuals: SoulforgedWeaponMinionPresentation on PlayerAbilityController when one
+      MinionDefinition is shared across variants (swarm / indefinite / timed).
+
+  MinionDefinition + prefab:
+  - Assets under Minions/; prefab needs MinionCombatTarget + MinionCombatController (or Soulforged*Minion).
+  - MinionCombatTarget registers in ActiveTargets list — used by EnemyAggro, calm-map provocation, War Banner buffs.
+  - CharacterStats on minion root for HP/damage; do NOT use FindObjectOfType<CharacterStats> for player gear.
+
+  Runtime (PlayerAbilityController):
+  - TrySpawnMinionForAbility / ability-specific spawn lists (_activeSoulforgedWeaponMinions, etc.).
+  - Dismiss-on-recast or stack cap per design; cooldown often on dismiss (Soulforged pattern), not on cast.
+  - Bleed/Poison from minion hits: BleedPayload/PoisonPayload outgoingAttributeToMinion = true +
+      outgoingDpsSourceLabel = ability display name → DpsDamageBucket.Minion (see section L).
+  - Minion deaths: notify owner for HUD sync (SyncSoulforgedWeaponHudBuff pattern).
+
+  Action bar — minion control (ActionBarMinionControlUI):
+  - Aggressive / Assist / Passive stances; stored per save; ActionBarUI.RefreshMinionControlBar on loadout swap.
+  - Conditional auto-battle gear swaps must call AlignCombatLoadoutToWeaponSet (see LoadoutSetButtonBinder).
+
+  Aggro / calm maps:
+  - Minion attacks call LevelAggroState.TriggerAggression(def, attacker) — can latch calm-until-provoked maps.
+  - EnemyAggro.GetMinionCombatTargetFrom(attacker) for retaliation targeting.
+
+  Tooltips:
+  - No "This minion lingers for X seconds" prose — use Duration: line only (AppendSoulforgedWeaponDurationLine).
+  - Skill choice variants (swarm / indefinite / default timed): mirror in HUD + tooltip duration helpers.
+  - Minion damage rules in AbilityTooltipDamagePreview dedicated branches (not weapon-scaled % line).
+
+  HUD:
+  - SetHudAbilityBuff: swarm/timed → endTime + duration; indefinite → persistActiveOverlay.
+  - displayStacks for live minion count (Soulforged swarm). ClearHudAbilityBuff on dismiss/expiry.
+
+  Overhead UI:
+  - UnitOverheadUI on minion prefab (HP bar); status popups use DamagePopupSystem.ResolveStatusStackAnchor(minion).
+  - Custom debuff marks on enemies are NOT ailments — use component + UnitOverheadUI icon slots (Shadow Strike pattern).
+
+  Smoke test (minions):
+  - Spawn at cap; dismiss; respawn; stance buttons still work after gear set swap.
+  - DPS window attributes minion damage to ability name, not Auto Attack.
+  - Calm map: minion hit provokes map aggro when design expects it.
+
+  Reference scripts:
+    MinionDefinition.cs, MinionCombatController.cs, MinionCombatTarget.cs, MinionUnit.cs
+    SoulforgedWeaponMinion.cs, SoulforgedWarriorMinion.cs, SoulforgedWeaponMinionPresentation.cs
+    ActionBarMinionControlUI.cs, EnemyAggro.cs, LevelAggroState.cs
+## F) SKILL-TREE ROW ONLY (no new ability asset)
+
+- Edit .skill asset: level, unlockType, spine/choice ids, presentation on row.
+- Passive stat: CharacterStats / PlayerController hook.
+- Tooltip: SkillTreeViewUI existing paths or GatheringPassiveTooltipText for majors.
+## G) ENHANCEMENT CHOICES (spine-keyed — Executioner's Descent, Shadow Strike, etc.)
+
+  Skill tree layout:
+  - Each ability row at level L with slot S → spine id "Lv{L}_{S}" (see SkillTreeViewUI.SpineNodeId).
+  - Multiple abilities on the SAME level use different slots: Lv45_0 (Final Severance), Lv45_1 (Executioner's Descent).
+  - Woodcutting Lv25: Cleaving Chop = Lv25_0, Spectral Axe = Lv25_1 (same level, different spines — do NOT share one int key).
+
+  Code checklist (all four):
+  - AbilityCombatPower.YourAbilityEnhancementParentSpineNodeId = "Lv25_0" (example)
+  - PlayerAbilityController: GetYourAbilitySelectedChoice() → GetSkillChoiceSelection(Melee, spineId, -1)
+  - AbilityTooltipDamagePreview: GetYourAbilityBranchChoice + IsYourAbility effects branch (enhance 0 / 1)
+  - AbilityEntryUI.BuildActiveEnhancementLineForAbility: branch using same spine id
+
+  .skill asset choice copy:
+  - title + description on each choice node (shown in tree + green footer when committed).
+  - Effects block summarizes mechanics in orange; footer repeats choice name + full description in green.
+## H) CHANNELED / DELAYED ABILITY (Executioner's Descent pattern)
+
+  When to use:
+  - Wind-up before impact; target can move; optional AoE at impact point.
+  - NOT a HUD buff — use Active tag + coroutine (_yourRoutine != null blocks recast).
+
+  Ability asset:
+  - tag = Active; weaponDamageMultiplier for main hit (shockwave may use code constant mult).
+  - cooldown / energyCost on asset.
+
+  PlayerAbilityController:
+  - Early-out in TryUseAbility BEFORE generic instant-hit block (with isFinalSeverance / isExecutionersDescent).
+  - Resolve target at cast start; store EnemyBaseController + impact point.
+  - StartCoroutine(CoYourAbility(def, initialTarget)); set _yourRoutine; StartCooldown on cast.
+  - Coroutine loop: each frame re-read combat.GetPrimaryEngagedEnemy() if you want engaged-target priority;
+      update impact position from tracked transform; call abilityVfx Update* each frame.
+  - On impact: ApplyAbilitySplitDamageToEnemy / shared BuildWhirlwindAbilityScaledSplit + ApplyOnHitEffects.
+  - Secondary AoE: loop CombatEnemyRegistry.GetLiveEnemies(), radius check from impactPoint (X distance OK for lane game).
+  - Enhancement 0 example: flag if target died during channel → ReduceAbilityCooldown(def, fraction).
+  - Enhancement 1 example: EnemyCombatMitigationModifiers.ApplyArmorMrShred on shockwave victims.
+  - finally: abilityVfx Stop* ; _yourRoutine = null.
+
+  Targeting (important for idle combat):
+  - ResolveYourAbilityTarget(): combat.GetPrimaryEngagedEnemy() FIRST (no camera visibility gate).
+  - Fallback: combat.FindClosestEnemyInAttackRange(), then FindClosestVisibleLivingEnemy().
+  - Do NOT use only "closest visible" — bleeds/minions on other enemies will steal the cast.
+
+  VFX (PlayerAbilityVfxController):
+  - Begin*(target, worldPos, duration), Update*(target, worldPos, elapsed), Stop*, optional Spawn*Impact*.
+  - Foreground sorting layer if ability must draw above clouds (executionersDescentSortingLayer pattern).
+  - Serialized sprites (axe, ground mark, shockwave ring) assigned on Player prefab after compile.
+
+  Constants (AbilityCombatPower + mirror in tooltips):
+  - Descent/channel seconds, primary/shockwave weapon mults, shockwave radius, CD refund fraction,
+      sunder duration/mult, spawn/hang heights.
+
+  Reference: executioners_descent, CoExecutionersDescent, ResolveExecutionersDescentTarget,
+    ApplyExecutionersDescentHit / ApplyExecutionersDescentShockwave.
+## I) MOBILITY / TELEPORT STRIKE (Shadow Strike pattern)
+
+  When to use:
+  - Instant gap-close + single hit; must NOT advance auto-attack timer (_nextAttackTime).
+
+  Ability asset:
+  - tag = Active; weaponDamageMultiplier = 1 for 100% weapon hit (or design mult).
+  - cooldown / energyCost on asset.
+
+  PlayerAbilityController:
+  - Dedicated branch in TryUseAbility (isShadowStrike) BEFORE generic target-required instant handler.
+  - TryExecuteYourAbility(def): resolve target → teleport → face → combat.SetTarget → hit → marks.
+  - Do NOT call TryConsumeAttackCycleForAbilityCast().
+  - Targeting: forward arc like Crescent Slash — Collect*ForwardHits(reach), facing from GetCombatFacingSign(),
+      lane width ≈ reach * 0.35; prefer GetPrimaryEngagedEnemy() if in arc.
+  - Teleport: place player at melee edge-to-edge range (mirror combat closing distance math:
+      stats.Range + combat.GetMeleeRangePadding(), collider half-widths).
+  - Damage: BuildWhirlwindAbilityScaledSplit + ApplyAbilitySplitDamageToEnemy (independent crit roll per ability).
+  - player.TriggerAttackAnim() for feedback only.
+
+  Enhancement — enemy marks (not ailments):
+  - Component: EnemyShadowStrikeMarks on enemy (add on first apply).
+  - ApplyMark(kind, PlayerAbilityController owner, AbilityDefinition def) after hit.
+  - Lethal mark: EnemyBaseController.TakeDamage — if wasCrit && damage > 0, multiply by
+      marks.TryConsumeLethalCritDamageMultiplier() (+80% → 1.8× total crit damage); mark consumed only on crit.
+  - Execution mark: expires at Time.time + duration; EnemyBaseController.Die() → marks.NotifyEnemyDied()
+      → owner.ReduceAbilityCooldownBySeconds(def, flatSeconds).
+  - Do NOT use PlayerBuffController / SetHudAbilityBuff for these — they are enemy debuffs.
+
+  Enemy overhead debuff icons:
+  - UnitOverheadUI: new SerializeField Sprite slots (user assigns in prefab).
+  - RefreshDebuffIcons: if EnemyShadowStrikeMarks.HasLethalCritMark / HasExecutionMark → SpawnDebuffIcon.
+  - Subscribe to marks.OnMarksChanged in UnitOverheadUI (same as ailments.OnAilmentsChanged).
+
+  VFX: SpawnShadowStrikeBurst(worldPos) — short coroutine burst at target (see CoShadowStrikeBurst).
+
+  Constants: forward reach, lethal crit bonus fraction, execution mark seconds, CD refund seconds.
+
+  Reference: shadow_strike, TryExecuteShadowStrike, EnemyShadowStrikeMarks,
+    ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0".
+## J) TRYUSEABILITY GATING (avoid wrong code path)
+
+  Abilities that need custom logic MUST be handled before the generic block at the bottom of TryUseAbility
+  (the block that requires combat.CurrentTarget and fires a single instant hit).
+
+  Add a bool next to existing flags:
+    bool isYourAbility = string.Equals(def.abilityId, YourAbilityId, ...);
+  Exclude from shared checks when needed:
+  - Energy spend line: add && !isYourAbility to the batch with !isExecutionersDescent if cast spends energy separately.
+  - Or handle energy inside your branch and return early.
+
+  Also exclude from/minion-only paths as appropriate:
+  - Crescent / Final Severance / Executioner's Descent / Shadow Strike each return true after own StartCooldown.
+
+  Queued melee abilities (Power Slash, Rend, Envenom, Crescent queue) are separate — do not confuse with instant casts.
+## K) COOLDOWN HELPERS
+
+  ReduceAbilityCooldown(def, reductionFraction) — multiplies remaining CD (Executioner's Claim 50%).
+  ReduceAbilityCooldownBySeconds(def, seconds) — flat shave (Shadow Execution −3s).
+
+  Both read/write _cooldownEndsById[def.abilityId]. Call only when enhancement condition met.
+## L) DPS / OUTGOING DAMAGE ATTRIBUTION (if ability deals damage)
+
+  Ability hits use GetAbilityOutgoingDamageSourceLabel(def.abilityId) → displayName on ability asset.
+  ApplyAbilitySplitDamageToEnemy → TakeDamage → AwardCombatXp → RecordDamageForDps with Physical/Magic/Corruption buckets.
+
+  Do NOT label ability hits as "Auto Attack". Weapon swings use SwingOutgoingAttribution / deferred DPS split.
+
+  Minion-applied ailments: BleedPayload/PoisonPayload outgoingAttributeToMinion + outgoingDpsSourceLabel
+  (e.g. Soulforged Weapon) → DpsDamageBucket.Minion, not player Ailments bucket.
+
+  See PlayerCombatController outgoing DPS sections if adding new damage channels.
+## M) PERFORMANCE — avoid stutter / GC / memory spikes (new abilities & minions)
+
+  Read first: [SYSTEMS_MAP.md](SYSTEMS_MAP.md) §12 + PROJECT__RULES.md §8.
+
+  PlayerAbilityController (largest risk):
+  - Do NOT add unconditional per-frame work in Update — gate behind RequiresPerFrameAbilityRuntimeWork()
+      or an existing _yourRoutine / channel flag (see Executioner's Descent, Whirlwind).
+  - Coroutines over while-true Update loops for channels; stop routines in finally / OnDisable paths.
+  - Cache enemy lists via CombatEnemyRegistry.GetLiveEnemies() — never FindObjectsByType per frame.
+  - Reuse existing cooldown/damage helpers (ApplyAbilitySplitDamageToEnemy, BuildWhirlwindAbilityScaledSplit).
+
+  VFX (PlayerAbilityVfxController):
+  - Prefer sprite bursts + short coroutines over spawning many ParticleSystems per cast.
+  - Stop/cleanup VFX in matching Stop* when channel ends or target dies.
+  - Do not Instantiate UI or world objects every frame during channels — update positions only.
+
+  Minions:
+  - Hard-cap concurrent summons per ability; pool or reuse if spawning many short-lived objects.
+  - Minion Update logic stays in MinionCombatController / Soulforged*Minion — not in PlayerAbilityController.Update.
+  - Avoid per-minion Find* or GetComponent in Update (cache on spawn).
+
+  Tooltips / UI:
+  - AbilityTooltipDamagePreview runs on hover — OK to allocate; do not rebuild tooltips every frame.
+  - No Instantiate of skill-tree rows or ability list entries per combat tick.
+
+  Damage popups / status labels:
+  - Use DamagePopupSystem.SpawnStatusPresentation + stack anchor (shared vertical stack per unit).
+  - Floating damage uses pooling — do not Instantiate FloatingDamageTextUI per hit outside DamagePopupSystem.
+
+  Profiling before shipping heavy abilities:
+  - Follow [MEMORY_INVESTIGATION.md](MEMORY_INVESTIGATION.md) for 2 min / 20 min combat sessions.
+  - F6–F12 DebugPerformanceToggles can disable overhead UI / floating text to isolate ability cost.
+
+  After adding a hot path: note it in SYSTEMS_MAP §12 if it runs every frame or per enemy.
+## N) COMMON MISTAKES (from recent melee abilities)
+
+- Wrong enhancement spine id (e.g. using 25 instead of Lv25_0) → choice always -1, enhancements never apply.
+- Putting numeric ranges/% in presentation shortDescription → duplicates and drifts from tooltip code.
+- Removing blue "Deals X% weapon damage" when adding combined Effect totals → show BOTH scaling % and totals.
+- Using AppendWeaponScaledHitScalerEffects (+bonus only) instead of AppendAbilityTotalHitDamageEffects for weapon actives.
+- Duplicate "+X from Ability Power" under Effects when ComputeAverageAbilityHitSplit already includes AP.
+- Tooltip anchored to ability icon on skills page → overlaps name; use full row measure in AbilityEntryUI.
+- VFX fields in PlayerAbilityVfxController without Editor foldout → cannot assign on Player prefab.
+- Executioner's Descent targeting only visible enemies → casts on wrong target; use GetPrimaryEngagedEnemy first.
+- Shadow Strike consuming attack cycle → breaks idle swing rhythm; never call TryConsumeAttackCycleForAbilityCast.
+- Lethal mark consumed on non-crit or zero damage → gate on wasCrit && finalDamage > 0 in TakeDamage.
+- Using ailments for ability-specific marks → use EnemyShadowStrikeMarks + overhead icons instead.
+- Invalid .meta GUID (not exactly 32 lowercase hex chars) → YAML parser errors, Broken PPtr,
+    ability/database links show 00000000... — see UNITY .META GUID RULES; never hand-type 31-char guids.
+- Wiring presentation with ability's guid (or vice versa) → missing presentation icon/copy.
+- Forgetting AbilityDatabase.asset entry → ability works in editor direct reference but not loaded at runtime.
+- Minion without MinionCombatTarget → aggro/retaliation/DPS attribution breaks.
+- Minion ailment damage attributed to player Ailments bucket → set outgoingAttributeToMinion on payloads.
+- Per-frame FindObjectsByType / LINQ in ability Update → stutter (see section M).
+- Hand-placing status popup colours outside FloatingDamageTextUI Status Presentations section →
+    overlapping labels; use DamagePopupSystem.SpawnStatusPresentation for all lingering status text.
+
+## Reference — presentation assets (Assets/3.ScriptableObjects/Presentation/)
+  Presentation_ability_avatar_of_the_forest
+  Presentation_ability_cleaving_chop
+  Presentation_ability_cleaving_strikes
+  Presentation_ability_crescent_slash
+  Presentation_ability_envenom
+  Presentation_ability_fishing_frenzy
+  Presentation_ability_lumber_frenzy
+  Presentation_ability_power_slash
+  Presentation_ability_rend
+  Presentation_ability_soulforged_weapon
+  Presentation_ability_spectral_axe
+  Presentation_ability_whirlwind
+  Presentation_ability_final_severance
+  Presentation_ability_executioners_descent
+  Presentation_ability_shadow_strike
+  Presentation_ability_battle_trance
+  Presentation_ability_energy_infusion
+  Presentation_ability_flame_charge
+
+## Reference — ability assets (Assets/3.ScriptableObjects/AbilitiesDefinitions/)
+  Melee/Ability_executioners_descent.asset   — executioners_descent (Lv45 slot 1)
+  Melee/Ability_shadow_strike.asset          — shadow_strike (Lv25 slot 0)
+  Melee/Ability_battle_trance.asset          — battle_trance (Lv35 slot 1, timed Buff)
+
+## Reference — HUD ability buff ids (SetHudAbilityBuff abilityId)
+  lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
+  spectral_axe, soulforged_weapon, battle_trance, energy_infusion
+  Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
+  Major passives (MeleeMajorPassiveTooltipText): BattleEngine_Overload, phoenix_soul_ashen_rebirth
+
+## Reference — key scripts (skills & abilities only)
+  AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds, minionSpawnDefinition
+  AbilityTooltipDamagePreview.cs — tooltip builders (Effects, HUD buff, action bar)
+  PlayerAbilityController.cs     — cast, buff sync, minions (partials for large abilities)
+  PlayerAbilityVfxController.cs  — world VFX fields + spawn/update/cleanup
+  Editor/PlayerAbilityVfxControllerEditor.cs — inspector foldouts (must list new VFX fields)
+  PlayerBuffController.cs        — SetHudAbilityBuff / hudPersistActiveOverlay
+  BuffIconUI.cs                  — buff icon overlay, Remaining line on hover
+  BuffsDebuffsPanel.cs           — HUD buff strip tooltips
+  GatheringPassiveTooltipText.cs — gathering Lv15 majors + frenzy constants
+  AbilityCombatPower.cs          — stable abilityId string constants + balance numbers
+  EnemyCombatMitigationModifiers.cs — temporary armor/MR shred on enemies (Sundering Impact)
+  EnemyShadowStrikeMarks.cs      — ability-specific enemy marks (crit amp / death CD refund)
+  EnemyBaseController.cs         — TakeDamage (crit mark mult), Die() (mark death notify), ApplyDirectDotDamage
+  PlayerCombatController.cs      — GetPrimaryEngagedEnemy, FindClosestEnemyInAttackRange (targeting)
+  UnitOverheadUI.cs              — enemy/minion overhead debuff icons (ailments + custom mark sprites)
+  GameplayScreenOverlay.cs       — optional fullscreen channel tint (Final Severance pattern)
+  FloatingDamageTextUI.cs        — Status Presentations colours (all lingering status labels)
+  DamagePopupSystem.cs           — SpawnStatusPresentation, status stack anchors, damage popup pool
+  MinionDefinition.cs            — minion prefab + combat config asset
+  MinionCombatController.cs      — minion combat tick
+  MinionCombatTarget.cs          — active minion registry, aggro hooks
+  SoulforgedWeaponMinion.cs      — reference timed/swarm minion implementation
+  SoulforgedWeaponMinionPresentation.cs — per-ability minion visual overrides
+  ActionBarMinionControlUI.cs    — Aggressive / Assist / Passive stance bar
+  ActionBarUI.cs                 — AlignCombatLoadoutToWeaponSet, combat loadout sets
+  SkillsAbilityPageNewUI.cs      — new skills page; preset ↔ weapon set sync when editing
+  ConditionalAutoBattleSetController.cs — conditional gear/loadout swap (bypasses gear CD when enabled)
+  [NEW_SKILL_ENTRY_AGENT_CHECKLIST.md](NEW_SKILL_ENTRY_AGENT_CHECKLIST.md) — this file
+- [SYSTEMS_MAP.md](SYSTEMS_MAP.md) — architecture + §12 performance risks
+- [PROJECT__RULES.md](PROJECT__RULES.md) — coding constraints + §8 checklist
+- [MEMORY_INVESTIGATION.md](MEMORY_INVESTIGATION.md) — profiling workflow
+- [ICON_TEXTURE_AUDIT.md](ICON_TEXTURE_AUDIT.md) — icon texture sizing
+
+## Reference — enhancement parent spine ids (Melee examples)
+  Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places
+  Lv15_0 / Lv15_1 / Lv15_2 — Lv15 branch abilities (Whirlwind, Cleaving Strikes, Crescent)
+  Lv25_0                  — Shadow Strike (Ability Milestone III replacement)
+  Lv25_1                  — Energy Infusion
+  Lv25_2                  — Flame Charge
+  Lv35_0                  — Soulforged Weapon (Lv35 ability row slot 0)
+  Lv35_1                  — Battle Trance (3 enhancements at Lv38)
+  Lv35                    — Soulforged Weapon (legacy int key — prefer Lv35_0 for new code)
+  Lv40_0                  — Phoenix Soul (Melee major passive; choices at Lv43)
+  Lv40_1                  — Master of Venoms (second Lv40 major; choices at Lv43)
+  Lv45_0                  — Final Severance
+  Lv45_1                  — Executioner's Descent

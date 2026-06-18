@@ -1952,6 +1952,28 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     public void SetCombatLoadoutSet(int setIndex)
     {
+        AlignCombatLoadoutToWeaponSet(setIndex, forceReapplyWhenAlreadyAligned: false);
+    }
+
+    /// <summary>
+    /// Aligns the ability bar with a weapon set. When gear changed without a loadout index change
+    /// (conditional auto-battle), toggles away and back to reload the paired ability snapshot.
+    /// </summary>
+    public void AlignCombatLoadoutToWeaponSet(int weaponSetIndex, bool forceReapplyWhenAlreadyAligned = true)
+    {
+        int targetSet = weaponSetIndex == 1 ? 1 : 0;
+        if (forceReapplyWhenAlreadyAligned && targetSet == activeCombatLoadoutSetIndex)
+        {
+            int otherSet = targetSet == 0 ? 1 : 0;
+            ApplyCombatLoadoutSetSwap(otherSet);
+        }
+
+        if (targetSet != activeCombatLoadoutSetIndex)
+            ApplyCombatLoadoutSetSwap(targetSet);
+    }
+
+    private void ApplyCombatLoadoutSetSwap(int setIndex)
+    {
         ExitGatheringBarToCombat();
 
         int nextSet = setIndex == 1 ? 1 : 0;

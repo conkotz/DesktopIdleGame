@@ -40,7 +40,7 @@ GamePlay scene
 | **Combat (player)** | Targeting, auto/idle combat, ranged/melee, DPS tracking | `Player/PlayerCombatController` (+ capstone partials), `Player/PlayerCombatState` |
 | **Combat (enemies)** | AI states, aggro, attacks, abilities | `NPC/Enemies/EnemyBaseController`, `EnemyAbilityController`, `EnemyAggro` |
 | **Shared combat** | Ailments, projectiles, enemy registry, mitigation | `SharedCombat/*`, `CombatEnemyRegistry`, `AilmentController` |
-| **Abilities** | Cooldowns, channels, minions, VFX orchestration | `Abilites/PlayerAbilityController` (many partials), `PlayerAbilityVfxController`, `ActionBarUI` |
+| **Abilities** | Cooldowns, channels, minions, VFX orchestration | `Abilites/PlayerAbilityController` (many partials), `PlayerAbilityVfxController`, `ActionBarUI` — **new abilities:** [`NEW_SKILL_ENTRY_AGENT_CHECKLIST.md`](NEW_SKILL_ENTRY_AGENT_CHECKLIST.md) |
 | **Skills / progression** | XP, skill trees, ability row picks | `Skills/SkillsManager`, skill-tree UI scaffolds |
 | **Stats** | HP/energy/mana/guard, gear-derived stats, combat power | `Player/CharacterStats` |
 | **Equipment** | Gear slots, weapon sets, visual equippers | `Equipment/EquipmentManager`, `ToolbeltManager`, `*Equipper.cs` |

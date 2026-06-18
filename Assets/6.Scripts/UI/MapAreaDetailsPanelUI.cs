@@ -30,9 +30,16 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
     [SerializeField] private string calmText = "Enemies are calm";
     [SerializeField] private string calmUntilPlayerAggressiveText = "Enemies are calm";
 
+    [Header("Aggression Colours")]
+    [SerializeField] private Color aggressionColor = new Color32(32, 64, 128, 255);
+
+    /// <summary>Session-scoped collapse preference (resets when the game restarts).</summary>
+    private static bool? _sessionCollapsedPreference;
+
     private string _lastLocation;
     private string _lastLocationType;
     private string _lastAggression;
+    private Color _lastAggressionColor;
     private bool _collapsed;
     private bool _isCombatMap;
 
@@ -50,7 +57,9 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
         if (collapseButton)
             collapseButton.onClick.AddListener(ToggleCollapsed);
 
-        _collapsed = startCollapsed;
+        LevelAggroState.AggroPulseTriggered += OnAggroPulseTriggered;
+
+        _collapsed = _sessionCollapsedPreference ?? startCollapsed;
         ApplyCollapsedVisualState();
         Refresh();
     }
@@ -62,6 +71,13 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
 
         if (collapseButton)
             collapseButton.onClick.RemoveListener(ToggleCollapsed);
+
+        LevelAggroState.AggroPulseTriggered -= OnAggroPulseTriggered;
+    }
+
+    private void OnAggroPulseTriggered(string _)
+    {
+        Refresh(force: true);
     }
 
     private void LateUpdate()
@@ -77,6 +93,7 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
     public void ToggleCollapsed()
     {
         _collapsed = !_collapsed;
+        _sessionCollapsedPreference = _collapsed;
         ApplyCollapsedVisualState();
     }
 
@@ -86,6 +103,7 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
             return;
 
         _collapsed = collapsed;
+        _sessionCollapsedPreference = _collapsed;
         ApplyCollapsedVisualState();
     }
 
@@ -134,7 +152,7 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
             : unknownLocationTypeText;
 
         _isCombatMap = def != null && def.nodeType == MapNodeType.Combat;
-        string aggression = ResolveAggressionText(def);
+        ResolveAggressionPresentation(def, out string aggression, out Color aggressionColor);
 
         if (force || location != _lastLocation)
         {
@@ -150,14 +168,50 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
                 locationTypeText.text = locationType;
         }
 
-        if (force || aggression != _lastAggression)
+        if (force || aggression != _lastAggression || aggressionColor != _lastAggressionColor)
         {
             _lastAggression = aggression;
+            _lastAggressionColor = aggressionColor;
+            if (aggressionHeaderText)
+            {
+                aggressionHeaderText.text = "Aggression";
+                aggressionHeaderText.color = aggressionColor;
+            }
+
             if (aggressionText)
+            {
                 aggressionText.text = aggression;
+                aggressionText.color = aggressionColor;
+            }
         }
 
         ApplyCollapsedVisualState();
+    }
+
+    private void ResolveAggressionPresentation(
+        MapNodeDefinition def,
+        out string aggression,
+        out Color color)
+    {
+        aggression = string.Empty;
+        color = aggressionColor;
+
+        if (def == null || def.nodeType != MapNodeType.Combat)
+            return;
+
+        switch (def.enemyAggroMode)
+        {
+            case LevelEnemyAggroMode.Aggressive:
+                aggression = aggressiveText;
+                break;
+            case LevelEnemyAggroMode.Calm:
+                aggression = calmText;
+                break;
+            case LevelEnemyAggroMode.CalmUntilPlayerAggressive:
+                bool provoked = LevelAggroState.IsWaveAggroLatched(def);
+                aggression = provoked ? aggressiveText : calmUntilPlayerAggressiveText;
+                break;
+        }
     }
 
     private static MapNodeDefinition ResolveActiveMapNodeDefinition()
@@ -167,20 +221,6 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
             return GameplayLevelBootstrapper.Instance.ActiveDefinition;
 
         return ActiveLevelContext.Current;
-    }
-
-    private string ResolveAggressionText(MapNodeDefinition def)
-    {
-        if (def == null || def.nodeType != MapNodeType.Combat)
-            return string.Empty;
-
-        return def.enemyAggroMode switch
-        {
-            LevelEnemyAggroMode.Aggressive => aggressiveText,
-            LevelEnemyAggroMode.Calm => calmText,
-            LevelEnemyAggroMode.CalmUntilPlayerAggressive => calmUntilPlayerAggressiveText,
-            _ => string.Empty
-        };
     }
 
     private static string FormatNodeType(MapNodeType type)

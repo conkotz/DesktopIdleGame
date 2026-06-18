@@ -275,9 +275,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Tooltip("Extra lift applied to the sprite bottom after lane-floor snap (use if the pole clips into the ground).")]
     [SerializeField, Min(0f)] private float warBannerMinimumHeightAboveTarget = 0f;
     [SerializeField] private string warBannerSortingLayer = "Foreground";
-    [Tooltip("Sorting order relative to the player sprite. Negative = behind the player.")]
+    [Tooltip("Sorting order relative to the lowest combat sprite (player, enemies, minions). Negative = behind all.")]
     [SerializeField] private int warBannerSortingOrderOffsetFromPlayer = -5;
     [SerializeField] private int warBannerSortingOrder = 10;
+    [Tooltip("Fade banner when the player stands over it (50% opacity by default).")]
+    [SerializeField] private bool warBannerFadeWhenPlayerOverlaps = true;
+    [SerializeField, Range(0.1f, 1f)] private float warBannerOverlapAlpha = 0.5f;
+    [SerializeField, Min(0.02f)] private float warBannerOverlapScanInterval = 0.1f;
 
     [Header("Hammer Tempest (Melee Lv35) VFX")]
     [Tooltip("Sprite for each orbiting hammer (e.g. SmallGoldenHammer). Uses Guardian's Hammer sprite if empty.")]
@@ -361,6 +365,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private SpriteRenderer _warBannerRenderer;
     private float _warBannerDescentTotalSeconds;
     private bool _warBannerAnchored;
+    private Color _warBannerBaseTint;
+    private PlayerController _warBannerOverlapPlayer;
+    private SpriteRenderer[] _warBannerOverlapPlayerRenderers = System.Array.Empty<SpriteRenderer>();
+    private float _nextWarBannerOverlapCheckTime;
+    private float _nextWarBannerSortRefreshTime;
+    private bool _lastWarBannerOverlapState;
     private GameObject _hammerTempestOrbitRoot;
     private Coroutine _hammerTempestOrbitRoutine;
     private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
@@ -3567,6 +3577,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        if (_warBannerAnchored && _warBannerRenderer != null && _warBannerRenderer.enabled)
+            RefreshWarBannerOverlapFade();
+    }
+
     public void BeginWarBannerDescent(Vector3 targetWorld, float descentSeconds)
     {
         _warBannerAnchored = false;
@@ -3595,6 +3611,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         _warBannerAnchored = true;
+        _nextWarBannerSortRefreshTime = 0f;
         SnapWarBannerSpriteBottomToWorldY(impactWorldPosition.x, GetWarBannerLandingBottomWorldY());
         EnsureWarBannerRendererVisible();
     }
@@ -3606,15 +3623,16 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         EnsureWarBannerParentedToWorldContent();
         SnapWarBannerSpriteBottomToWorldY(worldPoint.x, GetWarBannerLandingBottomWorldY());
-        if (_warBannerRenderer != null)
-            ApplyWarBannerSorting(_warBannerRenderer);
         EnsureWarBannerRendererVisible();
+        RefreshWarBannerOverlapFade();
     }
 
     /// <summary>Destroys the planted banner. Only call when the War Banner buff ends — not on landing.</summary>
     public void StopWarBannerVfx()
     {
         _warBannerAnchored = false;
+        _lastWarBannerOverlapState = false;
+        _nextWarBannerSortRefreshTime = 0f;
         if (_warBannerVisualRoot != null)
         {
             Destroy(_warBannerVisualRoot);
@@ -3631,6 +3649,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         _warBannerVisualRoot = new GameObject("WarBannerVisual");
         _warBannerRenderer = _warBannerVisualRoot.AddComponent<SpriteRenderer>();
         _warBannerRenderer.sprite = warBannerSprite;
+        _warBannerBaseTint = warBannerTint;
         _warBannerRenderer.color = warBannerTint;
         ApplyWarBannerSorting(_warBannerRenderer);
     }
@@ -3640,10 +3659,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (_warBannerRenderer == null || _warBannerVisualRoot == null)
             return;
 
+        _warBannerBaseTint = warBannerTint;
         _warBannerRenderer.sprite = warBannerSprite;
         _warBannerRenderer.color = warBannerTint;
         _warBannerVisualRoot.transform.localScale = Vector3.one * warBannerWorldScale;
         EnsureWarBannerRendererVisible();
+        RefreshWarBannerOverlapFade();
     }
 
     private void EnsureWarBannerRendererVisible()
@@ -3712,6 +3733,152 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         SnapWarBannerSpriteBottomToWorldY(targetWorld.x, bottomY);
         EnsureWarBannerRendererVisible();
+        RefreshWarBannerOverlapFade();
+    }
+
+    private void RefreshWarBannerOverlapFade()
+    {
+        if (_warBannerRenderer == null || !_warBannerRenderer.enabled)
+            return;
+
+        if (_warBannerBaseTint.a <= 0.001f)
+            _warBannerBaseTint = warBannerTint;
+
+        bool overlaps = false;
+        if (warBannerFadeWhenPlayerOverlaps)
+        {
+            if (Time.unscaledTime >= _nextWarBannerOverlapCheckTime)
+            {
+                _nextWarBannerOverlapCheckTime = Time.unscaledTime + warBannerOverlapScanInterval;
+                _lastWarBannerOverlapState = IsPlayerOverlappingWarBanner();
+            }
+
+            overlaps = _lastWarBannerOverlapState;
+        }
+        else
+        {
+            _lastWarBannerOverlapState = false;
+        }
+
+        Color c = _warBannerBaseTint;
+        c.a = _warBannerBaseTint.a * (overlaps ? warBannerOverlapAlpha : 1f);
+        if (Time.unscaledTime >= _nextWarBannerSortRefreshTime)
+        {
+            _nextWarBannerSortRefreshTime = Time.unscaledTime + warBannerOverlapScanInterval;
+            ApplyWarBannerSorting(_warBannerRenderer);
+        }
+
+        _warBannerRenderer.color = c;
+    }
+
+    private bool IsPlayerOverlappingWarBanner()
+    {
+        if (_warBannerRenderer == null || _warBannerRenderer.sprite == null)
+            return false;
+
+        Bounds bannerBounds = _warBannerRenderer.bounds;
+        if (bannerBounds.size.sqrMagnitude < 0.0001f)
+            return false;
+
+        EnsureWarBannerOverlapPlayerCached();
+        if (IsUnitOverlappingWarBanner(bannerBounds, _warBannerOverlapPlayer != null ? _warBannerOverlapPlayer.transform : null, _warBannerOverlapPlayerRenderers))
+            return true;
+
+        MinionUnit[] minions = FindObjectsByType<MinionUnit>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < minions.Length; i++)
+        {
+            MinionUnit minion = minions[i];
+            if (minion == null || !minion.gameObject.activeInHierarchy || !minion.IsAliveVisual)
+                continue;
+
+            if (IsUnitOverlappingWarBanner(bannerBounds, minion.transform, null))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsUnitOverlappingWarBanner(Bounds bannerBounds, Transform unit, SpriteRenderer[] cachedRenderers)
+    {
+        if (unit == null)
+            return false;
+
+        Collider2D unitCol = unit.GetComponent<Collider2D>();
+        if (unitCol == null)
+            unitCol = unit.GetComponentInChildren<Collider2D>(true);
+        if (unitCol != null && unitCol.enabled && BoundsOverlap2D(bannerBounds, unitCol.bounds))
+            return true;
+
+        if (cachedRenderers != null && cachedRenderers.Length > 0)
+        {
+            for (int i = 0; i < cachedRenderers.Length; i++)
+            {
+                SpriteRenderer sr = cachedRenderers[i];
+                if (sr == null || !sr.enabled || sr.sprite == null || !sr.gameObject.activeInHierarchy)
+                    continue;
+
+                if (BoundsOverlap2D(bannerBounds, sr.bounds))
+                    return true;
+            }
+        }
+        else
+        {
+            SpriteRenderer[] renderers = unit.GetComponentsInChildren<SpriteRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                SpriteRenderer sr = renderers[i];
+                if (sr == null || !sr.enabled || sr.sprite == null || !sr.gameObject.activeInHierarchy)
+                    continue;
+
+                if (BoundsOverlap2D(bannerBounds, sr.bounds))
+                    return true;
+            }
+        }
+
+        const float horizontalMarginWorld = 0.55f;
+        float unitX = unit.position.x;
+        if (unitX < bannerBounds.min.x - horizontalMarginWorld ||
+            unitX > bannerBounds.max.x + horizontalMarginWorld)
+            return false;
+
+        float unitY = unit.position.y;
+        return unitY >= bannerBounds.min.y - 0.35f && unitY <= bannerBounds.max.y + 0.65f;
+    }
+
+    private void EnsureWarBannerOverlapPlayerCached()
+    {
+        if (_warBannerOverlapPlayer == null)
+        {
+            _warBannerOverlapPlayer = CombatPlayerRefs.Controller;
+            if (_warBannerOverlapPlayer == null)
+                _warBannerOverlapPlayer = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            _warBannerOverlapPlayerRenderers = System.Array.Empty<SpriteRenderer>();
+        }
+
+        if (_warBannerOverlapPlayer == null)
+            return;
+
+        bool needsRefresh = _warBannerOverlapPlayerRenderers.Length == 0;
+        if (!needsRefresh)
+        {
+            for (int i = 0; i < _warBannerOverlapPlayerRenderers.Length; i++)
+            {
+                if (_warBannerOverlapPlayerRenderers[i] == null)
+                {
+                    needsRefresh = true;
+                    break;
+                }
+            }
+        }
+
+        if (needsRefresh)
+            _warBannerOverlapPlayerRenderers = _warBannerOverlapPlayer.GetComponentsInChildren<SpriteRenderer>(true);
+    }
+
+    private static bool BoundsOverlap2D(Bounds a, Bounds b)
+    {
+        return a.min.x <= b.max.x && a.max.x >= b.min.x
+            && a.min.y <= b.max.y && a.max.y >= b.min.y;
     }
 
     private float GetWarBannerLandingBottomWorldY()
@@ -3725,12 +3892,85 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (!renderer)
             return;
 
-        if (TryApplyPlayerSpriteSortingToRenderer(renderer, warBannerSortingOrderOffsetFromPlayer))
+        if (TryApplyWarBannerSortingBehindCombatUnits(renderer))
             return;
 
         if (!string.IsNullOrWhiteSpace(warBannerSortingLayer))
             renderer.sortingLayerName = warBannerSortingLayer;
-        renderer.sortingOrder = warBannerSortingOrder;
+        renderer.sortingOrder = warBannerSortingOrder + warBannerSortingOrderOffsetFromPlayer;
+    }
+
+    private bool TryApplyWarBannerSortingBehindCombatUnits(SpriteRenderer renderer)
+    {
+        if (!TryGetLowestCombatSpriteSorting(out int sortingLayerId, out int lowestSortingOrder))
+            return false;
+
+        int behindOffset = Mathf.Min(warBannerSortingOrderOffsetFromPlayer, -1);
+        renderer.sortingLayerID = sortingLayerId;
+        renderer.sortingOrder = lowestSortingOrder + behindOffset;
+        return true;
+    }
+
+    private bool TryGetLowestCombatSpriteSorting(out int sortingLayerId, out int lowestSortingOrder)
+    {
+        sortingLayerId = 0;
+        lowestSortingOrder = int.MaxValue;
+        bool found = false;
+
+        if (player != null)
+            AccumulateLowestSpriteSorting(player.transform, ref sortingLayerId, ref lowestSortingOrder, ref found);
+
+        EnsureWarBannerOverlapPlayerCached();
+        if (_warBannerOverlapPlayer != null && (_warBannerOverlapPlayer != player))
+            AccumulateLowestSpriteSorting(_warBannerOverlapPlayer.transform, ref sortingLayerId, ref lowestSortingOrder, ref found);
+
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyBaseController enemy = enemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            AccumulateLowestSpriteSorting(enemy.transform, ref sortingLayerId, ref lowestSortingOrder, ref found);
+        }
+
+        MinionUnit[] minions = FindObjectsByType<MinionUnit>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < minions.Length; i++)
+        {
+            MinionUnit minion = minions[i];
+            if (minion == null || !minion.gameObject.activeInHierarchy || !minion.IsAliveVisual)
+                continue;
+
+            AccumulateLowestSpriteSorting(minion.transform, ref sortingLayerId, ref lowestSortingOrder, ref found);
+        }
+
+        return found;
+    }
+
+    private static void AccumulateLowestSpriteSorting(
+        Transform root,
+        ref int sortingLayerId,
+        ref int lowestSortingOrder,
+        ref bool found)
+    {
+        if (root == null)
+            return;
+
+        SpriteRenderer[] renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer sr = renderers[i];
+            if (sr == null || !sr.enabled || sr.sprite == null || !sr.gameObject.activeInHierarchy)
+                continue;
+
+            if (!found)
+            {
+                sortingLayerId = sr.sortingLayerID;
+                found = true;
+            }
+
+            lowestSortingOrder = Mathf.Min(lowestSortingOrder, sr.sortingOrder);
+        }
     }
 
     public void SpawnHammerTempestOrbitVfx(float durationSeconds, int hammerCount)

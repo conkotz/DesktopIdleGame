@@ -105,9 +105,13 @@ public sealed class ConditionalAutoBattleSetController : MonoBehaviour
 
         actionBar?.ExitGatheringBarToCombat();
 
+        bool bypassGearCooldown = ConditionalAutoBattleSettingsStore.Enabled &&
+                                  ConditionalAutoBattleSettingsStore.HasActiveConditions();
+
         bool gearSwapped = false;
         if (swapGear)
-            gearSwapped = equipment != null && equipment.TrySetActiveWeaponSet(setIndex);
+            gearSwapped = equipment != null &&
+                          equipment.TrySetActiveWeaponSet(setIndex, bypassGearCooldown);
 
         if (gearSwapped)
             characterStats?.NotifyWeaponSetSwapped();
@@ -115,10 +119,11 @@ public sealed class ConditionalAutoBattleSetController : MonoBehaviour
         yield return null;
 
         BindRefs();
-        if (swapLoadout && actionBar != null)
+        if (actionBar != null && (gearSwapped || swapLoadout))
         {
-            actionBar.SetCombatLoadoutSet(setIndex);
-            SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, actionBar);
+            int targetSet = equipment != null && equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
+            actionBar.AlignCombatLoadoutToWeaponSet(targetSet);
+            SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(targetSet, actionBar);
         }
 
         if (gearSwapped || swapLoadout)

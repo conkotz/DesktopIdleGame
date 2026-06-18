@@ -98,6 +98,7 @@ Before submitting gameplay or UI code:
 | Materials | Any new material instances per frame or per hit? |
 | Coupling | Could this use an event or existing registry instead of a scene scan? |
 | Docs | Change list written? `SYSTEMS_MAP.md` updated if new system? |
+| Skills / abilities | New or changed ability? Followed [`NEW_SKILL_ENTRY_AGENT_CHECKLIST.md`](NEW_SKILL_ENTRY_AGENT_CHECKLIST.md) end-to-end? |
 
 ---
 
@@ -106,6 +107,7 @@ Before submitting gameplay or UI code:
 | File | Purpose |
 |------|---------|
 | [`SYSTEMS_MAP.md`](SYSTEMS_MAP.md) | Architecture, managers, per-frame scripts, known risks |
+| [`NEW_SKILL_ENTRY_AGENT_CHECKLIST.md`](NEW_SKILL_ENTRY_AGENT_CHECKLIST.md) | Skills & abilities pipeline checklist (assets, tooltips, HUD, minions, VFX) |
 | `PROJECT__RULES.md` (this file) | Constraints for all future changes |
 
 ---
