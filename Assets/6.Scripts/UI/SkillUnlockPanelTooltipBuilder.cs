@@ -52,6 +52,14 @@ public static class SkillUnlockPanelTooltipBuilder
             return FinalizeListEntryTooltipBody(ref body, unlock, choiceIndex);
         }
 
+        if (skill.skillType == SkillType.Ranged
+            && !string.IsNullOrEmpty(spineId)
+            && RangedMajorPassiveTooltipText.TryBuildSkillTreeBody(spineId, choiceIndex, out string rangedBody))
+        {
+            body = rangedBody;
+            return FinalizeListEntryTooltipBody(ref body, unlock, choiceIndex);
+        }
+
         string majorTitle = title.Trim();
         string enhancementTitle = ResolveEnhancementTitle(unlock, choiceIndex);
         if (GatheringPassiveTooltipText.TryBuildSkillTreeMajorPassiveBody(

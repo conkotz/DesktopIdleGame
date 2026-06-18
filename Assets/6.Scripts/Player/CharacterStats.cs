@@ -3145,6 +3145,44 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public bool IsParryMajorPassiveActive() =>
         GetMeleeLevel10MajorPassiveRowPick() == 1 && AreMeleeMajorPassiveEffectsEnabled();
 
+    public int GetRangedLevel10MajorPassiveRowPick()
+    {
+        if (skillsManager == null || skillsManager.GetLevel(SkillType.Ranged) < AbilityCombatPower.SeekerArrowsMajorPassiveLevel)
+            return -1;
+
+        return SkillTreeRowPickRules.GetCommittedRowPick(
+            skillsManager, SkillType.Ranged, AbilityCombatPower.SeekerArrowsMajorPassiveLevel, -1, maxOrdinalInclusive: 1);
+    }
+
+    public bool HasRangedWeaponEquippedForMajorPassive()
+    {
+        ItemDefinition mainHand = GetEquippedMainHandWeaponOrNull();
+        return mainHand != null && mainHand.weaponStats.attackSkill == AttackSkill.Ranged;
+    }
+
+    public bool AreRangedMajorPassiveEffectsEnabled() => HasRangedWeaponEquippedForMajorPassive();
+
+    public bool IsSeekerArrowsMajorPassiveActive() =>
+        GetRangedLevel10MajorPassiveRowPick() == 0 && AreRangedMajorPassiveEffectsEnabled();
+
+    public int GetSeekerArrowsEnhancementPick()
+    {
+        if (!IsSeekerArrowsMajorPassiveActive())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, -1)
+            : -1;
+    }
+
+    public bool CanSeekerArrowsChainOnHit() =>
+        IsSeekerArrowsMajorPassiveActive()
+        && GetSeekerArrowsEnhancementPick() == AbilityCombatPower.SeekerArrowsEnhancementChainChoiceIndex;
+
+    public float GetSeekerArrowProcChanceFraction() =>
+        IsSeekerArrowsMajorPassiveActive() ? AbilityCombatPower.SeekerArrowProcChance : 0f;
+
     public int GetParryEnhancementPick()
     {
         if (!IsParryMajorPassiveActive())

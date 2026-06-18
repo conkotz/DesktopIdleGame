@@ -290,6 +290,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float snipeTrailStartAlpha = 0.95f;
     [SerializeField] private Color snipeTrailColor = Color.white;
 
+    [Header("Seeker Arrows (Range Lv10) VFX")]
+    [SerializeField, Min(0.05f)] private float seekerArrowTrailLingerSeconds = 1.5f;
+    [SerializeField, Min(0.01f)] private float seekerArrowTrailWidth = 0.1f;
+    [SerializeField, Range(0f, 1f)] private float seekerArrowTrailStartAlpha = 0.95f;
+    [SerializeField] private Color seekerArrowTrailColor = Color.white;
+
     [Header("War Banner (Melee Lv35) VFX")]
     [SerializeField] private Sprite warBannerSprite;
     [SerializeField] private Color warBannerTint = Color.white;
@@ -3639,6 +3645,17 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Width = Mathf.Max(0.01f, snipeTrailWidth),
             StartAlpha = Mathf.Clamp01(snipeTrailStartAlpha),
             Color = c
+        };
+    }
+
+    public SnipeLingeringTrailFollower.TrailSettings GetSeekerArrowTrailSettings()
+    {
+        return new SnipeLingeringTrailFollower.TrailSettings
+        {
+            LingerSeconds = Mathf.Max(0.1f, seekerArrowTrailLingerSeconds),
+            Width = Mathf.Max(0.01f, seekerArrowTrailWidth),
+            StartAlpha = Mathf.Clamp01(seekerArrowTrailStartAlpha),
+            Color = seekerArrowTrailColor
         };
     }
 

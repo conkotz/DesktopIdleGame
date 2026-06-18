@@ -19,6 +19,8 @@ public static class SkillTreeNodeTooltipFormatter
         public string Description;
         /// <summary>Major passive stat/effect lines (details panel middle column).</summary>
         public string EffectText;
+        /// <summary>Major passive scaling lines (details panel middle column).</summary>
+        public string ScalingText;
         public string ActiveEnhancement;
         public string EnhancementsTitle;
         public string EnhancementsList;
@@ -98,9 +100,28 @@ public static class SkillTreeNodeTooltipFormatter
         bool useMajorPassivePresentation = visualType == SkillTreeNodeVisualType.MajorPassive
                                            || visualType == SkillTreeNodeVisualType.CapstonePassive;
         string effectText = null;
+        string scalingText = null;
         if (useMajorPassivePresentation)
         {
             effectText = desc;
+            if (skill != null && unlock != null && unlock.unlockType == SkillUnlockType.MajorPassive)
+            {
+                string spineId = binding.ResolveSpineNodeId();
+                int selectedChoice = skillsManager != null && !string.IsNullOrEmpty(spineId)
+                    ? skillsManager.GetSkillChoiceSelection(skill.skillType, spineId, -1)
+                    : -1;
+                CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+                if (skill.skillType == SkillType.Ranged
+                    && RangedMajorPassiveTooltipText.TryBuildDetailsPanelSections(
+                        spineId, selectedChoice, stats, out string rangedScaling, out string rangedEffect))
+                {
+                    scalingText = rangedScaling;
+                    effectText = rangedEffect;
+                }
+            }
+
+            if (visualType != SkillTreeNodeVisualType.CapstonePassive && !string.IsNullOrWhiteSpace(effectText))
+                effectText = ApplyMajorPassiveValueLineMarkup(skill, effectText);
             desc = ResolveMajorPassiveFlavorDescription(skill, unlock, binding.ResolveSpineNodeId(), effectText);
 
             if (visualType == SkillTreeNodeVisualType.CapstonePassive && skill != null)
@@ -132,6 +153,7 @@ public static class SkillTreeNodeTooltipFormatter
             StatusRichText = BuildStatusRichText(binding.DisplayState, isUnlocked),
             Description = desc,
             EffectText = effectText,
+            ScalingText = scalingText,
             RequirementsText = BuildRequirementsText(level, isUnlocked, binding.DisplayState, unlock.unlockType),
             Icon = ResolveIcon(unlock, skill, binding.Choice),
             HasContent = true
@@ -175,6 +197,12 @@ public static class SkillTreeNodeTooltipFormatter
             && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string meleeChoiceBody))
         {
             desc = meleeChoiceBody;
+        }
+        else if (skill != null && parentUnlock != null
+            && !string.IsNullOrEmpty(spineId)
+            && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string rangedChoiceBody))
+        {
+            desc = rangedChoiceBody;
         }
         else
         {
@@ -357,6 +385,12 @@ public static class SkillTreeNodeTooltipFormatter
                 return meleeBody;
         }
 
+        if (skill.skillType == SkillType.Ranged && unlock.unlockType == SkillUnlockType.MajorPassive)
+        {
+            if (RangedMajorPassiveTooltipText.TryBuildSkillTreeBody(spineId, selectedChoice, out string rangedBody))
+                return rangedBody;
+        }
+
         if (skill.skillType == SkillType.Melee && unlock.unlockType == SkillUnlockType.CapstonePassive)
         {
             if (MeleeMajorPassiveTooltipText.TryBuildCapstoneBody(out string capstoneBody))
@@ -373,6 +407,15 @@ public static class SkillTreeNodeTooltipFormatter
         string effectBody)
     {
         if (skill != null
+            && skill.skillType == SkillType.Ranged
+            && !string.IsNullOrEmpty(spineId)
+            && RangedMajorPassiveTooltipText.TryBuildFlavorDescription(spineId, out string rangedFlavor))
+        {
+            return rangedFlavor;
+        }
+
+        if (skill != null
+            && skill.skillType == SkillType.Melee
             && !string.IsNullOrEmpty(spineId)
             && MeleeMajorPassiveTooltipText.TryBuildFlavorDescription(spineId, out string meleeFlavor))
         {

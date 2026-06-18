@@ -1559,6 +1559,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (spawnedProjectile)
             delay += travelTime;
 
+        if (consumeAmmo)
+            TryProcSeekerArrowsFromAutoAttack(targetAtFireTime);
+
         if (delay <= 0f)
         {
             ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution, consumeAmmo: consumeAmmo);

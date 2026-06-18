@@ -208,6 +208,51 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 10
+    title: Intermediate Ranged Combat
+    description: Can use tier 2 ranged weapons
+    icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: Seeker Arrows
+    description: Has a chance on every auto attack to fire a phantom seeker arrow at your target.
+      Seeker arrows cannot apply on-hit effects.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 13
+      title: Echoes
+      description: When this effect triggers, it can also trigger itself.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 13
+      title: Seeker Volley
+      description: 10% chance to trigger seeker arrow 5 consecutive times.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 11
     title: Sharpened Arrows III
     description: +2 Min Ranged Damage

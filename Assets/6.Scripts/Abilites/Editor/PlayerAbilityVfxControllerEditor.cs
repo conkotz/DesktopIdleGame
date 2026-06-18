@@ -310,6 +310,14 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "snipeTrailColor"
     };
 
+    private static readonly string[] SeekerArrowVfxFieldNames =
+    {
+        "seekerArrowTrailLingerSeconds",
+        "seekerArrowTrailWidth",
+        "seekerArrowTrailStartAlpha",
+        "seekerArrowTrailColor"
+    };
+
     private static readonly string[] GatheringFrenzySharedFieldNames =
     {
         "lumberFrenzyOrbitVfxPrefab",
@@ -425,6 +433,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
 
         new(VfxSkillTab.Range, "TripleShotVfx", 5, "Triple Shot", TripleShotVfxFieldNames),
         new(VfxSkillTab.Range, "SnipeVfx", 5, "Snipe", SnipeVfxFieldNames),
+        new(VfxSkillTab.Range, "SeekerArrowVfx", 5, "Seeker Arrows", SeekerArrowVfxFieldNames),
 
         new(VfxSkillTab.Woodcutting, "LumberFrenzyVfx", 5, "Lumber Frenzy",
             LumberFrenzyFieldNames, GatheringFrenzySharedFieldNames),

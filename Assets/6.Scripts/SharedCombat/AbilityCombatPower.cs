@@ -31,6 +31,32 @@ public static class AbilityCombatPower
     public const float SnipeMaxChargeDamageMultiplier = 3f;
     public const float SnipeProjectileSpeedMultiplier = 2f;
 
+    /// <summary>Ranged Lv10 major passive — Seeker Arrows (skill tree slot 0 at level 10).</summary>
+    public const string SeekerArrowsMajorPassiveSpineNodeId = "Lv10_0";
+    public const int SeekerArrowsMajorPassiveLevel = 10;
+    public const float SeekerArrowWeaponDamageFraction = 0.25f;
+    public const float SeekerArrowProcChance = 0.25f;
+    public const float SeekerArrowVolleyProcChance = 0.10f;
+    public const int SeekerArrowVolleyCount = 5;
+    /// <summary>Time from first to last launch when a volley procs (arrows fly in parallel).</summary>
+    public const float SeekerArrowVolleyTotalLaunchDurationSeconds = 2f;
+
+    public static float GetSeekerArrowVolleyLaunchIntervalSeconds() =>
+        SeekerArrowVolleyCount <= 1
+            ? 0f
+            : SeekerArrowVolleyTotalLaunchDurationSeconds / (SeekerArrowVolleyCount - 1);
+
+    /// <summary>Expected seeker arrows per proc event (Echoes chain, geometric series).</summary>
+    public static float GetSeekerArrowsEchoesExpectedArrowsPerProc() =>
+        1f / Mathf.Max(0.0001f, 1f - SeekerArrowProcChance);
+
+    /// <summary>Expected seeker arrows per proc event (Seeker Volley enhancement).</summary>
+    public static float GetSeekerArrowsVolleyExpectedArrowsPerProc() =>
+        (1f - SeekerArrowVolleyProcChance) + SeekerArrowVolleyProcChance * SeekerArrowVolleyCount;
+    public const string SeekerArrowOutgoingSourceLabel = "Seeker Arrow";
+    public const int SeekerArrowsEnhancementChainChoiceIndex = 0;
+    public const int SeekerArrowsEnhancementVolleyChoiceIndex = 1;
+
     public static float GetSnipeChargeDurationSeconds(int selectedEnhancementChoice) =>
         selectedEnhancementChoice == SnipeFasterChargeChoiceIndex
             ? SnipeEnhancedChargeDurationSeconds

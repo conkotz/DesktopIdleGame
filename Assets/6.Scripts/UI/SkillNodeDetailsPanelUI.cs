@@ -332,7 +332,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         AbilityDefinition ability = ResolveAbility(binding);
         BindTypeSection(ability, details.TypeLabel);
         BindAbilityIconDragAssign(ability, skillsManager);
-        BindMiddleColumn(ability, skillsManager, stats, binding, details.EffectText);
+        BindMiddleColumn(ability, skillsManager, stats, binding, details.EffectText, details.ScalingText);
         PopulateEnhancementCards(binding, skillsManager);
         BindRequirementsSection(
             ability,
@@ -1392,7 +1392,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         SkillsManager skillsManager,
         CharacterStats stats,
         SkillTimelineNodeBinding binding,
-        string majorPassiveEffectText = null)
+        string majorPassiveEffectText = null,
+        string majorPassiveScalingText = null)
     {
         if (ability == null)
         {
@@ -1401,6 +1402,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             {
                 int choiceIndex = ResolveCommittedEnhancementChoiceIndex(binding, skillsManager);
                 BindCapstoneEnhancementNameSection(binding.Unlock, choiceIndex);
+                SetSectionActive(scalingSectionRoot, false);
+            }
+            else if (!string.IsNullOrWhiteSpace(majorPassiveScalingText))
+            {
+                SetScalingSectionHeaderVisible(true);
+                if (scalingText != null)
+                    SetFontSize(scalingText, FontBody);
+                SetRichSection(scalingSectionRoot, scalingText, majorPassiveScalingText, ScalingTextColor);
             }
             else
             {
@@ -1527,6 +1536,11 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                 && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
                 && !string.IsNullOrWhiteSpace(meleeBody))
                 return meleeBody;
+
+            if (!string.IsNullOrWhiteSpace(spineId)
+                && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string rangedBody)
+                && !string.IsNullOrWhiteSpace(rangedBody))
+                return rangedBody;
 
             if (string.Equals(spineId, AbilityCombatPower.SoulforgedWeaponEnhancementParentSpineNodeId, StringComparison.Ordinal))
             {

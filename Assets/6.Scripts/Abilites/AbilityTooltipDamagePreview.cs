@@ -13,7 +13,16 @@ public static class AbilityTooltipDamagePreview
     private const string TooltipScalingAccentColorOrangeMode = "#9DD4FF";
 
     /// <summary>Scaling lines when effects are default/white (e.g. skills ability list).</summary>
-    private const string TooltipScalingAccentColorPlain = "#B0C8DD";
+    public const string TooltipScalingAccentColorPlain = "#B0C8DD";
+
+    /// <summary>Wraps a details-panel scaling line in the same blue accent used for ability scaling.</summary>
+    public static string WrapDetailsScalingAccentLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return string.Empty;
+
+        return $"<color={TooltipScalingAccentColorPlain}>{line.Trim()}</color>";
+    }
 
     /// <summary>Inherit-mode minions: no per-type damage numbers — one global rule (orange, like Power Slash primary effects).</summary>
     private const string InheritMinionDamageRuleLine =
@@ -1591,12 +1600,18 @@ public static class AbilityTooltipDamagePreview
         if (string.IsNullOrWhiteSpace(statsSection))
             return string.Empty;
 
-        var lines = new List<string>();
+        var result = new StringBuilder();
+        bool pendingParagraphGap = false;
+
         foreach (string raw in statsSection.Split(new[] { '\r', '\n' }, StringSplitOptions.None))
         {
             string line = raw.Trim();
             if (line.Length == 0)
+            {
+                if (result.Length > 0)
+                    pendingParagraphGap = true;
                 continue;
+            }
 
             if (string.Equals(StripRichText(line), "Effects:", StringComparison.OrdinalIgnoreCase))
                 continue;
@@ -1607,13 +1622,20 @@ public static class AbilityTooltipDamagePreview
             if (!includeDuration && StripRichText(line).StartsWith("Duration:", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            lines.Add(line);
+            if (pendingParagraphGap)
+            {
+                result.Append(DetailsEffectParagraphGap);
+                pendingParagraphGap = false;
+            }
+            else if (result.Length > 0)
+            {
+                result.Append('\n');
+            }
+
+            result.Append(line);
         }
 
-        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[lines.Count - 1]))
-            lines.RemoveAt(lines.Count - 1);
-
-        return lines.Count == 0 ? string.Empty : string.Join("\n", lines);
+        return result.Length == 0 ? string.Empty : result.ToString();
     }
 
     private static string StripRichText(string line)
@@ -2379,9 +2401,31 @@ public static class AbilityTooltipDamagePreview
 
         ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
         DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
-        AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
-        body.AppendLine(O(
+
+        var arrowDamageLines = new StringBuilder();
+        AppendElementAwareDamageLines(arrowDamageLines, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+        if (arrowDamageLines.Length > 0)
+        {
+            if (body.Length > 0)
+                body.Append(DetailsEffectParagraphGap);
+            body.Append(arrowDamageLines.ToString().TrimEnd());
+        }
+
+        AppendDetailsEffectParagraph(body, O(
             $"Fires {AbilityCombatPower.TripleShotArrowCount} arrows ({AbilityCombatPower.TripleShotPhantomArrowIntervalSeconds:0.#}s apart). Phantom arrows do not consume ammo."));
+    }
+
+    private const string DetailsEffectParagraphGap = "\n\n";
+
+    private static void AppendDetailsEffectParagraph(StringBuilder body, string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+
+        if (body.Length > 0)
+            body.Append(DetailsEffectParagraphGap);
+
+        body.Append(line.Trim());
     }
 
     private static void AppendSnipeTooltipHitDamage(
@@ -2401,9 +2445,14 @@ public static class AbilityTooltipDamagePreview
 
         if (!stats)
         {
-            body.AppendLine(O("+0 damage initial damage"));
-            body.AppendLine(O("+0 damage damage at full charge"));
-            body.AppendLine(O($"Charge time: {duration:0.#}s"));
+            var fallbackDamageLines = new List<string>
+            {
+                O("+0 damage at no charge"),
+                O("+0 damage at full charge")
+            };
+            AppendSnipeTooltipChargeDamageGroup(body, fallbackDamageLines);
+
+            AppendDetailsEffectParagraph(body, O($"Charge time: {duration:0.#}s"));
             AppendSnipeEnhancementEffectLines(body, O, selected, includeEnhancementEffects);
             return;
         }
@@ -2411,10 +2460,24 @@ public static class AbilityTooltipDamagePreview
         float initialMult = AbilityCombatPower.GetSnipeDamageMultiplierAtElapsed(0f, duration);
         float fullMult = AbilityCombatPower.SnipeMaxChargeDamageMultiplier;
 
-        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * initialMult, allM, liveDamageMultiplier, "initial damage");
-        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * fullMult, allM, liveDamageMultiplier, "damage at full charge");
-        body.AppendLine(O($"Charge time: {duration:0.#}s"));
+        var snipeDamageLines = new List<string>();
+        AppendSnipeTooltipChargeDamageLine(snipeDamageLines, O, def, stats, weaponMult * initialMult, allM, liveDamageMultiplier, " at no charge");
+        AppendSnipeTooltipChargeDamageLine(snipeDamageLines, O, def, stats, weaponMult * fullMult, allM, liveDamageMultiplier, " at full charge");
+        AppendSnipeTooltipChargeDamageGroup(body, snipeDamageLines);
+
+        AppendDetailsEffectParagraph(body, O($"Charge time: {duration:0.#}s"));
         AppendSnipeEnhancementEffectLines(body, O, selected, includeEnhancementEffects);
+    }
+
+    private static void AppendSnipeTooltipChargeDamageGroup(StringBuilder body, List<string> lines)
+    {
+        if (lines == null || lines.Count == 0)
+            return;
+
+        if (body.Length > 0)
+            body.Append(DetailsEffectParagraphGap);
+
+        body.Append(string.Join("\n", lines));
     }
 
     private static int ResolveSnipeEnhancementChoice(SkillsManager skillsManager, int enhancementChoiceOverride)
@@ -2440,11 +2503,11 @@ public static class AbilityTooltipDamagePreview
             return;
 
         if (selected == AbilityCombatPower.SnipeGuaranteedBleedChoiceIndex)
-            body.AppendLine(O("Gains 100% chance to bleed"));
+            AppendDetailsEffectParagraph(body, O("Gains 100% chance to bleed"));
     }
 
     private static void AppendSnipeTooltipChargeDamageLine(
-        StringBuilder body,
+        List<string> lines,
         System.Func<string, string> O,
         AbilityDefinition def,
         CharacterStats stats,
@@ -2453,9 +2516,17 @@ public static class AbilityTooltipDamagePreview
         float liveDamageMultiplier,
         string suffix)
     {
+        var lineBuilder = new StringBuilder();
         ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
         DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
-        AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, $" {suffix}");
+        AppendElementAwareDamageLines(lineBuilder, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+
+        foreach (string raw in lineBuilder.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            string line = raw.Trim();
+            if (line.Length > 0)
+                lines.Add(line);
+        }
     }
 
     /// <summary>

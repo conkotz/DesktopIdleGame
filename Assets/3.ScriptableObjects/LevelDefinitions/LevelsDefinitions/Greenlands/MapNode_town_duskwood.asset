@@ -335,7 +335,7 @@ MonoBehaviour:
     spawnPointGroupId: AllSpawns
     spawnPointName: SpawnPoint24
     teleporterPrefab: {fileID: 8347273920747777605, guid: d0a7e83ebe494df448ccdaf20648505c, type: 3}
-    destinationLabel: To combat testing area
+    destinationLabel: To target dummies
   - teleporterLinkId: duskwood_combat_practice
     spawnPointGroupId: CombatPractice
     spawnPointName: SideArea_Spawn30

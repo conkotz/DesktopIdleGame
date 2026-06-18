@@ -6,6 +6,8 @@
 
 Use this file when adding or editing skills and abilities (ability assets, passives tied to skills, HUD buff rows for abilities, tooltips, action bar). Work top-to-bottom for a new ability; jump to the section that matches your task.
 
+**Details panel (required for every ability + combat major passive):** middle column = **SCALING** (blue `#B0C8DD`) then **EFFECT** (paragraph gaps via `\n\n`). See **SKILL DETAILS PANEL — MIDDLE COLUMN** and **EFFECT SPACING** before shipping tooltip copy.
+
 Do **not** use this file for map travel, save/load, quests, NPCs, or other systems — those live elsewhere.
 
 
@@ -111,6 +113,8 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
                               (see Shadow Strike)
   J) Enemy debuff mark      → new component on enemy + UnitOverheadUI icon slots (not AilmentController)
                               (see Shadow Strike enhancements)
+  K) Ranged combat major passive → MajorPassive row, no ability; SCALING + EFFECT details panel;
+                              RangedMajorPassiveTooltipText + combat partial (see K2 Seeker Arrows)
 
 ### ABILITY TAGS (AbilityDefinition.tag)
   None        — Hides category line in tooltips. Use when tag is obvious from effects.
@@ -265,19 +269,18 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - Footer (green): "Active Enhancement: Title (full description)" — always show when a choice is committed.
   - Skill tree choice rows: SkillTreeViewUI uses same green for selected enhancement.
 
-### SKILL DETAILS PANEL — EFFECT COLUMN (SkillNodeDetailsPanelUI)
-  Middle column EFFECT section uses the same numeric pipeline as tooltips, but only reflects the
-  **committed** enhancement — not preview clicks.
+### SKILL DETAILS PANEL — MIDDLE COLUMN (SkillNodeDetailsPanelUI)
+  The details panel uses **two separate blocks** in the middle column for abilities AND combat major
+  passives: **SCALING** (blue) then **EFFECT** (white/cream). Do not put scaling % inside EFFECT.
 
+  #### Abilities (AbilityDefinition on row)
   Wiring:
   - BindMiddleColumn → BuildAbilityTooltipScalingSection (blue SCALING block).
   - BindMiddleColumn → BuildAbilityTooltipEffectsSection(def, skillsManager, committedChoiceIndex).
         Pass enhancementChoiceOverride only from skillsManager.GetSkillChoiceSelection (committed row).
         Do NOT pass preview index when the player clicks a different choice card.
-  - AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection / Append*TooltipHitDamage:
-        append damage lines, Duration/Charge time, and committed-enhancement gameplay bullets
-        (e.g. Snipe bleed line, Fast Charge charge time) inside the Effects body.
   - ExtractEffectLinesFromStatsSection strips "Effects:" header and Energy/Cooldown footer for the panel.
+        **Must preserve paragraph gaps** (`\n\n` between logical effect groups) — see EFFECT SPACING below.
 
   When adding a new ability with enhancement-dependent effect lines:
   1) Implement effect lines in BuildAbilityTooltipStatsSection (or dedicated Append* helper).
@@ -289,6 +292,68 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 
   Zero-damage fallback: AppendElementAwareDamageLines uses "+0 damage" when totals are 0
   (no arrows equipped, missing weapon, etc.) — never "Base hit damage" in the details panel.
+
+  #### Combat major passives (no ability asset — e.g. Seeker Arrows)
+  Wiring:
+  - SkillTreeNodeTooltipFormatter.DetailsContent: separate ScalingText + EffectText fields.
+  - RangedMajorPassiveTooltipText.TryBuildDetailsPanelSections(spineId, committedChoice, stats,
+        out scalingText, out effectText) — or MeleeMajorPassiveTooltipText for melee majors.
+  - BindMiddleColumn(ability: null, majorPassiveScalingText, majorPassiveEffectText):
+        shows SCALING section + EFFECT section (same layout as abilities).
+  - ResolveMajorPassiveFlavorDescription: check **skill type first** (Ranged before Melee) when spine
+        ids collide (e.g. both use Lv10_0 at different skill trees).
+
+  Scaling line color:
+  - Abilities: `<color=#B0C8DD>` via BuildAbilityTooltipScalingSection.
+  - Major passives: AbilityTooltipDamagePreview.WrapDetailsScalingAccentLine(line) — same blue hex.
+        Do NOT rely on TMP label.color alone (ApplyEffectBodyTextStyle resets to body white).
+
+  Major passive scaling copy pattern:
+  - "Deals {fraction * 100}% of your weapon damage" for weapon-scaled passives (no Ability Power line
+        unless the passive explicitly scales with AP — Seeker Arrows does NOT).
+
+  Major passive effect copy pattern (RangedMajorPassiveTooltipText.Build*EffectBody):
+  - Computed damage line (from stats.MinSplitDamage / MaxSplitDamage × fraction).
+  - Proc / mechanical lines (proc chance, chain rules, etc.).
+  - **Committed enhancement line only** (append when selectedChoice >= 0) — not on preview click.
+  - Use DetailsEffectParagraphGap (`\n\n`) between each logical paragraph — see EFFECT SPACING.
+
+  Skill-tree list / hover tooltips: TryBuildSkillTreeBody may combine scaling + effect for compact display;
+  details panel always splits them into SCALING + EFFECT sections.
+
+### EFFECT SPACING — DETAILS PANEL (abilities + major passives)
+  TMP paragraph spacing (EffectBodyParagraphSpacing = 14f) only applies between **paragraphs**
+  separated by `\n\n`. Single `\n` = tight lines within one group.
+
+  Helper (AbilityTooltipDamagePreview):
+  - DetailsEffectParagraphGap = "\n\n"
+  - AppendDetailsEffectParagraph(body, line) — inserts gap before each new logical block.
+
+  Rules when writing Append*TooltipHitDamage / major passive effect bodies:
+  1) **Group related lines with single `\n` only** (no blank line between them).
+  2) **Separate logical blocks with `\n\n`** (or AppendDetailsEffectParagraph).
+
+  Required patterns:
+  - **Snipe:** no-charge + full-charge damage = ONE group (single `\n` between lines, no paragraph gap).
+        Wording: "{N} Physical damage at no charge" / "{N} Physical damage at full charge".
+        Then `\n\n` before "Charge time: Xs".
+        Then `\n\n` before committed enhancement line (e.g. bleed).
+  - **Triple Shot:** arrow damage lines = ONE group.
+        Then `\n\n` before "Fires N arrows (...)" line.
+  - **Seeker Arrows (major passive):** separate paragraphs for:
+        damage per hit | proc chance | committed enhancement (each `\n\n` apart).
+        Scaling stays in SCALING section — never duplicate in EFFECT.
+
+  Pipeline integrity:
+  - BuildAbilityTooltipStatsSection / Append* helpers must emit `\n\n` between groups.
+  - ExtractEffectLinesFromStatsSection must **preserve** blank lines as paragraph gaps (do NOT
+        join all lines with single `\n` — that strips spacing for the details panel).
+  - SkillNodeDetailsPanelUI.ApplyEffectBodyTextStyle sets paragraphSpacing on effectText label.
+
+  New ability checklist (spacing):
+  - [ ] Damage sub-lines that belong together use one StringBuilder group, then append to body once.
+  - [ ] Charge time / duration / enhancement / secondary mechanics each start a new paragraph.
+  - [ ] Verify in play mode: open skill details panel, confirm visible gaps match Snipe reference.
 ## A) NEW ABILITY (full pipeline — repeat in order)
 
 1) Gameplay asset
@@ -313,6 +378,9 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 3) Tooltip / effects (CODE)
 - AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection:
        if (IsYourAbility(def)) { AppendYourEffects(...); Duration if timed buff/minion; return; }
+- **Details panel spacing:** use AppendDetailsEffectParagraph / `\n\n` between logical EFFECT blocks;
+     group related sub-lines with single `\n` only (Snipe: both damage lines together). See EFFECT SPACING.
+- ExtractEffectLinesFromStatsSection must preserve `\n\n` paragraph gaps for the details panel.
 - REQUIRED for weapon-scaled actives (weaponDamageMultiplier > 0):
     - Blue scaling: BuildAbilityTooltipScalingSection → "Deals X% of your weapon damage"
          (include AbilityTooltipAdjustments for enhancement mults, e.g. Power Slash +25%).
@@ -363,6 +431,10 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 - BuffsDebuffsPanel → TryBuildHudBuffTooltip (+ optional custom icon in panel inspector).
 - AbilityEntryUI → BuildLeagueStyleTooltip.
 - SkillsAbilityPageUI → major passive bullets via GatheringPassiveTooltipText.
+- **Skill details panel:** SkillTreeNodeTooltipFormatter + SkillNodeDetailsPanelUI.BindMiddleColumn.
+     Abilities: scaling via BuildAbilityTooltipScalingSection; effects via BuildAbilityTooltipEffectsSection
+     with committed choice only. Major passives: TryBuildDetailsPanelSections → separate ScalingText + EffectText.
+     Apply EFFECT SPACING rules (AppendDetailsEffectParagraph, `\n\n` between logical blocks).
 
 7) IDs / constants
 - AbilityCombatPower.*AbilityId + gameplay numbers (cooldown fractions, radii, durations, mults).
@@ -375,6 +447,8 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 8) Smoke test
 - Skills page: tag → flavor → blue "Deals X% weapon damage" → Effects (full damage totals) →
      green Active Enhancement → Required weapon. Hover row: tooltip beside row, not on ability name.
+- **Skill details panel:** SCALING section visible (blue) + EFFECT section with paragraph spacing;
+     enhancement line appears in EFFECT only after commit (not on preview click).
 - Action bar hover: short desc + scaling + numeric effects (timed buffs show Duration here).
 - HUD buff strip: overlay + timer OR persist overlay; hover = effects + Remaining only.
 - Cast/toggle from bar; values match tooltip.
@@ -606,7 +680,74 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - Fast Charge: SnipeFasterChargeReductionSeconds (0.5s) → SnipeEnhancedChargeDurationSeconds (2.5s).
   - GetSnipeDamageMultiplierAtElapsed scales step bonus from duration so max charge is always 300% regardless of charge time.
   - SCALING line: "Deals 100%-300% of your weapon damage" + Ability Power below (BuildAbilityTooltipScalingSection IsSnipe branch).
-## K) COOLDOWN HELPERS
+  - Details panel EFFECT spacing: initial + full-charge damage grouped; gap before charge time; gap before enhancement.
+## K2) RANGED MAJOR PASSIVE — AUTO-ATTACK PROC (Seeker Arrows pattern)
+
+  When to use:
+  - Major passive on ranged skill tree (unlockType MajorPassive, no AbilityDefinition).
+  - Procs phantom hits from auto attacks (and optionally chains on seeker hit).
+  - NOT an ability — no Ability Power scaling, no on-hit ailments/stun, no ammo consume.
+
+  Skill tree (.skill asset — e.g. ranged.asset):
+  - requiredLevel row (e.g. Lv10) unlockType: 3 (MajorPassive).
+  - **icon:** use the shared major passive sprite — same as melee (guid d4b4e65185d715544a6aa618c0842b18,
+        fileID 7940577473758156257). Enhancement choice rows keep their own icons.
+  - description = flavor only (what it does in plain English — no numeric % in description if
+        effects panel computes them).
+  - Two enhancement choices at Lv13 (typical pattern); title + description per choice.
+  - Spine id from SkillUnlockPanelTooltipBuilder.ResolveSpineNodeIdForUnlock → e.g. Lv10_0 when
+        first MajorPassive at that level (sort order: MajorPassive before Unlock rows).
+  - Often pair with tier-unlock row at same level (unlockType: 2, tier 2 weapons) — different slot.
+
+  Constants (AbilityCombatPower):
+  - *MajorPassiveSpineNodeId, *MajorPassiveLevel, weapon damage fraction, proc chance,
+        enhancement choice indices, volley proc chance/count, volley launch duration, outgoing DPS label.
+  - Helper methods for expected arrows per proc (balance Echoes vs Volley when designing).
+
+  CharacterStats:
+  - Is*MajorPassiveActive() — row pick + AreRangedMajorPassiveEffectsEnabled() (ranged weapon equipped).
+  - Get*EnhancementPick(), Can*ChainOnHit(), Get*ProcChanceFraction().
+
+  Runtime (PlayerCombatController partial — e.g. PlayerCombatController.SeekerArrows.cs):
+  - Hook proc from ranged auto attack only (consumeAmmo: true path — not Triple Shot phantoms).
+  - Roll proc chance; enqueue volley (queue coroutines — do not interrupt in-flight volleys).
+  - **Volley launch:** fire N projectiles over SeekerArrowVolleyTotalLaunchDurationSeconds (~2s)
+        with parallel hit resolution — do NOT wait for each arrow to land before launching the next.
+  - **Single / chain procs:** wait travel time then apply damage; chain rolls proc on hit if enhancement 0.
+  - ApplySeekerArrowDamage: RollSplitAttackDamage × weapon fraction only — no AP mult.
+  - Use dedicated ApplySplitDamageToTarget with outgoing source label — NOT full ResolveAttackHitNow
+        (skip ailments, stun, cleave, lifesteal, queued hit effects).
+  - Spawn: mirrored fire point (flip local X behind player); straight ProjectileVisual path;
+        SnipeLingeringTrailFollower with slimmer trail settings; optional ±5% vertical spawn variance.
+
+  VFX (PlayerAbilityVfxController + Editor Range tab):
+  - seekerArrowTrail* serialized fields; GetSeekerArrowTrailSettings().
+  - Register SeekerArrowVfxFieldNames foldout in PlayerAbilityVfxControllerEditor.cs.
+
+  Tooltips (RangedMajorPassiveTooltipText.cs):
+  - TryBuildFlavorDescription — description column (check skill type in formatter to avoid Lv10_0 melee collision).
+  - TryBuildDetailsPanelSections — scalingText + effectText for details panel.
+  - Build*ScalingBody → WrapDetailsScalingAccentLine("Deals X% of your weapon damage").
+  - Build*EffectBody — damage line, proc line, committed enhancement; use DetailsEffectParagraphGap.
+  - TryBuildChoiceTooltipBody — enhancement card / detail text.
+  - Wire in SkillTreeNodeTooltipFormatter + SkillUnlockPanelTooltipBuilder + SkillNodeDetailsPanelUI
+        ResolveEnhancementDetailEffectText.
+
+  Balance notes (Seeker Arrows reference):
+  - Base proc 25% on auto attack and on seeker hit (Echoes chain).
+  - Echoes expected arrows per proc ≈ 1 / (1 − procChance).
+  - Volley: (1 − volleyProc) × 1 + volleyProc × count — tune volleyProc so both enhancements are
+        roughly even over long fights (10% × 5 ≈ competitive with geometric Echoes chain at 25%).
+
+  Smoke test:
+  - Details panel: DESCRIPTION = flavor; SCALING = blue %; EFFECT = spaced paragraphs + enhancement after commit.
+        Compare visually to Snipe / Triple Shot / Seeker Arrows (see EFFECT SPACING).
+  - Proc on auto; no ammo drain; no bleed/stun; DPS attributes "Seeker Arrow" not "Auto Attack".
+  - Volley fires 5 arrows over ~2s; Echoes chains on hit; enhancement choice reflected in EFFECT after commit.
+
+  Reference: seeker_arrows (conceptual), PlayerCombatController.SeekerArrows.cs,
+    RangedMajorPassiveTooltipText.cs, AbilityCombatPower.SeekerArrow*.
+## K3) COOLDOWN HELPERS
 
   ReduceAbilityCooldown(def, reductionFraction) — multiplies remaining CD (Executioner's Claim 50%).
   ReduceAbilityCooldownBySeconds(def, seconds) — flat shave (Shadow Execution −3s).
@@ -679,6 +820,16 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 - Per-frame FindObjectsByType / LINQ in ability Update → stutter (see section M).
 - Hand-placing status popup colours outside FloatingDamageTextUI Status Presentations section →
     overlapping labels; use DamagePopupSystem.SpawnStatusPresentation for all lingering status text.
+- Putting scaling % in major passive EFFECT column → belongs in SCALING via TryBuildDetailsPanelSections
+    + WrapDetailsScalingAccentLine (same #B0C8DD blue as abilities).
+- Melee TryBuildFlavorDescription matching ranged Lv10_0 spine → wrong DESCRIPTION text; gate flavor
+    by SkillType.Ranged vs Melee in ResolveMajorPassiveFlavorDescription.
+- ExtractEffectLinesFromStatsSection joining all lines with `\n` → destroys EFFECT paragraph spacing;
+    preserve blank lines as `\n\n` gaps.
+- Snipe / Triple Shot details panel: single `\n` between paired damage lines; `\n\n` before charge time,
+    volley info, and enhancement lines.
+- Major passive enhancement shown on preview click in EFFECT column → only committed choice after
+    SELECT/CHANGE ENHANCEMENT (pass committedChoiceIndex from skillsManager, not preview index).
 
 ## Reference — presentation assets (Assets/3.ScriptableObjects/Presentation/)
   Presentation_ability_avatar_of_the_forest
@@ -710,6 +861,25 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   spectral_axe, soulforged_weapon, battle_trance, energy_infusion
   Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
   Major passives (MeleeMajorPassiveTooltipText): BattleEngine_Overload, phoenix_soul_ashen_rebirth
+  Major passives (RangedMajorPassiveTooltipText): Seeker Arrows Lv10_0 — no HUD buff id (combat proc only)
+
+## Reference — enhancement parent spine ids (Ranged examples)
+  Lv5_0 / Lv5_1           — Triple Shot / Snipe (abilities, not majors)
+  Lv10_0                  — Seeker Arrows (first MajorPassive at Lv10 on ranged tree; choices at Lv13)
+
+## Reference — enhancement parent spine ids (Melee examples)
+  Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places
+  Lv15_0 / Lv15_1 / Lv15_2 — Lv15 branch abilities (Whirlwind, Cleaving Strikes, Crescent)
+  Lv25_0                  — Shadow Strike (Ability Milestone III replacement)
+  Lv25_1                  — Energy Infusion
+  Lv25_2                  — Flame Charge
+  Lv35_0                  — Soulforged Weapon (Lv35 ability row slot 0)
+  Lv35_1                  — Battle Trance (3 enhancements at Lv38)
+  Lv35                    — Soulforged Weapon (legacy int key — prefer Lv35_0 for new code)
+  Lv40_0                  — Phoenix Soul (Melee major passive; choices at Lv43)
+  Lv40_1                  — Master of Venoms (second Lv40 major; choices at Lv43)
+  Lv45_0                  — Final Severance
+  Lv45_1                  — Executioner's Descent
 
 ## Reference — key scripts (skills & abilities only)
   AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds, minionSpawnDefinition
@@ -721,11 +891,16 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   BuffIconUI.cs                  — buff icon overlay, Remaining line on hover
   BuffsDebuffsPanel.cs           — HUD buff strip tooltips
   GatheringPassiveTooltipText.cs — gathering Lv15 majors + frenzy constants
+  RangedMajorPassiveTooltipText.cs — ranged combat major passives (Seeker Arrows); details SCALING + EFFECT
+  MeleeMajorPassiveTooltipText.cs — melee major passives + capstones
   AbilityCombatPower.cs          — stable abilityId string constants + balance numbers
   EnemyCombatMitigationModifiers.cs — temporary armor/MR shred on enemies (Sundering Impact)
   EnemyShadowStrikeMarks.cs      — ability-specific enemy marks (crit amp / death CD refund)
   EnemyBaseController.cs         — TakeDamage (crit mark mult), Die() (mark death notify), ApplyDirectDotDamage
   PlayerCombatController.cs      — GetPrimaryEngagedEnemy, FindClosestEnemyInAttackRange (targeting)
+  PlayerCombatController.SeekerArrows.cs — ranged major passive proc partial (pattern for new majors)
+  SkillTreeNodeTooltipFormatter.cs — DetailsContent scaling/effect; ResolveMajorPassiveFlavorDescription
+  SkillNodeDetailsPanelUI.cs     — BindMiddleColumn SCALING + EFFECT; paragraph spacing on effect label
   UnitOverheadUI.cs              — enemy/minion overhead debuff icons (ailments + custom mark sprites)
   GameplayScreenOverlay.cs       — optional fullscreen channel tint (Final Severance pattern)
   FloatingDamageTextUI.cs        — Status Presentations colours (all lingering status labels)
@@ -744,17 +919,3 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 - [PROJECT__RULES.md](PROJECT__RULES.md) — coding constraints + §8 checklist
 - [MEMORY_INVESTIGATION.md](MEMORY_INVESTIGATION.md) — profiling workflow
 - [ICON_TEXTURE_AUDIT.md](ICON_TEXTURE_AUDIT.md) — icon texture sizing
-
-## Reference — enhancement parent spine ids (Melee examples)
-  Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places
-  Lv15_0 / Lv15_1 / Lv15_2 — Lv15 branch abilities (Whirlwind, Cleaving Strikes, Crescent)
-  Lv25_0                  — Shadow Strike (Ability Milestone III replacement)
-  Lv25_1                  — Energy Infusion
-  Lv25_2                  — Flame Charge
-  Lv35_0                  — Soulforged Weapon (Lv35 ability row slot 0)
-  Lv35_1                  — Battle Trance (3 enhancements at Lv38)
-  Lv35                    — Soulforged Weapon (legacy int key — prefer Lv35_0 for new code)
-  Lv40_0                  — Phoenix Soul (Melee major passive; choices at Lv43)
-  Lv40_1                  — Master of Venoms (second Lv40 major; choices at Lv43)
-  Lv45_0                  — Final Severance
-  Lv45_1                  — Executioner's Descent
