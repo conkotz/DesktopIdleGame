@@ -96,11 +96,25 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private void OnEnable()
     {
         WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+        MinionControlService.OnStanceChanged += HandleMinionStanceChanged;
     }
 
     private void OnDisable()
     {
+        MinionControlService.OnStanceChanged -= HandleMinionStanceChanged;
         WorldFloorFollowerRegistry.Unregister(transform);
+    }
+
+    private void HandleMinionStanceChanged(MinionControlStance stance)
+    {
+        if (!_initialized)
+            return;
+
+        if (stance == MinionControlStance.Passive &&
+            (_state == MotionState.Approaching || _state == MotionState.Attached))
+        {
+            ForceTarget(null);
+        }
     }
 
     /// <summary>
@@ -186,6 +200,21 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     {
         if (!_initialized || !_def || !_ownerStats)
             return;
+
+        MinionControlStance stance = MinionControlService.CurrentStance;
+        if (stance == MinionControlStance.Passive)
+        {
+            ForceTarget(null);
+            return;
+        }
+
+        if (stance == MinionControlStance.Assist)
+        {
+            EnemyBaseController ownerTarget = GetOwnerCurrentTarget();
+            if (!ForceTarget(ownerTarget) && debugLogs)
+                Debug.Log("[SoulforgedWeapon] Recast → return (assist, no owner target)", this);
+            return;
+        }
 
         Vector3 origin = GetPlayerRangeOrigin();
         float range = _presentation.attackRange;
@@ -590,6 +619,9 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         ApplyIdleStyleFloatMotion();
         ResetSwingPivotLocalRotation();
 
+        if (!CanEngageTargets())
+            return;
+
         if (Time.time < _nextStrikeReadyTime)
             return;
 
@@ -598,8 +630,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         _nextIdleEnemyScanAt = Time.time + 0.1f;
 
-        Vector3 rangeOrigin = GetPlayerRangeOrigin();
-        EnemyBaseController enemy = FindNearestEnemy(rangeOrigin, _presentation.attackRange);
+        EnemyBaseController enemy = ResolveIdleStrikeTarget();
         if (!enemy)
             return;
 
@@ -611,8 +642,70 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             Debug.Log($"[SoulforgedWeapon] Approach → {enemy.name}", this);
     }
 
+    private bool CanEngageTargets() =>
+        MinionControlService.CurrentStance != MinionControlStance.Passive;
+
+    private EnemyBaseController ResolveIdleStrikeTarget()
+    {
+        MinionControlStance stance = MinionControlService.CurrentStance;
+        if (stance == MinionControlStance.Assist)
+        {
+            if (!IsOwnerInCombat())
+                return null;
+            return GetOwnerCurrentTarget();
+        }
+
+        Vector3 rangeOrigin = GetPlayerRangeOrigin();
+        return FindNearestEnemy(rangeOrigin, _presentation.attackRange);
+    }
+
+    private bool IsOwnerInCombat() => GetOwnerCurrentTarget() != null;
+
+    private EnemyBaseController GetOwnerCurrentTarget()
+    {
+        if (!_ownerStats)
+            return null;
+
+        PlayerCombatController ownerCombat = _ownerStats.GetComponent<PlayerCombatController>();
+        if (!ownerCombat)
+            ownerCombat = _ownerStats.GetComponentInParent<PlayerCombatController>();
+        if (!ownerCombat)
+            return null;
+
+        EnemyBaseController target = ownerCombat.CurrentTarget;
+        return target != null && !target.IsDead ? target : null;
+    }
+
+    private bool TickEngagedStanceRules()
+    {
+        MinionControlStance stance = MinionControlService.CurrentStance;
+        if (stance == MinionControlStance.Passive)
+        {
+            ForceTarget(null);
+            return true;
+        }
+
+        if (stance == MinionControlStance.Assist)
+        {
+            EnemyBaseController ownerTarget = GetOwnerCurrentTarget();
+            if (!ownerTarget)
+            {
+                ForceTarget(null);
+                return true;
+            }
+
+            if (_strikeTarget != ownerTarget)
+                ForceTarget(ownerTarget);
+        }
+
+        return false;
+    }
+
     private void TickApproaching()
     {
+        if (TickEngagedStanceRules())
+            return;
+
         if (!_strikeTarget || _strikeTarget.IsDead)
         {
             _strikeTarget = null;
@@ -657,6 +750,9 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
     private void TickAttached()
     {
+        if (TickEngagedStanceRules())
+            return;
+
         if (!_strikeTarget || _strikeTarget.IsDead)
         {
             _strikeTarget = null;

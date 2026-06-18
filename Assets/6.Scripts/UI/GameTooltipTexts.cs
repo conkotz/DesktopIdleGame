@@ -159,9 +159,9 @@ public static class GameTooltipTexts
 
             case "ConditionalMinionMaxLifeText":
             case "MinionMaxLifeText":
-                title = "Minion max life";
+                title = "Minion max HP";
                 description =
-                    "Percentage bonus to minion and summon maximum life.\n\n" +
+                    "Percentage bonus to minion and summon maximum HP.\n\n" +
                     "Minions that inherit your weapon hits gain half as much from this stat as pure minion-source summons.";
                 return true;
 

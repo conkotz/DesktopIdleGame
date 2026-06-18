@@ -163,8 +163,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Lightning Infused
-      description: The hawk becomes lightning infused, converting its damage to lightning
-        and applies shock on hit.
+      description: The hawk becomes lightning infused, converting all its physical damage
+        to lightning and gains 50% chance to shock.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

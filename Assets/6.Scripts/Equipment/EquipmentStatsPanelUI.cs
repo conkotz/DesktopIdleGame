@@ -531,7 +531,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 $"Minion Crit Chance: {stats.FinalMinionCritChancePercentPoints:0.#}%";
         if (minionMaxLifeText)
             minionMaxLifeText.text =
-                $"Minion Max Life: {FormatSignedPercentPoints(stats.FinalMinionMaxLifePercentPoints)}";
+                $"Minion Max HP: {FormatSignedPercentPoints(stats.FinalMinionMaxLifePercentPoints)}";
 
         if (globalPhysicalAllText)
             globalPhysicalAllText.text =
@@ -993,7 +993,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         Wire(shockSectionTitleText, EquipmentAilmentLineTooltip.LineId.ShockOverview);
         Wire(shockChanceLineText, EquipmentAilmentLineTooltip.LineId.ShockChance);
-        Wire(shockDamageAmountLineText, EquipmentAilmentLineTooltip.LineId.ShockDamageAmount);
+        Wire(shockDamageAmountLineText, EquipmentAilmentLineTooltip.LineId.ShockEffect);
         Wire(shockDurationLineText, EquipmentAilmentLineTooltip.LineId.ShockDuration);
 
         Wire(chillSectionTitleText, EquipmentAilmentLineTooltip.LineId.ChillOverview);
@@ -1042,7 +1042,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (shockChanceLineText)
             shockChanceLineText.text = $"Shock Chance: {stats.ShockApplyChancePercentForStatsPanel:0.#}%";
         if (shockDamageAmountLineText)
-            shockDamageAmountLineText.text = $"Shock Damage Amount: {stats.ShockDamageTakenMultiplier * 100f:0.#}%";
+            shockDamageAmountLineText.text = $"Shock Effect: {stats.ShockDamageTakenMultiplier * 100f:0.#}%";
         if (shockDurationLineText)
             shockDurationLineText.text = $"Shock Duration: {stats.ShockDuration:0.#}s";
 

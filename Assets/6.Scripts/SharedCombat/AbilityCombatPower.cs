@@ -88,7 +88,8 @@ public static class AbilityCombatPower
     public const float HawkCompanionBaseMinPhysical = 15f;
     public const float HawkCompanionBaseMaxPhysical = 25f;
     public const float HawkCompanionBaseAttackSpeed = 0.2f;
-    public const float HawkCompanionPhysicalPerRangedLevel = 2f;
+    public const float HawkCompanionPhysicalPerTwoRangedLevels = 1f;
+    public const float HawkCompanionLightningShockChance = 0.5f;
     public const float HawkCompanionWeakspotsCritChanceBonus = 0.5f;
     public const float HawkCompanionDurationSeconds = 60f;
 

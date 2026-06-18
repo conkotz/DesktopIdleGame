@@ -1947,7 +1947,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Pct(rangedPackTactics, "Ranged Damage while a Minion is Active");
             Pct(vsRangedFullHp, "Ranged Damage to Full HP Enemies");
             Pct(minionDamage, "Minion Damage");
-            Pct(minionHealth, "Minion Health");
+            Pct(minionHealth, ItemStatDisplayNames.MinionMaxHp);
         }
         else if (skill.skillType == SkillType.Magic)
         {

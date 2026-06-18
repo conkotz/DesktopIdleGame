@@ -200,7 +200,7 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, "Minion Damage", cur.minionDamagePercent, baseline.minionDamagePercent);
         TryAppendPercent01Delta(sb, "Minion Attack Speed", cur.minionAttackSpeedPercent, baseline.minionAttackSpeedPercent);
         TryAppendPercent01Delta(sb, "Minion Crit Chance", cur.minionCritChance, baseline.minionCritChance);
-        TryAppendPercent01Delta(sb, "Minion Max Life", cur.minionMaxLifePercent, baseline.minionMaxLifePercent);
+        TryAppendPercent01Delta(sb, ItemStatDisplayNames.MinionMaxHp, cur.minionMaxLifePercent, baseline.minionMaxLifePercent);
         TryAppendPercent01Delta(sb, "Crit Chance", cur.critChanceBonus, baseline.critChanceBonus);
         TryAppendPercent01Delta(sb, "Crit Multi", cur.critMultiplierBonus, baseline.critMultiplierBonus);
         TryAppendFloatDelta(sb, "Range", cur.attackRangeBonus, baseline.attackRangeBonus);
@@ -215,7 +215,7 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, "Chill Chance", cur.chillChance, baseline.chillChance);
         TryAppendFloatDelta(sb, "Chill Effect", cur.chillSlowPerStackBonus, baseline.chillSlowPerStackBonus, suffix: "% slow / stack");
         TryAppendPercent01Delta(sb, "Shock Chance", cur.shockChance, baseline.shockChance);
-        TryAppendFloatDelta(sb, "Shock Damage Amount", cur.shockDamageTakenMultiplierBonus, baseline.shockDamageTakenMultiplierBonus, suffix: "%");
+        TryAppendFloatDelta(sb, "Shock Effect", cur.shockDamageTakenMultiplierBonus, baseline.shockDamageTakenMultiplierBonus, suffix: "%");
         TryAppendPercent01Delta(sb, "Parry Chance", cur.parryChance, baseline.parryChance);
         TryAppendPercent01Delta(sb, "Stun Chance", cur.stunChance, baseline.stunChance);
     }

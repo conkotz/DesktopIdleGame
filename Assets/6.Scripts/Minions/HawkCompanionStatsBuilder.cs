@@ -7,7 +7,8 @@ public static class HawkCompanionStatsBuilder
 {
     public static SplitDamageRange BuildBaseDamageRange(int rangedLevel)
     {
-        float bonus = AbilityCombatPower.HawkCompanionPhysicalPerRangedLevel * Mathf.Max(0, rangedLevel);
+        float bonus = AbilityCombatPower.HawkCompanionPhysicalPerTwoRangedLevels
+            * Mathf.Floor(Mathf.Max(0, rangedLevel) * 0.5f);
         return new SplitDamageRange
         {
             min = new SplitDamage

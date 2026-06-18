@@ -119,7 +119,7 @@ public static class PassiveUnlocksLineHighlight
             RangedMinorNodeStatOption.RangedDamageVsShockedPercent10 => "Ranged Damage to Shocked Enemies",
             RangedMinorNodeStatOption.RangedCritDamagePercent8 => "Ranged Crit Damage",
             RangedMinorNodeStatOption.MinionDamagePercent5 or RangedMinorNodeStatOption.MinionDamagePercent8 => "Minion Damage",
-            RangedMinorNodeStatOption.MinionMaxLifePercent10 => "Minion Health",
+            RangedMinorNodeStatOption.MinionMaxLifePercent10 => "Minion Max HP",
             RangedMinorNodeStatOption.RangedDamageWithMinionActivePercent10 => "Ranged Damage while a Minion is Active",
             RangedMinorNodeStatOption.RangedDamageVsDistantPercent5 or RangedMinorNodeStatOption.RangedDamageVsDistantPercent10 => "Ranged Damage against Distant Enemies",
             RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent5 or RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent10 => "Ranged Damage when no Enemy is within 3m",

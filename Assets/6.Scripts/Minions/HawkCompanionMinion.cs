@@ -13,6 +13,7 @@ public class HawkCompanionMinion : MonoBehaviour
     {
         Flying,
         Diving,
+        SwoopRecovering,
         Returning
     }
 
@@ -41,8 +42,17 @@ public class HawkCompanionMinion : MonoBehaviour
     private float _patrolDirection = 1f;
     private float _returnFlightY;
     private bool _flightFacingLeft;
+    private Vector3 _swoopCarryDirection = Vector3.up;
+    private float _swoopRecoverDistanceRemaining;
+    private Vector3 _returnGlideTarget;
+    private float _nextHoverPauseAt;
+    private float _hoverPauseUntil;
 
     private const float EnemyScanIntervalSeconds = 0.1f;
+    private const float HoverPauseIntervalMinSeconds = 5f;
+    private const float HoverPauseIntervalMaxSeconds = 10f;
+    private const float HoverPauseDurationMinSeconds = 2f;
+    private const float HoverPauseDurationMaxSeconds = 3f;
 
     public EnemyBaseController CurrentTarget => _strikeTarget;
 
@@ -102,6 +112,7 @@ public class HawkCompanionMinion : MonoBehaviour
 
         SnapToFlightBand();
         BeginPatrol();
+        ScheduleNextHoverPause();
         _nextStrikeReadyTime = Time.time + 0.35f;
         _initialized = true;
         return true;
@@ -188,6 +199,9 @@ public class HawkCompanionMinion : MonoBehaviour
             case MotionState.Diving:
                 TickDiving();
                 break;
+            case MotionState.SwoopRecovering:
+                TickSwoopRecovering();
+                break;
             case MotionState.Returning:
                 TickReturning();
                 break;
@@ -212,7 +226,7 @@ public class HawkCompanionMinion : MonoBehaviour
         if (!_initialized)
             return;
 
-        if (stance == MinionControlStance.Passive && _state == MotionState.Diving)
+        if (stance == MinionControlStance.Passive && _state is MotionState.Diving or MotionState.SwoopRecovering)
         {
             _strikeTarget = null;
             BeginReturn();
@@ -242,6 +256,14 @@ public class HawkCompanionMinion : MonoBehaviour
     private void TickFlying()
     {
         ApplyFlightBob();
+        MaybeStartHoverPause();
+
+        if (IsHoverPaused())
+        {
+            if (TryTickFollowOwner())
+                return;
+            return;
+        }
 
         if (TryTickFollowOwner())
             return;
@@ -359,26 +381,44 @@ public class HawkCompanionMinion : MonoBehaviour
         if (Vector3.Distance(transform.position, strikePoint) <= _presentation.diveStrikeArrivalDistance)
         {
             ApplyHit(_strikeTarget);
-            BeginReturn();
+            BeginSwoopRecover(strikePoint - before);
         }
+    }
+
+    private void TickSwoopRecovering()
+    {
+        Vector3 before = transform.position;
+        float step = _presentation.returnSpeed * Time.deltaTime;
+        transform.position += _swoopCarryDirection * step;
+        _swoopRecoverDistanceRemaining -= step;
+
+        ApplyFlightFacingFromMovement(transform.position - before);
+
+        float pitchEase = Mathf.Clamp01(_swoopRecoverDistanceRemaining / Mathf.Max(0.1f, _presentation.swoopArcCarryDistance));
+        float z = (_flightFacingLeft ? 1f : -1f) * Mathf.Lerp(8f, 42f, 1f - pitchEase);
+        transform.rotation = Quaternion.Euler(0f, 0f, z);
+        if (spriteRenderer)
+            spriteRenderer.flipY = false;
+
+        bool reachedFlightBand = transform.position.y >= _returnFlightY - _presentation.wanderArrivalDistance;
+        if (_swoopRecoverDistanceRemaining <= 0f || reachedFlightBand)
+            BeginReturnGlide();
     }
 
     private void TickReturning()
     {
-        Vector3 target = new Vector3(transform.position.x, _returnFlightY, transform.position.z);
+        Vector3 before = transform.position;
         transform.position = Vector3.MoveTowards(
             transform.position,
-            target,
+            _returnGlideTarget,
             _presentation.returnSpeed * Time.deltaTime);
 
+        ApplyFlightFacingFromMovement(transform.position - before);
         transform.rotation = Quaternion.identity;
         if (spriteRenderer)
-        {
             spriteRenderer.flipY = false;
-            spriteRenderer.flipX = _flightFacingLeft;
-        }
 
-        if (Mathf.Abs(transform.position.y - _returnFlightY) <= _presentation.wanderArrivalDistance + 0.05f)
+        if (Vector3.Distance(transform.position, _returnGlideTarget) <= _presentation.wanderArrivalDistance + 0.05f)
         {
             _strikeTarget = null;
             _state = MotionState.Flying;
@@ -387,11 +427,52 @@ public class HawkCompanionMinion : MonoBehaviour
         }
     }
 
+    private void BeginSwoopRecover(Vector3 lastDiveDelta)
+    {
+        Vector3 ownerPos = GetOwnerPosition();
+        _returnFlightY = ownerPos.y + _presentation.flightHeightAbovePlayer;
+
+        Vector3 diveDir = lastDiveDelta.sqrMagnitude > 1e-6f ? lastDiveDelta.normalized : Vector3.down;
+        float forwardX = Mathf.Abs(diveDir.x) > 0.05f ? Mathf.Sign(diveDir.x) : (_flightFacingLeft ? -1f : 1f);
+        _swoopCarryDirection = new Vector3(forwardX, 1.35f, 0f).normalized;
+
+        _swoopRecoverDistanceRemaining = Mathf.Max(0.1f, _presentation.swoopArcCarryDistance);
+        _state = MotionState.SwoopRecovering;
+    }
+
+    private void BeginReturnGlide()
+    {
+        Vector3 ownerPos = GetOwnerPosition();
+        _returnFlightY = ownerPos.y + _presentation.flightHeightAbovePlayer;
+        float glideX = GetFollowStopWorldX(ownerPos);
+        _returnGlideTarget = new Vector3(glideX, _returnFlightY, transform.position.z);
+        _state = MotionState.Returning;
+    }
+
     private void BeginReturn()
     {
         Vector3 ownerPos = GetOwnerPosition();
         _returnFlightY = ownerPos.y + _presentation.flightHeightAbovePlayer;
+        float glideX = GetFollowStopWorldX(ownerPos);
+        _returnGlideTarget = new Vector3(glideX, _returnFlightY, transform.position.z);
         _state = MotionState.Returning;
+    }
+
+    private void MaybeStartHoverPause()
+    {
+        if (_state != MotionState.Flying || Time.time < _nextHoverPauseAt || IsHoverPaused())
+            return;
+
+        _hoverPauseUntil = Time.time + UnityEngine.Random.Range(HoverPauseDurationMinSeconds, HoverPauseDurationMaxSeconds);
+        ScheduleNextHoverPause();
+        _isPatrolling = false;
+    }
+
+    private bool IsHoverPaused() => Time.time < _hoverPauseUntil;
+
+    private void ScheduleNextHoverPause()
+    {
+        _nextHoverPauseAt = Time.time + UnityEngine.Random.Range(HoverPauseIntervalMinSeconds, HoverPauseIntervalMaxSeconds);
     }
 
     private void BeginPatrol()
@@ -423,6 +504,12 @@ public class HawkCompanionMinion : MonoBehaviour
         _flightFacingLeft = facingLeft;
         if (spriteRenderer)
             spriteRenderer.flipX = facingLeft;
+    }
+
+    private void ApplyFlightFacingFromMovement(Vector3 worldDelta)
+    {
+        if (Mathf.Abs(worldDelta.x) > 0.0005f)
+            ApplyHorizontalFlightFacing(worldDelta.x < 0f);
     }
 
     private bool CanEngageTargets() =>
@@ -541,7 +628,7 @@ public class HawkCompanionMinion : MonoBehaviour
                     outgoingDpsSourceLabel: label);
             }
 
-            TryApplyGuaranteedShock(enemy, atk);
+            TryApplyLightningShock(enemy, atk);
             return;
         }
 
@@ -559,8 +646,11 @@ public class HawkCompanionMinion : MonoBehaviour
         }
     }
 
-    private void TryApplyGuaranteedShock(EnemyBaseController enemy, Transform atk)
+    private void TryApplyLightningShock(EnemyBaseController enemy, Transform atk)
     {
+        if (UnityEngine.Random.value > AbilityCombatPower.HawkCompanionLightningShockChance)
+            return;
+
         AilmentController ailments = enemy.GetComponent<AilmentController>();
         if (!ailments)
             return;

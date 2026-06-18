@@ -472,7 +472,7 @@ public class ItemDefinitionEditor : Editor
                 if (chillSlowPerStackBonus != null)
                     EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Effect"));
                 if (shockDamageTakenMultiplierBonus != null)
-                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Damage Amount"));
+                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Effect"));
             }
         }
         EditorGUILayout.PropertyField(canEquipInOffHand);
@@ -1612,7 +1612,7 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.PropertyField(bonusShockChance, new GUIContent("Shock Chance (bonus)"));
         EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
         EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Effect"));
-        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Damage Amount"));
+        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Effect"));
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Combat Procs", EditorStyles.boldLabel);

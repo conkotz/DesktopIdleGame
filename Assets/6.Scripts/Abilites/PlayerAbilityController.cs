@@ -9352,12 +9352,39 @@ public partial class PlayerAbilityController : MonoBehaviour
     private void RecastActiveSoulforgedWeapons()
     {
         CleanupSoulforgedWeaponList();
-        bool swarm = GetSoulforgedWeaponSelectedChoice() == SoulforgedWeaponSwarmChoiceIndex;
-        EnemyBaseController collapseTarget = swarm && combat != null ? combat.CurrentTarget : null;
-        if (swarm && collapseTarget && !collapseTarget.IsDead)
+        MinionControlStance stance = MinionControlService.CurrentStance;
+        if (stance == MinionControlStance.Passive)
         {
             for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
-                _activeSoulforgedWeaponMinions[i]?.ForceTarget(collapseTarget);
+                _activeSoulforgedWeaponMinions[i]?.ForceTarget(null);
+            return;
+        }
+
+        bool swarm = GetSoulforgedWeaponSelectedChoice() == SoulforgedWeaponSwarmChoiceIndex;
+        EnemyBaseController playerTarget = combat != null ? combat.CurrentTarget : null;
+        if (playerTarget && playerTarget.IsDead)
+            playerTarget = null;
+
+        if (swarm && stance == MinionControlStance.Assist)
+        {
+            if (playerTarget)
+            {
+                for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+                    _activeSoulforgedWeaponMinions[i]?.ForceTarget(playerTarget);
+            }
+            else
+            {
+                for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+                    _activeSoulforgedWeaponMinions[i]?.ForceTarget(null);
+            }
+
+            return;
+        }
+
+        if (swarm && playerTarget)
+        {
+            for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+                _activeSoulforgedWeaponMinions[i]?.ForceTarget(playerTarget);
             return;
         }
 

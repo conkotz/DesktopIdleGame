@@ -27,7 +27,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         BurnStacks,
         ShockOverview,
         ShockChance,
-        ShockDamageAmount,
+        ShockEffect,
         ShockDuration,
         ChillOverview,
         ChillChance,
@@ -212,8 +212,8 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
                 body = "Chance to apply shock with lightning and related attacks.";
                 return true;
 
-            case LineId.ShockDamageAmount:
-                title = "Shock damage amount";
+            case LineId.ShockEffect:
+                title = "Shock effect";
                 body = "How much extra damage the enemy takes from non-ailment damage while shocked.";
                 return true;
 

@@ -56,6 +56,10 @@ public struct HawkCompanionMinionPresentation
     [Min(0.05f)]
     public float diveStrikeArrivalDistance;
 
+    [Tooltip("World units the hawk carries upward along the dive arc after striking.")]
+    [Min(0.1f)]
+    public float swoopArcCarryDistance;
+
     [Tooltip("World units above the enemy root at the strike point.")]
     [Min(0f)]
     public float strikeHeightAboveEnemy;
@@ -80,7 +84,7 @@ public struct HawkCompanionMinionPresentation
     {
         attackRange = 12f,
         flightHeightAbovePlayer = 2.35f,
-        horizontalFlightSpeed = 4.5f,
+        horizontalFlightSpeed = 3.375f,
         wanderDistanceMin = 1f,
         wanderDistanceMax = 3f,
         maxWanderRadiusFromPlayer = 3f,
@@ -91,6 +95,7 @@ public struct HawkCompanionMinionPresentation
         diveSpeed = 18f,
         returnSpeed = 14f,
         diveStrikeArrivalDistance = 0.35f,
+        swoopArcCarryDistance = 3f,
         strikeHeightAboveEnemy = 0.2f,
         wobbleAmplitudeX = 0.05f,
         wobbleAmplitudeY = 0.08f,

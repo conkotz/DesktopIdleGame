@@ -238,7 +238,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [Tooltip("Additive ability cooldown reduction from passives and buffs (0.15 = 15% CDR). Stacks with gear and combat modifiers.")]
     [SerializeField] private float bonusAbilityCooldownReductionFraction = 0f;
     [SerializeField] private float baseShockDuration = 5f;
-    [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.15f;
+    [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.10f;
 
     [Header("Combat Tuning")]
     [SerializeField] private float dualWieldApsBonus = 1.15f;

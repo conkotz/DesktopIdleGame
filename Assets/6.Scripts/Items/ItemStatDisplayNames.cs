@@ -44,7 +44,7 @@ public static class ItemStatDisplayNames
     public const string MinionDamage = "Minion Damage";
     public const string MinionAttackSpeed = "Minion Attack Speed";
     public const string MinionCritChance = "Minion Crit Chance";
-    public const string MinionHealth = "Minion Health";
+    public const string MinionMaxHp = "Minion Max HP";
     public const string CritChance = "Crit Chance";
     public const string CritMulti = "Crit Multi";
     public const string Range = "Range";
@@ -62,7 +62,7 @@ public static class ItemStatDisplayNames
     public const string ChillChance = "Chill Chance";
     public const string ChillEffect = "Chill Effect";
     public const string ShockChance = "Shock Chance";
-    public const string ShockDamageAmount = "Shock Damage Amount";
+    public const string ShockEffect = "Shock Effect";
     public const string ParryChance = "Parry Chance";
     public const string StunChance = "Stun Chance";
     public const string EnemyRespawnReduction = "Enemy Respawn Reduction";
@@ -140,7 +140,7 @@ public static class ItemStatDisplayNames
             case RandomItemStatType.MinionCritChance:
                 return MinionCritChance;
             case RandomItemStatType.MinionMaxLifePercent:
-                return MinionHealth;
+                return MinionMaxHp;
             case RandomItemStatType.CritChanceBonus:
             case RandomItemStatType.WeaponCritChance:
                 return CritChance;
@@ -199,7 +199,7 @@ public static class ItemStatDisplayNames
             case RandomItemStatType.ShockChance:
                 return ShockChance;
             case RandomItemStatType.ShockMultiplier:
-                return ShockDamageAmount;
+                return ShockEffect;
             case RandomItemStatType.ParryChance:
                 return ParryChance;
             case RandomItemStatType.StunChance:

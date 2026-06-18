@@ -412,7 +412,7 @@ public struct BonusStats
     [Tooltip("Added minion crit chance, 0–1 scale (0.1 = +10 percentage points). Minion crit damage is fixed ×1.5 (not from items).")]
     public float minionCritChance;
 
-    [Tooltip("Bonus minion max life / health (0.1 = +10%). Halved for inherited weapon-hit minions.")]
+    [Tooltip("Bonus minion max HP (0.1 = +10%). Halved for inherited weapon-hit minions.")]
     public float minionMaxLifePercent;
 
     [Tooltip("Added crit chance, 0–1 scale (0.1 = +10 percentage points).")]
@@ -463,7 +463,7 @@ public struct BonusStats
     [Tooltip("Chill multiplier bonus. 0.02 = +2 percentage points to chill slow per stack (e.g. 15% -> 17%).")]
     public float chillSlowPerStackBonus;
 
-    [Tooltip("Shock multiplier bonus. 0.05 = +5 percentage points to shock damage taken (e.g. 15% -> 20%).")]
+    [Tooltip("Shock multiplier bonus. 0.05 = +5 percentage points to shock effect (e.g. 10% -> 15%).")]
     public float shockDamageTakenMultiplierBonus;
 
     [Header("Combat Procs")]
@@ -2483,8 +2483,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"Chill Effect: {pct:+0.#;-0.#;0}% slow / stack";
     }
 
-    private static string FormatShockDamageAmountLine(float multiplierFraction) =>
-        $"Shock Damage Amount: {multiplierFraction * 100f:0.#}%";
+    private static string FormatShockEffectLine(float multiplierFraction) =>
+        $"Shock Effect: {multiplierFraction * 100f:0.#}%";
 
     private string BuildWeaponProcChanceLines()
     {
@@ -2572,7 +2572,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                plainLine.StartsWith("Poison Multi:", System.StringComparison.OrdinalIgnoreCase) ||
                plainLine.StartsWith("Burn Multiplier:", System.StringComparison.OrdinalIgnoreCase) ||
                plainLine.StartsWith("Chill Effect:", System.StringComparison.OrdinalIgnoreCase) ||
-               plainLine.StartsWith("Shock Damage Amount:", System.StringComparison.OrdinalIgnoreCase) ||
+               plainLine.StartsWith("Shock Effect:", System.StringComparison.OrdinalIgnoreCase) ||
                plainLine.StartsWith("Poison Duration:", System.StringComparison.OrdinalIgnoreCase) ||
                plainLine.StartsWith("Poison Max Stacks:", System.StringComparison.OrdinalIgnoreCase) ||
                plainLine.StartsWith("Phys Block:", System.StringComparison.OrdinalIgnoreCase) ||
@@ -3041,9 +3041,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float delta = FloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent);
             AppendCompared(
 
-                FormatScalingCoefficientPercentLine(baselineStats.minionMaxLifePercent, "Minion Health"),
+                FormatScalingCoefficientPercentLine(baselineStats.minionMaxLifePercent, ItemStatDisplayNames.MinionMaxHp),
 
-                FormatScalingCoefficientPercentLine(cur.minionMaxLifePercent, "Minion Health"),
+                FormatScalingCoefficientPercentLine(cur.minionMaxLifePercent, ItemStatDisplayNames.MinionMaxHp),
 
                 HasFloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent),
 
@@ -3194,8 +3194,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus);
             AppendCompared(
-                FormatShockDamageAmountLine(baselineStats.shockDamageTakenMultiplierBonus),
-                FormatShockDamageAmountLine(cur.shockDamageTakenMultiplierBonus),
+                FormatShockEffectLine(baselineStats.shockDamageTakenMultiplierBonus),
+                FormatShockEffectLine(cur.shockDamageTakenMultiplierBonus),
                 HasFloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus),
                 $"{delta * 100f:+0.#;-0.#;0}%");
         }
@@ -3289,7 +3289,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.minionCritChance != 0f)
             s += $"Minion Crit Chance: {FormatSignedPercent01(bonusStats.minionCritChance)}\n";
         if (bonusStats.minionMaxLifePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionMaxLifePercent, "Minion Health")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionMaxLifePercent, ItemStatDisplayNames.MinionMaxHp)}\n";
         if (bonusStats.critChanceBonus != 0f) s += $"Crit Chance: {FormatSignedPercent01(bonusStats.critChanceBonus)}\n";
         if (bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
         if (bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";
@@ -3315,7 +3315,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!omitChillShockBonuses && bonusStats.chillSlowPerStackBonus != 0f)
             s += $"{FormatChillEffectLine(bonusStats.chillSlowPerStackBonus)}\n";
         if (!omitChillShockBonuses && bonusStats.shockDamageTakenMultiplierBonus != 0f)
-            s += $"{FormatShockDamageAmountLine(bonusStats.shockDamageTakenMultiplierBonus)}\n";
+            s += $"{FormatShockEffectLine(bonusStats.shockDamageTakenMultiplierBonus)}\n";
         if (!omitParryStunChance && bonusStats.parryChance != 0f)
             s += $"Parry Chance: {FormatSignedPercent01(bonusStats.parryChance)}\n";
         if (!omitParryStunChance && bonusStats.stunChance != 0f)
@@ -3407,7 +3407,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             bonusStats.shockDamageTakenMultiplierBonus,
             baseBonus.shockDamageTakenMultiplierBonus,
             baseline,
-            FormatShockDamageAmountLine(bonusStats.shockDamageTakenMultiplierBonus));
+            FormatShockEffectLine(bonusStats.shockDamageTakenMultiplierBonus));
         AppendWeaponAilmentDisplayLine(
             ref block,
             bonusStats.poisonDurationBonus,
@@ -3559,7 +3559,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             bonus,
             bonusStats.shockDamageTakenMultiplierBonus,
             baseline.bonusStats.shockDamageTakenMultiplierBonus,
-            FormatShockDamageAmountLine,
+            FormatShockEffectLine,
             d => $"{d * 100f:+0.#;-0.#;0}%");
         AppendUnifiedWeaponAilmentStatLine(
             matching,

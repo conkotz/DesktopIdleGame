@@ -6061,7 +6061,7 @@ MonoBehaviour:
   bonusBurnDamageMultiplier: 0
   bonusAbilityCooldownReductionFraction: 0
   baseShockDuration: 5
-  baseShockDamageTakenMultiplier: 0.15
+  baseShockDamageTakenMultiplier: 0.1
   dualWieldApsBonus: 1.15
   equipment: {fileID: 0}
   inventory: {fileID: 4615812802344899198}
