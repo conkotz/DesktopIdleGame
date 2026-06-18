@@ -38,6 +38,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 5793057519166374080}
   - {fileID: 6584992710872026539}
   - {fileID: 93495089268973094}
   - {fileID: 1366391345936473447}
@@ -132,7 +133,6 @@ MonoBehaviour:
   definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
-  playerTag: Player
   aggroRange: 6
   moveSpeed: 1.5
   xOnly: 1
@@ -154,17 +154,12 @@ MonoBehaviour:
   attackTrigger: Attack
   hurtTrigger: 
   dieTrigger: 
-  dropGold: 1
-  goldMin: 50
-  goldMax: 80
-  goldDropChance: 1
-  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   visualsRoot: {fileID: 4000011028196368}
   invertFlip: 1
   uiRoot: {fileID: 1366391345936473447}
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
-  damagePopupAnchor: {fileID: 0}
+  damagePopupAnchor: {fileID: 9179191811769440787}
   dropLootAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
@@ -195,10 +190,11 @@ MonoBehaviour:
   baseMagicResist: 0
   baseCorruptionResist: 0
   basePhysBlockChance: 0
+  basePhysBlockMitigation: 0.7
   baseMoveSpeed: 3
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
-  baseEnergyRegen: 10
+  baseEnergyRegenFlatPerSecond: 10
   baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0
@@ -225,6 +221,7 @@ MonoBehaviour:
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 0.5
   bonusBurnDamageMultiplier: 0
+  bonusAbilityCooldownReductionFraction: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
@@ -280,7 +277,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22e8512b4e773d44fbb95428cd07c483, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DamagePopupAnchor
-  anchor: {fileID: 0}
+  anchor: {fileID: 5793057519166374080}
 --- !u!114 &1645354627277816554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -295,6 +292,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnWallClockDurationSeconds: 15
   burnDurationTicks: 5
   burnDamageFractionOfHitPerTick: 0.15
   burnCombustTicksWorth: 10
@@ -318,6 +316,7 @@ MonoBehaviour:
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
   hpBarOnly: 0
+  eliteOverheadExtraYOffset: 0.12
 --- !u!1 &323257215222496393
 GameObject:
   m_ObjectHideFlags: 0
@@ -345,6 +344,37 @@ Transform:
   m_LocalRotation: {x: -0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.17, y: 0.94, z: 0}
   m_LocalScale: {x: -1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4000011028196368}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1613099489364742170
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5793057519166374080}
+  m_Layer: 8
+  m_Name: DamagePopupAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5793057519166374080
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613099489364742170}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.67, y: 0.68, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4000011028196368}

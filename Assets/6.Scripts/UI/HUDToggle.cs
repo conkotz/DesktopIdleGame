@@ -11,8 +11,12 @@ public class HUDToggle : MonoBehaviour
 
     private bool _isVisible = true;
     private bool _collapsedByAutoMinimizeRule;
-    private bool _userExpandedHudThisMap;
+    private bool _userExpandedHudOutOfCombat;
+    private bool _userCollapsedHudThisCombat;
+    private bool _wasInCombat;
     private bool _subscribedLevelStarted;
+    private bool _subscribedCombatState;
+    private PlayerCombatState _combatState;
 
     private void Awake()
     {
@@ -24,22 +28,26 @@ public class HUDToggle : MonoBehaviour
     {
         SyncPresenterToHudVisibility();
         UpdateVisual();
-        ApplyMinimiseHudRule();
+        ApplyAutoHudCombatRule();
     }
 
     private void OnEnable()
     {
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
         if (!TrySubscribeLevelStarted())
-            StartCoroutine(WaitForBootstrapperThenApplyMinimiseHudRule());
+            StartCoroutine(WaitForBootstrapperThenApplyAutoHudRule());
         else
-            ApplyMinimiseHudRule();
+            ApplyAutoHudCombatRule();
+
+        if (!TrySubscribeCombatState())
+            StartCoroutine(WaitForCombatStateThenApplyAutoHudRule());
     }
 
     private void OnDisable()
     {
         ToggleSettingsStore.Changed -= OnToggleSettingsChanged;
         UnsubscribeLevelStarted();
+        UnsubscribeCombatState();
     }
 
     public static void RefreshAllFromMinimiseHudSetting()
@@ -48,7 +56,7 @@ public class HUDToggle : MonoBehaviour
         for (int i = 0; i < toggles.Length; i++)
         {
             if (toggles[i])
-                toggles[i].ApplyMinimiseHudRule();
+                toggles[i].ApplyAutoHudCombatRule();
         }
     }
 
@@ -56,7 +64,19 @@ public class HUDToggle : MonoBehaviour
     {
         bool opening = !_isVisible;
         SetHudVisible(opening, fromUser: true);
-        _userExpandedHudThisMap = opening;
+
+        if (!IsAutoHudCombatRuleEnabled())
+            return;
+
+        if (ResolvePlayerInCombat())
+        {
+            if (!opening)
+                _userCollapsedHudThisCombat = true;
+        }
+        else if (opening)
+        {
+            _userExpandedHudOutOfCombat = true;
+        }
     }
 
     public void SetHudVisible(bool visible, bool fromUser = false)
@@ -78,13 +98,17 @@ public class HUDToggle : MonoBehaviour
             hudPresenter.RefreshAll();
 
         UpdateVisual();
-
     }
 
     private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
     {
         if (id == ToggleSettingId.MinimiseHud)
-            ApplyMinimiseHudRule();
+            ApplyAutoHudCombatRule();
+    }
+
+    private void OnPlayerCombatStateChanged(bool _)
+    {
+        ApplyAutoHudCombatRule();
     }
 
     private bool TrySubscribeLevelStarted()
@@ -97,14 +121,43 @@ public class HUDToggle : MonoBehaviour
         return true;
     }
 
-    private IEnumerator WaitForBootstrapperThenApplyMinimiseHudRule()
+    private IEnumerator WaitForBootstrapperThenApplyAutoHudRule()
     {
         const int maxFrames = 120;
         for (int i = 0; i < maxFrames; i++)
         {
             if (TrySubscribeLevelStarted())
             {
-                ApplyMinimiseHudRule();
+                ApplyAutoHudCombatRule();
+                yield break;
+            }
+
+            yield return null;
+        }
+    }
+
+    private bool TrySubscribeCombatState()
+    {
+        if (_subscribedCombatState)
+            return true;
+
+        _combatState = CombatPlayerRefs.CombatState;
+        if (_combatState == null)
+            return false;
+
+        _combatState.OnCombatStateChanged += OnPlayerCombatStateChanged;
+        _subscribedCombatState = true;
+        return true;
+    }
+
+    private IEnumerator WaitForCombatStateThenApplyAutoHudRule()
+    {
+        const int maxFrames = 120;
+        for (int i = 0; i < maxFrames; i++)
+        {
+            if (TrySubscribeCombatState())
+            {
+                ApplyAutoHudCombatRule();
                 yield break;
             }
 
@@ -121,34 +174,63 @@ public class HUDToggle : MonoBehaviour
         _subscribedLevelStarted = false;
     }
 
-    private void OnLevelStarted(MapNodeDefinition _)
+    private void UnsubscribeCombatState()
     {
-        _userExpandedHudThisMap = false;
-        _collapsedByAutoMinimizeRule = false;
-        ApplyMinimiseHudRule();
+        if (!_subscribedCombatState || _combatState == null)
+            return;
+
+        _combatState.OnCombatStateChanged -= OnPlayerCombatStateChanged;
+        _combatState = null;
+        _subscribedCombatState = false;
     }
 
-    private void ApplyMinimiseHudRule()
+    private void OnLevelStarted(MapNodeDefinition _)
     {
-        bool shouldAutoMinimize = ShouldAutoMinimizeOnMapLoad();
+        _userExpandedHudOutOfCombat = false;
+        _userCollapsedHudThisCombat = false;
+        _wasInCombat = false;
+        _collapsedByAutoMinimizeRule = false;
+        ApplyAutoHudCombatRule();
+    }
 
-        if (shouldAutoMinimize && !_userExpandedHudThisMap)
+    private void ApplyAutoHudCombatRule()
+    {
+        if (!IsAutoHudCombatRuleEnabled())
         {
-            _collapsedByAutoMinimizeRule = true;
-            if (_isVisible)
-                SetHudVisible(false, fromUser: false);
+            if (_collapsedByAutoMinimizeRule && !_isVisible)
+                SetHudVisible(true, fromUser: false);
+
+            _collapsedByAutoMinimizeRule = false;
             return;
         }
 
-        if (_collapsedByAutoMinimizeRule && !_isVisible)
-            SetHudVisible(true, fromUser: false);
+        bool inCombat = ResolvePlayerInCombat();
+        if (inCombat && !_wasInCombat)
+            _userCollapsedHudThisCombat = false;
 
-        _collapsedByAutoMinimizeRule = false;
+        bool wantVisible = inCombat && !_userCollapsedHudThisCombat;
+        if (!inCombat)
+        {
+            wantVisible = _userExpandedHudOutOfCombat;
+            _userCollapsedHudThisCombat = false;
+        }
+
+        _wasInCombat = inCombat;
+        _collapsedByAutoMinimizeRule = !wantVisible;
+
+        if (_isVisible != wantVisible)
+            SetHudVisible(wantVisible, fromUser: false);
     }
 
-    private static bool ShouldAutoMinimizeOnMapLoad()
+    private static bool IsAutoHudCombatRuleEnabled()
     {
         return ToggleSettingsStore.Get(ToggleSettingId.MinimiseHud);
+    }
+
+    private static bool ResolvePlayerInCombat()
+    {
+        PlayerCombatState combatState = CombatPlayerRefs.CombatState;
+        return combatState != null && combatState.InCombat;
     }
 
     private void SyncPresenterToHudVisibility()

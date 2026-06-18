@@ -13,6 +13,7 @@ public class SettingsPageUI : MonoBehaviour
     private void OnEnable()
     {
         ShowDevPanelSettingsInstaller.EnsureSettingsRowExists();
+        HudSettingsInstaller.EnsureSettingsRowsExist();
         GlobalUserSettings.RestoredDefaults += OnGlobalRestoredDefaults;
         OnGlobalRestoredDefaults();
     }

@@ -283,6 +283,16 @@ public static class GameLog
         Add($"+{amount} {label} - Inventory was full, sent to storage.", ItemGainColor);
     }
 
+    /// <summary>Voluntary map leave: overflow sent to the Main storage tab.</summary>
+    public static void ItemRecoveredToMainStorageOnMapLeave(string itemDisplayName, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemDisplayName))
+            return;
+
+        string label = itemDisplayName.Trim();
+        Add($"+{amount} {label} - Recovered to Main storage when leaving the map.", ItemGainColor);
+    }
+
     /// <summary>Idle auto-loot: pickup could not fit in inventory or storage.</summary>
     public static void CannotObtainInventoryAndStorageFull(string itemDisplayName, int amount)
     {

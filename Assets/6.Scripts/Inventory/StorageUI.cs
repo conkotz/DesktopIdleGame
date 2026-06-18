@@ -83,6 +83,9 @@ public class StorageUI : MonoBehaviour
             panelRoot.transform.SetAsLastSibling();
         }
 
+        if (grid != null)
+            grid.SelectFirstDisplayedTab();
+
         if (grid != null && grid.IsDisplayPrewarmed)
             grid.SyncRefreshDisplay();
         else

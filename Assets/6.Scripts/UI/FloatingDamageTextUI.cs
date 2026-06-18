@@ -46,8 +46,9 @@ public class FloatingDamageTextUI : MonoBehaviour
     [Header("Crit")]
     [SerializeField] private float normalHitSizeMultiplier = 0.88f;
     [SerializeField] private float critSizeMultiplier = 1.3f;
-    [SerializeField] private float critExtraLifetime = 1f;
     [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.15f;
+    [SerializeField] private Color compactCritHighlightColor = new Color32(255, 244, 196, 255);
+    [SerializeField, Range(0f, 1f)] private float compactCritTintBlend = 0.38f;
 
     [Header("DOT (bleed / poison / burn ticks)")]
     [SerializeField, Tooltip("TMP font size points removed after base size (about two default inspector steps).")]
@@ -328,7 +329,10 @@ public class FloatingDamageTextUI : MonoBehaviour
         };
 
         if (isCrit)
+        {
             c = Brighten(c, critBrightnessMultiplier);
+            c = Color.Lerp(c, compactCritHighlightColor, compactCritTintBlend);
+        }
 
         return c;
     }

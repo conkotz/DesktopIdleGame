@@ -36,7 +36,7 @@ MonoBehaviour:
   maxMagicDamage: 0
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
-  attackSpeed: 0.2
+  attackSpeed: 0.4
   moveSpeed: 2
   attackRange: 1
   critChance: 0.1

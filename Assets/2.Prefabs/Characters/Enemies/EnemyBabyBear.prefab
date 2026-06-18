@@ -38,6 +38,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 7279162311523068087}
   - {fileID: 6584992710872026539}
   - {fileID: 93495089268973094}
   - {fileID: 1366391345936473447}
@@ -132,7 +133,6 @@ MonoBehaviour:
   definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
-  playerTag: Player
   aggroRange: 6
   moveSpeed: 1.5
   xOnly: 1
@@ -154,17 +154,12 @@ MonoBehaviour:
   attackTrigger: Attack
   hurtTrigger: 
   dieTrigger: 
-  dropGold: 1
-  goldMin: 80
-  goldMax: 120
-  goldDropChance: 1
-  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   visualsRoot: {fileID: 4000011028196368}
   invertFlip: 1
   uiRoot: {fileID: 1366391345936473447}
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
-  damagePopupAnchor: {fileID: 0}
+  damagePopupAnchor: {fileID: 9179191811769440787}
   dropLootAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
@@ -199,7 +194,7 @@ MonoBehaviour:
   baseMoveSpeed: 3
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
-  baseEnergyRegenPercentPerSecond: 10
+  baseEnergyRegenFlatPerSecond: 10
   baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0
@@ -282,7 +277,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22e8512b4e773d44fbb95428cd07c483, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DamagePopupAnchor
-  anchor: {fileID: 0}
+  anchor: {fileID: 7279162311523068087}
 --- !u!114 &1645354627277816554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -347,7 +342,7 @@ Transform:
   m_GameObject: {fileID: 323257215222496393}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.17, y: 0.94, z: 0}
+  m_LocalPosition: {x: 0.63, y: 0.43, z: 0}
   m_LocalScale: {x: -1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -529,4 +524,35 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1366391345936473447}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &7184739889895640490
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7279162311523068087}
+  m_Layer: 8
+  m_Name: DamagePopupAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7279162311523068087
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7184739889895640490}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.67, y: 0.68, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4000011028196368}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -115,7 +116,8 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Vector2 compactDamageSideOffset = new Vector2(10f, 0f);
     [SerializeField, Min(0.01f)] private float compactDamagePulseSeconds = 0.085f;
     [SerializeField, Min(1f)] private float compactDamagePulseMultiplier = 1.2f;
-    [SerializeField, Min(1f)] private float compactDamageCritPulseMultiplier = 1.5f;
+    [SerializeField, Min(1f)] private float compactDamageCritPulseMultiplier = 1.85f;
+    [SerializeField, Min(0.01f)] private float compactDamageCritPulseSeconds = 0.12f;
 
     [Header("Overlap stack (enemy overhead only)")]
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
@@ -142,6 +144,16 @@ public class UnitOverheadUI : MonoBehaviour
 
     private RectTransform canvasRect;
     private readonly List<GameObject> spawnedDebuffIcons = new();
+    private readonly Dictionary<string, GameObject> _debuffIconsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _debuffIconKeyOrder = new();
+    private static readonly List<DebuffStripEntry> s_debuffStripScratch = new();
+
+    private struct DebuffStripEntry
+    {
+        public string Key;
+        public Sprite Sprite;
+        public int Stacks;
+    }
     private readonly List<Image> _hpSegmentLineImages = new();
     private RectTransform _hpSegmentContainer;
     private int _cachedHpSegmentMaxHp = -1;
@@ -1256,7 +1268,7 @@ public class UnitOverheadUI : MonoBehaviour
 
         FloatingDamageTextUI.PopupDamageKind dominantKind = ResolveDominantCompactDamageKind();
         compactDamageText.text = _compactAccumulatedDamage.ToString();
-        compactDamageText.color = FloatingDamageTextUI.ResolveCompactColor(dominantKind);
+        compactDamageText.color = FloatingDamageTextUI.ResolveCompactColor(dominantKind, isCrit);
         if (_compactBaseFontSize < 0f)
             _compactBaseFontSize = compactDamageFontSize > 0f ? compactDamageFontSize : compactDamageText.fontSize;
         compactDamageText.fontSize = _compactBaseFontSize;
@@ -1392,7 +1404,10 @@ public class UnitOverheadUI : MonoBehaviour
         RectTransform rt = compactDamageText ? compactDamageText.rectTransform : null;
         float pulseMul = isCrit ? compactDamageCritPulseMultiplier : compactDamagePulseMultiplier;
         float elapsed = 0f;
-        float duration = Mathf.Max(0.01f, compactDamagePulseSeconds);
+        float duration = Mathf.Max(0.01f, isCrit ? compactDamageCritPulseSeconds : compactDamagePulseSeconds);
+        FloatingDamageTextUI.PopupDamageKind dominantKind = ResolveDominantCompactDamageKind();
+        Color critColor = FloatingDamageTextUI.ResolveCompactColor(dominantKind, true);
+        Color normalColor = FloatingDamageTextUI.ResolveCompactColor(dominantKind, false);
 
         while (elapsed < duration)
         {
@@ -1401,11 +1416,16 @@ public class UnitOverheadUI : MonoBehaviour
             float scale = Mathf.Lerp(pulseMul, 1f, t);
             if (rt)
                 rt.localScale = new Vector3(scale, scale, 1f);
+            if (compactDamageText && isCrit)
+                compactDamageText.color = Color.Lerp(critColor, normalColor, t);
             yield return null;
         }
 
         if (rt)
             rt.localScale = Vector3.one;
+
+        if (compactDamageText)
+            compactDamageText.color = normalColor;
 
         _compactPulseCoroutine = null;
     }
@@ -1850,7 +1870,8 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleToggleSettingChanged(ToggleSettingId setting, bool _)
     {
-        if (setting == ToggleSettingId.ShowPlayerHealthBarOutOfCombat)
+        if (setting == ToggleSettingId.ShowPlayerHealthBarOutOfCombat ||
+            setting == ToggleSettingId.HidePlayerOverheadBars)
             ComputeBaseAnchoredAndVisibility();
 
         if (setting == ToggleSettingId.ShowOverheadHealthGuardNumbers)
@@ -2017,6 +2038,9 @@ public class UnitOverheadUI : MonoBehaviour
         if (!_hpBarOnlyLayout || enemy != null)
             return true;
 
+        if (ToggleSettingsStore.Get(ToggleSettingId.HidePlayerOverheadBars))
+            return false;
+
         if (ToggleSettingsStore.Get(ToggleSettingId.ShowPlayerHealthBarOutOfCombat))
             return true;
 
@@ -2090,7 +2114,7 @@ public class UnitOverheadUI : MonoBehaviour
             return null;
 
         s_nextPlayerForEnemyOverheadResolveAt = Time.time + PlayerForEnemyOverheadResolveInterval;
-        s_cachedPlayerForEnemyOverhead = Object.FindFirstObjectByType<PlayerController>();
+        s_cachedPlayerForEnemyOverhead = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
         return s_cachedPlayerForEnemyOverhead;
     }
 
@@ -2805,28 +2829,102 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void RefreshDebuffIconStrip()
     {
-        ClearDebuffIcons();
-
         if (_hpBarOnlyLayout)
+        {
+            ClearStableDebuffIconStrip();
             return;
+        }
 
         if (ailments == null || debuffContainer == null || debuffIconPrefab == null)
+        {
+            ClearStableDebuffIconStrip();
             return;
+        }
+
+        CollectActiveDebuffStripEntries(s_debuffStripScratch);
+
+        var activeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < s_debuffStripScratch.Count; i++)
+            activeKeys.Add(s_debuffStripScratch[i].Key);
+
+        for (int i = _debuffIconKeyOrder.Count - 1; i >= 0; i--)
+        {
+            string key = _debuffIconKeyOrder[i];
+            if (!activeKeys.Contains(key))
+                RemoveStableDebuffIcon(key);
+        }
+
+        for (int i = 0; i < s_debuffStripScratch.Count; i++)
+        {
+            DebuffStripEntry entry = s_debuffStripScratch[i];
+            if (!_debuffIconsByKey.TryGetValue(entry.Key, out GameObject icon) || icon == null)
+            {
+                SpawnDebuffIcon(entry.Sprite, entry.Key, entry.Stacks);
+                icon = spawnedDebuffIcons[spawnedDebuffIcons.Count - 1];
+                _debuffIconsByKey[entry.Key] = icon;
+                _debuffIconKeyOrder.Add(entry.Key);
+                continue;
+            }
+
+            UpdateDebuffIconStacks(icon, entry.Sprite, entry.Stacks);
+        }
+
+        SyncDebuffIconSiblingOrder();
+    }
+
+    private void CollectActiveDebuffStripEntries(List<DebuffStripEntry> results)
+    {
+        results.Clear();
 
         if (ailments.HasBleed)
-            SpawnDebuffIcon(bleedIcon, "Bleed", Mathf.Max(1, ailments.BleedStacks));
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "Bleed",
+                Sprite = bleedIcon,
+                Stacks = Mathf.Max(1, ailments.BleedStacks)
+            });
+        }
 
         if (ailments.HasPoison)
-            SpawnDebuffIcon(poisonIcon, "Poison", ailments.PoisonStacks);
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "Poison",
+                Sprite = poisonIcon,
+                Stacks = ailments.PoisonStacks
+            });
+        }
 
         if (ailments.HasBurn)
-            SpawnDebuffIcon(burnIcon, "Burn", ailments.BurnStacks);
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "Burn",
+                Sprite = burnIcon,
+                Stacks = ailments.BurnStacks
+            });
+        }
 
         if (ailments.HasChill)
-            SpawnDebuffIcon(chillIcon, "Chill", ailments.ChillStacks);
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "Chill",
+                Sprite = chillIcon,
+                Stacks = ailments.ChillStacks
+            });
+        }
 
         if (ailments.HasShock)
-            SpawnDebuffIcon(shockIcon, "Shock", 1);
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "Shock",
+                Sprite = shockIcon,
+                Stacks = 1
+            });
+        }
 
         EnemyShadowStrikeMarks marks = _shadowStrikeMarks != null
             ? _shadowStrikeMarks
@@ -2834,14 +2932,79 @@ public class UnitOverheadUI : MonoBehaviour
         if (marks != null)
         {
             if (marks.HasLethalCritMark)
-                SpawnDebuffIcon(shadowStrikeLethalMarkIcon, "ShadowMarkLethal", 1);
+            {
+                results.Add(new DebuffStripEntry
+                {
+                    Key = "ShadowMarkLethal",
+                    Sprite = shadowStrikeLethalMarkIcon,
+                    Stacks = 1
+                });
+            }
+
             if (marks.HasExecutionMark)
-                SpawnDebuffIcon(shadowStrikeExecutionMarkIcon, "ShadowMarkExecution", 1);
+            {
+                results.Add(new DebuffStripEntry
+                {
+                    Key = "ShadowMarkExecution",
+                    Sprite = shadowStrikeExecutionMarkIcon,
+                    Stacks = 1
+                });
+            }
         }
+    }
+
+    private static void UpdateDebuffIconStacks(GameObject icon, Sprite sprite, int stacks)
+    {
+        if (icon == null)
+            return;
+
+        DebuffIconUI iconUI = icon.GetComponent<DebuffIconUI>();
+        if (iconUI != null)
+        {
+            iconUI.SetData(sprite, stacks);
+            return;
+        }
+
+        Image image = icon.GetComponent<Image>();
+        if (image == null)
+            image = icon.GetComponentInChildren<Image>();
+        if (image != null && sprite != null)
+            image.sprite = sprite;
+    }
+
+    private void RemoveStableDebuffIcon(string key)
+    {
+        if (!_debuffIconsByKey.TryGetValue(key, out GameObject icon))
+            return;
+
+        _debuffIconsByKey.Remove(key);
+        _debuffIconKeyOrder.RemoveAll(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+        spawnedDebuffIcons.Remove(icon);
+        ReturnDebuffIconToPool(icon);
+    }
+
+    private void SyncDebuffIconSiblingOrder()
+    {
+        for (int i = 0; i < _debuffIconKeyOrder.Count; i++)
+        {
+            if (!_debuffIconsByKey.TryGetValue(_debuffIconKeyOrder[i], out GameObject icon) || icon == null)
+                continue;
+
+            icon.transform.SetSiblingIndex(i);
+        }
+    }
+
+    private void ClearStableDebuffIconStrip()
+    {
+        _debuffIconsByKey.Clear();
+        _debuffIconKeyOrder.Clear();
+        ClearDebuffIcons();
     }
 
     private void ReturnAllDebuffIconsToPool()
     {
+        _debuffIconsByKey.Clear();
+        _debuffIconKeyOrder.Clear();
         for (int i = 0; i < spawnedDebuffIcons.Count; i++)
             ReturnDebuffIconToPool(spawnedDebuffIcons[i]);
         spawnedDebuffIcons.Clear();

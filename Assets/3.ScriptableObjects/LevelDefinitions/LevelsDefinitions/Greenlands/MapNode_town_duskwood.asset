@@ -42,7 +42,6 @@ MonoBehaviour:
   unlockRequirementNotes: 
   connectedNodeIds: []
   nextNodeIds:
-  - battlegrounds
   - green_grove
   - hunting_grounds
   - spider_lair
@@ -330,6 +329,7 @@ MonoBehaviour:
   enabledSidePlayAreaIds:
   - SideArea_1
   useDefaultSpawnOnMapTeleport: 1
+  defaultPlayerSpawnPointName: 
   inMapTeleporters:
   - teleporterLinkId: duskwood_combat_practice
     spawnPointGroupId: AllSpawns

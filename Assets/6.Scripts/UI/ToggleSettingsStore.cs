@@ -29,6 +29,8 @@ public static class ToggleSettingsStore
     private const string MoveWindowPivotsKey = "Settings.MoveWindowPivots";
     private const string ShowDevPanelKey = "Settings.ShowDevPanel";
     private const string CompactDamageNumbersKey = "Settings.CompactDamageNumbers";
+    private const string HidePlayerOverheadBarsKey = "Settings.HidePlayerOverheadBars";
+    private const string DimHudWhenOverlappedKey = "Settings.DimHudWhenOverlapped";
 
     private static bool _moveWindowPivotsSessionActive;
 
@@ -85,6 +87,10 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ShowDevPanelKey, 1) != 0,
             ToggleSettingId.CompactDamageNumbers =>
                 PlayerPrefs.GetInt(CompactDamageNumbersKey, 0) != 0,
+            ToggleSettingId.HidePlayerOverheadBars =>
+                PlayerPrefs.GetInt(HidePlayerOverheadBarsKey, 0) != 0,
+            ToggleSettingId.DimHudWhenOverlapped =>
+                PlayerPrefs.GetInt(DimHudWhenOverlappedKey, 1) != 0,
             _ => false
         };
     }
@@ -210,6 +216,12 @@ public static class ToggleSettingsStore
             case ToggleSettingId.CompactDamageNumbers:
                 PlayerPrefs.SetInt(CompactDamageNumbersKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.HidePlayerOverheadBars:
+                PlayerPrefs.SetInt(HidePlayerOverheadBarsKey, value ? 1 : 0);
+                break;
+            case ToggleSettingId.DimHudWhenOverlapped:
+                PlayerPrefs.SetInt(DimHudWhenOverlappedKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -226,6 +238,9 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.MinimiseHud)
             HUDToggle.RefreshAllFromMinimiseHudSetting();
+
+        if (setting == ToggleSettingId.DimHudWhenOverlapped)
+            HUDView.RefreshAllOverlapFadeFromSettings();
 
         if (setting == ToggleSettingId.ShowOffscreenMarkers)
             OffscreenMarkersController.RefreshAllFromSettings();
@@ -261,6 +276,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(MoveWindowPivotsKey);
         PlayerPrefs.DeleteKey(ShowDevPanelKey);
         PlayerPrefs.DeleteKey(CompactDamageNumbersKey);
+        PlayerPrefs.DeleteKey(HidePlayerOverheadBarsKey);
+        PlayerPrefs.DeleteKey(DimHudWhenOverlappedKey);
         PlayerPrefs.Save();
 
         _moveWindowPivotsSessionActive = false;
@@ -269,6 +286,7 @@ public static class ToggleSettingsStore
         FullWindowBackgroundPresenter.RefreshAllFromSettings();
         FpsDisplayText.RefreshAllFromSettings();
         HUDToggle.RefreshAllFromMinimiseHudSetting();
+        HUDView.RefreshAllOverlapFadeFromSettings();
         OffscreenMarkersController.RefreshAllFromSettings();
 
         MovePivotsModeController.RefreshAllFromSettings();
@@ -299,7 +317,7 @@ public static class ToggleSettingsStore
             ToggleSettingId.ShowFps =>
                 "Show FPS",
             ToggleSettingId.MinimiseHud =>
-                "Minimise HUD",
+                "Always minimise HUD when out of combat",
             ToggleSettingId.ShowOffscreenMarkers =>
                 "Show Offscreen Markers",
             ToggleSettingId.ShowIncomingDamageNumbers =>
@@ -312,6 +330,10 @@ public static class ToggleSettingsStore
                 "Show dev panel (TESTING ONLY SETTING)",
             ToggleSettingId.CompactDamageNumbers =>
                 "Compact damage numbers",
+            ToggleSettingId.HidePlayerOverheadBars =>
+                "Hide player overhead bars",
+            ToggleSettingId.DimHudWhenOverlapped =>
+                "Dim HUD when enemy or player is underneath",
             _ => setting.ToString()
         };
     }

@@ -2379,9 +2379,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (_target != null && current == null)
             ClearTargetInternal();
 
-        if (current == null && ShouldDeferIdleTargetingWhileMinionsFight())
-            return;
-
         EnemyBaseController picked = ResolveIdlePickedEnemy(current);
         if (picked != null)
         {
@@ -2412,36 +2409,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         _lastEnemyThatDamagedPlayer = enemy;
         _lastEnemyThatDamagedPlayerTime = Time.time;
-    }
-
-    private const float MinionOnlyCombatDeferSeconds = 8f;
-
-    /// <summary>
-    /// When minions are actively fighting and the player was not recently hit, idle auto-target should not
-    /// pull the player into melee (avoids occasional pathing when only a minion is taking damage).
-    /// </summary>
-    private bool ShouldDeferIdleTargetingWhileMinionsFight()
-    {
-        if (_lastEnemyThatDamagedPlayer != null &&
-            Time.time - _lastEnemyThatDamagedPlayerTime < MinionOnlyCombatDeferSeconds)
-            return false;
-
-        IReadOnlyList<MinionCombatTarget> minions = MinionCombatTarget.ActiveTargets;
-        if (minions == null || minions.Count == 0)
-            return false;
-
-        for (int i = 0; i < minions.Count; i++)
-        {
-            MinionCombatTarget mct = minions[i];
-            if (mct == null || !mct.IsAlive)
-                continue;
-
-            MinionCombatController minionCombat = mct.GetComponent<MinionCombatController>();
-            if (minionCombat != null && minionCombat.IsActivelyEngagedInCombat)
-                return true;
-        }
-
-        return false;
     }
 
     /// <summary>Recent enemy that damaged the player (for ailment status popup placement).</summary>

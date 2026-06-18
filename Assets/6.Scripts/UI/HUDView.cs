@@ -86,14 +86,50 @@ public class HUDView : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
+        ToggleSettingsStore.Changed += OnToggleSettingsChanged;
         _nextEnemyOverlapCheckTime = 0f;
         _lastEnemyOverlapState = false;
         TryCachePlayer();
+        ApplyOverlapFadeSettingImmediate();
     }
 
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        ToggleSettingsStore.Changed -= OnToggleSettingsChanged;
+    }
+
+    public static void RefreshAllOverlapFadeFromSettings()
+    {
+        HUDView[] views = FindObjectsByType<HUDView>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < views.Length; i++)
+        {
+            if (views[i])
+                views[i].ApplyOverlapFadeSettingImmediate();
+        }
+    }
+
+    private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
+    {
+        if (id == ToggleSettingId.DimHudWhenOverlapped)
+            ApplyOverlapFadeSettingImmediate();
+    }
+
+    private void ApplyOverlapFadeSettingImmediate()
+    {
+        if (_selfCanvasGroup == null)
+            return;
+
+        if (!ShouldDimHudWhenOverlapped())
+        {
+            _lastHudOverlapState = false;
+            _selfCanvasGroup.alpha = 1f;
+        }
+    }
+
+    private static bool ShouldDimHudWhenOverlapped()
+    {
+        return ToggleSettingsStore.Get(ToggleSettingId.DimHudWhenOverlapped);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -120,7 +156,7 @@ public class HUDView : MonoBehaviour
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
             return;
 
-        if (!fadeWhenPlayerOverlaps || _selfRect == null || _selfCanvasGroup == null)
+        if (!fadeWhenPlayerOverlaps || !ShouldDimHudWhenOverlapped() || _selfRect == null || _selfCanvasGroup == null)
             return;
 
         if (_player == null)

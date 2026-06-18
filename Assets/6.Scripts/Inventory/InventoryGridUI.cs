@@ -83,7 +83,6 @@ public class InventoryGridUI : MonoBehaviour
     private bool _layoutSettled;
     private bool _displayPrewarmed;
     /// <summary>Coalesce <see cref="OnInventoryChanged"/> into one <see cref="Rebuild"/> per frame (same frame as the change, after Update).</summary>
-    private bool _pendingLateRebuild;
     private readonly List<int> _filteredSourceSlotScratch = new List<int>(128);
 
     /// <summary>Skip expensive <see cref="ApplyGridFit"/> when viewport + grid settings are unchanged since last rebuild.</summary>
@@ -223,8 +222,6 @@ public class InventoryGridUI : MonoBehaviour
 
     private void OnDisable()
     {
-        _pendingLateRebuild = false;
-
         if (_subscribedInventory != null)
             _subscribedInventory.OnInventoryChanged -= MarkDirty;
 
@@ -249,7 +246,6 @@ public class InventoryGridUI : MonoBehaviour
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy || !_dirty || inventory == null)
             return;
 
-        _pendingLateRebuild = false;
         _dirty = false;
         Rebuild();
     }
@@ -290,8 +286,6 @@ public class InventoryGridUI : MonoBehaviour
 
     public void RefreshNow()
     {
-        _pendingLateRebuild = false;
-
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
         {
             _dirty = true;

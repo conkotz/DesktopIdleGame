@@ -206,6 +206,18 @@ public class StorageGridUI : MonoBehaviour
         StartCoroutine(DeferredRefresh());
     }
 
+    /// <summary>Opens the leftmost storage tab (respects saved tab order).</summary>
+    public void SelectFirstDisplayedTab()
+    {
+        EnsureTabBar();
+        if (tabBar != null)
+        {
+            tabBar.SelectFirstDisplayedTab();
+            _activeTab = tabBar.ActiveTab;
+            _dirty = true;
+        }
+    }
+
     public void SyncRefreshDisplay()
     {
         ResolveStorageRef();

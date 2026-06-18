@@ -152,6 +152,20 @@ public class StorageTabBarUI : MonoBehaviour
             OnTabSelected?.Invoke(tab);
     }
 
+    /// <summary>Selects the leftmost tab after saved display order (first tab in the bar).</summary>
+    public void SelectFirstDisplayedTab(bool notify = true)
+    {
+        if (_tabs.Count == 0)
+            DiscoverTabs();
+
+        ApplySavedTabOrder();
+
+        if (_tabs.Count == 0)
+            return;
+
+        SelectTab(_tabs[0].TabKind, notify);
+    }
+
     public void NotifyTabOrderChanged()
     {
         if (storage == null || !tabsRoot || tabsRoot.childCount != PlayerStorage.TabCount)

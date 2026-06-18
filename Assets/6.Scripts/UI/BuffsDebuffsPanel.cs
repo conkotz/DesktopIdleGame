@@ -110,9 +110,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [SerializeField, Min(0.05f)] private float buffTimerRefreshInterval = 0.2f;
 
     private readonly List<GameObject> spawnedDebuffIcons = new();
+    private readonly Dictionary<string, GameObject> _debuffIconsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _debuffIconKeyOrder = new();
     private readonly List<GameObject> spawnedBuffIcons = new();
     private readonly List<BuffIconUI> spawnedBuffIconUis = new();
     private readonly List<BuffIconVisualSnapshot> buffIconSnapshots = new();
+    private readonly List<string> _buffIconKeyOrder = new();
     private AbilityDatabase _abilityDatabase;
     private float _nextBuffTimerRefreshAt;
 
@@ -256,50 +259,102 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     public void RefreshDebuffs()
     {
-        ClearDebuffs();
-
         if (ailments == null || debuffContainer == null || debuffIconPrefab == null)
+        {
+            ClearDebuffs();
             return;
+        }
 
+        var active = new List<(string key, Sprite sprite, int stacks, string title, string body)>(8);
         if (ailments.HasBleed)
-            SpawnDebuffIcon(
-                bleedIcon,
+        {
+            active.Add((
                 GameTooltipTexts.BleedTitle,
+                bleedIcon,
                 1,
                 GameTooltipTexts.BleedTitle,
-                BuildPlayerBleedBody(ailments.BleedDamagePerSecond));
+                BuildPlayerBleedBody(ailments.BleedDamagePerSecond)));
+        }
 
         if (ailments.HasPoison)
-            SpawnDebuffIcon(
-                poisonIcon,
+        {
+            active.Add((
                 GameTooltipTexts.PoisonTitle,
+                poisonIcon,
                 ailments.PoisonStacks,
                 GameTooltipTexts.PoisonTitle,
-                BuildPlayerPoisonBody(ailments.PoisonDamagePerSecond));
+                BuildPlayerPoisonBody(ailments.PoisonDamagePerSecond)));
+        }
 
         if (ailments.HasBurn)
-            SpawnDebuffIcon(
-                burnIcon,
+        {
+            active.Add((
                 GameTooltipTexts.BurnTitle,
+                burnIcon,
                 ailments.BurnStacks,
                 GameTooltipTexts.BurnTitle,
-                BuildPlayerBurnBody(ailments.BurnDamagePerSecond));
+                BuildPlayerBurnBody(ailments.BurnDamagePerSecond)));
+        }
 
         if (ailments.HasChill)
-            SpawnDebuffIcon(
-                chillIcon,
+        {
+            active.Add((
                 GameTooltipTexts.ChillTitle,
+                chillIcon,
                 ailments.ChillStacks,
                 GameTooltipTexts.ChillTitle,
-                BuildPlayerChillBody(ailments.ChillSlowPercent));
+                BuildPlayerChillBody(ailments.ChillSlowPercent)));
+        }
 
         if (ailments.HasShock)
-            SpawnDebuffIcon(
-                shockIcon,
+        {
+            active.Add((
                 GameTooltipTexts.ShockTitle,
+                shockIcon,
                 1,
                 GameTooltipTexts.ShockTitle,
-                BuildPlayerShockBody(ailments.ShockDamageTakenBonusPercent));
+                BuildPlayerShockBody(ailments.ShockDamageTakenBonusPercent)));
+        }
+
+        var activeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < active.Count; i++)
+            activeKeys.Add(active[i].key);
+
+        for (int i = _debuffIconKeyOrder.Count - 1; i >= 0; i--)
+        {
+            string key = _debuffIconKeyOrder[i];
+            if (!activeKeys.Contains(key))
+                RemoveHudDebuffIcon(key);
+        }
+
+        for (int i = 0; i < active.Count; i++)
+        {
+            var entry = active[i];
+            if (!_debuffIconsByKey.TryGetValue(entry.key, out GameObject icon) || icon == null)
+            {
+                SpawnDebuffIcon(entry.sprite, entry.key, entry.stacks, entry.title, entry.body);
+                icon = spawnedDebuffIcons[spawnedDebuffIcons.Count - 1];
+                _debuffIconsByKey[entry.key] = icon;
+                _debuffIconKeyOrder.Add(entry.key);
+                continue;
+            }
+
+            DebuffIconUI iconUI = icon.GetComponent<DebuffIconUI>();
+            if (iconUI != null)
+            {
+                iconUI.SetData(
+                    entry.sprite,
+                    entry.stacks,
+                    entry.title,
+                    entry.body,
+                    panelTooltip,
+                    tooltipMeasureRect,
+                    tooltipHeightRect,
+                    tooltipPreferredSide);
+            }
+        }
+
+        SyncHudDebuffSiblingOrder();
     }
 
     private static string BuildPlayerBleedBody(int damagePerSecond)
@@ -352,28 +407,40 @@ public class BuffsDebuffsPanel : MonoBehaviour
             return;
         }
 
-        while (spawnedBuffIcons.Count > activeBuffs.Count)
-        {
-            int last = spawnedBuffIcons.Count - 1;
-            if (spawnedBuffIcons[last] != null)
-                Destroy(spawnedBuffIcons[last]);
-            spawnedBuffIcons.RemoveAt(last);
-            if (spawnedBuffIconUis.Count > last)
-                spawnedBuffIconUis.RemoveAt(last);
-            if (buffIconSnapshots.Count > last)
-                buffIconSnapshots.RemoveAt(last);
-        }
-
+        var activeByKey = new Dictionary<string, PlayerBuffController.ActiveBuff>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < activeBuffs.Count; i++)
         {
             PlayerBuffController.ActiveBuff buff = activeBuffs[i];
             if (buff == null)
                 continue;
 
-            // Hot path: stack-based HUD buffs (Whirlwind/Crusader/Cleaving) update frequently during combat.
-            // Avoid rebuilding expensive tooltip text and database icon lookups when only stacks/timers changed.
-            BuffIconVisualSnapshot snapshot;
             string key = GetBuffIconKey(buff);
+            if (string.IsNullOrEmpty(key))
+                continue;
+
+            activeByKey[key] = buff;
+        }
+
+        for (int i = _buffIconKeyOrder.Count - 1; i >= 0; i--)
+        {
+            string key = _buffIconKeyOrder[i];
+            if (!activeByKey.ContainsKey(key))
+                RemoveBuffIconAt(i);
+        }
+
+        foreach (KeyValuePair<string, PlayerBuffController.ActiveBuff> kvp in activeByKey)
+        {
+            if (!_buffIconKeyOrder.Exists(k => string.Equals(k, kvp.Key, StringComparison.OrdinalIgnoreCase)))
+                _buffIconKeyOrder.Add(kvp.Key);
+        }
+
+        for (int i = 0; i < _buffIconKeyOrder.Count; i++)
+        {
+            string key = _buffIconKeyOrder[i];
+            if (!activeByKey.TryGetValue(key, out PlayerBuffController.ActiveBuff buff) || buff == null)
+                continue;
+
+            BuffIconVisualSnapshot snapshot;
             bool canReuse =
                 i < buffIconSnapshots.Count &&
                 buffIconSnapshots[i].key == key &&
@@ -393,6 +460,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
             {
                 snapshot = BuildBuffIconSnapshot(buff);
             }
+
             if (i >= spawnedBuffIcons.Count)
             {
                 SpawnBuffIcon(snapshot, buff.RemainingSeconds);
@@ -402,6 +470,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (!BuffIconSnapshotEquals(buffIconSnapshots[i], snapshot))
                 ApplyBuffIconSnapshot(i, snapshot, buff.RemainingSeconds);
         }
+
+        SyncBuffIconSiblingOrder();
     }
 
     private BuffIconVisualSnapshot BuildBuffIconSnapshot(PlayerBuffController.ActiveBuff buff) =>
@@ -504,20 +574,96 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (activeBuffs == null)
             return;
 
-        int count = Mathf.Min(activeBuffs.Count, spawnedBuffIconUis.Count);
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < _buffIconKeyOrder.Count && i < spawnedBuffIconUis.Count; i++)
         {
-            if (activeBuffs[i] == null)
+            string key = _buffIconKeyOrder[i];
+            PlayerBuffController.ActiveBuff buff = FindActiveBuffByKey(activeBuffs, key);
+            if (buff == null)
                 continue;
 
             BuffIconUI iconUI = spawnedBuffIconUis[i];
             if (iconUI != null)
-                iconUI.UpdateTimer(activeBuffs[i].RemainingSeconds);
+                iconUI.UpdateTimer(buff.RemainingSeconds);
+        }
+    }
+
+    private static PlayerBuffController.ActiveBuff FindActiveBuffByKey(
+        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs,
+        string key)
+    {
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            PlayerBuffController.ActiveBuff buff = activeBuffs[i];
+            if (buff == null)
+                continue;
+            if (string.Equals(GetBuffIconKey(buff), key, StringComparison.OrdinalIgnoreCase))
+                return buff;
+        }
+
+        return null;
+    }
+
+    private void RemoveHudDebuffIcon(string key)
+    {
+        if (!_debuffIconsByKey.TryGetValue(key, out GameObject icon))
+            return;
+
+        _debuffIconsByKey.Remove(key);
+        _debuffIconKeyOrder.RemoveAll(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+        spawnedDebuffIcons.Remove(icon);
+        if (icon != null)
+            Destroy(icon);
+    }
+
+    private void SyncHudDebuffSiblingOrder()
+    {
+        for (int i = 0; i < _debuffIconKeyOrder.Count; i++)
+        {
+            if (!_debuffIconsByKey.TryGetValue(_debuffIconKeyOrder[i], out GameObject icon) || icon == null)
+                continue;
+
+            icon.transform.SetSiblingIndex(i);
+        }
+    }
+
+    private void RemoveBuffIconAt(int index)
+    {
+        if (index < 0 || index >= _buffIconKeyOrder.Count)
+            return;
+
+        _buffIconKeyOrder.RemoveAt(index);
+
+        if (index < spawnedBuffIcons.Count)
+        {
+            if (spawnedBuffIcons[index] != null)
+                Destroy(spawnedBuffIcons[index]);
+            spawnedBuffIcons.RemoveAt(index);
+        }
+
+        if (index < spawnedBuffIconUis.Count)
+            spawnedBuffIconUis.RemoveAt(index);
+
+        if (index < buffIconSnapshots.Count)
+            buffIconSnapshots.RemoveAt(index);
+    }
+
+    private void SyncBuffIconSiblingOrder()
+    {
+        for (int i = 0; i < _buffIconKeyOrder.Count; i++)
+        {
+            if (i >= spawnedBuffIcons.Count)
+                break;
+
+            GameObject icon = spawnedBuffIcons[i];
+            if (icon != null)
+                icon.transform.SetSiblingIndex(i);
         }
     }
 
     public void ClearDebuffs()
     {
+        _debuffIconsByKey.Clear();
+        _debuffIconKeyOrder.Clear();
         for (int i = 0; i < spawnedDebuffIcons.Count; i++)
         {
             if (spawnedDebuffIcons[i] != null)
@@ -528,6 +674,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     public void ClearBuffs()
     {
+        _buffIconKeyOrder.Clear();
         for (int i = 0; i < spawnedBuffIcons.Count; i++)
         {
             if (spawnedBuffIcons[i] != null)

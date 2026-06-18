@@ -33,7 +33,7 @@ public enum ToggleSettingId
     /// <summary>When true, the dev FPS counter (<see cref="FpsDisplayText"/>) is visible.</summary>
     ShowFps = 11,
 
-    /// <summary>When true, the left HUD collapses automatically whenever a new map loads.</summary>
+    /// <summary>When true, the left HUD stays collapsed out of combat and opens when combat starts.</summary>
     MinimiseHud = 12,
 
     /// <summary>When true (default), offscreen direction markers are shown.</summary>
@@ -53,4 +53,10 @@ public enum ToggleSettingId
 
     /// <summary>When true, numeric damage popups are aggregated into a compact per-target counter.</summary>
     CompactDamageNumbers = 18,
+
+    /// <summary>When true, the player overhead HP/energy/mana strip above the character is hidden.</summary>
+    HidePlayerOverheadBars = 19,
+
+    /// <summary>When true (default), the left HUD fades when the player or an enemy overlaps it.</summary>
+    DimHudWhenOverlapped = 20,
 }

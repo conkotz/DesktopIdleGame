@@ -327,6 +327,47 @@ public class ItemDrop : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Voluntary map leave: inventory first, then Main storage tab. Does not respawn placed pickups.
+    /// </summary>
+    public void CollectForVoluntaryMapExit(Inventory inv, PlayerStorage storage)
+    {
+        if (inv == null || storage == null || Amount <= 0 || string.IsNullOrWhiteSpace(ItemId))
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        int addedToInventory = inv.AddPartial(ItemId, Amount, null, true, null);
+        int remaining = Amount - addedToInventory;
+
+        if (addedToInventory > 0)
+            SessionTrackerData.EnsureInstance().RegisterLootGain(SourceName, ItemId, addedToInventory);
+
+        if (remaining > 0)
+        {
+            int deposited = storage.TryDepositAmountToTab(ItemId, remaining, StorageTabKind.Main);
+            remaining -= deposited;
+
+            if (deposited > 0)
+            {
+                string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, deposited);
+                GameLog.ItemRecoveredToMainStorageOnMapLeave(label, deposited);
+            }
+
+            if (remaining > 0)
+            {
+                string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, remaining);
+                GameLog.CannotObtainInventoryAndStorageFull(label, remaining);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(_levelOneShotPickupClaimKey))
+            SaveManager.Instance?.MarkLevelItemPickupOnceClaimed(_levelOneShotPickupClaimKey);
+
+        Destroy(gameObject);
+    }
+
     public void BeginAutoBattleVacuum(
         Transform target,
         Collider2D targetCollider,
