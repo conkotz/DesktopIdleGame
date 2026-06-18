@@ -77,6 +77,7 @@ public class DevTestingPanelUI : MonoBehaviour
     private const string IdLeather = "leather";
     private const string IdVialPoison = "vial_poison";
     private const string IdGemSapphire = "gem_sapphire";
+    private const string IdFeather = "feather";
     private const string IdDevMace = "dev_destroyer_mace";
 
     private bool _autoResetCooldownsEnabled;
@@ -300,7 +301,8 @@ public class DevTestingPanelUI : MonoBehaviour
         inv.Add(IdLeather, m);
         inv.Add(IdVialPoison, m);
         inv.Add(IdGemSapphire, m);
-        Debug.Log($"[DevTestingPanel] +{n} fish/logs/stone, +{m} linen/leather/vial poison/sapphire.");
+        inv.Add(IdFeather, 100);
+        Debug.Log($"[DevTestingPanel] +{n} fish/logs/stone, +{m} linen/leather/vial poison/sapphire, +100 feathers.");
     }
 
     /// <summary>Same as AddGoldButton.</summary>

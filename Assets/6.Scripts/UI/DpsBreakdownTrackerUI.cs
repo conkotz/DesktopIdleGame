@@ -989,12 +989,13 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (_displayPaused)
         {
             _displayPaused = false;
-            if (combat != null && !combat.IsDpsTrackerRunning())
-                combat.StartDpsTrackerSession();
+            combat?.UnpauseDpsTracker();
         }
         else
         {
             _displayPaused = true;
+            combat?.PauseDpsTracker();
+            Refresh();
         }
 
         ApplyPlayPauseButtonVisual();

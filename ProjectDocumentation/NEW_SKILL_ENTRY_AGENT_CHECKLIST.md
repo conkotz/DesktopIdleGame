@@ -264,6 +264,31 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - Effects (orange): short effect-only lines from AbilityTooltipDamagePreview (no enhancement name).
   - Footer (green): "Active Enhancement: Title (full description)" — always show when a choice is committed.
   - Skill tree choice rows: SkillTreeViewUI uses same green for selected enhancement.
+
+### SKILL DETAILS PANEL — EFFECT COLUMN (SkillNodeDetailsPanelUI)
+  Middle column EFFECT section uses the same numeric pipeline as tooltips, but only reflects the
+  **committed** enhancement — not preview clicks.
+
+  Wiring:
+  - BindMiddleColumn → BuildAbilityTooltipScalingSection (blue SCALING block).
+  - BindMiddleColumn → BuildAbilityTooltipEffectsSection(def, skillsManager, committedChoiceIndex).
+        Pass enhancementChoiceOverride only from skillsManager.GetSkillChoiceSelection (committed row).
+        Do NOT pass preview index when the player clicks a different choice card.
+  - AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection / Append*TooltipHitDamage:
+        append damage lines, Duration/Charge time, and committed-enhancement gameplay bullets
+        (e.g. Snipe bleed line, Fast Charge charge time) inside the Effects body.
+  - ExtractEffectLinesFromStatsSection strips "Effects:" header and Energy/Cooldown footer for the panel.
+
+  When adding a new ability with enhancement-dependent effect lines:
+  1) Implement effect lines in BuildAbilityTooltipStatsSection (or dedicated Append* helper).
+  2) Read committed choice via skillsManager + AbilityCombatPower.*EnhancementParentSpineNodeId
+        (or enhancementChoiceOverride when passed from the details panel).
+  3) Mirror the same constants in runtime (PlayerAbilityController) — tooltip and cast must match.
+  4) Right-column enhancement cards: preview description only in enhancementDetailText.
+        Middle EFFECT column updates after SELECT/CHANGE ENHANCEMENT commits (Show → BindMiddleColumn).
+
+  Zero-damage fallback: AppendElementAwareDamageLines uses "+0 damage" when totals are 0
+  (no arrows equipped, missing weapon, etc.) — never "Base hit damage" in the details panel.
 ## A) NEW ABILITY (full pipeline — repeat in order)
 
 1) Gameplay asset
@@ -575,6 +600,12 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - REQUIRED: register Triple Shot + Snipe field arrays in PlayerAbilityVfxControllerEditor.cs (Range tab foldouts).
 
   Reference: snipe, PlayerAbilityController.Snipe.cs, SnipeLingeringTrailFollower, AbilityCombatPower.Snipe*.
+
+  Charge tuning (AbilityCombatPower):
+  - Base charge: SnipeBaseChargeDurationSeconds (3s). Full charge = SnipeMaxChargeDamageMultiplier (300% weapon).
+  - Fast Charge: SnipeFasterChargeReductionSeconds (0.5s) → SnipeEnhancedChargeDurationSeconds (2.5s).
+  - GetSnipeDamageMultiplierAtElapsed scales step bonus from duration so max charge is always 300% regardless of charge time.
+  - SCALING line: "Deals 100%-300% of your weapon damage" + Ability Power below (BuildAbilityTooltipScalingSection IsSnipe branch).
 ## K) COOLDOWN HELPERS
 
   ReduceAbilityCooldown(def, reductionFraction) — multiplies remaining CD (Executioner's Claim 50%).

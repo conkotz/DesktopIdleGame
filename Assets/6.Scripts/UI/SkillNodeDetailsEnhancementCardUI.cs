@@ -97,7 +97,7 @@ public sealed class SkillNodeDetailsEnhancementCardUI : MonoBehaviour
             : previewSelected
                 ? PreviewBorder
                 : NormalBorder;
-        outline.effectDistance = new Vector2(2f, -2f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
         outline.useGraphicAlpha = true;
         outline.enabled = true;
     }

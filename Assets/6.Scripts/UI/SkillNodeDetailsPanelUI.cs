@@ -27,13 +27,15 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     public const float FontEnhancementHeader = 14f;
     public const float FontEnhancementSubtitle = 13f;
     public const float FontEnhancementDetail = 13f;
-    public const float FontEnhancementCardLevel = 11f;
-    public const float FontEnhancementCardName = 12f;
+    public const float FontEnhancementCardLevel = 12f;
+    public const float FontEnhancementCardName = 14f;
     public const float FontEnhancementButton = 13f;
-    public const float EnhancementCardHeight = 102f;
-    public const float EnhancementButtonsRowHeight = 104f;
-    public const int EnhancementButtonsGridColumnCount = 3;
+    public const float EnhancementCardHeight = 112f;
+    public const float EnhancementButtonsRowHeight = 112f;
+    public const int EnhancementButtonsGridColumnCount = 2;
     public const float EnhancementButtonsGridSpacing = 8f;
+    public const int EnhancementButtonsGridPadding = 6;
+    public const float EnhancementCardOutlineInset = 8f;
     public const float HeaderIconSize = 80f;
 
     private const float ContentHorizontalPadding = 16f;
@@ -93,6 +95,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private int _previewEnhancementIndex = -1;
     private int _committedEnhancementIndex = -1;
     private bool _detailsInteriorExpanded;
+    private int _visibleEnhancementChoiceCount;
+    private Coroutine _enhancementScrollRoutine;
     private bool _columnScrollViewsEnsured;
     private Coroutine _deferredColumnsLayoutCo;
     private Coroutine _deferredDividerRefreshCo;
@@ -1268,8 +1272,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (layout == null)
             layout = card.gameObject.AddComponent<LayoutElement>();
 
-        layout.preferredHeight = EnhancementCardHeight;
-        layout.minHeight = EnhancementCardHeight;
+        layout.preferredHeight = EnhancementCardHeight - EnhancementCardOutlineInset;
+        layout.minHeight = EnhancementCardHeight - EnhancementCardOutlineInset;
     }
 
     private static void ApplyEnhancementCardTypography(SkillNodeDetailsEnhancementCardUI card)
@@ -1419,7 +1423,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             ability, stats, skillsManager, orangeMarkup: false);
         SetRichSection(scalingSectionRoot, scalingText, scaling, ScalingTextColor);
 
-        string effects = AbilityTooltipDamagePreview.BuildAbilityTooltipEffectsSection(ability, skillsManager);
+        int committedEnhancementChoice = ResolveCommittedEnhancementChoiceIndex(binding, skillsManager);
+        string effects = AbilityTooltipDamagePreview.BuildAbilityTooltipEffectsSection(
+            ability, skillsManager, committedEnhancementChoice);
         SetRichSection(effectSectionRoot, effectText, effects, BodyTextColor);
 
         bool hasResource = AbilityTooltipDamagePreview.TryGetDetailsPanelResourceLines(
@@ -1503,12 +1509,20 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         SkillUnlockDefinition unlock = binding?.Unlock;
         if (binding?.Skill != null && unlock != null)
         {
+            string spineId = binding.ResolveSpineNodeId();
+            if (string.Equals(spineId, AbilityCombatPower.SnipeEnhancementParentSpineNodeId, StringComparison.Ordinal))
+            {
+                if (choiceIndex == AbilityCombatPower.SnipeFasterChargeChoiceIndex)
+                    return "Reduce charge time by 0.5 seconds.";
+                if (choiceIndex == AbilityCombatPower.SnipeGuaranteedBleedChoiceIndex)
+                    return "Gains 100% chance to bleed";
+            }
+
             if (unlock.unlockType == SkillUnlockType.CapstonePassive
                 && MeleeMajorPassiveTooltipText.TryBuildCapstoneChoiceBody(choiceIndex, out string capstoneBody)
                 && !string.IsNullOrWhiteSpace(capstoneBody))
                 return capstoneBody;
 
-            string spineId = binding.ResolveSpineNodeId();
             if (!string.IsNullOrWhiteSpace(spineId)
                 && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
                 && !string.IsNullOrWhiteSpace(meleeBody))
@@ -1696,9 +1710,10 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         }
 
         ApplyEnhancementButtonsContainerLayout(visibleCount);
+        _visibleEnhancementChoiceCount = visibleCount;
 
         if (_previewEnhancementIndex >= 0)
-            SelectEnhancementButton(_previewEnhancementIndex, showDetail: true);
+            SelectEnhancementButton(_previewEnhancementIndex, showDetail: true, scrollToDetail: false);
     }
 
     private void ApplyEnhancementButtonsContainerLayout(int visibleCount)
@@ -1713,21 +1728,33 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         gridLayout.constraintCount = columns;
         gridLayout.spacing = new Vector2(EnhancementButtonsGridSpacing, EnhancementButtonsGridSpacing);
+        gridLayout.padding = new RectOffset(
+            EnhancementButtonsGridPadding,
+            EnhancementButtonsGridPadding,
+            EnhancementButtonsGridPadding,
+            EnhancementButtonsGridPadding);
         gridLayout.startCorner = GridLayoutGroup.Corner.UpperLeft;
         gridLayout.startAxis = GridLayoutGroup.Axis.Horizontal;
         gridLayout.childAlignment = TextAnchor.UpperCenter;
 
         float columnWidth = ComputeColumnWidth(RightColumnWidthRatio);
 
-        float cellWidth = (columnWidth - EnhancementButtonsGridSpacing * (columns - 1)) / columns;
-        gridLayout.cellSize = new Vector2(Mathf.Max(76f, cellWidth), EnhancementCardHeight);
+        float cellWidth = (columnWidth
+            - EnhancementButtonsGridSpacing * (columns - 1)
+            - EnhancementButtonsGridPadding * 2) / columns;
+        float cellHeight = EnhancementCardHeight;
+        gridLayout.cellSize = new Vector2(
+            Mathf.Max(84f, cellWidth - EnhancementCardOutlineInset),
+            cellHeight - EnhancementCardOutlineInset);
 
         LayoutElement rowLayout = enhancementButtonsContainer.GetComponent<LayoutElement>();
         if (rowLayout == null)
             rowLayout = enhancementButtonsContainer.gameObject.AddComponent<LayoutElement>();
 
-        float preferredHeight = EnhancementButtonsRowHeight * rowCount
-            + EnhancementButtonsGridSpacing * Mathf.Max(0, rowCount - 1);
+        float cardRowHeight = EnhancementButtonsRowHeight - EnhancementCardOutlineInset;
+        float preferredHeight = cardRowHeight * rowCount
+            + EnhancementButtonsGridSpacing * Mathf.Max(0, rowCount - 1)
+            + EnhancementButtonsGridPadding * 2;
         rowLayout.preferredHeight = preferredHeight;
         rowLayout.minHeight = preferredHeight;
         rowLayout.flexibleHeight = 0f;
@@ -1983,10 +2010,10 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (button == null)
             return;
 
-        SelectEnhancementButton(button.ChoiceIndex, showDetail: true);
+        SelectEnhancementButton(button.ChoiceIndex, showDetail: true, scrollToDetail: true);
     }
 
-    private void SelectEnhancementButton(int choiceIndex, bool showDetail)
+    private void SelectEnhancementButton(int choiceIndex, bool showDetail, bool scrollToDetail = false)
     {
         _previewEnhancementIndex = choiceIndex;
         RefreshCapstoneRequirementsDisplay();
@@ -2005,6 +2032,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (!showDetail)
         {
             SetEnhancementDetailVisible(false);
+            if (scrollToDetail)
+                ScheduleScrollEnhancementDetailIntoView();
             return;
         }
 
@@ -2022,10 +2051,70 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             }
 
             SetEnhancementDetailVisible(!string.IsNullOrWhiteSpace(detail));
+            if (scrollToDetail)
+                ScheduleScrollEnhancementDetailIntoView();
             return;
         }
 
         SetEnhancementDetailVisible(false);
+        if (scrollToDetail)
+            ScheduleScrollEnhancementDetailIntoView();
+    }
+
+    private void ScheduleScrollEnhancementDetailIntoView()
+    {
+        if (_visibleEnhancementChoiceCount <= 2)
+            return;
+
+        if (_enhancementScrollRoutine != null)
+            StopCoroutine(_enhancementScrollRoutine);
+
+        _enhancementScrollRoutine = StartCoroutine(CoScrollEnhancementDetailIntoView());
+    }
+
+    private IEnumerator CoScrollEnhancementDetailIntoView()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        if (contentRoot == null || enhancementDetailText == null)
+        {
+            _enhancementScrollRoutine = null;
+            yield break;
+        }
+
+        Transform scrollTransform = contentRoot.transform.Find("ColumnsRoot/RightSection/RightBodyScroll");
+        if (scrollTransform == null || !scrollTransform.TryGetComponent(out ScrollRect scroll))
+        {
+            _enhancementScrollRoutine = null;
+            yield break;
+        }
+
+        RectTransform content = scroll.content;
+        RectTransform viewport = scroll.viewport;
+        RectTransform detailRt = enhancementDetailText.rectTransform;
+        if (content == null || viewport == null || detailRt == null)
+        {
+            _enhancementScrollRoutine = null;
+            yield break;
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+
+        float contentHeight = content.rect.height;
+        float viewportHeight = viewport.rect.height;
+        if (contentHeight <= viewportHeight + 0.5f)
+        {
+            _enhancementScrollRoutine = null;
+            yield break;
+        }
+
+        Bounds detailBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(content, detailRt);
+        float scrollOffset = Mathf.Max(0f, -detailBounds.max.y - 4f);
+        float scrollableRange = Mathf.Max(1f, contentHeight - viewportHeight);
+        scroll.verticalNormalizedPosition = 1f - Mathf.Clamp01(scrollOffset / scrollableRange);
+        scroll.StopMovement();
+        _enhancementScrollRoutine = null;
     }
 
     private void SetEnhancementDetailVisible(bool visible)
@@ -2180,5 +2269,6 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         }
 
         _spawnedEnhancementButtons.Clear();
+        _visibleEnhancementChoiceCount = 0;
     }
 }

@@ -117,10 +117,19 @@ public class PlayerWorldTargetIndicator : MonoBehaviour
         if (focus == _currentFocusTransform && focus != null)
         {
             if (IsEnemyFocus(focus))
+            {
+                EnemyBaseController focusedEnemy = focus.GetComponentInParent<EnemyBaseController>();
+                if (focusedEnemy != null && targetIconSprite != null)
+                    UnitOverheadUI.SetCombatTargetMarkerForEnemy(focusedEnemy, targetIconSprite, true);
                 return;
+            }
 
             if (_iconRenderer != null && _iconRenderer.enabled)
+            {
+                _iconTransform.position = GetIconWorldPosition(focus);
+                ApplyIconScale();
                 return;
+            }
         }
 
         _currentFocusTransform = focus;

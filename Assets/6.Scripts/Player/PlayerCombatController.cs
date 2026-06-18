@@ -459,6 +459,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private bool _wasInAttackRangeWithTarget;
     /// <summary>When retaliation is off, leaving attack range suspends auto-attack/chase until Attack or a combat ability is used again.</summary>
     private bool _suspendAutoAttackUntilReengage;
+    private bool _playerRequestedCombatPause;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
@@ -590,17 +591,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     /// <summary>
     /// Elapsed seconds since the current damage-tracking session began.
-    /// Returns 0 until any outgoing/incoming damage has been recorded, and resets to 0 when tracker values are cleared.
+    /// Returns 0 when no session is active (reset or not yet started via play / first damage).
     /// </summary>
     public float GetDamageSessionElapsedSeconds()
     {
         if (_combatSessionStartTime < 0f)
-            return 0f;
-
-        if (_combatSessionDamageSum <= 0f &&
-            _incomingDamageSum.Total <= 0f &&
-            _incomingMitigationSum.Total <= 0f &&
-            _incomingHealingSum <= 0f)
             return 0f;
 
         if (_dpsTrackerPaused)
@@ -712,13 +707,12 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// </summary>
     public void RecordOutgoingSourceUse(string sourceName)
     {
-        if (_dpsTrackerPaused || string.IsNullOrWhiteSpace(sourceName))
+        if (_dpsTrackerPaused || _combatSessionStartTime < 0f || string.IsNullOrWhiteSpace(sourceName))
             return;
         if (!OutgoingSourceTracksUses(sourceName))
             return;
 
         MarkRecentCombatActivity();
-        EnsureDpsSessionStarted();
         AddOutgoingSourceUse(sourceName.Trim());
     }
 
@@ -754,38 +748,35 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _dpsTrackerPaused = false;
         _pausedDpsSessionDuration = 0f;
         ResetDpsSession();
-        _lastCombatActivityTime = Time.time;
+
+        if (IsCombatEngaged())
+        {
+            _combatSessionStartTime = Time.time;
+            _lastCombatActivityTime = Time.time;
+        }
     }
 
     public bool IsDpsTrackerRunning() =>
         !_dpsTrackerPaused && _combatSessionStartTime >= 0f;
 
+    public bool IsDpsTrackerPaused => _dpsTrackerPaused;
+
     /// <summary>
-    /// Starts or resumes the damage-meter session. Used by the meter play button when elapsed is 0
-    /// or after the player unpauses a frozen session.
+    /// Resumes a paused session. The timer only starts from combat damage (or reset while in combat);
+    /// this does not begin a new session on its own.
     /// </summary>
     public void StartDpsTrackerSession()
     {
         if (_dpsTrackerPaused)
-        {
             UnpauseDpsTracker();
-            return;
-        }
-
-        if (_combatSessionStartTime < 0f)
-        {
-            _combatSessionStartTime = Time.time;
-            _pausedDpsSessionDuration = 0f;
-        }
     }
 
     public void RecordIncomingHealingForDps(float healingAmount, string sourceName)
     {
-        if (_dpsTrackerPaused || healingAmount <= 0f)
+        if (_dpsTrackerPaused || healingAmount <= 0f || _combatSessionStartTime < 0f)
             return;
 
         string label = string.IsNullOrWhiteSpace(sourceName) ? GenericHealingSourceLabel : sourceName.Trim();
-        EnsureDpsSessionStarted();
         _incomingHealingSum += healingAmount;
         AddIncomingHealingSource(label, healingAmount);
     }
@@ -798,8 +789,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (_dpsTrackerPaused)
         {
-            duration = Mathf.Max(0.001f, _pausedDpsSessionDuration);
-            return duration > 0f;
+            duration = _pausedDpsSessionDuration;
+            return duration > 0.001f;
         }
 
         duration = Mathf.Max(0.001f, Time.time - _combatSessionStartTime);
@@ -851,9 +842,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Bumps local engagement clock and player <see cref="PlayerCombatState"/> soft combat (dealt or took damage).</summary>
     private void MarkRecentCombatActivity()
     {
-        if (_dpsTrackerPaused)
-            return;
-
         float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
         _lastCombatActivityTime = Time.time;
         if (player)
@@ -875,13 +863,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         TickWayOfTheCrusaderCapstone();
         TickWayOfTheBladeDancerCapstone();
         TickBloodbathStacks();
-        if (_dpsTrackerPaused) return;
 
         if (IsProximityCombatEngaged())
             _lastCombatActivityTime = Time.time;
-
-        if (IsCombatEngaged() && _combatSessionStartTime < 0f)
-            _combatSessionStartTime = Time.time;
 
         if (idleCombatEnabled)
         {
@@ -971,6 +955,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _attackBufferedFromRange = true;
         else
             _attackBufferedFromRange = false;
+
+        if (_playerRequestedCombatPause)
+        {
+            _isClosingDistanceForAttack = false;
+            _wasInAttackRangeWithTarget = inAttackRange;
+            player.ClearActionOverride();
+            player.StopMoveOnly();
+            return;
+        }
 
         if (!retaliationEnabled && _target != null)
         {
@@ -1397,15 +1390,37 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private void TryConsumeOffHandSupportAmmo()
     {
-        var equipment = GetComponent<EquipmentManager>();
-        if (!equipment) return;
+        TryConsumeOffHandSupportAmmoOnUse();
+    }
 
-        var offDef = equipment.GetOffHandDef();
-        if (!offDef || !offDef.IsCombatSupport) return;
-        if (!offDef.SupportConsumableOnAttack) return;
+    /// <summary>Returns true when no consumable support is required or enough stacks remain.</summary>
+    public bool HasConsumableOffHandSupportAmmo()
+    {
+        var equipment = GetComponent<EquipmentManager>();
+        if (!equipment)
+            return true;
+
+        ItemDefinition offDef = equipment.GetOffHandDef();
+        if (!offDef || !offDef.IsCombatSupport || !offDef.SupportConsumableOnAttack)
+            return true;
 
         int consume = Mathf.Max(1, offDef.SupportConsumeAmountPerAttack);
-        equipment.ConsumeOffHandSupport(consume);
+        return equipment.OffHandStackAmount >= consume;
+    }
+
+    /// <summary>Consumes one off-hand support stack when the equipped support is attack-consumable (e.g. arrows).</summary>
+    public bool TryConsumeOffHandSupportAmmoOnUse()
+    {
+        var equipment = GetComponent<EquipmentManager>();
+        if (!equipment)
+            return true;
+
+        ItemDefinition offDef = equipment.GetOffHandDef();
+        if (!offDef || !offDef.IsCombatSupport || !offDef.SupportConsumableOnAttack)
+            return true;
+
+        int consume = Mathf.Max(1, offDef.SupportConsumeAmountPerAttack);
+        return equipment.ConsumeOffHandSupport(consume);
     }
 
     private ItemDefinition GetMainWeaponDefForPopup()
@@ -2675,12 +2690,22 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (attackerTransform == null)
             return false;
 
-        // Keep the current engaged target. Never override it.
-        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
-            return false;
-
         EnemyBaseController attacker = attackerTransform.GetComponentInParent<EnemyBaseController>();
         if (attacker == null || attacker.IsDead || !attacker.gameObject.activeInHierarchy)
+            return false;
+
+        if (_playerRequestedCombatPause)
+        {
+            if (_target == null || _target.IsDead || !_target.gameObject.activeInHierarchy)
+                SetTargetInternal(attacker);
+            else
+                NotifyExplicitCombatEngage();
+
+            return true;
+        }
+
+        // Keep the current engaged target. Never override it.
+        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
             return false;
 
         SetTargetInternal(attacker);
@@ -2758,9 +2783,29 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _suspendAutoAttackUntilReengage = true;
     }
 
+    /// <summary>
+    /// Hotkey stop: keep target but halt chase and auto-attack until re-engage or retaliation hit.
+    /// </summary>
+    public void StopCombatMomentarily()
+    {
+        _playerRequestedCombatPause = true;
+        _combatChaseMovementEnabled = false;
+        _isClosingDistanceForAttack = false;
+        _attackBufferedFromRange = false;
+        if (!retaliationEnabled && _target != null)
+            _suspendAutoAttackUntilReengage = true;
+
+        if (!player)
+            player = GetComponent<PlayerController>();
+
+        player?.StopMoveOnly();
+        player?.ClearActionOverride();
+    }
+
     /// <summary>Resume auto-attack/chase after the player explicitly uses Attack or a combat ability.</summary>
     public void NotifyExplicitCombatEngage()
     {
+        _playerRequestedCombatPause = false;
         _suspendAutoAttackUntilReengage = false;
         _attackBufferedFromRange = false;
         _combatChaseMovementEnabled = true;
@@ -2835,6 +2880,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _isClosingDistanceForAttack = false;
         _attackBufferedFromRange = false;
         _suspendAutoAttackUntilReengage = false;
+        _playerRequestedCombatPause = false;
         _wasInAttackRangeWithTarget = false;
         ClearTargetInternal();
     }
@@ -2846,6 +2892,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         _combatChaseMovementEnabled = true;
         _stableCombatSideSign = 0f;
         _suspendAutoAttackUntilReengage = false;
+        _playerRequestedCombatPause = false;
         _wasInAttackRangeWithTarget = false;
 
         if (player)
@@ -3273,11 +3320,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void RecordIncomingMitigationForDps(in DpsMitigationBreakdown mitigation)
     {
-        if (mitigation.Total <= 0f || _dpsTrackerPaused)
+        if (mitigation.Total <= 0f || _dpsTrackerPaused || _combatSessionStartTime < 0f)
             return;
 
         MarkRecentCombatActivity();
-        EnsureDpsSessionStarted();
         _incomingMitigationSum.Add(mitigation);
     }
 
@@ -3599,19 +3645,18 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _combatSessionStartTime = Time.time;
     }
 
+    /// <summary>
+    /// Freezes damage-meter elapsed time and stops meter accumulation only — combat keeps running.
+    /// </summary>
     public void PauseDpsTracker()
     {
         if (_dpsTrackerPaused)
             return;
 
-        if (_combatSessionStartTime < 0f)
-        {
-            _pausedDpsSessionDuration = 0f;
-        }
+        if (_combatSessionStartTime >= 0f)
+            _pausedDpsSessionDuration = Mathf.Max(0f, Time.time - _combatSessionStartTime);
         else
-        {
-            _pausedDpsSessionDuration = Mathf.Max(0.001f, Time.time - _combatSessionStartTime);
-        }
+            _pausedDpsSessionDuration = 0f;
 
         _dpsTrackerPaused = true;
     }

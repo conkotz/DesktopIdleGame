@@ -75,6 +75,11 @@ public partial class PlayerAbilityController
         SyncSnipeHudBuff();
     }
 
+    public void CancelSnipeChargeFromPlayerStop()
+    {
+        CancelSnipeCharge(refundResource: true);
+    }
+
     private bool TryBeginSnipeCharge(AbilityDefinition def, EnemyBaseController target, bool autoBattleFullCharge)
     {
         if (def == null || target == null || target.IsDead)
@@ -170,6 +175,7 @@ public partial class PlayerAbilityController
         PrepareBattleEngineAbilityHitSession(def);
         player?.ReleaseSnipeChargeAttackAnim();
         combat?.ApplyFullAutoAttackCooldown();
+        combat?.TryConsumeOffHandSupportAmmoOnUse();
         StartCooldown(def);
         if (globalCooldownSeconds > 0f)
             _globalCooldownEndsAt = Time.time + globalCooldownSeconds;

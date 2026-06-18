@@ -47,9 +47,14 @@ public static class AbilityTooltipDamagePreview
     }
 
     /// <summary>Effect bullets for the skill details panel (no Effects header, no cost/cooldown footer).</summary>
-    public static string BuildAbilityTooltipEffectsSection(AbilityDefinition def, SkillsManager skillsManager)
+    public static string BuildAbilityTooltipEffectsSection(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        int enhancementChoiceOverride = -1)
     {
-        return BuildCompactEffectsBody(def, skillsManager, includeDuration: true, displayStacks: 0, includeEnhancementEffects: true);
+        return BuildCompactEffectsBody(
+            def, skillsManager, includeDuration: true, displayStacks: 0, includeEnhancementEffects: true,
+            enhancementChoiceOverride);
     }
 
     /// <summary>Separate cost and cooldown lines for the details panel middle column.</summary>
@@ -735,6 +740,15 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsSnipe(def))
+        {
+            scaling.AppendLine(S(
+                $"Deals {AbilityCombatPower.SnipeMinChargeDamageMultiplier * 100f:0.#}%-{AbilityCombatPower.SnipeMaxChargeDamageMultiplier * 100f:0.#}% of your weapon damage"));
+            AppendAbilityTooltipBonusScalerLines(
+                scaling, S, def, stats, weaponMult, def.GetEffectiveAllDamageMultiplier());
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsCleavingStrikes(def) || weaponMult <= scalingEpsilon)
             return string.Empty;
 
@@ -873,7 +887,8 @@ public static class AbilityTooltipDamagePreview
         CharacterStats stats,
         SkillsManager skillsManager,
         bool orangeMarkup,
-        bool includeEnhancementEffects = true)
+        bool includeEnhancementEffects = true,
+        int enhancementChoiceOverride = -1)
     {
         if (!def)
             return "";
@@ -1335,7 +1350,9 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsSnipe(def))
         {
-            AppendSnipeTooltipHitDamage(body, O, def, stats, skillsManager, weaponMult, allM, liveDamageMultiplier);
+            AppendSnipeTooltipHitDamage(
+                body, O, def, stats, skillsManager, weaponMult, allM, liveDamageMultiplier,
+                includeEnhancementEffects, enhancementChoiceOverride);
         }
         else if (IsHammerTempest(def))
         {
@@ -1542,7 +1559,8 @@ public static class AbilityTooltipDamagePreview
         SkillsManager skillsManager,
         bool includeDuration,
         int displayStacks,
-        bool includeEnhancementEffects = true)
+        bool includeEnhancementEffects = true,
+        int enhancementChoiceOverride = -1)
     {
         if (def == null)
             return string.Empty;
@@ -1552,7 +1570,7 @@ public static class AbilityTooltipDamagePreview
 
         CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
-            def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects);
+            def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects, enhancementChoiceOverride);
         if (string.IsNullOrWhiteSpace(full))
             return string.Empty;
 
@@ -2334,7 +2352,7 @@ public static class AbilityTooltipDamagePreview
         string suffix = DamageTimingSuffix();
         if (!stats)
         {
-            body.AppendLine(O("Base hit damage"));
+            body.AppendLine(O("+0 damage"));
             return;
         }
 
@@ -2374,26 +2392,55 @@ public static class AbilityTooltipDamagePreview
         SkillsManager skillsManager,
         float weaponMult,
         float allM,
-        float liveDamageMultiplier)
+        float liveDamageMultiplier,
+        bool includeEnhancementEffects = true,
+        int enhancementChoiceOverride = -1)
     {
+        int selected = ResolveSnipeEnhancementChoice(skillsManager, enhancementChoiceOverride);
+        float duration = AbilityCombatPower.GetSnipeChargeDurationSeconds(selected);
+
         if (!stats)
         {
-            body.AppendLine(O("Initial damage, full charge damage"));
+            body.AppendLine(O("+0 damage initial damage"));
+            body.AppendLine(O("+0 damage damage at full charge"));
+            body.AppendLine(O($"Charge time: {duration:0.#}s"));
+            AppendSnipeEnhancementEffectLines(body, O, selected, includeEnhancementEffects);
             return;
         }
+
+        float initialMult = AbilityCombatPower.GetSnipeDamageMultiplierAtElapsed(0f, duration);
+        float fullMult = AbilityCombatPower.SnipeMaxChargeDamageMultiplier;
+
+        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * initialMult, allM, liveDamageMultiplier, "initial damage");
+        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * fullMult, allM, liveDamageMultiplier, "damage at full charge");
+        body.AppendLine(O($"Charge time: {duration:0.#}s"));
+        AppendSnipeEnhancementEffectLines(body, O, selected, includeEnhancementEffects);
+    }
+
+    private static int ResolveSnipeEnhancementChoice(SkillsManager skillsManager, int enhancementChoiceOverride)
+    {
+        if (enhancementChoiceOverride >= 0)
+            return enhancementChoiceOverride;
 
         int selected = skillsManager != null
             ? skillsManager.GetSkillChoiceSelection(SkillType.Ranged, AbilityCombatPower.SnipeEnhancementParentSpineNodeId, -1)
             : -1;
         if (selected < 0 && skillsManager != null)
             selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        return selected;
+    }
 
-        float duration = AbilityCombatPower.GetSnipeChargeDurationSeconds(selected);
-        float initialMult = AbilityCombatPower.GetSnipeDamageMultiplierAtElapsed(0f, duration);
-        float fullMult = AbilityCombatPower.SnipeMaxChargeDamageMultiplier;
+    private static void AppendSnipeEnhancementEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        int selected,
+        bool includeEnhancementEffects)
+    {
+        if (!includeEnhancementEffects || selected < 0)
+            return;
 
-        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * initialMult, allM, liveDamageMultiplier, "initial damage");
-        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * fullMult, allM, liveDamageMultiplier, "damage at full charge");
+        if (selected == AbilityCombatPower.SnipeGuaranteedBleedChoiceIndex)
+            body.AppendLine(O("Gains 100% chance to bleed"));
     }
 
     private static void AppendSnipeTooltipChargeDamageLine(
@@ -2505,7 +2552,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O($"{c} Corruption damage{suffix}"));
 
         if (p == 0 && f == 0 && i == 0 && l == 0 && m == 0 && c == 0)
-            body.AppendLine(O("Base hit damage"));
+            body.AppendLine(O($"+0 damage{suffix}"));
     }
 
     private static void SplitHitDamageForTooltipDisplay(

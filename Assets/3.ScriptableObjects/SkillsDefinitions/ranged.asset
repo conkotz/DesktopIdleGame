@@ -110,7 +110,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
     - requiredLevel: 8
       title: Rapid Recovery
-      description: -3 seconds Triple Shot cooldown.
+      description: -2 seconds Triple Shot cooldown.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -134,13 +134,13 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Fast Charge
-      description: Charge time reduced to 1.5 seconds.
+      description: Reduce charge time by 0.5 seconds.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 8
       title: Hemorrhaging Shot
-      description: 100% bleed chance on this hit.
+      description: Gains 100% chance to bleed.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

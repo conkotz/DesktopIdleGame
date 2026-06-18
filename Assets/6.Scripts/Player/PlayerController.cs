@@ -607,6 +607,7 @@ public class PlayerController : MonoBehaviour
         PollKeyboardSteeringInput();
         TryInteractHotkey();
         TryEnterAreaHotkey();
+        TryStopMovementCombatHotkey();
 
         TickStateMachine();
         ApplyKeyboardMovementDelta();
@@ -1230,6 +1231,50 @@ public class PlayerController : MonoBehaviour
         WorldInteractRouter.RouteEnterArea(winner, this);
     }
 
+    private void TryStopMovementCombatHotkey()
+    {
+        if (!WasStopMovementCombatHotkeyPressedThisFrame())
+            return;
+
+        if (movementLocked || _isDead)
+            return;
+
+        if (!CanPollWorldInteractHotkey())
+            return;
+
+        StopMovementAndCombatFromHotkey();
+    }
+
+    /// <summary>Immediately halts walking, gathering, and combat actions; combat target is kept for retaliation re-engage.</summary>
+    public void StopMovementAndCombatFromHotkey()
+    {
+        if (_isDead || movementLocked)
+            return;
+
+        abilityController?.CancelSnipeChargeFromPlayerStop();
+        combat?.StopCombatMomentarily();
+
+        NPCInteractionSettings.CancelPendingInteract();
+        MerchantClick.CancelPendingOpen();
+        MapNodePortalTeleporter.CancelPendingApproachForPlayer(this);
+        InMapTeleporter.CancelPendingApproachForPlayer(this);
+        PlayerWorldInteractFocus.ClearForPlayer(this);
+
+        _moveToPointFromPlayerInput = false;
+        _keyboardSteerDir = 0f;
+        _keyboardSteerNotified = false;
+        _keyboardManualMoveThisFrame = false;
+
+        if (state != State.Idle)
+            ReturnToIdle();
+        else
+        {
+            StopMoveOnly();
+            ClearActionOverride();
+            SetAction(PlayerAction.Idle, true);
+        }
+    }
+
     private static bool CanPollKeyboardMovementInput()
     {
         if (HotkeySettingsRowUI.IsRebinding)
@@ -1287,6 +1332,9 @@ public class PlayerController : MonoBehaviour
 
     private static bool WasEnterAreaHotkeyPressedThisFrame() =>
         WasHotkeyBindPressedThisFrame(HotkeyBindId.EnterArea);
+
+    private static bool WasStopMovementCombatHotkeyPressedThisFrame() =>
+        WasHotkeyBindPressedThisFrame(HotkeyBindId.StopMovementCombat);
 
     private static bool WasHotkeyBindPressedThisFrame(HotkeyBindId bindId)
     {

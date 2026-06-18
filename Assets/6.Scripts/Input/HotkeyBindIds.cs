@@ -104,6 +104,8 @@ public static class HotkeyBindIds
                 return "Interact";
             case HotkeyBindId.EnterArea:
                 return "Enter area";
+            case HotkeyBindId.StopMovementCombat:
+                return "Stop movement/combat";
             case HotkeyBindId.OpenEnhancePage:
                 return "Open Enhance";
             case HotkeyBindId.OpenDatabasePage:

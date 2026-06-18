@@ -36,4 +36,5 @@ public enum HotkeyBindId
     OpenEnhancePage = 25,
     OpenDatabasePage = 26,
     EnterArea = 27,
+    StopMovementCombat = 28,
 }

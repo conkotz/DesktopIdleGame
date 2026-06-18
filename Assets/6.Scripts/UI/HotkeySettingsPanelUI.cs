@@ -25,6 +25,7 @@ public class HotkeySettingsPanelUI : MonoBehaviour
     {
         EnsureMovementSectionHeaderDimming();
         EnsureEnterAreaHotkeyRow();
+        EnsureStopMovementCombatHotkeyRow();
         RebuildRowCache();
     }
 
@@ -155,6 +156,48 @@ public class HotkeySettingsPanelUI : MonoBehaviour
         HotkeySettingsRowUI row = clone.GetComponent<HotkeySettingsRowUI>();
         if (row != null)
             row.SetBindId(HotkeyBindId.EnterArea);
+        clone.transform.SetSiblingIndex(template.transform.GetSiblingIndex() + 1);
+    }
+
+    private void EnsureStopMovementCombatHotkeyRow()
+    {
+        HotkeySettingsRowUI[] existing = GetComponentsInChildren<HotkeySettingsRowUI>(includeInactive);
+        for (int i = 0; i < existing.Length; i++)
+        {
+            if (existing[i] != null && existing[i].BindId == HotkeyBindId.StopMovementCombat)
+                return;
+        }
+
+        HotkeySettingsRowUI template = null;
+        for (int i = 0; i < existing.Length; i++)
+        {
+            if (existing[i] != null && existing[i].BindId == HotkeyBindId.EnterArea)
+            {
+                template = existing[i];
+                break;
+            }
+        }
+
+        if (template == null)
+        {
+            for (int i = 0; i < existing.Length; i++)
+            {
+                if (existing[i] != null && existing[i].BindId == HotkeyBindId.Interact)
+                {
+                    template = existing[i];
+                    break;
+                }
+            }
+        }
+
+        if (template == null)
+            return;
+
+        GameObject clone = Instantiate(template.gameObject, template.transform.parent);
+        clone.name = "HotkeyRowStopMovementCombat";
+        HotkeySettingsRowUI row = clone.GetComponent<HotkeySettingsRowUI>();
+        if (row != null)
+            row.SetBindId(HotkeyBindId.StopMovementCombat);
         clone.transform.SetSiblingIndex(template.transform.GetSiblingIndex() + 1);
     }
 }

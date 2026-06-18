@@ -17,15 +17,16 @@ public static class AbilityCombatPower
     public const int TripleShotArrowCount = 3;
     public const float TripleShotPhantomArrowIntervalSeconds = 0.3f;
     public const float TripleShotEnhancementDamageBonus = 0.10f;
-    public const float TripleShotEnhancementCooldownReductionSeconds = 3f;
+    public const float TripleShotEnhancementCooldownReductionSeconds = 2f;
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
     public const int SnipeFasterChargeChoiceIndex = 0;
     public const int SnipeGuaranteedBleedChoiceIndex = 1;
-    public const float SnipeBaseChargeDurationSeconds = 2f;
-    public const float SnipeEnhancedChargeDurationSeconds = 1.5f;
+    public const float SnipeBaseChargeDurationSeconds = 3f;
+    public const float SnipeFasterChargeReductionSeconds = 0.5f;
+    public const float SnipeEnhancedChargeDurationSeconds =
+        SnipeBaseChargeDurationSeconds - SnipeFasterChargeReductionSeconds;
     public const float SnipeChargeStepIntervalSeconds = 0.5f;
-    public const float SnipeChargeDamageBonusPerStep = 0.5f;
     public const float SnipeMinChargeDamageMultiplier = 1f;
     public const float SnipeMaxChargeDamageMultiplier = 3f;
     public const float SnipeProjectileSpeedMultiplier = 2f;
@@ -43,12 +44,13 @@ public static class AbilityCombatPower
         if (elapsedSeconds >= chargeDurationSeconds - 0.001f)
             return SnipeMaxChargeDamageMultiplier;
 
-        int steps = Mathf.FloorToInt(Mathf.Max(0f, elapsedSeconds) / SnipeChargeStepIntervalSeconds);
-        int maxSteps = Mathf.FloorToInt(chargeDurationSeconds / SnipeChargeStepIntervalSeconds);
-        steps = Mathf.Clamp(steps, 0, Mathf.Max(0, maxSteps));
-        return Mathf.Min(
-            SnipeMaxChargeDamageMultiplier,
-            SnipeMinChargeDamageMultiplier + steps * SnipeChargeDamageBonusPerStep);
+        int maxSteps = Mathf.Max(1, Mathf.FloorToInt(chargeDurationSeconds / SnipeChargeStepIntervalSeconds));
+        int steps = Mathf.Clamp(
+            Mathf.FloorToInt(Mathf.Max(0f, elapsedSeconds) / SnipeChargeStepIntervalSeconds),
+            0,
+            maxSteps);
+        float stepBonus = (SnipeMaxChargeDamageMultiplier - SnipeMinChargeDamageMultiplier) / maxSteps;
+        return SnipeMinChargeDamageMultiplier + steps * stepBonus;
     }
     public const string CrusaderStrikeAbilityId = "crusader_strike";
     public const string WhirlwindAbilityId = "whirlwind";

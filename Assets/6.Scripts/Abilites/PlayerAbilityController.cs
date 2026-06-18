@@ -3651,6 +3651,13 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (def.RequiresKeyboardRangeCheckToActivate() && combat != null && !combat.IsEnemyWithinAttackRange(snipeTarget))
                 return false;
 
+            if (combat != null && !combat.HasConsumableOffHandSupportAmmo())
+            {
+                if (showLockedFeedback)
+                    player?.ShowPopup("Out of arrows.");
+                return false;
+            }
+
             if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
                 return false;
 

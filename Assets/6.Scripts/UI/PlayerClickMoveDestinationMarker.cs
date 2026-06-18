@@ -24,6 +24,8 @@ public class PlayerClickMoveDestinationMarker : MonoBehaviour
 
     [Header("Refs")]
     [SerializeField] private PlayerController player;
+    [SerializeField] private PlayerCombatController combat;
+    [SerializeField] private PlayerWorldInteractFocus interactFocus;
 
     private Transform _markerRoot;
     private SpriteRenderer _markerRenderer;
@@ -34,11 +36,15 @@ public class PlayerClickMoveDestinationMarker : MonoBehaviour
     {
         if (!player)
             player = GetComponent<PlayerController>();
+        if (!combat)
+            combat = GetComponent<PlayerCombatController>();
+        if (!interactFocus)
+            interactFocus = GetComponent<PlayerWorldInteractFocus>();
     }
 
     private void LateUpdate()
     {
-        if (player == null || markerSprite == null || !player.IsClickMoveActive)
+        if (!ShouldShowGroundMarker())
         {
             Hide();
             return;
@@ -155,6 +161,20 @@ public class PlayerClickMoveDestinationMarker : MonoBehaviour
 
         t -= hold;
         return Mathf.Lerp(maxA, minA, t / fade);
+    }
+
+    private bool ShouldShowGroundMarker()
+    {
+        if (player == null || markerSprite == null || !player.IsClickMoveActive)
+            return false;
+
+        if (combat != null && combat.GetPrimaryEngagedEnemy() != null)
+            return false;
+
+        if (interactFocus != null && interactFocus.CurrentFocusTransform != null)
+            return false;
+
+        return true;
     }
 
     private void OnDisable() => Hide();
