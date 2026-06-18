@@ -504,6 +504,39 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         ApplyMotionFacing();
     }
 
+    private void LateUpdate()
+    {
+        if (!_initialized || !_ownerStats)
+            return;
+
+        EnforceLeashTeleport();
+    }
+
+    private void EnforceLeashTeleport()
+    {
+        float maxD = AbilityCombatPower.SoulforgedWarriorMaxLeashDistance;
+        if (maxD <= 0f)
+            return;
+
+        Vector3 ownerPos = _homeAnchor
+            ? _homeAnchor.position
+            : (_ownerStats ? _ownerStats.transform.position : transform.position);
+        if ((transform.position - ownerPos).sqrMagnitude <= maxD * maxD)
+            return;
+
+        _strikeTarget = null;
+        _cachedBoundsEnemy = null;
+        _cachedEnemyColliders = null;
+        _cachedEnemySpriteRenderers = null;
+        _attachFrozenHorizontalValid = false;
+        _returnFlipLocked = false;
+        _state = MotionState.Returning;
+
+        Vector3 home = GetHomeWorldPosition();
+        transform.position = home;
+        Physics2D.SyncTransforms();
+    }
+
     /// <summary>Hover at home: 80% of player move speed (when owner stats exist), else definition fallback.</summary>
     private float GetIdleFollowSpeed()
     {

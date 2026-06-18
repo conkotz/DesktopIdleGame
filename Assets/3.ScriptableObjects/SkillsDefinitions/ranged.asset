@@ -144,6 +144,36 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 5
+    title: Hawk Companion
+    description: Summon a hawk to follow you into battle. The hawk will strike nearby
+      enemies periodically.
+    icon: {fileID: 2471838002106920030, guid: a00657c342537fd468b7be61bec4834c, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 5a2c8ac207169c09e59ab289aab6bf86, type: 2}
+    presentation: {fileID: 11400000, guid: 300e7655849ddc3bc0b26473a9bac79f, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Lightning Infused
+      description: The hawk becomes lightning infused, converting its damage to lightning
+        and applies shock on hit.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 8
+      title: Weakspots
+      description: The hawk targets weakspots to gain 50% critical strike chance.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 6
     title: Deadeye Training I
     description: +3% Ranged Damage

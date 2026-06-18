@@ -196,6 +196,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Header("Soulforged Weapon Minion VFX")]
     [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
 
+    [Header("Hawk Companion Minion VFX")]
+    [SerializeField] private HawkCompanionMinionPresentation hawkCompanionMinionPresentation;
+
     [Header("Spectral Axe (Woodcutting Lv25) VFX")]
     [SerializeField] private Color spectralAxeTint = new Color(0.55f, 0.80f, 1f, 0.85f);
     [SerializeField, Min(0f)] private float spectralAxeVisualLift = 1.2f;
@@ -462,6 +465,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private static Material s_CachedRuntimeUrParticleMaterial;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
+    public HawkCompanionMinionPresentation HawkCompanionMinionPresentation => hawkCompanionMinionPresentation;
 
     public Transform LumberFrenzyOrbitVfxTransform =>
         _lumberFrenzyAnchorRoot != null ? _lumberFrenzyAnchorRoot.transform : null;

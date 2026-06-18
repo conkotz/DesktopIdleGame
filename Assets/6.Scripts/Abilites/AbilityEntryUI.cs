@@ -650,6 +650,14 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.HawkCompanionAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, AbilityCombatPower.HawkCompanionEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);

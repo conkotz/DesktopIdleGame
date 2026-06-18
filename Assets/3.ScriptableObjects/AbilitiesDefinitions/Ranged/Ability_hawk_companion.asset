@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_hawk_companion
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: hawk_companion
+  displayName: Hawk Companion
+  tag: 2
+  tooltipBuffMinionDurationSeconds: 60
+  presentation: {fileID: 11400000, guid: 300e7655849ddc3bc0b26473a9bac79f, type: 2}
+  cooldown: 30
+  energyCost: 30
+  manaCost: 0
+  healthCost: 0
+  weaponDamageMultiplier: 0
+  allDamageMultiplier: 0
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 2
+  sourceSkill: 4
+  unlockLevel: 5
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 0
+  minionSpawnDefinition: {fileID: 11400000, guid: 915a20e6980d3db641d58a317d2429e1, type: 2}

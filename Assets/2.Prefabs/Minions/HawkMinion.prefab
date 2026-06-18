@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5129415574896595554}
   - component: {fileID: 3322814534745602442}
   - component: {fileID: -4179558982599230115}
+  - component: {fileID: 8812746501938472615}
   m_Layer: 0
   m_Name: HawkMinion
   m_TagString: Untagged
@@ -114,3 +115,17 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &8812746501938472615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2039486318799787944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 360316232f8bf513e6a6bc89931bb100, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HawkCompanionMinion
+  spriteRenderer: {fileID: 3322814534745602442}
+  animator: {fileID: -4179558982599230115}

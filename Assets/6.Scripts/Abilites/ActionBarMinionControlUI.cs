@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Wires Aggressive / Assist / Passive minion commands on <see cref="ActionBarUI"/>.
-/// Shown only while Soulforged Weapon or Warrior is on combat action-bar set 1 or 2.
+/// Shown while Soulforged Weapon, Warrior, or Hawk Companion is on combat action-bar set 1 or 2.
 /// </summary>
 [DisallowMultipleComponent]
 public class ActionBarMinionControlUI : MonoBehaviour

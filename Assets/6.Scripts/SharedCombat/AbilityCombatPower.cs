@@ -78,6 +78,20 @@ public static class AbilityCombatPower
         float stepBonus = (SnipeMaxChargeDamageMultiplier - SnipeMinChargeDamageMultiplier) / maxSteps;
         return SnipeMinChargeDamageMultiplier + steps * stepBonus;
     }
+
+    public const string HawkCompanionAbilityId = "hawk_companion";
+    public const string HawkCompanionOutgoingSourceLabel = "Hawk Companion";
+    public const string HawkCompanionEnhancementParentSpineNodeId = "Lv5_2";
+    public const int HawkCompanionEnhancementSourceLevel = 5;
+    public const int HawkCompanionLightningInfusedChoiceIndex = 0;
+    public const int HawkCompanionWeakspotsChoiceIndex = 1;
+    public const float HawkCompanionBaseMinPhysical = 15f;
+    public const float HawkCompanionBaseMaxPhysical = 25f;
+    public const float HawkCompanionBaseAttackSpeed = 0.2f;
+    public const float HawkCompanionPhysicalPerRangedLevel = 2f;
+    public const float HawkCompanionWeakspotsCritChanceBonus = 0.5f;
+    public const float HawkCompanionDurationSeconds = 60f;
+
     public const string CrusaderStrikeAbilityId = "crusader_strike";
     public const string WhirlwindAbilityId = "whirlwind";
     public const string RendAbilityId = "rend";

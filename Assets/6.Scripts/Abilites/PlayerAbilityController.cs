@@ -338,6 +338,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private readonly List<SoulforgedWeaponMinion> _activeSoulforgedWeaponMinions = new();
     private readonly List<SoulforgedWarriorMinion> _activeSoulforgedWarriorMinions = new();
+    private readonly List<HawkCompanionMinion> _activeHawkCompanionMinions = new();
     private float _soulforgedAvailabilityCheckPausedUntil;
     private float _nextLingeringActionBarCheckAt;
     private float _nextSoulforgedOrphanScanAt;
@@ -345,6 +346,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
     private AbilityDefinition _soulforgedWarriorCooldownAbilityDef;
+    private AbilityDefinition _hawkCompanionCooldownAbilityDef;
     private float _soulforgedWarriorHudBuffEndsAt;
     private float _soulforgedWarriorHudBuffDuration;
 
@@ -356,10 +358,14 @@ public partial class PlayerAbilityController : MonoBehaviour
     private bool _soulforgedHudPersistOverlay;
     private float _lastSyncedSoulforgedHudEnd = float.NaN;
     private int _lastSyncedSoulforgedHudStacks = int.MinValue;
+    private float _hawkCompanionHudBuffEndsAt;
+    private float _hawkCompanionHudBuffDuration;
+    private float _lastSyncedHawkHudEnd = float.NaN;
 
     private static string s_pendingSoulforgedRestoreAbilityId;
     private static string s_persistedSoulforgedWeaponCooldownAbilityId;
     private static string s_persistedSoulforgedWarriorCooldownAbilityId;
+    private static string s_persistedHawkCompanionCooldownAbilityId;
 
     private enum QueuedHitEffect
     {
@@ -513,6 +519,21 @@ public partial class PlayerAbilityController : MonoBehaviour
         return count;
     }
 
+    private static int CountHawkCompanionMinionsInScene()
+    {
+        HawkCompanionMinion[] found = FindObjectsByType<HawkCompanionMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        int count = 0;
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i])
+                count++;
+        }
+
+        return count;
+    }
+
     private void MaybeReclaimOrphanedSoulforgedMinions()
     {
         if (Time.time >= _soulforgedAvailabilityCheckPausedUntil)
@@ -522,7 +543,8 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         _nextSoulforgedOrphanScanAt = Time.time + 0.5f;
         if (CountSoulforgedWeaponMinionsInScene() > _activeSoulforgedWeaponMinions.Count
-            || CountSoulforgedWarriorMinionsInScene() > _activeSoulforgedWarriorMinions.Count)
+            || CountSoulforgedWarriorMinionsInScene() > _activeSoulforgedWarriorMinions.Count
+            || CountHawkCompanionMinionsInScene() > _activeHawkCompanionMinions.Count)
             ReclaimPersistedSoulforgedMinionsFromScene();
     }
 
@@ -566,8 +588,16 @@ public partial class PlayerAbilityController : MonoBehaviour
             s_persistedSoulforgedWarriorCooldownAbilityId = null;
         }
 
+        if (!string.IsNullOrWhiteSpace(s_persistedHawkCompanionCooldownAbilityId))
+        {
+            _hawkCompanionCooldownAbilityDef =
+                GetAbilityDefinition(s_persistedHawkCompanionCooldownAbilityId);
+            s_persistedHawkCompanionCooldownAbilityId = null;
+        }
+
         ReclaimPersistedSoulforgedWeapons();
         ReclaimPersistedSoulforgedWarriors();
+        ReclaimPersistedHawkCompanions();
     }
 
     private void OnEnable()
@@ -684,7 +714,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (_battleEngineOverloadStacks > 0)
             return true;
-        if (_activeSoulforgedWeaponMinions.Count > 0 || _activeSoulforgedWarriorMinions.Count > 0)
+        if (_activeSoulforgedWeaponMinions.Count > 0 || _activeSoulforgedWarriorMinions.Count > 0
+            || _activeHawkCompanionMinions.Count > 0)
             return true;
         return false;
     }
@@ -717,6 +748,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             ClearBattleEngineOverloadStacksIfAny();
         TickPhoenixSoulBurnRegen(Time.deltaTime);
         SyncSoulforgedWeaponHudBuff();
+        SyncHawkCompanionHudBuff();
         SyncSoulforgedWarriorHudBuff();
     }
 
@@ -776,6 +808,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             ClearBattleEngineOverloadStacksIfAny();
         TickPhoenixSoulBurnRegen(Time.deltaTime);
         SyncSoulforgedWeaponHudBuff();
+        SyncHawkCompanionHudBuff();
         SyncSoulforgedWarriorHudBuff();
         // Energy Infusion glow is static once spawned; avoid per-frame transform dirtying.
     }
@@ -833,7 +866,17 @@ public partial class PlayerAbilityController : MonoBehaviour
             minion.RefreshAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin);
         }
 
+        for (int i = 0; i < _activeHawkCompanionMinions.Count; i++)
+        {
+            HawkCompanionMinion minion = _activeHawkCompanionMinions[i];
+            if (!minion)
+                continue;
+
+            minion.RefreshAfterSceneLoad(_ownerStats, ownerRoot, rangeOrigin, HandleHawkCompanionReleased);
+        }
+
         SyncSoulforgedWeaponHudBuff();
+        SyncHawkCompanionHudBuff();
         SyncSoulforgedWarriorHudBuff();
     }
 
@@ -875,6 +918,27 @@ public partial class PlayerAbilityController : MonoBehaviour
             {
                 _activeSoulforgedWarriorMinions.Add(minion);
                 minion.BindReleasedCallback(HandleSoulforgedWarriorReleased);
+            }
+        }
+    }
+
+    private void ReclaimPersistedHawkCompanions()
+    {
+        CleanupHawkCompanionList();
+        HawkCompanionMinion[] found = FindObjectsByType<HawkCompanionMinion>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < found.Length; i++)
+        {
+            HawkCompanionMinion minion = found[i];
+            if (!minion)
+                continue;
+
+            if (!_activeHawkCompanionMinions.Contains(minion))
+            {
+                _activeHawkCompanionMinions.Add(minion);
+                minion.BindReleasedCallback(HandleHawkCompanionReleased);
             }
         }
     }
@@ -1150,6 +1214,13 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (string.Equals(abilityId, AbilityCombatPower.HawkCompanionAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_activeHawkCompanionMinions.Count > 0)
+                EndHawkCompanionAndStartCooldown();
+            return;
+        }
+
         ForceEndGenericHudAbilityBuffWithCooldown(abilityId);
     }
 
@@ -1188,6 +1259,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(SpectralAxeId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.SoulforgedWeaponAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.SoulforgedWarriorAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.HawkCompanionAbilityId);
 
         if (_whirlwindChanneling && !actionBar.HasAbilityOnLoadout(WhirlwindId))
             ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: true);
@@ -3349,12 +3421,25 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         CleanupSoulforgedWeaponList();
         CleanupSoulforgedWarriorList();
+        CleanupHawkCompanionList();
         if (def.minionSpawnDefinition && IsSoulforgedWarriorAbility(def) && _activeSoulforgedWarriorMinions.Count > 0)
         {
             if (!allowSoulforgedRecastWhileActive)
                 return false;
 
             RecastActiveSoulforgedWarriors();
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (def.minionSpawnDefinition && IsHawkCompanionAbility(def) && _activeHawkCompanionMinions.Count > 0)
+        {
+            if (!allowSoulforgedRecastWhileActive)
+                return false;
+
+            RecastActiveHawkCompanions();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -8819,6 +8904,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _lastSyncedSoulforgedHudEnd = float.NaN;
         _lastSyncedSoulforgedHudStacks = int.MinValue;
         SyncSoulforgedWeaponHudBuff();
+        SyncHawkCompanionHudBuff();
 
         if (recordDamageMeterSummonUse)
         {
@@ -8842,11 +8928,174 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (!md || !md.runtimePrefab)
             return false;
 
+        if (md.runtimePrefab.GetComponent<HawkCompanionMinion>() ||
+            md.runtimePrefab.GetComponentInChildren<HawkCompanionMinion>(true))
+            return TrySpawnHawkCompanionMinion(def);
+
         if (md.runtimePrefab.GetComponent<SoulforgedWarriorMinion>() ||
             md.runtimePrefab.GetComponentInChildren<SoulforgedWarriorMinion>(true))
             return TrySpawnSoulforgedWarriorMinion(def);
 
         return TrySpawnSoulforgedWeaponMinion(def);
+    }
+
+    private static bool IsHawkCompanionAbility(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.HawkCompanionAbilityId, StringComparison.OrdinalIgnoreCase);
+
+    private bool TrySpawnHawkCompanionMinion(AbilityDefinition def, bool recordDamageMeterSummonUse = true)
+    {
+        MinionDefinition md = def.minionSpawnDefinition;
+        if (!md || !md.runtimePrefab || !_ownerStats || !player)
+            return false;
+
+        CleanupHawkCompanionSummonsWithoutCooldown();
+
+        Transform anchor = _ownerStats.transform;
+        Transform attacker = _ownerTransform ? _ownerTransform : anchor;
+        GameObject go = Instantiate(md.runtimePrefab, anchor.position, Quaternion.identity);
+        HawkCompanionMinion minion = go.GetComponent<HawkCompanionMinion>();
+        if (!minion)
+        {
+            Destroy(go);
+            return false;
+        }
+
+        float duration = md.summonDuration;
+        if (def.tooltipBuffMinionDurationSeconds > 0.01f)
+            duration = def.tooltipBuffMinionDurationSeconds;
+
+        int choice = GetHawkCompanionSelectedChoice();
+        if (!minion.Initialize(
+                _ownerStats,
+                md,
+                abilityVfx != null ? abilityVfx.HawkCompanionMinionPresentation : default,
+                anchor,
+                attacker,
+                HandleHawkCompanionReleased,
+                skillsManager,
+                choice,
+                duration))
+        {
+            Destroy(go);
+            return false;
+        }
+
+        minion.PersistAcrossSceneLoads();
+        _activeHawkCompanionMinions.Add(minion);
+        _hawkCompanionCooldownAbilityDef = def;
+        _hawkCompanionHudBuffDuration = Mathf.Max(0.1f, duration);
+        _hawkCompanionHudBuffEndsAt = Time.time + _hawkCompanionHudBuffDuration;
+        _lastSyncedHawkHudEnd = float.NaN;
+        SyncHawkCompanionHudBuff();
+        NotifyActionBarMinionControlChanged();
+
+        if (recordDamageMeterSummonUse)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.RecordOutgoingSourceUse(AbilityCombatPower.HawkCompanionOutgoingSourceLabel);
+        }
+
+        return true;
+    }
+
+    private int GetHawkCompanionSelectedChoice()
+    {
+        if (skillsManager == null)
+            return -1;
+
+        int selected = skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.HawkCompanionEnhancementParentSpineNodeId, -1);
+        if (selected < 0)
+            selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        return selected;
+    }
+
+    private void HandleHawkCompanionReleased(HawkCompanionMinion m)
+    {
+        _activeHawkCompanionMinions.Remove(m);
+        CleanupHawkCompanionList();
+
+        if (_activeHawkCompanionMinions.Count == 0 && _hawkCompanionCooldownAbilityDef)
+        {
+            StartCooldown(_hawkCompanionCooldownAbilityDef);
+            _hawkCompanionCooldownAbilityDef = null;
+        }
+
+        SyncHawkCompanionHudBuff();
+        NotifyActionBarMinionControlChanged();
+    }
+
+    private void RecastActiveHawkCompanions()
+    {
+        CleanupHawkCompanionList();
+        for (int i = 0; i < _activeHawkCompanionMinions.Count; i++)
+            _activeHawkCompanionMinions[i]?.TryRecastRetargetOrReturn();
+    }
+
+    private void CleanupHawkCompanionList()
+    {
+        for (int i = _activeHawkCompanionMinions.Count - 1; i >= 0; i--)
+        {
+            if (!_activeHawkCompanionMinions[i])
+                _activeHawkCompanionMinions.RemoveAt(i);
+        }
+    }
+
+    private void CleanupHawkCompanionSummonsWithoutCooldown()
+    {
+        for (int i = _activeHawkCompanionMinions.Count - 1; i >= 0; i--)
+        {
+            HawkCompanionMinion minion = _activeHawkCompanionMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
+        }
+
+        _activeHawkCompanionMinions.Clear();
+        _hawkCompanionCooldownAbilityDef = null;
+        SyncHawkCompanionHudBuff();
+        NotifyActionBarMinionControlChanged();
+    }
+
+    private void SyncHawkCompanionHudBuff()
+    {
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (!buffController)
+            return;
+
+        int liveCount = 0;
+        for (int i = 0; i < _activeHawkCompanionMinions.Count; i++)
+        {
+            if (_activeHawkCompanionMinions[i])
+                liveCount++;
+        }
+
+        if (liveCount <= 0)
+        {
+            if (buffController.IsHudAbilityBuffActive(AbilityCombatPower.HawkCompanionAbilityId))
+                buffController.ClearHudAbilityBuff(AbilityCombatPower.HawkCompanionAbilityId);
+            _lastSyncedHawkHudEnd = float.NaN;
+            return;
+        }
+
+        if (IsOnCooldown(AbilityCombatPower.HawkCompanionAbilityId, out _))
+        {
+            buffController.ClearHudAbilityBuff(AbilityCombatPower.HawkCompanionAbilityId);
+            _lastSyncedHawkHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedHawkHudEnd, _hawkCompanionHudBuffEndsAt))
+            return;
+
+        _lastSyncedHawkHudEnd = _hawkCompanionHudBuffEndsAt;
+        buffController.SetHudAbilityBuff(
+            AbilityCombatPower.HawkCompanionAbilityId,
+            1,
+            _hawkCompanionHudBuffEndsAt,
+            _hawkCompanionHudBuffDuration,
+            persistActiveOverlay: false);
     }
 
     private bool TrySpawnSoulforgedWarriorMinion(AbilityDefinition def, bool recordDamageMeterSummonUse = true)
@@ -8995,6 +9244,20 @@ public partial class PlayerAbilityController : MonoBehaviour
             StartCooldown(cooldownDef);
 
         buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWarriorAbilityId);
+        NotifyActionBarMinionControlChanged();
+    }
+
+    private void EndHawkCompanionAndStartCooldown()
+    {
+        AbilityDefinition cooldownDef = _hawkCompanionCooldownAbilityDef;
+        bool hadActiveMinion = _activeHawkCompanionMinions.Count > 0;
+
+        CleanupHawkCompanionSummonsWithoutCooldown();
+
+        if (cooldownDef != null && hadActiveMinion)
+            StartCooldown(cooldownDef);
+
+        buffController?.ClearHudAbilityBuff(AbilityCombatPower.HawkCompanionAbilityId);
         NotifyActionBarMinionControlChanged();
     }
 
@@ -9664,6 +9927,24 @@ public partial class PlayerAbilityController : MonoBehaviour
             }
 
             _activeSoulforgedWarriorMinions.Clear();
+        }
+
+        if (_activeHawkCompanionMinions.Count > 0)
+        {
+            if (_hawkCompanionCooldownAbilityDef)
+                s_persistedHawkCompanionCooldownAbilityId = _hawkCompanionCooldownAbilityDef.abilityId;
+
+            for (int i = _activeHawkCompanionMinions.Count - 1; i >= 0; i--)
+            {
+                HawkCompanionMinion minion = _activeHawkCompanionMinions[i];
+                if (!minion)
+                    continue;
+
+                minion.BindReleasedCallback(null);
+                minion.PersistAcrossSceneLoads();
+            }
+
+            _activeHawkCompanionMinions.Clear();
         }
     }
 }

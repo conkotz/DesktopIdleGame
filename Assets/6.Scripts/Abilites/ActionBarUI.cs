@@ -303,7 +303,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             return false;
 
         return string.Equals(abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase);
+               || string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, AbilityCombatPower.HawkCompanionAbilityId, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool ContainsMinionAbilityInSavedCombatSet(List<SavedSlotState> list)

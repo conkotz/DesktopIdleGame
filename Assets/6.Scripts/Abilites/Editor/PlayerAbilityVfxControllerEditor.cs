@@ -194,6 +194,11 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "soulforgedWeaponMinionPresentation"
     };
 
+    private static readonly string[] HawkCompanionFieldNames =
+    {
+        "hawkCompanionMinionPresentation"
+    };
+
     private static readonly string[] WarBannerVfxFieldNames =
     {
         "warBannerSprite",
@@ -433,6 +438,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
 
         new(VfxSkillTab.Range, "TripleShotVfx", 5, "Triple Shot", TripleShotVfxFieldNames),
         new(VfxSkillTab.Range, "SnipeVfx", 5, "Snipe", SnipeVfxFieldNames),
+        new(VfxSkillTab.Range, "HawkCompanionMinionVfx", 5, "Hawk Companion", HawkCompanionFieldNames),
         new(VfxSkillTab.Range, "SeekerArrowVfx", 5, "Seeker Arrows", SeekerArrowVfxFieldNames),
 
         new(VfxSkillTab.Woodcutting, "LumberFrenzyVfx", 5, "Lumber Frenzy",

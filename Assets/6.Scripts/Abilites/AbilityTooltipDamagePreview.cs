@@ -103,6 +103,8 @@ public static class AbilityTooltipDamagePreview
 
         if (IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def))
             return "Minion (Inherited)";
+        if (IsHawkCompanion(def))
+            return "Minion";
 
         switch (def.tag)
         {
@@ -404,6 +406,9 @@ public static class AbilityTooltipDamagePreview
 
     private static bool IsSoulforgedWarrior(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWarriorAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsHawkCompanion(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.HawkCompanionAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCleavingChop(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -1039,10 +1044,22 @@ public static class AbilityTooltipDamagePreview
 
         if (def.SpawnsMinionOnCast && def.minionSpawnDefinition)
         {
-            if (stats != null)
-                AppendMinionSpawnTooltipEffectLines(body, O, def, stats, skillsManager);
+            if (IsHawkCompanion(def))
+            {
+                if (stats != null)
+                    AppendHawkCompanionTooltipEffectLines(body, O, stats, skillsManager, includeEnhancementEffects);
+                else
+                    AppendHawkCompanionTooltipEffectLinesNoStats(body, O);
+
+                AppendHawkCompanionDurationLine(body, O, def);
+            }
             else
-                AppendMinionSpawnTooltipEffectLinesNoStats(body, O, def);
+            {
+                if (stats != null)
+                    AppendMinionSpawnTooltipEffectLines(body, O, def, stats, skillsManager);
+                else
+                    AppendMinionSpawnTooltipEffectLinesNoStats(body, O, def);
+            }
 
             if (IsSoulforgedWeapon(def))
             {
@@ -1560,7 +1577,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         return IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def) ||
                IsCleavingChop(def) || IsSpectralAxe(def) || IsCleavingStrikes(def) ||
-               IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def);
+               IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def) || IsHawkCompanion(def);
     }
 
     private static string BuildCompactEffectsBody(
@@ -2319,6 +2336,62 @@ public static class AbilityTooltipDamagePreview
         {
             body.AppendLine(O(
                 $"Taunting Shout: warcry also taunts enemies within {AbilityCombatPower.SoulforgedWarriorTauntRange:0.#} range. Taunted enemies deal {AbilityCombatPower.SoulforgedWarriorTauntingShoutOutgoingDamageReduction * 100f:0.#}% reduced damage for {AbilityCombatPower.SoulforgedWarriorTauntingShoutDebuffDurationSeconds:0.#}s."));
+        }
+    }
+
+    private static void AppendHawkCompanionDurationLine(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def)
+    {
+        body.AppendLine(string.Empty);
+        float dur = GetTooltipBuffMinionDisplayDurationSeconds(
+            def, AbilityCombatPower.HawkCompanionDurationSeconds, 0f);
+        body.AppendLine(O($"Duration: {dur:0.#}s"));
+    }
+
+    private static void AppendHawkCompanionTooltipEffectLinesNoStats(
+        StringBuilder body,
+        System.Func<string, string> O)
+    {
+        body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseMinPhysical:0.#} - {AbilityCombatPower.HawkCompanionBaseMaxPhysical:0.#} damage on hit"));
+        body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseAttackSpeed} attacks per second"));
+        body.AppendLine(O($"+{AbilityCombatPower.HawkCompanionPhysicalPerRangedLevel:0.#} physical damage per ranged level"));
+    }
+
+    private static void AppendHawkCompanionTooltipEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        CharacterStats stats,
+        SkillsManager skillsManager,
+        bool includeEnhancementEffects)
+    {
+        int rangedLevel = skillsManager != null ? skillsManager.GetLevel(SkillType.Ranged) : 0;
+        SplitDamageRange range = HawkCompanionStatsBuilder.BuildBaseDamageRange(rangedLevel);
+        float dmgMult = 1f + stats.FinalMinionDamagePercent;
+        int minD = Mathf.RoundToInt(range.min.physical * dmgMult);
+        int maxD = Mathf.RoundToInt(range.max.physical * dmgMult);
+
+        body.AppendLine(O($"{minD} - {maxD} damage on hit"));
+        body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseAttackSpeed} attacks per second"));
+        body.AppendLine(O($"+{AbilityCombatPower.HawkCompanionPhysicalPerRangedLevel:0.#} physical damage per ranged level"));
+
+        if (!includeEnhancementEffects || skillsManager == null)
+            return;
+
+        int sel = skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.HawkCompanionEnhancementParentSpineNodeId, -1);
+        if (sel < 0)
+            sel = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+
+        if (sel == AbilityCombatPower.HawkCompanionLightningInfusedChoiceIndex)
+        {
+            body.AppendLine(O("Converts damage to lightning and applies shock on hit."));
+            body.AppendLine(O($"Shock uses your shock damage amount ({stats.ShockDamageTakenMultiplier * 100f:0.#}%)."));
+        }
+        else if (sel == AbilityCombatPower.HawkCompanionWeakspotsChoiceIndex)
+        {
+            body.AppendLine(O($"{AbilityCombatPower.HawkCompanionWeakspotsCritChanceBonus * 100f:0.#}% critical strike chance."));
         }
     }
 
