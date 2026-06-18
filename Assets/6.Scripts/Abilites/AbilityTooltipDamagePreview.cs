@@ -316,6 +316,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsTripleShot(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.TripleShotAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSnipe(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SnipeAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Combat abilities that show full hit totals in Effects (weapon × mult + AP + bonuses),
     /// not separate "+ bonus" damage lines over a basic attack.
@@ -330,7 +333,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
-        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def))
+        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsSnipe(def))
             return false;
 
         const float scalingEpsilon = 0.0001f;
@@ -1329,6 +1332,10 @@ public static class AbilityTooltipDamagePreview
         else if (IsTripleShot(def))
         {
             AppendTripleShotTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
+        }
+        else if (IsSnipe(def))
+        {
+            AppendSnipeTooltipHitDamage(body, O, def, stats, skillsManager, weaponMult, allM, liveDamageMultiplier);
         }
         else if (IsHammerTempest(def))
         {
@@ -2357,6 +2364,51 @@ public static class AbilityTooltipDamagePreview
         AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
         body.AppendLine(O(
             $"Fires {AbilityCombatPower.TripleShotArrowCount} arrows ({AbilityCombatPower.TripleShotPhantomArrowIntervalSeconds:0.#}s apart). Phantom arrows do not consume ammo."));
+    }
+
+    private static void AppendSnipeTooltipHitDamage(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        SkillsManager skillsManager,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier)
+    {
+        if (!stats)
+        {
+            body.AppendLine(O("Initial damage, full charge damage"));
+            return;
+        }
+
+        int selected = skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Ranged, AbilityCombatPower.SnipeEnhancementParentSpineNodeId, -1)
+            : -1;
+        if (selected < 0 && skillsManager != null)
+            selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+
+        float duration = AbilityCombatPower.GetSnipeChargeDurationSeconds(selected);
+        float initialMult = AbilityCombatPower.GetSnipeDamageMultiplierAtElapsed(0f, duration);
+        float fullMult = AbilityCombatPower.SnipeMaxChargeDamageMultiplier;
+
+        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * initialMult, allM, liveDamageMultiplier, "initial damage");
+        AppendSnipeTooltipChargeDamageLine(body, O, def, stats, weaponMult * fullMult, allM, liveDamageMultiplier, "damage at full charge");
+    }
+
+    private static void AppendSnipeTooltipChargeDamageLine(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier,
+        string suffix)
+    {
+        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
+        AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, $" {suffix}");
     }
 
     /// <summary>

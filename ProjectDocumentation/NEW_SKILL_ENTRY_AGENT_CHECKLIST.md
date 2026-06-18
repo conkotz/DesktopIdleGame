@@ -552,6 +552,29 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - Crescent / Final Severance / Executioner's Descent / Shadow Strike each return true after own StartCooldown.
 
   Queued melee abilities (Power Slash, Rend, Envenom, Crescent queue) are separate — do not confuse with instant casts.
+## J2) HOLD-TO-CHARGE RANGED (Snipe pattern)
+
+  Ability asset:
+  - tag = Active; tooltipCategoryTagOverride = "Active • Charged" on presentation asset.
+  - Hold input: ActionBarSlotUI + ActionBarUI track button held state → SetSnipeActionBarHeld.
+  - Auto-battle: pass snipeAutoBattleFullCharge into TryUseAbility so charge always runs full duration.
+
+  Runtime (partial class PlayerAbilityController.Snipe.cs):
+  - TryBeginSnipeCharge → spend energy, BeginSnipeChargeAttackAnim on PlayerController, BeginSnipeChargeVfx on VFX controller.
+  - TickSnipeCharge each frame; release on button up or at full charge; CancelSnipeCharge refunds energy when appropriate.
+  - ExecuteSnipeFire → ReleaseSnipeChargeAttackAnim, TryFireSnipeProjectile, delayed hit resolution after travel time.
+  - Enhancement bleed: force ApplyBleedFromHit when choice index matches AbilityCombatPower.SnipeGuaranteedBleedChoiceIndex.
+
+  Animation (PlayerController):
+  - If not already in range_attack state, animator.Play("range_attack", 0, 0) immediately on charge start (not SetTrigger).
+  - Hold pose after N frames (SnipeChargeAnimPauseFrameDelay); resume on ReleaseSnipeChargeAttackAnim.
+
+  VFX (PlayerAbilityVfxController + Editor Range tab):
+  - Charge: BeginSnipeChargeVfx(duration) — rising white orbit ring; EndSnipeChargeVfx on cancel/fire.
+  - Projectile trail: GetSnipeTrailSettings() → SnipeLingeringTrailFollower.Create in PlayerCombatController.TryFireSnipeProjectile.
+  - REQUIRED: register Triple Shot + Snipe field arrays in PlayerAbilityVfxControllerEditor.cs (Range tab foldouts).
+
+  Reference: snipe, PlayerAbilityController.Snipe.cs, SnipeLingeringTrailFollower, AbilityCombatPower.Snipe*.
 ## K) COOLDOWN HELPERS
 
   ReduceAbilityCooldown(def, reductionFraction) — multiplies remaining CD (Executioner's Claim 50%).

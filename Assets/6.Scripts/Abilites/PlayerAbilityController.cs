@@ -52,7 +52,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     public static bool BlocksCombatActions =>
         _instance != null && (_instance._finalSeveranceChanneling || _instance._bladestormChanneling ||
                               _instance._whirlwindChanneling || _instance._bladestormRoutine != null ||
-                              _instance._flameChargeRoutine != null);
+                              _instance._flameChargeRoutine != null || _instance._snipeCharging);
 
     public static bool IsWhirlwindAutoChanneling =>
         _instance != null && _instance._whirlwindChanneling && _instance._whirlwindAutoChanneling;
@@ -605,6 +605,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         EndBladestormInstanceState();
         ForceEndHammerTempestEarly(applyCooldown: false);
         ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false, lingerGaleforceTwisters: false);
+        CancelSnipeCharge(refundResource: true);
         ForceEndCrusaderStrikeCombo(applyCooldown: false);
         ClearCrusaderStrikeFireBalanceBuff();
         ClearPendingMeleeApproachAbility();
@@ -644,7 +645,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private bool RequiresPerFrameAbilityRuntimeWork()
     {
-        if (_whirlwindChanneling || _finalSeveranceChanneling || _bladestormChanneling)
+        if (_whirlwindChanneling || _finalSeveranceChanneling || _bladestormChanneling || _snipeCharging)
             return true;
         if (_bladestormRoutine != null || _flameChargeRoutine != null || _executionersDescentRoutine != null)
             return true;
@@ -724,6 +725,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         TickPendingMeleeApproachAbility();
         TickWhirlwindChannel();
+        TickSnipeCharge();
         TickGaleforceTwisterDamage();
         SyncWhirlwindHudBuff();
         CleanupCrusaderStrikeIfExpired();
@@ -2497,7 +2499,8 @@ public partial class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, EnergyInfusionId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, FlameChargeId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(id, BladestormId, StringComparison.OrdinalIgnoreCase);
+               || string.Equals(id, BladestormId, StringComparison.OrdinalIgnoreCase)
+               || IsSnipeAbilityId(id);
     }
 
     public bool IsEnergyInfusionActive => _energyInfusionActive;
@@ -3280,7 +3283,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         bool allowSoulforgedRecastWhileActive = true,
         bool requireCrescentSlashTargetInFacingLane = false,
         bool requireWhirlwindTargetInRadius = false,
-        bool requireGuardiansHammerTargetInFacingZone = false)
+        bool requireGuardiansHammerTargetInFacingZone = false,
+        bool snipeAutoBattleFullCharge = false)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
@@ -3298,6 +3302,13 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (_finalSeveranceChanneling || _bladestormChanneling || _bladestormRoutine != null)
             return false;
+
+        if (_snipeCharging)
+        {
+            if (!IsSnipeAbilityId(abilityId))
+                return false;
+            return !snipeAutoBattleFullCharge;
+        }
 
         if (_whirlwindChanneling && !CanUseAbilityDuringWhirlwindChannel(abilityId))
             return false;
@@ -3328,6 +3339,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
 
         bool isWhirlwind = string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase);
+        bool isSnipe = IsSnipeAbilityId(def.abilityId);
 
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return TryUseCombatStarterAttack(def, showLockedFeedback);
@@ -3424,6 +3436,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
         if (!isWhirlwind &&
+            !isSnipe &&
             !UsesMeleeApproachOnActivate(def) &&
             !isGuardiansHammer &&
             !AbilityDefersEnergyUntilActivated(def) &&
@@ -3464,6 +3477,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
             _tripleShotQueued = true;
             _queuedTripleShotUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
+            abilityVfx?.SpawnTripleShotVolleyFlashVfx();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -3625,6 +3639,27 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
+            return true;
+        }
+
+        if (isSnipe)
+        {
+            EnemyBaseController snipeTarget = combat != null ? combat.CurrentTarget : null;
+            if (snipeTarget == null || snipeTarget.IsDead)
+                return false;
+
+            if (def.RequiresKeyboardRangeCheckToActivate() && combat != null && !combat.IsEnemyWithinAttackRange(snipeTarget))
+                return false;
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
+            if (!TryBeginSnipeCharge(def, snipeTarget, snipeAutoBattleFullCharge))
+            {
+                RefundAbilityResourceCost(def);
+                return false;
+            }
+
             return true;
         }
 
@@ -6441,6 +6476,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (stats == null || target == null)
             return 1f;
 
+        if (stats.CurrentAttackSkill == AttackSkill.Ranged)
+            return 1f + stats.GetRangedConditionalDamageBonusFraction(target, combat);
+
         float bonus = 0f;
         AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments != null)
@@ -6529,14 +6567,18 @@ public partial class PlayerAbilityController : MonoBehaviour
         stats.TryApplyBurnFromDealtHit(ailments, dealt.magic, dealt.physical, transform);
 
         if (dealt.magic > 0f &&
-            dealt.meleeMagicLightningFraction > 1e-5f &&
-            stats.MeleeShockChance > 0f &&
-            UnityEngine.Random.value <= stats.MeleeShockChance)
+            dealt.meleeMagicLightningFraction > 1e-5f)
         {
-            ailments.ApplyShockFromHit(new ShockPayload(
-                duration: stats.ShockDuration,
-                damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
-                source: transform));
+            float shockChance = stats.CurrentAttackSkill == AttackSkill.Ranged
+                ? stats.RangedShockChance
+                : stats.MeleeShockChance;
+            if (shockChance > 0f && UnityEngine.Random.value <= shockChance)
+            {
+                ailments.ApplyShockFromHit(new ShockPayload(
+                    duration: stats.ShockDuration,
+                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                    source: transform));
+            }
         }
     }
 

@@ -1646,6 +1646,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float vsBurning = 0f;
         float vsLowHp = 0f;
         float rangedDamage = 0f;
+        float minRangedDamage = 0f;
+        float maxRangedDamage = 0f;
         float gatherSpeedFlat = 0f;
         float gatherGrit = 0f;
         float gatherEnergyEfficiency = 0f;
@@ -1673,6 +1675,17 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float rangedAttackSpeed = 0f;
         float rangedCritChance = 0f;
         float rangedMoveSpeed = 0f;
+        float rangedCritDamage = 0f;
+        float rangedShockChance = 0f;
+        float rangedLightningDamage = 0f;
+        float vsRangedShocked = 0f;
+        float vsRangedLowHp = 0f;
+        float vsRangedDistant = 0f;
+        float rangedLoneHunter = 0f;
+        float rangedPackTactics = 0f;
+        float vsRangedFullHp = 0f;
+        float minionDamage = 0f;
+        float minionHealth = 0f;
         float magicDamage = 0f;
         float magicAttackSpeed = 0f;
         float magicCritChance = 0f;
@@ -1730,6 +1743,60 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                         break;
                     case RangedMinorNodeStatOption.RangedMoveSpeedPercent5:
                         rangedMoveSpeed += 0.05f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedMoveSpeedPercent10:
+                        rangedMoveSpeed += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.MinRangedDamageFlat2:
+                        minRangedDamage += 2f;
+                        break;
+                    case RangedMinorNodeStatOption.MaxRangedDamageFlat2:
+                        maxRangedDamage += 2f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageVsLowHpPercent10:
+                        vsRangedLowHp += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedShockChancePercent5:
+                        rangedShockChance += 0.05f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedLightningDamagePercent10:
+                        rangedLightningDamage += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedLightningDamagePercent4:
+                        rangedLightningDamage += 0.04f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageVsShockedPercent10:
+                        vsRangedShocked += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedCritDamagePercent8:
+                        rangedCritDamage += 0.08f;
+                        break;
+                    case RangedMinorNodeStatOption.MinionDamagePercent5:
+                        minionDamage += 0.05f;
+                        break;
+                    case RangedMinorNodeStatOption.MinionDamagePercent8:
+                        minionDamage += 0.08f;
+                        break;
+                    case RangedMinorNodeStatOption.MinionMaxLifePercent10:
+                        minionHealth += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageWithMinionActivePercent10:
+                        rangedPackTactics += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageVsDistantPercent5:
+                        vsRangedDistant += 0.05f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageVsDistantPercent10:
+                        vsRangedDistant += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent5:
+                        rangedLoneHunter += 0.05f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent10:
+                        rangedLoneHunter += 0.10f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedDamageVsFullHpPercent6:
+                        vsRangedFullHp += 0.06f;
                         break;
                 }
             }
@@ -1864,10 +1931,23 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else if (skill.skillType == SkillType.Ranged)
         {
+            Flat(minRangedDamage, "Min Ranged Damage");
+            Flat(maxRangedDamage, "Max Ranged Damage");
             Pct(rangedDamage, "Ranged Damage");
             Pct(rangedAttackSpeed, "Ranged Attack Speed");
             Pct(rangedCritChance, "Ranged Crit Chance");
+            Pct(rangedCritDamage, "Ranged Crit Damage");
             Pct(rangedMoveSpeed, "Ranged Move Speed");
+            Pct(rangedShockChance, "Ranged Shock Chance");
+            Pct(rangedLightningDamage, "Lightning Damage");
+            Pct(vsRangedShocked, "Ranged Damage to Shocked Enemies");
+            Pct(vsRangedLowHp, $"Ranged Damage to Low HP Enemies {CharacterStats.RangedLowHpDisplaySuffix}");
+            Pct(vsRangedDistant, "Ranged Damage against Distant Enemies");
+            Pct(rangedLoneHunter, "Ranged Damage when no Enemy is within 3m");
+            Pct(rangedPackTactics, "Ranged Damage while a Minion is Active");
+            Pct(vsRangedFullHp, "Ranged Damage to Full HP Enemies");
+            Pct(minionDamage, "Minion Damage");
+            Pct(minionHealth, "Minion Health");
         }
         else if (skill.skillType == SkillType.Magic)
         {

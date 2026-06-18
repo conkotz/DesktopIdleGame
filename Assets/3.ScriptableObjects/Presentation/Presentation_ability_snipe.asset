@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
+  m_Name: Presentation_ability_snipe
+  m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
+  notes: Presentation for snipe
+  displayNameOverride: Snipe
+  icon: {fileID: 4134967275584940047, guid: c8f4ec490a9c4b44cbb3acf391c93cb3, type: 3}
+  shortDescription: Precisely aim to charge your next shot. Once reaching full charge
+    it will deal its maximum damage. During auto battle it will always charge to
+    full.
+  primaryDescriptionOverride: 
+  flavourText: 
+  tooltipCategoryTagOverride: Active • Charged

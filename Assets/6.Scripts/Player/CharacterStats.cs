@@ -301,6 +301,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float LowHealthThreshold01 = 0.30f;
     public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
     public const string MeleeLowHpDisplaySuffix = "(<30% HP)";
+    public const string RangedLowHpDisplaySuffix = "(<30% HP)";
+    public const float RangedLoneHunterNearbyRadius = 3f;
+    public const float RangedLongshotDistantRangeFraction = 0.75f;
+    public const float RangedFullHpThreshold01 = 0.999f;
     public const int PredatorsInstinctMajorPassiveLevel = 20;
     public const int BattleEngineMajorPassiveLevel = 30;
     public const int PhoenixSoulMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
@@ -361,9 +365,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private struct RangedMinorNodeBonuses
     {
         public float rangedDamagePercent;
+        public float flatMinRangedDamage;
+        public float flatMaxRangedDamage;
         public float rangedAttackSpeedPercent;
         public float rangedCritChance;
+        public float rangedCritDamage;
         public float rangedMoveSpeedPercent;
+        public float rangedShockChance;
+        public float lightningSkillDamagePercent;
+        public float damageVsLowHp;
+        public float damageVsShocked;
+        public float damageVsDistant;
+        public float damageWhenNoNearbyEnemy;
+        public float damageWithMinionActive;
+        public float damageVsFullHp;
+        public float minionDamagePercent;
+        public float minionMaxLifePercent;
     }
 
     private struct SkillMinorNodeBonuses
@@ -983,6 +1000,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float MeleeDamageVsBurning => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsBurning);
     public float MeleeDamageVsLowHp => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsLowHp);
     public float MeleeLowHpThreshold01 => LowHealthThreshold01;
+
+    public float RangedShockChance => Mathf.Clamp01(GetActiveRangedMinorBonuses().rangedShockChance);
+    public float RangedDamageVsLowHp => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageVsLowHp);
+    public float RangedDamageVsShocked => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageVsShocked);
+    public float RangedDamageVsDistant => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageVsDistant);
+    public float RangedDamageWhenLoneHunter => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageWhenNoNearbyEnemy);
+    public float RangedDamageWithMinionActive => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageWithMinionActive);
+    public float RangedDamageVsFullHp => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageVsFullHp);
+    public float RangedLowHpThreshold01 => LowHealthThreshold01;
 
     public float PhysicalReductionFromArmorPercent
     {
@@ -2178,14 +2204,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
-    /// <summary>
-    /// Melee skill-tree minors that grant minion stats. Phase 2 TODO: add other skill tracks (ranged/magic) without changing <see cref="FinalMinionDamagePercent"/> API.
-    /// </summary>
+    /// <summary>Skill-tree minors that grant minion stats (melee + ranged tracks).</summary>
     private MeleeMinorNodeBonuses GetOwnerMinionBonusesFromSkills()
     {
         if (!_ownerPlayer)
             return default;
-        return GetUnlockedMeleeMinorBonuses();
+
+        MeleeMinorNodeBonuses melee = GetUnlockedMeleeMinorBonuses();
+        RangedMinorNodeBonuses ranged = GetUnlockedRangedMinorBonuses();
+        melee.minionDamagePercent += ranged.minionDamagePercent;
+        melee.minionMaxLifePercent += ranged.minionMaxLifePercent;
+        return melee;
     }
 
     // -------------------------
@@ -2450,7 +2479,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float IceSkillDamageTotalScalingPercentPoints => GetEquippedIceSkillDamagePercent() * 100f;
 
-    public float LightningSkillDamageTotalScalingPercentPoints => GetEquippedLightningSkillDamagePercent() * 100f;
+    public float LightningSkillDamageTotalScalingPercentPoints => GetLightningSkillDamagePercent() * 100f;
 
     /// <summary>Global physical % on attacks: gear, supports, and active <see cref="ConsumableEffectType.PhysicalDamageBoost"/>; additive fraction (0.10 = +10%).</summary>
     public float GlobalPhysicalDamageBonusPercentPoints =>
@@ -2570,7 +2599,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             case MagicAttackType.Ice:
                 return GetEquippedIceSkillDamagePercent();
             case MagicAttackType.Lightning:
-                return GetEquippedLightningSkillDamagePercent();
+                return GetLightningSkillDamagePercent();
             default:
                 return 0f;
         }
@@ -2579,6 +2608,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMinSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
         GetMeleeSplitDamageScalingMultipliers(
             meleeBonuses,
             out float physicalDamageMult,
@@ -2589,7 +2619,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (!mh)
         {
-            float phys = unarmedMinPhysicalDamage + BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
+            float phys = unarmedMinPhysicalDamage + BaseMinPhysicalDamage + GetEquippedPhysicalDamage() +
+                         meleeBonuses.flatMinMeleeDamage + rangedBonuses.flatMinRangedDamage;
             float mag = BaseMinMagicDamage + GetEquippedMagicDamage();
             float corr = BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
@@ -2632,7 +2663,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMin += GetEquippedMagicDamage();
         corruptionMin += GetEquippedCorruptionDamage();
         AddFlatDamageAcrossExistingLanes(
-            meleeBonuses.flatMinMeleeDamage,
+            meleeBonuses.flatMinMeleeDamage + rangedBonuses.flatMinRangedDamage,
             ref physMin,
             ref magMin,
             ref corruptionMin);
@@ -2651,6 +2682,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMaxSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
         GetMeleeSplitDamageScalingMultipliers(
             meleeBonuses,
             out float physicalDamageMult,
@@ -2661,7 +2693,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (!mh)
         {
-            float phys = unarmedMaxPhysicalDamage + BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
+            float phys = unarmedMaxPhysicalDamage + BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() +
+                         meleeBonuses.flatMaxMeleeDamage + rangedBonuses.flatMaxRangedDamage;
             float mag = BaseMaxMagicDamage + GetEquippedMagicDamage();
             float corr = BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
@@ -2704,7 +2737,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMax += GetEquippedMagicDamage();
         corruptionMax += GetEquippedCorruptionDamage();
         AddFlatDamageAcrossExistingLanes(
-            meleeBonuses.flatMaxMeleeDamage,
+            meleeBonuses.flatMaxMeleeDamage + rangedBonuses.flatMaxRangedDamage,
             ref physMax,
             ref magMax,
             ref corruptionMax);
@@ -2920,8 +2953,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (support)
             gearBonus += support.SupportCritMultiplierBonus;
 
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
         SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
-        return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage + skillBonuses.magicCritDamage);
+        return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage + rangedBonuses.rangedCritDamage +
+                         skillBonuses.magicCritDamage);
     }
 
     private MeleeMinorNodeBonuses GetActiveMeleeMinorBonuses()
@@ -4077,7 +4112,172 @@ public class CharacterStats : MonoBehaviour, ISaveable
             case RangedMinorNodeStatOption.RangedMoveSpeedPercent5:
                 total.rangedMoveSpeedPercent += 0.05f;
                 break;
+            case RangedMinorNodeStatOption.MinRangedDamageFlat2:
+                total.flatMinRangedDamage += 2f;
+                break;
+            case RangedMinorNodeStatOption.MaxRangedDamageFlat2:
+                total.flatMaxRangedDamage += 2f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageVsLowHpPercent10:
+                total.damageVsLowHp += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedShockChancePercent5:
+                total.rangedShockChance += 0.05f;
+                break;
+            case RangedMinorNodeStatOption.RangedLightningDamagePercent10:
+                total.lightningSkillDamagePercent += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageVsShockedPercent10:
+                total.damageVsShocked += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedLightningDamagePercent4:
+                total.lightningSkillDamagePercent += 0.04f;
+                break;
+            case RangedMinorNodeStatOption.RangedCritDamagePercent8:
+                total.rangedCritDamage += 0.08f;
+                break;
+            case RangedMinorNodeStatOption.RangedMoveSpeedPercent10:
+                total.rangedMoveSpeedPercent += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.MinionDamagePercent5:
+                total.minionDamagePercent += 0.05f;
+                break;
+            case RangedMinorNodeStatOption.MinionMaxLifePercent10:
+                total.minionMaxLifePercent += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageWithMinionActivePercent10:
+                total.damageWithMinionActive += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageVsDistantPercent5:
+                total.damageVsDistant += 0.05f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageVsDistantPercent10:
+                total.damageVsDistant += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent5:
+                total.damageWhenNoNearbyEnemy += 0.05f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent10:
+                total.damageWhenNoNearbyEnemy += 0.10f;
+                break;
+            case RangedMinorNodeStatOption.RangedDamageVsFullHpPercent6:
+                total.damageVsFullHp += 0.06f;
+                break;
+            case RangedMinorNodeStatOption.MinionDamagePercent8:
+                total.minionDamagePercent += 0.08f;
+                break;
         }
+    }
+
+    private float GetLightningSkillDamagePercent()
+    {
+        float total = GetEquippedLightningSkillDamagePercent();
+        if (_ownerPlayer)
+            total += GetUnlockedRangedMinorBonuses().lightningSkillDamagePercent;
+        return Mathf.Max(0f, total);
+    }
+
+    /// <summary>Additive ranged conditional damage bonus fraction for the current ranged weapon hit (0.1 = +10%).</summary>
+    public float GetRangedConditionalDamageBonusFraction(
+        EnemyBaseController target,
+        PlayerCombatController ownerCombat)
+    {
+        if (GetCurrentAttackSkill() != AttackSkill.Ranged || target == null)
+            return 0f;
+
+        RangedMinorNodeBonuses bonuses = GetActiveRangedMinorBonuses();
+        float bonus = 0f;
+
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments != null && ailments.HasShock)
+            bonus += bonuses.damageVsShocked;
+
+        CharacterStats targetStats = target.GetComponent<CharacterStats>();
+        if (targetStats != null && targetStats.MaxHP > 0f)
+        {
+            float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
+            if (hp01 < RangedLowHpThreshold01)
+                bonus += bonuses.damageVsLowHp;
+            if (hp01 >= RangedFullHpThreshold01)
+                bonus += bonuses.damageVsFullHp;
+        }
+
+        if (bonuses.damageVsDistant > 0f && ownerCombat != null &&
+            IsEnemyDistantForLongshot(target, ownerCombat.transform, Mathf.Max(0f, Range)))
+            bonus += bonuses.damageVsDistant;
+
+        if (bonuses.damageWhenNoNearbyEnemy > 0f && ownerCombat != null &&
+            IsRangedLoneHunterActive(ownerCombat.transform))
+            bonus += bonuses.damageWhenNoNearbyEnemy;
+
+        if (bonuses.damageWithMinionActive > 0f && ownerCombat != null &&
+            OwnerHasActiveMinion(ownerCombat))
+            bonus += bonuses.damageWithMinionActive;
+
+        return Mathf.Max(0f, bonus);
+    }
+
+    public static bool OwnerHasActiveMinion(PlayerCombatController ownerCombat)
+    {
+        if (!ownerCombat)
+            return false;
+
+        IReadOnlyList<MinionCombatTarget> targets = MinionCombatTarget.ActiveTargets;
+        for (int i = 0; i < targets.Count; i++)
+        {
+            MinionCombatTarget minion = targets[i];
+            if (minion != null && minion.IsAlive && minion.OwnerCombat == ownerCombat)
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool IsEnemyDistantForLongshot(EnemyBaseController target, Transform playerRoot, float weaponRange)
+    {
+        if (!target || !playerRoot || weaponRange <= 0f)
+            return false;
+
+        Collider2D playerCol = playerRoot.GetComponent<Collider2D>();
+        Collider2D enemyCol = target.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = target.GetComponentInChildren<Collider2D>();
+
+        float playerHalf = playerCol ? playerCol.bounds.extents.x : 0f;
+        float enemyHalf = enemyCol ? enemyCol.bounds.extents.x : 0f;
+        float gap = Mathf.Abs(target.transform.position.x - playerRoot.position.x) - (playerHalf + enemyHalf);
+        float threshold = Mathf.Max(RangedLoneHunterNearbyRadius, weaponRange * RangedLongshotDistantRangeFraction);
+        return gap >= threshold;
+    }
+
+    public bool IsRangedLoneHunterActive(Transform playerRoot)
+    {
+        if (!playerRoot)
+            return false;
+
+        Collider2D playerCol = playerRoot.GetComponent<Collider2D>();
+        float playerHalf = playerCol ? playerCol.bounds.extents.x : 0f;
+        float playerX = playerRoot.position.x;
+        float nearbyRadius = RangedLoneHunterNearbyRadius;
+
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyBaseController enemy = enemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+            if (!enemyCol)
+                enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+            float enemyHalf = enemyCol ? enemyCol.bounds.extents.x : 0f;
+            float gap = Mathf.Abs(enemy.transform.position.x - playerX) - (playerHalf + enemyHalf);
+            if (gap <= nearbyRadius)
+                return false;
+        }
+
+        return true;
     }
 
     private static void ApplySkillSpecificMinorOption(SkillType skillType, SkillUnlockDefinition unlock, ref SkillMinorNodeBonuses total)

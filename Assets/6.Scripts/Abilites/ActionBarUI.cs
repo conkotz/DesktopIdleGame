@@ -1321,6 +1321,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         bool whirlwindHeld = false;
+        bool snipeHeld = false;
         for (int i = 0; i < slotBindings.Count; i++)
         {
             SlotBinding binding = slotBindings[i];
@@ -1331,12 +1332,23 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             bool boundWhirlwind = action != null &&
                                   action.IsAbility &&
                                   string.Equals(action.id, AbilityCombatPower.WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase);
+            bool boundSnipe = action != null &&
+                              action.IsAbility &&
+                              string.Equals(action.id, AbilityCombatPower.SnipeAbilityId, StringComparison.OrdinalIgnoreCase);
             if (boundWhirlwind &&
                 !blockHotkeyPoll &&
                 !binding.currentChord.IsEmpty &&
                 HotkeyChord.IsHeld(binding.currentChord))
             {
                 whirlwindHeld = true;
+            }
+
+            if (boundSnipe &&
+                !blockHotkeyPoll &&
+                !binding.currentChord.IsEmpty &&
+                HotkeyChord.IsHeld(binding.currentChord))
+            {
+                snipeHeld = true;
             }
 
             if (!blockHotkeyPoll &&
@@ -1351,7 +1363,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         if (abilityController != null)
+        {
             abilityController.SetWhirlwindActionBarHeld(whirlwindHeld);
+            abilityController.SetSnipeActionBarHeld(snipeHeld);
+        }
 
         TryApplyPendingSavedState();
     }
@@ -2192,6 +2207,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     {
                         overlayNorm = 0f;
                         timerSeconds = 0f;
+                    }
+
+                    if (abilityController.TryGetSnipeChargeBarOverlay(action.id, out float snipeNorm, out float snipeSecs))
+                    {
+                        overlayNorm = snipeNorm;
+                        timerSeconds = snipeSecs;
                     }
 
                     slot.SetCooldownVisual(overlayNorm, timerSeconds);

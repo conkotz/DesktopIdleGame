@@ -75,6 +75,7 @@ public class PlayerController : MonoBehaviour
     [Header("Combat Animation")]
     [SerializeField] private string attackTriggerName = "Attack";
     [SerializeField] private string rangedAttackTriggerName = "RangedAttack";
+    [SerializeField] private string rangedAttackStateName = "range_attack";
     [SerializeField] private string magicAttackTriggerName = "MagicAttack";
 
     private bool _attackLocked;
@@ -863,6 +864,122 @@ public class PlayerController : MonoBehaviour
         }
 
         _visualOnlyAttackRecoverRoutine = null;
+    }
+
+    private Coroutine _snipeChargeAttackAnimRoutine;
+    private bool _snipeAttackAnimHeldAtPause;
+    private float _snipeChargeAttackHoldNormalizedTime;
+    private const int SnipeChargeAnimPauseFrameDelay = 7;
+    private const float SnipeChargeAnimAssumedFps = 60f;
+
+    /// <summary>Starts or continues the ranged attack clip, then holds it at frame 7 while Snipe is charging.</summary>
+    public void BeginSnipeChargeAttackAnim()
+    {
+        if (!animator)
+            return;
+
+        CancelSnipeChargeAttackAnim();
+
+        float fullDuration = Mathf.Clamp(GetRangedAttackClipLength(), 0.05f, 2.0f);
+        bool alreadyInRangedAttack = IsInRangedAttackState();
+
+        _attackLocked = true;
+        _attackUnlockTime = Time.time + fullDuration + 30f;
+        TryFaceCombatTargetDuringAttack();
+        SetActionOverride(PlayerAction.Fighting);
+
+        animator.ResetTrigger(attackTriggerName);
+        animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
+        animator.speed = 1f;
+        _snipeChargeAttackHoldNormalizedTime = 0f;
+
+        if (!alreadyInRangedAttack)
+            PlayRangedAttackStateAtNormalizedTime(0f);
+
+        _snipeChargeAttackAnimRoutine = StartCoroutine(CoHoldSnipeAttackAnimAfterOpeningFrames());
+    }
+
+    private void PlayRangedAttackStateAtNormalizedTime(float normalizedTime)
+    {
+        if (!animator || string.IsNullOrWhiteSpace(rangedAttackStateName))
+            return;
+
+        animator.Play(rangedAttackStateName, 0, Mathf.Clamp01(normalizedTime));
+        animator.Update(0f);
+        _currentStateName = rangedAttackStateName;
+    }
+
+    private bool IsInRangedAttackState()
+    {
+        if (!animator)
+            return false;
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
+        if (current.IsName(rangedAttackStateName))
+            return true;
+
+        return animator.IsInTransition(0) &&
+               animator.GetNextAnimatorStateInfo(0).IsName(rangedAttackStateName);
+    }
+
+    private IEnumerator CoHoldSnipeAttackAnimAfterOpeningFrames()
+    {
+        for (int i = 0; i < SnipeChargeAnimPauseFrameDelay; i++)
+            yield return null;
+
+        if (animator == null)
+            yield break;
+
+        float clipLength = Mathf.Max(GetRangedAttackClipLength(), 0.05f);
+        _snipeChargeAttackHoldNormalizedTime =
+            Mathf.Clamp01((SnipeChargeAnimPauseFrameDelay / SnipeChargeAnimAssumedFps) / clipLength);
+        PlayRangedAttackStateAtNormalizedTime(_snipeChargeAttackHoldNormalizedTime);
+        animator.speed = 0f;
+        _snipeAttackAnimHeldAtPause = true;
+        _snipeChargeAttackAnimRoutine = null;
+    }
+
+    /// <summary>Resumes the held attack clip through release when Snipe fires.</summary>
+    public void ReleaseSnipeChargeAttackAnim()
+    {
+        if (_snipeChargeAttackAnimRoutine != null)
+        {
+            StopCoroutine(_snipeChargeAttackAnimRoutine);
+            _snipeChargeAttackAnimRoutine = null;
+        }
+
+        if (!animator)
+            return;
+
+        if (_snipeAttackAnimHeldAtPause)
+        {
+            animator.speed = 1f;
+            _snipeAttackAnimHeldAtPause = false;
+            float clipLength = Mathf.Clamp(GetRangedAttackClipLength(), 0.05f, 2.0f);
+            float remaining = clipLength * Mathf.Clamp01(1f - _snipeChargeAttackHoldNormalizedTime);
+            _attackUnlockTime = Time.time + remaining;
+            ClearFightingOverrideSoon(remaining);
+            return;
+        }
+
+        TriggerAttackAnim();
+    }
+
+    public void CancelSnipeChargeAttackAnim()
+    {
+        if (_snipeChargeAttackAnimRoutine != null)
+        {
+            StopCoroutine(_snipeChargeAttackAnimRoutine);
+            _snipeChargeAttackAnimRoutine = null;
+        }
+
+        _snipeAttackAnimHeldAtPause = false;
+        _snipeChargeAttackHoldNormalizedTime = 0f;
+        if (animator != null)
+            animator.speed = 1f;
+
+        _attackLocked = false;
     }
 
     private string GetAttackTriggerName()
@@ -4005,25 +4122,50 @@ public class PlayerController : MonoBehaviour
 
     private float GetAttackClipLength()
     {
+        return GetAttackClipLengthForTrigger(GetAttackTriggerName());
+    }
+
+    private float GetRangedAttackClipLength()
+    {
+        return GetAttackClipLengthForState(rangedAttackStateName);
+    }
+
+    private float GetAttackClipLengthForTrigger(string triggerToUse)
+    {
         if (!animator || animator.runtimeAnimatorController == null)
             return 0.5f;
 
-        string triggerToUse = GetAttackTriggerName();
-        string triggerLower = triggerToUse.ToLowerInvariant();
-
-        var clips = animator.runtimeAnimatorController.animationClips;
-
-        foreach (var c in clips)
+        AnimationClip[] clips = animator.runtimeAnimatorController.animationClips;
+        for (int i = 0; i < clips.Length; i++)
         {
-            if (!c) continue;
+            AnimationClip clip = clips[i];
+            if (!clip)
+                continue;
 
-            string clipLower = c.name.ToLowerInvariant();
-
-            if (c.name.Equals(triggerToUse, StringComparison.OrdinalIgnoreCase) ||
+            string clipLower = clip.name.ToLowerInvariant();
+            string triggerLower = triggerToUse.ToLowerInvariant();
+            if (clip.name.Equals(triggerToUse, StringComparison.OrdinalIgnoreCase) ||
                 clipLower.Contains(triggerLower))
-            {
-                return c.length;
-            }
+                return clip.length;
+        }
+
+        return 0.6f;
+    }
+
+    private float GetAttackClipLengthForState(string stateName)
+    {
+        if (!animator || animator.runtimeAnimatorController == null || string.IsNullOrWhiteSpace(stateName))
+            return 0.6f;
+
+        AnimationClip[] clips = animator.runtimeAnimatorController.animationClips;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            AnimationClip clip = clips[i];
+            if (!clip)
+                continue;
+
+            if (clip.name.Equals(stateName, StringComparison.OrdinalIgnoreCase))
+                return clip.length;
         }
 
         return 0.6f;

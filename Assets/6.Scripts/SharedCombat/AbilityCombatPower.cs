@@ -18,6 +18,38 @@ public static class AbilityCombatPower
     public const float TripleShotPhantomArrowIntervalSeconds = 0.3f;
     public const float TripleShotEnhancementDamageBonus = 0.10f;
     public const float TripleShotEnhancementCooldownReductionSeconds = 3f;
+    public const string SnipeAbilityId = "snipe";
+    public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
+    public const int SnipeFasterChargeChoiceIndex = 0;
+    public const int SnipeGuaranteedBleedChoiceIndex = 1;
+    public const float SnipeBaseChargeDurationSeconds = 2f;
+    public const float SnipeEnhancedChargeDurationSeconds = 1.5f;
+    public const float SnipeChargeStepIntervalSeconds = 0.5f;
+    public const float SnipeChargeDamageBonusPerStep = 0.5f;
+    public const float SnipeMinChargeDamageMultiplier = 1f;
+    public const float SnipeMaxChargeDamageMultiplier = 3f;
+    public const float SnipeProjectileSpeedMultiplier = 2f;
+
+    public static float GetSnipeChargeDurationSeconds(int selectedEnhancementChoice) =>
+        selectedEnhancementChoice == SnipeFasterChargeChoiceIndex
+            ? SnipeEnhancedChargeDurationSeconds
+            : SnipeBaseChargeDurationSeconds;
+
+    public static float GetSnipeDamageMultiplierAtElapsed(float elapsedSeconds, float chargeDurationSeconds)
+    {
+        if (chargeDurationSeconds <= 0.0001f)
+            return SnipeMaxChargeDamageMultiplier;
+
+        if (elapsedSeconds >= chargeDurationSeconds - 0.001f)
+            return SnipeMaxChargeDamageMultiplier;
+
+        int steps = Mathf.FloorToInt(Mathf.Max(0f, elapsedSeconds) / SnipeChargeStepIntervalSeconds);
+        int maxSteps = Mathf.FloorToInt(chargeDurationSeconds / SnipeChargeStepIntervalSeconds);
+        steps = Mathf.Clamp(steps, 0, Mathf.Max(0, maxSteps));
+        return Mathf.Min(
+            SnipeMaxChargeDamageMultiplier,
+            SnipeMinChargeDamageMultiplier + steps * SnipeChargeDamageBonusPerStep);
+    }
     public const string CrusaderStrikeAbilityId = "crusader_strike";
     public const string WhirlwindAbilityId = "whirlwind";
     public const string RendAbilityId = "rend";
@@ -725,6 +757,21 @@ public static class AbilityCombatPower
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             return Mathf.Max(0f, volleyTotal * procRate);
+        }
+
+        if (string.Equals(def.abilityId, SnipeAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float snipeAllM = def.GetEffectiveAllDamageMultiplier();
+            float apM = stats.GetAbilityPowerDamageMultiplier();
+            float weaponEff = weaponMult <= 0f ? 1f : weaponMult;
+            float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+            float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+            float avgChargeMult = (SnipeMinChargeDamageMultiplier + SnipeMaxChargeDamageMultiplier) * 0.5f;
+            float physHit = (avgPhys * weaponEff * avgChargeMult + ailmentBonus) * apM * snipeAllM;
+            float magHit = (avgMag * weaponEff * avgChargeMult + elementBonus) * apM * snipeAllM;
+            float corrHit = (avgCorruption * weaponEff * avgChargeMult) * apM * snipeAllM;
+            float perShotTotal = (physHit + magHit + corrHit) * critFactor;
+            return Mathf.Max(0f, perShotTotal / cd);
         }
 
         // Rend: exclusive bleed on proc — value scales with how much "guaranteed bleed" improves over baseline chance.

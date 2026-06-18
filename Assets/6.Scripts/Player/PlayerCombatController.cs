@@ -136,6 +136,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     [SerializeField, Min(0f)] private float rangedProjectileFireDelay = 0f;
     [SerializeField, Min(0f)] private float rangedDamageDelayOffset = 0f;
 
+    [Header("Snipe Projectile")]
+
     [Header("Magic Projectile Visuals")]
     [SerializeField] private MonoBehaviour magicProjectilePrefab;
     [SerializeField] private MonoBehaviour magicLightningProjectilePrefab;
@@ -542,6 +544,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (player != null)
             player.SetActionOverride(PlayerController.PlayerAction.Fighting);
         return true;
+    }
+
+    /// <summary>Starts a full auto-attack cooldown from now (e.g. after Snipe releases its arrow).</summary>
+    public void ApplyFullAutoAttackCooldown()
+    {
+        if (stats == null)
+            return;
+
+        _nextAttackTime = Time.time + GetAttackCooldownSeconds();
     }
 
     public float GetCurrentDps()
@@ -1296,7 +1307,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                     allowSoulforgedRecastWhileActive: false,
                     requireCrescentSlashTargetInFacingLane: true,
                     requireWhirlwindTargetInRadius: true,
-                    requireGuardiansHammerTargetInFacingZone: true);
+                    requireGuardiansHammerTargetInFacingZone: true,
+                    snipeAutoBattleFullCharge: IsSnipeAbilityId(forcedAction.id));
 
                 if (forcedUsed)
                     _autoBattleAbilityRoundRobinIndex = i;
@@ -1327,7 +1339,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 allowSoulforgedRecastWhileActive: false,
                 requireCrescentSlashTargetInFacingLane: true,
                 requireWhirlwindTargetInRadius: true,
-                requireGuardiansHammerTargetInFacingZone: true);
+                requireGuardiansHammerTargetInFacingZone: true,
+                snipeAutoBattleFullCharge: IsSnipeAbilityId(action.id));
 
             _autoBattleAbilityRoundRobinIndex = idx;
 
@@ -1367,6 +1380,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             AbilityCombatPower.FlameChargeAbilityId,
             System.StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsSnipeAbilityId(string abilityId) =>
+        string.Equals(abilityId, AbilityCombatPower.SnipeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private float GetCurrentHP()
     {
@@ -1623,6 +1639,47 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return sr.bounds.center;
 
         return target.transform.position;
+    }
+
+    public bool TryFireSnipeProjectile(EnemyBaseController targetAtFireTime, out float travelTime)
+    {
+        travelTime = 0f;
+
+        if (rangedProjectilePrefab == null || targetAtFireTime == null)
+            return false;
+
+        Vector3 start = GetSnipeProjectileSpawnPosition();
+        Vector3 targetCenter = GetTargetCenterMass(targetAtFireTime);
+        float speed = rangedProjectileSpeed * AbilityCombatPower.SnipeProjectileSpeedMultiplier;
+
+        ProjectileVisual proj = Instantiate(rangedProjectilePrefab, start, Quaternion.identity);
+        PlayerAbilityVfxController vfx = ResolveAbilityVfx();
+        SnipeLingeringTrailFollower.TrailSettings trailSettings = vfx != null
+            ? vfx.GetSnipeTrailSettings()
+            : SnipeLingeringTrailFollower.TrailSettings.Default;
+        SnipeLingeringTrailFollower.Create(proj.transform, trailSettings);
+        proj.Launch(
+            start,
+            targetAtFireTime.transform,
+            targetCenter,
+            speed,
+            rangedProjectileRotationOffset,
+            ProjectileVisual.FlightPathMode.Straight);
+
+        travelTime = Mathf.Max(0f, proj.EstimatedTravelTime);
+        return true;
+    }
+
+    private Vector3 GetSnipeProjectileSpawnPosition()
+    {
+        if (playerCol != null)
+            return playerCol.bounds.center;
+
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null)
+            return col.bounds.center;
+
+        return transform.position;
     }
 
     private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out IMagicProjectileVisual bolt)
@@ -2833,7 +2890,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return executeResult;
         }
 
-        float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
+        float conditionalDamageMult = GetConditionalWeaponDamageMultiplier(target);
         if (wasCrit && stats != null)
         {
             conditionalDamageMult *= stats.GetPredatorsInstinctExecutionerCritDamageFactor(target, true);
@@ -2919,6 +2976,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null || target == null)
             return false;
 
+        if (stats.CurrentAttackSkill == AttackSkill.Ranged)
+            return stats.GetRangedConditionalDamageBonusFraction(target, this) > 0f;
+
         GetConditionalMeleeDamageMultiplierBreakdown(
             target,
             out _,
@@ -2928,6 +2988,17 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             out float burnBonus,
             out float ailmentedBonus);
         return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f || burnBonus > 0f || ailmentedBonus > 0f;
+    }
+
+    private float GetConditionalWeaponDamageMultiplier(EnemyBaseController target)
+    {
+        if (stats == null)
+            return 1f;
+
+        if (stats.CurrentAttackSkill == AttackSkill.Ranged)
+            return 1f + stats.GetRangedConditionalDamageBonusFraction(target, this);
+
+        return GetConditionalMeleeDamageMultiplier(target);
     }
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
@@ -3109,7 +3180,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats.GetMeleeMagicLightningFraction() <= 0f)
             return;
 
-        float chance = stats.MeleeShockChance;
+        float chance = stats.CurrentAttackSkill == AttackSkill.Ranged
+            ? stats.RangedShockChance
+            : stats.MeleeShockChance;
         if (chance <= 0f || Random.value > chance)
             return;
 

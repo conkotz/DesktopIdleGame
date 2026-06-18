@@ -264,6 +264,32 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMax = 0.058f;
 
+    [Header("Triple Shot (Range Lv5) VFX")]
+    [SerializeField] private Color tripleShotVolleyFlashColor = new Color(0.92f, 0.98f, 1f, 0.75f);
+    [SerializeField, Min(0.05f)] private float tripleShotVolleyFlashDuration = 0.16f;
+    [SerializeField, Min(0.01f)] private float tripleShotVolleyFlashLineWidth = 0.1f;
+    [SerializeField, Min(0.1f)] private float tripleShotVolleyFlashRadius = 0.42f;
+    [SerializeField] private Vector3 tripleShotVolleyFlashOffset = new Vector3(0f, 0.55f, 0f);
+
+    [Header("Snipe (Range Lv5) VFX")]
+    [Tooltip("Yellow charge rings (50% opacity) that rise up the player while Snipe is charging.")]
+    [SerializeField] private Color snipeChargeRingColor = new Color(1f, 0.92f, 0.15f, 0.5f);
+    [Tooltip("Local position where each ring spawns (bottom of the player).")]
+    [SerializeField, FormerlySerializedAs("snipeChargeRingCenterOffset")]
+    private Vector3 snipeChargeRingBottomOffset = new Vector3(0f, 0.06f, 0f);
+    [SerializeField, Min(0.05f)] private float snipeChargeRingRadius = 0.58f;
+    [SerializeField, Min(0.005f)] private float snipeChargeRingLineWidth = 0.055f;
+    [Tooltip("Degrees of gap at the top of the ring arc (depth wrap illusion).")]
+    [SerializeField, Range(20f, 120f)] private float snipeChargeRingTopGapDegrees = 52f;
+    [SerializeField, Range(8, 96)] private int snipeChargeRingSegments = 36;
+    [SerializeField, Min(0.05f)] private float snipeChargeRingSpawnIntervalSeconds = 0.2f;
+    [Tooltip("Rise speed multiplier vs traveling feet-to-collider-top over the full charge duration.")]
+    [SerializeField, Min(1f)] private float snipeChargeRingRiseSpeedMultiplier = 5f;
+    [SerializeField, Min(0.05f)] private float snipeTrailLingerSeconds = 1.5f;
+    [SerializeField, Min(0.01f)] private float snipeTrailWidth = 0.18f;
+    [SerializeField, Range(0f, 1f)] private float snipeTrailStartAlpha = 0.95f;
+    [SerializeField] private Color snipeTrailColor = Color.white;
+
     [Header("War Banner (Melee Lv35) VFX")]
     [SerializeField] private Sprite warBannerSprite;
     [SerializeField] private Color warBannerTint = Color.white;
@@ -361,6 +387,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
+    private GameObject _snipeChargeRingsRoot;
+    private Coroutine _snipeChargeRingRoutine;
+    private readonly List<SnipeChargeRingPulse> _activeSnipeChargeRings = new();
     private GameObject _warBannerVisualRoot;
     private SpriteRenderer _warBannerRenderer;
     private float _warBannerDescentTotalSeconds;
@@ -404,6 +433,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
         public float EndTime;
 
         public void ExtendToAtLeast(float newEndTime) => EndTime = Mathf.Max(EndTime, newEndTime);
+    }
+
+    private sealed class SnipeChargeRingPulse
+    {
+        public GameObject Root;
+        public float LocalY;
     }
 
     private GameObject _executionersDescentAxeRoot;
@@ -461,6 +496,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ClearWoodcuttingTreeRangeOutlines();
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
+        EndSnipeChargeVfx();
         StopWarBannerVfx();
         DestroyHammerTempestOrbitVfx();
         EndFlameChargePlayerGlow();
@@ -3575,6 +3611,195 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(_energyInfusionGlowRoot);
             _energyInfusionGlowRoot = null;
         }
+    }
+
+    public void SpawnTripleShotVolleyFlashVfx()
+    {
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+
+        Vector3 worldCenter = center.position + tripleShotVolleyFlashOffset;
+        StartCoroutine(CoMeleeSlashSegment(
+            worldCenter + new Vector3(-tripleShotVolleyFlashRadius, tripleShotVolleyFlashRadius * 0.35f, 0f),
+            worldCenter + new Vector3(tripleShotVolleyFlashRadius, -tripleShotVolleyFlashRadius * 0.35f, 0f),
+            tripleShotVolleyFlashColor,
+            tripleShotVolleyFlashLineWidth,
+            tripleShotVolleyFlashDuration,
+            sortingOrderBump: 10,
+            objectName: "TripleShotVolleyFlash"));
+    }
+
+    public SnipeLingeringTrailFollower.TrailSettings GetSnipeTrailSettings()
+    {
+        Color c = snipeTrailColor;
+        return new SnipeLingeringTrailFollower.TrailSettings
+        {
+            LingerSeconds = Mathf.Max(0.1f, snipeTrailLingerSeconds),
+            Width = Mathf.Max(0.01f, snipeTrailWidth),
+            StartAlpha = Mathf.Clamp01(snipeTrailStartAlpha),
+            Color = c
+        };
+    }
+
+    public void BeginSnipeChargeVfx(float chargeDurationSeconds)
+    {
+        EndSnipeChargeVfx();
+
+        Transform parent = player != null ? player.transform : transform;
+        if (parent == null)
+            return;
+
+        _snipeChargeRingsRoot = new GameObject("SnipeChargeRings");
+        _snipeChargeRingsRoot.transform.SetParent(parent, false);
+        _snipeChargeRingsRoot.transform.localPosition = Vector3.zero;
+        _snipeChargeRingsRoot.transform.localRotation = Quaternion.identity;
+
+        float duration = Mathf.Max(0.05f, chargeDurationSeconds);
+        _snipeChargeRingRoutine = StartCoroutine(CoSnipeChargeRingPulses(duration));
+    }
+
+    public void EndSnipeChargeVfx()
+    {
+        if (_snipeChargeRingRoutine != null)
+        {
+            StopCoroutine(_snipeChargeRingRoutine);
+            _snipeChargeRingRoutine = null;
+        }
+
+        for (int i = _activeSnipeChargeRings.Count - 1; i >= 0; i--)
+        {
+            if (_activeSnipeChargeRings[i].Root != null)
+                Destroy(_activeSnipeChargeRings[i].Root);
+        }
+
+        _activeSnipeChargeRings.Clear();
+
+        if (_snipeChargeRingsRoot != null)
+        {
+            Destroy(_snipeChargeRingsRoot);
+            _snipeChargeRingsRoot = null;
+        }
+    }
+
+    private float ResolveSnipeChargeRingTopLocalY()
+    {
+        float fallbackTop = snipeChargeRingBottomOffset.y + 1.05f;
+        if (player == null)
+            return fallbackTop;
+
+        Collider2D col = player.GetComponent<Collider2D>();
+        if (col == null)
+            col = player.GetComponentInChildren<Collider2D>();
+
+        if (col == null)
+            return fallbackTop;
+
+        Vector3 topWorld = new Vector3(col.bounds.center.x, col.bounds.max.y, player.transform.position.z);
+        return player.transform.InverseTransformPoint(topWorld).y;
+    }
+
+    private SnipeChargeRingPulse SpawnSnipeChargeRingPulse(float bottomLocalY)
+    {
+        if (_snipeChargeRingsRoot == null)
+            return null;
+
+        var pulse = new SnipeChargeRingPulse
+        {
+            LocalY = bottomLocalY,
+            Root = new GameObject("SnipeChargeRingPulse")
+        };
+        pulse.Root.transform.SetParent(_snipeChargeRingsRoot.transform, false);
+        pulse.Root.transform.localPosition = new Vector3(
+            snipeChargeRingBottomOffset.x,
+            bottomLocalY,
+            snipeChargeRingBottomOffset.z);
+
+        LineRenderer line = pulse.Root.AddComponent<LineRenderer>();
+        line.useWorldSpace = false;
+        line.loop = false;
+        line.widthMultiplier = Mathf.Max(0.005f, snipeChargeRingLineWidth);
+        line.sharedMaterial = GetDefaultSpritesLineMaterial();
+        line.startColor = snipeChargeRingColor;
+        line.endColor = snipeChargeRingColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(line, 14))
+            line.sortingOrder = 28;
+
+        BuildSnipeChargeRingArc(line);
+        _activeSnipeChargeRings.Add(pulse);
+        return pulse;
+    }
+
+    private void BuildSnipeChargeRingArc(LineRenderer line)
+    {
+        if (line == null)
+            return;
+
+        float radiusX = Mathf.Max(0.05f, snipeChargeRingRadius);
+        float radiusY = radiusX * 0.42f;
+        float gapRad = snipeChargeRingTopGapDegrees * Mathf.Deg2Rad;
+        float arcStart = Mathf.PI * 0.5f + gapRad * 0.5f;
+        float arcEnd = Mathf.PI * 0.5f - gapRad * 0.5f + Mathf.PI * 2f;
+        int segments = Mathf.Max(8, snipeChargeRingSegments);
+        line.positionCount = segments + 1;
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float t = i / (float)segments;
+            float ang = Mathf.Lerp(arcStart, arcEnd, t);
+            line.SetPosition(i, new Vector3(Mathf.Cos(ang) * radiusX, Mathf.Sin(ang) * radiusY, 0f));
+        }
+    }
+
+    private IEnumerator CoSnipeChargeRingPulses(float chargeDurationSeconds)
+    {
+        float bottomY = snipeChargeRingBottomOffset.y;
+        float topY = Mathf.Max(bottomY + 0.05f, ResolveSnipeChargeRingTopLocalY());
+        float travelDistance = topY - bottomY;
+        float baseRiseSpeed = travelDistance / Mathf.Max(0.05f, chargeDurationSeconds);
+        float riseSpeed = baseRiseSpeed * Mathf.Max(1f, snipeChargeRingRiseSpeedMultiplier);
+
+        float elapsed = 0f;
+        float nextSpawnAt = 0f;
+        SpawnSnipeChargeRingPulse(bottomY);
+
+        while (elapsed < chargeDurationSeconds)
+        {
+            elapsed += Time.deltaTime;
+
+            while (nextSpawnAt + snipeChargeRingSpawnIntervalSeconds <= elapsed)
+            {
+                nextSpawnAt += snipeChargeRingSpawnIntervalSeconds;
+                SpawnSnipeChargeRingPulse(bottomY);
+            }
+
+            float step = riseSpeed * Time.deltaTime;
+            for (int i = _activeSnipeChargeRings.Count - 1; i >= 0; i--)
+            {
+                SnipeChargeRingPulse pulse = _activeSnipeChargeRings[i];
+                if (pulse.Root == null)
+                {
+                    _activeSnipeChargeRings.RemoveAt(i);
+                    continue;
+                }
+
+                pulse.LocalY += step;
+                pulse.Root.transform.localPosition = new Vector3(
+                    snipeChargeRingBottomOffset.x,
+                    pulse.LocalY,
+                    snipeChargeRingBottomOffset.z);
+
+                if (pulse.LocalY >= topY)
+                {
+                    Destroy(pulse.Root);
+                    _activeSnipeChargeRings.RemoveAt(i);
+                }
+            }
+
+            yield return null;
+        }
+
+        _snipeChargeRingRoutine = null;
     }
 
     private void LateUpdate()

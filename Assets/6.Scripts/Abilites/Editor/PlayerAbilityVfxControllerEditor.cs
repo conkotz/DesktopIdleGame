@@ -285,6 +285,31 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "bladestormFinaleSlashLengthScale"
     };
 
+    private static readonly string[] TripleShotVfxFieldNames =
+    {
+        "tripleShotVolleyFlashColor",
+        "tripleShotVolleyFlashDuration",
+        "tripleShotVolleyFlashLineWidth",
+        "tripleShotVolleyFlashRadius",
+        "tripleShotVolleyFlashOffset"
+    };
+
+    private static readonly string[] SnipeVfxFieldNames =
+    {
+        "snipeChargeRingColor",
+        "snipeChargeRingBottomOffset",
+        "snipeChargeRingRadius",
+        "snipeChargeRingLineWidth",
+        "snipeChargeRingTopGapDegrees",
+        "snipeChargeRingSegments",
+        "snipeChargeRingSpawnIntervalSeconds",
+        "snipeChargeRingRiseSpeedMultiplier",
+        "snipeTrailLingerSeconds",
+        "snipeTrailWidth",
+        "snipeTrailStartAlpha",
+        "snipeTrailColor"
+    };
+
     private static readonly string[] GatheringFrenzySharedFieldNames =
     {
         "lumberFrenzyOrbitVfxPrefab",
@@ -397,6 +422,9 @@ public class PlayerAbilityVfxControllerEditor : Editor
         new(VfxSkillTab.Melee, "FinalSeveranceVfx", 45, "Final Severance", FinalSeveranceVfxFieldNames),
         new(VfxSkillTab.Melee, "ExecutionersDescentVfx", 45, "Executioner's Descent", ExecutionersDescentVfxFieldNames),
         new(VfxSkillTab.Melee, "BladestormVfx", 45, "Bladestorm", BladestormVfxFieldNames),
+
+        new(VfxSkillTab.Range, "TripleShotVfx", 5, "Triple Shot", TripleShotVfxFieldNames),
+        new(VfxSkillTab.Range, "SnipeVfx", 5, "Snipe", SnipeVfxFieldNames),
 
         new(VfxSkillTab.Woodcutting, "LumberFrenzyVfx", 5, "Lumber Frenzy",
             LumberFrenzyFieldNames, GatheringFrenzySharedFieldNames),

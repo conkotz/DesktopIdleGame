@@ -20,6 +20,8 @@ public class ActionBarSlotUI : MonoBehaviour,
     IDragHandler,
     IEndDragHandler,
     IPointerClickHandler,
+    IPointerDownHandler,
+    IPointerUpHandler,
     IPointerEnterHandler,
     IPointerExitHandler
 {
@@ -213,10 +215,7 @@ public class ActionBarSlotUI : MonoBehaviour,
         actionBarOwner = ownerBar;
 
         if (button != null)
-        {
-            button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(Press);
-        }
+            SyncAbilityPressInputMode();
 
         RefreshUI();
         ResetRuntimeVisualCache();
@@ -379,6 +378,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         bool hasAssigned = assignedAction != null && assignedAction.IsAssigned;
 
+        SyncAbilityPressInputMode();
         SyncEmptySlotTitleDisplay();
 
         if (iconImage != null)
@@ -389,6 +389,45 @@ public class ActionBarSlotUI : MonoBehaviour,
         }
 
         RefreshAutoBattleBorder();
+    }
+
+    private bool IsAssignedSnipeAbility()
+    {
+        return assignedAction != null &&
+               assignedAction.IsAbility &&
+               string.Equals(assignedAction.id, AbilityCombatPower.SnipeAbilityId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SyncAbilityPressInputMode()
+    {
+        if (button == null)
+            return;
+
+        button.onClick.RemoveAllListeners();
+        if (!IsAssignedSnipeAbility())
+            button.onClick.AddListener(Press);
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+        if (!IsAssignedSnipeAbility())
+            return;
+
+        Press();
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+        if (!IsAssignedSnipeAbility())
+            return;
+
+        PlayerAbilityController abilityController =
+            FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+        abilityController?.SetSnipeActionBarHeld(false);
     }
 
     /// <summary>Label for an empty slot: <see cref="defaultTitle"/> (or <see cref="emptyLabel"/> when blank).</summary>

@@ -46,8 +46,16 @@ public class ProjectileVisual : MonoBehaviour
 
     public float ConfiguredSpeed => Mathf.Max(0.01f, speed);
 
-    public void Launch(Vector3 startPosition, Transform target, Vector3 fallbackTargetPosition, float? speedOverride = null, float? rotationOffsetOverride = null)
+    public void Launch(
+        Vector3 startPosition,
+        Transform target,
+        Vector3 fallbackTargetPosition,
+        float? speedOverride = null,
+        float? rotationOffsetOverride = null,
+        FlightPathMode? pathOverride = null)
     {
+        FlightPathMode path = pathOverride ?? flightPath;
+        _activeFlightPath = path;
         transform.position = startPosition;
         _target = target;
         _targetFallbackWorld = fallbackTargetPosition;
@@ -63,7 +71,7 @@ public class ProjectileVisual : MonoBehaviour
 
         float v = Mathf.Max(0.01f, speed);
 
-        if (flightPath == FlightPathMode.Arc)
+        if (path == FlightPathMode.Arc)
         {
             _arcP0 = startPosition;
             _arcP2 = fallbackTargetPosition;
@@ -84,6 +92,8 @@ public class ProjectileVisual : MonoBehaviour
         }
     }
 
+    private FlightPathMode _activeFlightPath;
+
     private void Update()
     {
         if (!_launched)
@@ -95,7 +105,7 @@ public class ProjectileVisual : MonoBehaviour
             return;
         }
 
-        if (flightPath == FlightPathMode.Arc)
+        if (_activeFlightPath == FlightPathMode.Arc)
             TickArc();
         else
             TickStraight();

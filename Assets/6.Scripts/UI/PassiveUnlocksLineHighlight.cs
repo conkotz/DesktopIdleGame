@@ -110,7 +110,20 @@ public static class PassiveUnlocksLineHighlight
             RangedMinorNodeStatOption.RangedDamagePercent3 => "Ranged Damage",
             RangedMinorNodeStatOption.RangedAttackSpeedPercent3 => "Ranged Attack Speed",
             RangedMinorNodeStatOption.RangedCritChancePercent2 => "Ranged Crit Chance",
-            RangedMinorNodeStatOption.RangedMoveSpeedPercent5 => "Ranged Move Speed",
+            RangedMinorNodeStatOption.RangedMoveSpeedPercent5 or RangedMinorNodeStatOption.RangedMoveSpeedPercent10 => "Ranged Move Speed",
+            RangedMinorNodeStatOption.MinRangedDamageFlat2 => "Min Ranged Damage",
+            RangedMinorNodeStatOption.MaxRangedDamageFlat2 => "Max Ranged Damage",
+            RangedMinorNodeStatOption.RangedDamageVsLowHpPercent10 => $"Ranged Damage to Low HP Enemies {CharacterStats.RangedLowHpDisplaySuffix}",
+            RangedMinorNodeStatOption.RangedShockChancePercent5 => "Ranged Shock Chance",
+            RangedMinorNodeStatOption.RangedLightningDamagePercent10 or RangedMinorNodeStatOption.RangedLightningDamagePercent4 => "Lightning Damage",
+            RangedMinorNodeStatOption.RangedDamageVsShockedPercent10 => "Ranged Damage to Shocked Enemies",
+            RangedMinorNodeStatOption.RangedCritDamagePercent8 => "Ranged Crit Damage",
+            RangedMinorNodeStatOption.MinionDamagePercent5 or RangedMinorNodeStatOption.MinionDamagePercent8 => "Minion Damage",
+            RangedMinorNodeStatOption.MinionMaxLifePercent10 => "Minion Health",
+            RangedMinorNodeStatOption.RangedDamageWithMinionActivePercent10 => "Ranged Damage while a Minion is Active",
+            RangedMinorNodeStatOption.RangedDamageVsDistantPercent5 or RangedMinorNodeStatOption.RangedDamageVsDistantPercent10 => "Ranged Damage against Distant Enemies",
+            RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent5 or RangedMinorNodeStatOption.RangedDamageWhenNoNearbyEnemyPercent10 => "Ranged Damage when no Enemy is within 3m",
+            RangedMinorNodeStatOption.RangedDamageVsFullHpPercent6 => "Ranged Damage to Full HP Enemies",
             _ => null
         };
         return key != null;

@@ -37,29 +37,13 @@ MonoBehaviour:
     ability: {fileID: 11400000, guid: a2d5864fad9249f1b8e199f7df2aca68, type: 2}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 1
-    title: Ranged Minor I
-    description: +3% Ranged Damage
-    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-    unlockType: 0
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 1
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
   - requiredLevel: 2
-    title: Ranged Minor II
-    description: +3% Attack Speed
+    title: Sharpened Arrows I
+    description: +2 Min Ranged Damage
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
-    rangedMinorStatOption: 2
+    rangedMinorStatOption: 5
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
@@ -70,12 +54,12 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 3
-    title: Ranged Minor III
-    description: +2% Crit Chance
+    title: Sharpened Arrows II
+    description: +2 Max Ranged Damage
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
-    rangedMinorStatOption: 3
+    rangedMinorStatOption: 6
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
@@ -86,12 +70,12 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 4
-    title: Ranged Minor IV
-    description: +5% Move Speed
+    title: Swift Draw I
+    description: +3% Ranged Attack Speed
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
-    rangedMinorStatOption: 4
+    rangedMinorStatOption: 2
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
@@ -130,3 +114,609 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 5
+    title: Snipe
+    description: Hold to charge a precise shot. Tap for a quick shot at normal power;
+      hold to charge over 2 seconds for up to 300% damage. Auto battle always charges
+      to full.
+    icon: {fileID: 4134967275584940047, guid: c8f4ec490a9c4b44cbb3acf391c93cb3, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 2e92101c08297e06d93dea543f720921, type: 2}
+    presentation: {fileID: 11400000, guid: e332b98ee9d307a94299d49d26d37290, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Fast Charge
+      description: Charge time reduced to 1.5 seconds.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 8
+      title: Hemorrhaging Shot
+      description: 100% bleed chance on this hit.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 6
+    title: Deadeye Training I
+    description: +3% Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 7
+    title: Eagle Eye I
+    description: +2% Ranged Crit Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 3
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 8
+    title: Swift Draw II
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 9
+    title: Execution Shot I
+    description: +10% Ranged Damage to Low HP Enemies (<30% HP)
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 7
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 11
+    title: Sharpened Arrows III
+    description: +2 Min Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 5
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 12
+    title: Sharpened Arrows IV
+    description: +2 Max Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 6
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 13
+    title: Swift Draw III
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 14
+    title: Deadeye Training II
+    description: +3% Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 16
+    title: Static Arrows I
+    description: +5% Ranged Shock Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 8
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 17
+    title: Static Arrows II
+    description: +10% Lightning Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 9
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 18
+    title: Eagle Eye II
+    description: +2% Ranged Crit Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 3
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 19
+    title: Storm Hunter I
+    description: +10% Ranged Damage to Shocked Enemies
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 10
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 21
+    title: Deadeye Training III
+    description: +3% Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 22
+    title: Swift Draw IV
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 23
+    title: Pathfinder I
+    description: +5% Move Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 4
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 24
+    title: Deadly Aim I
+    description: +8% Ranged Crit Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 12
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 26
+    title: Beastmaster's Bond I
+    description: +5% Minion Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 14
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 27
+    title: Beastmaster's Bond II
+    description: +10% Minion Health
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 15
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 28
+    title: Storm Affinity I
+    description: +4% Lightning Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 11
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 29
+    title: Pack Tactics I
+    description: +10% Ranged Damage while a Minion is Active
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 16
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 31
+    title: Deadeye Training IV
+    description: +3% Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 32
+    title: Swift Draw V
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 33
+    title: Eagle Eye III
+    description: +2% Ranged Crit Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 3
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 34
+    title: Deadly Aim II
+    description: +8% Ranged Crit Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 12
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 36
+    title: Longshot I
+    description: +5% Ranged Damage against Distant Enemies
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 17
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 37
+    title: Longshot II
+    description: +10% Ranged Damage against Distant Enemies
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 18
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 38
+    title: Lone Hunter I
+    description: +5% Ranged Damage when no Enemy is within 3m
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 19
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 39
+    title: Pathfinder II
+    description: +10% Move Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 13
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 41
+    title: Deadeye Training V
+    description: +3% Ranged Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 1
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 42
+    title: Swift Draw VI
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 43
+    title: Eagle Eye IV
+    description: +2% Ranged Crit Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 3
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 44
+    title: Deadly Aim III
+    description: +8% Ranged Crit Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 12
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 46
+    title: Beastmaster's Bond III
+    description: +8% Minion Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 22
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 47
+    title: Lone Hunter II
+    description: +10% Ranged Damage when no Enemy is within 3m
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 20
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 48
+    title: Swift Draw VII
+    description: +3% Ranged Attack Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 49
+    title: Opening Shot I
+    description: +6% Ranged Damage to Full HP Enemies
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 21
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
