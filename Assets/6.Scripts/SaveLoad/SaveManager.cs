@@ -1712,9 +1712,15 @@ public class SaveManager : MonoBehaviour
 
     private void HandleInventoryChanged()
     {
-        if (_isApplyingSaveData) return;
+        NotifyInventoryChangedDebounced();
+    }
 
-        // Coalesce loot bursts: each change pushes the deadline forward instead of saving on the pickup frame.
+    /// <summary>Coalesce inventory / action-bar consumable stack changes into one deferred save.</summary>
+    public void NotifyInventoryChangedDebounced()
+    {
+        if (_isApplyingSaveData)
+            return;
+
         _inventorySaveDueUnscaled = Time.unscaledTime + InventorySaveDebounceSeconds;
     }
 

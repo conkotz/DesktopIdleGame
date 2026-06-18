@@ -863,7 +863,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (binding == null || binding.slot == null)
                 continue;
 
-            binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged, this);
+            binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged, this, OnSlottedConsumableAmountChanged);
         }
 
         SyncHotkeysFromManager();
@@ -1428,12 +1428,20 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         CaptureSlotsToSavedState();
 
         if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+            SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
 
         NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();
         RefreshMinionControlBar();
         NotifyAbilityControllerOfAssignmentChange();
+    }
+
+    private void OnSlottedConsumableAmountChanged(ActionBarSlotUI slot)
+    {
+        CaptureSlotsToSavedState();
+
+        if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
     }
 
     private void NotifyAbilityControllerOfAssignmentChange()

@@ -132,6 +132,11 @@ public class PlayerController : MonoBehaviour
         _keyboardManualMoveThisFrame ||
         (_moveToPointFromPlayerInput && state == State.MoveToPoint);
 
+    /// <summary>True while walking to a destination chosen by mouse click (not combat chase).</summary>
+    public bool IsClickMoveActive => state == State.MoveToPoint && _moveToPointFromPlayerInput;
+
+    public float ClickMoveTargetWorldX => moveTargetX;
+
     /// <summary>True when recent horizontal motion is away from the current combat target.</summary>
     public bool IsMovingAwayFromCombatTarget() => IsPlayerMovingAwayFromCombatTarget();
 

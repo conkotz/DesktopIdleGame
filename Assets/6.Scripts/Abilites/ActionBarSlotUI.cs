@@ -90,6 +90,7 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     private System.Action<ActionBarSlotUI> onPressed;
     private System.Action<ActionBarSlotUI> onAssignmentChanged;
+    private System.Action<ActionBarSlotUI> onSlottedAmountChanged;
     private ActionBarUI actionBarOwner;
     private Vector3 originalScale;
     private bool isAutoBattleActive;
@@ -203,10 +204,12 @@ public class ActionBarSlotUI : MonoBehaviour,
     public void Initialize(
         System.Action<ActionBarSlotUI> triggerCallback,
         System.Action<ActionBarSlotUI> assignmentChangedCallback = null,
-        ActionBarUI ownerBar = null)
+        ActionBarUI ownerBar = null,
+        System.Action<ActionBarSlotUI> slottedAmountChangedCallback = null)
     {
         onPressed = triggerCallback;
         onAssignmentChanged = assignmentChangedCallback;
+        onSlottedAmountChanged = slottedAmountChangedCallback;
         actionBarOwner = ownerBar;
 
         if (button != null)
@@ -1169,7 +1172,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             RefreshUI();
             if (isPointerOver)
                 ShowTooltip();
-            onAssignmentChanged?.Invoke(this);
+            onSlottedAmountChanged?.Invoke(this);
         }
         return true;
     }

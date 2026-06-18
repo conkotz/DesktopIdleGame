@@ -5552,6 +5552,7 @@ GameObject:
   - component: {fileID: 5821047392856102844}
   - component: {fileID: 9083169161819440607}
   - component: {fileID: 5922623881930885248}
+  - component: {fileID: 7182938475610293847}
   - component: {fileID: 6535601020591293650}
   m_Layer: 10
   m_Name: Player
@@ -6633,6 +6634,27 @@ MonoBehaviour:
   player: {fileID: 0}
   combat: {fileID: 0}
   interactFocus: {fileID: 5922623881930885248}
+--- !u!114 &7182938475610293847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7c4e1b92f8d4a64b9e2037c5d1f8a42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerClickMoveDestinationMarker
+  markerSprite: {fileID: 526639368345827865, guid: cb2607383de41d544b6522bfc3f17be8, type: 3}
+  markerWorldScale: 0.12
+  floorYOffset: 0
+  sortingOrder: 45
+  pulseMinAlpha: 0.35
+  pulseMaxAlpha: 1
+  pulseFadeSeconds: 0.75
+  pulseHoldAtPeakSeconds: 1.5
+  player: {fileID: 0}
 --- !u!114 &5922623881930885248
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
   notes: Presentation for triple_shot
   displayNameOverride: Triple Shot
-  icon: {fileID: 3800113659745385010, guid: 6c2177c6341d13a4689486445b7c9c6e, type: 3}
+  icon: {fileID: -2009629830486126731, guid: 6f2bf13af922be4478904da3620273cf, type: 3}
   shortDescription: Primes your next auto attack to fire two extra phantom arrows
     at the target.
   primaryDescriptionOverride: 
