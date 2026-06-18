@@ -831,6 +831,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     /// <summary>True while slot restore is still retrying (load-order races after scene load).</summary>
     public bool IsSavedStateApplyPending => pendingSavedStateApply;
+
+    /// <summary>0 = combat set 1, 1 = combat set 2 (ability bar loadout).</summary>
+    public int ActiveCombatLoadoutSetIndex => activeCombatLoadoutSetIndex;
     private float nextSavedStateApplyTime;
     private int savedStateApplyAttempts;
 

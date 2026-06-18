@@ -2737,12 +2737,7 @@ public class UnitOverheadUI : MonoBehaviour
         if (ailments == null || DamagePopupSystem.Instance == null)
             return;
 
-        TryPlayPlayerAilmentStatusAcquisition(
-            poisonColor,
-            bleedColor,
-            burnColor,
-            shockColor,
-            chillColor);
+        TryPlayPlayerAilmentStatusAcquisition();
     }
 
     private static Vector3 ResolvePlayerAilmentStatusPopupWorldPos(
@@ -2780,19 +2775,14 @@ public class UnitOverheadUI : MonoBehaviour
         return anchorPos + Vector3.up * 0.12f;
     }
 
-    private void TryPlayPlayerAilmentStatusAcquisition(
-        Color poisonColor,
-        Color bleedColor,
-        Color burnColor,
-        Color shockColor,
-        Color chillColor)
+    private void TryPlayPlayerAilmentStatusAcquisition()
     {
         Transform victim = followTarget != null ? followTarget : characterStats.transform;
         PlayerController pc = characterStats.GetComponentInParent<PlayerController>();
         DamagePopupAnchor anchor = victim.GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorPos = anchor ? anchor.WorldPos : victim.position;
 
-        void SpawnIfAcquired(bool activeNow, ref bool wasActive, string message, Color color)
+        void SpawnIfAcquired(bool activeNow, ref bool wasActive, string message)
         {
             if (activeNow && !wasActive)
             {
@@ -2803,21 +2793,20 @@ public class UnitOverheadUI : MonoBehaviour
                     ailments,
                     message);
 
-                DamagePopupSystem.Instance.SpawnAilmentStatus(
+                DamagePopupSystem.Instance.SpawnStatusPresentation(
                     pos,
                     message,
-                    color,
                     DamagePopupSystem.ResolveStatusStackAnchor(victim));
             }
 
             wasActive = activeNow;
         }
 
-        SpawnIfAcquired(ailments.HasPoison, ref _wasPoisonForStatusPopup, "Poisoned", poisonColor);
-        SpawnIfAcquired(ailments.HasBleed, ref _wasBleedForStatusPopup, "bleeding", bleedColor);
-        SpawnIfAcquired(ailments.HasBurn, ref _wasBurnForStatusPopup, "Burnt", burnColor);
-        SpawnIfAcquired(ailments.HasShock, ref _wasShockForStatusPopup, "Shocked", shockColor);
-        SpawnIfAcquired(ailments.HasChill, ref _wasChillForStatusPopup, "Chilled", chillColor);
+        SpawnIfAcquired(ailments.HasPoison, ref _wasPoisonForStatusPopup, "Poisoned");
+        SpawnIfAcquired(ailments.HasBleed, ref _wasBleedForStatusPopup, "bleeding");
+        SpawnIfAcquired(ailments.HasBurn, ref _wasBurnForStatusPopup, "Burnt");
+        SpawnIfAcquired(ailments.HasShock, ref _wasShockForStatusPopup, "Shocked");
+        SpawnIfAcquired(ailments.HasChill, ref _wasChillForStatusPopup, "Chilled");
     }
 
     public void RefreshDebuffIcons()

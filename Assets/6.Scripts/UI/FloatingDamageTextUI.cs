@@ -74,19 +74,19 @@ public class FloatingDamageTextUI : MonoBehaviour
     [FormerlySerializedAs("trueColor")]
     [SerializeField] private Color corruptionColor = new Color32(112, 64, 192, 255);
     [SerializeField] private Color typlessColor = Color.white;
-    [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
-    [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
     [SerializeField] private Color poisonCritColor = new Color32(130, 245, 145, 255);
     [SerializeField, Min(1f)] private float poisonCritDotSizeMultiplier = 1.14f;
-    [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
-    [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
     [SerializeField] private Color healingColor = new Color32(100, 255, 140, 255);
     [SerializeField] private Color compactDamageColor = new Color32(220, 40, 40, 255);
     [SerializeField, Min(0.01f)] private float compactPulseSeconds = 0.085f;
     [SerializeField, Min(1f)] private float compactPulseMultiplier = 1.2f;
     [SerializeField, Min(1f)] private float compactCritPulseMultiplier = 1.5f;
 
-    [Header("Ailment presentation (HP tint + first-apply status popups)")]
+    [Header("Status Presentations (HP tint + first-apply status popups)")]
+    [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
+    [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
+    [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
+    [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
     [SerializeField] private Color shockPresentationColor = new Color32(255, 190, 70, 255);
     [SerializeField] private Color chillPresentationColor = new Color32(90, 160, 255, 255);
@@ -121,6 +121,63 @@ public class FloatingDamageTextUI : MonoBehaviour
     public Color ChillPresentationColor => chillPresentationColor;
     public Color StunPresentationColor => stunPresentationColor;
     public Color ExecutePresentationColor => executePresentationColor;
+    public Color BlockPresentationColor => blockColor;
+    public Color ParryPresentationColor => parryColor;
+
+    /// <summary>Colour for lingering status labels (Bleeding, Stunned, Blocked, Parry, etc.).</summary>
+    public bool TryGetStatusPresentationColor(string message, out Color color)
+    {
+        color = default;
+        if (string.IsNullOrWhiteSpace(message))
+            return false;
+
+        switch (message.Trim())
+        {
+            case "Bleeding":
+            case "bleeding":
+                color = bleedColor;
+                return true;
+            case "Poisoned":
+                color = poisonColor;
+                return true;
+            case "Burnt":
+                color = burnPresentationColor;
+                return true;
+            case "Shocked":
+                color = shockPresentationColor;
+                return true;
+            case "Chilled":
+                color = chillPresentationColor;
+                return true;
+            case "Stunned":
+                color = stunPresentationColor;
+                return true;
+            case "Blocked":
+                color = blockColor;
+                return true;
+            case "Immune":
+                color = blockColor;
+                return true;
+            case "Parry":
+            case "Riposte":
+                color = parryColor;
+                return true;
+            case "ENRAGED":
+                color = new Color32(255, 70, 40, 255);
+                return true;
+            default:
+                if (string.Equals(
+                        message,
+                        AbilityCombatPower.WayOfTheSlayerExecuteStatusPopupLabel,
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    color = executePresentationColor;
+                    return true;
+                }
+
+                return false;
+        }
+    }
 
     private void Awake()
     {

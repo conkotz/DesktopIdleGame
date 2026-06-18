@@ -6227,8 +6227,11 @@ public partial class PlayerAbilityController : MonoBehaviour
         _whirlwindLastHitTimeByEnemyId.Clear();
         _whirlwindEnemiesInContactThisFrame.Clear();
         _whirlwindContactRemovalBuffer.Clear();
+        _hasCachedWhirlwindAdvanceX = false;
+        _nextWhirlwindAdvanceRecalcAt = 0f;
         if (stats != null)
             stats.AbilityChannelMoveSpeedMultiplier = 1f;
+        player?.StopMoveOnly();
         if (clearHeldState)
             _whirlwindActionBarHeld = false;
         if (buffController != null && buffController.IsHudAbilityBuffActive(WhirlwindId))

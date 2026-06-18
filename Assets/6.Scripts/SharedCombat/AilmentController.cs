@@ -187,7 +187,7 @@ public class AilmentController : MonoBehaviour
 
     private bool IsPlayerVictim => playerBuffs != null;
 
-    private void TrySpawnEnemyAilmentActivationPopup(string message, Color color, Transform source)
+    private void TrySpawnEnemyAilmentActivationPopup(string message, Transform source)
     {
         if (IsPlayerVictim || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
             return;
@@ -201,19 +201,12 @@ public class AilmentController : MonoBehaviour
             dealerPos,
             source != null,
             null);
-        DamagePopupSystem.Instance.SpawnLingeringStatus(
+        DamagePopupSystem.Instance.SpawnStatusPresentation(
             pos,
             message,
-            color,
             DamagePopupSystem.ResolveStatusStackAnchor(transform));
     }
 
-    private static Color ResolveAilmentStatusColor(FloatingDamageTextUI prefab, System.Func<FloatingDamageTextUI, Color> pick, Color fallback)
-    {
-        if (prefab == null)
-            return fallback;
-        return pick(prefab);
-    }
 
     /// <summary>World position of whoever applied this ailment (for player overhead status popups).</summary>
     public bool TryGetStatusPopupDealerWorld(string statusMessage, out Vector3 dealerWorld)
@@ -454,11 +447,7 @@ public class AilmentController : MonoBehaviour
             bleedRoutine = StartCoroutine(BleedRoutine(payload.source));
 
         if (firstBleed && (bleedStacks.Count > 0 || exclusiveBleedTickSchedule.Count > 0))
-        {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.BleedDamageColor, new Color32(170, 35, 35, 255));
-            TrySpawnEnemyAilmentActivationPopup("Bleeding", c, payload.source);
-        }
+            TrySpawnEnemyAilmentActivationPopup("Bleeding", payload.source);
 
         _bleedOwnerPlayerStats?.NotifyBloodbathStackFromBleedApplication();
 
@@ -500,11 +489,7 @@ public class AilmentController : MonoBehaviour
             exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));
 
         if (firstBleed && exclusiveBleedTickSchedule.Count > 0)
-        {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.BleedDamageColor, new Color32(170, 35, 35, 255));
-            TrySpawnEnemyAilmentActivationPopup("Bleeding", c, payload.source);
-        }
+            TrySpawnEnemyAilmentActivationPopup("Bleeding", payload.source);
 
         _bleedOwnerPlayerStats?.NotifyBloodbathStackFromBleedApplication();
 
@@ -701,11 +686,7 @@ public class AilmentController : MonoBehaviour
             poisonRoutine = StartCoroutine(PoisonRoutine(payload.source));
 
         if (firstPoison)
-        {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.PoisonDamageColor, new Color32(85, 200, 90, 255));
-            TrySpawnEnemyAilmentActivationPopup("Poisoned", c, payload.source);
-        }
+            TrySpawnEnemyAilmentActivationPopup("Poisoned", payload.source);
 
         OnAilmentsChanged?.Invoke();
     }
@@ -783,11 +764,7 @@ public class AilmentController : MonoBehaviour
             poisonRoutine = StartCoroutine(PoisonRoutine(perStackPayload.source));
 
         if (firstPoison)
-        {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.PoisonDamageColor, new Color32(85, 200, 90, 255));
-            TrySpawnEnemyAilmentActivationPopup("Poisoned", c, perStackPayload.source);
-        }
+            TrySpawnEnemyAilmentActivationPopup("Poisoned", perStackPayload.source);
 
         OnAilmentsChanged?.Invoke();
     }
@@ -967,9 +944,7 @@ public class AilmentController : MonoBehaviour
 
         if (firstChill)
         {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.ChillPresentationColor, new Color32(90, 160, 255, 255));
-            TrySpawnEnemyAilmentActivationPopup("Chilled", c, payload.source);
+            TrySpawnEnemyAilmentActivationPopup("Chilled", payload.source);
         }
 
         OnAilmentsChanged?.Invoke();
@@ -1051,9 +1026,7 @@ public class AilmentController : MonoBehaviour
 
         if (!hadBurn)
         {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.BurnPresentationColor, new Color32(255, 140, 40, 255));
-            TrySpawnEnemyAilmentActivationPopup("Burnt", c, source);
+            TrySpawnEnemyAilmentActivationPopup("Burnt", source);
         }
 
         OnAilmentsChanged?.Invoke();
@@ -1278,9 +1251,7 @@ public class AilmentController : MonoBehaviour
 
         if (firstShock)
         {
-            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
-            Color c = ResolveAilmentStatusColor(fx, f => f.ShockPresentationColor, new Color32(255, 190, 70, 255));
-            TrySpawnEnemyAilmentActivationPopup("Shocked", c, payload.source);
+            TrySpawnEnemyAilmentActivationPopup("Shocked", payload.source);
         }
 
         OnAilmentsChanged?.Invoke();

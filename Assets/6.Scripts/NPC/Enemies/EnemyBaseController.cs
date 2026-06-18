@@ -1018,12 +1018,10 @@ public class EnemyBaseController : MonoBehaviour
             source != null,
             null);
 
-        Color color = new Color32(38, 22, 12, 255);
-        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
-        if (prefab != null)
-            color = prefab.StunPresentationColor;
-
-        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "Stunned", color, transform);
+        DamagePopupSystem.Instance.SpawnStatusPresentation(
+            pos,
+            "Stunned",
+            DamagePopupSystem.ResolveStatusStackAnchor(transform));
     }
 
     private void TrySpawnExecuteStatusPopup(Transform source)
@@ -1041,16 +1039,10 @@ public class EnemyBaseController : MonoBehaviour
             source != null,
             null);
 
-        Color color = new Color32(140, 18, 28, 255);
-        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
-        if (prefab != null)
-            color = prefab.ExecutePresentationColor;
-
-        DamagePopupSystem.Instance.SpawnLingeringStatus(
+        DamagePopupSystem.Instance.SpawnStatusPresentation(
             pos,
             AbilityCombatPower.WayOfTheSlayerExecuteStatusPopupLabel,
-            color,
-            transform);
+            DamagePopupSystem.ResolveStatusStackAnchor(transform));
     }
 
     /// <summary>Way of the Slayer — bypasses mitigation and removes all remaining guard/HP.</summary>
@@ -1876,12 +1868,10 @@ public class EnemyBaseController : MonoBehaviour
                 false,
                 null)
             : anchorPos;
-        Color color = new Color32(255, 72, 48, 255);
-        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
-        if (prefab != null)
-            color = prefab.BurnPresentationColor;
-
-        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "ENRAGED", color, transform);
+        DamagePopupSystem.Instance.SpawnStatusPresentation(
+            pos,
+            "ENRAGED",
+            DamagePopupSystem.ResolveStatusStackAnchor(transform));
     }
 
     public void TryApplyAbilityShockwaveDamageToPlayer(

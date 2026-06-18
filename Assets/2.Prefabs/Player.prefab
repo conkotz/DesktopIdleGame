@@ -5552,6 +5552,7 @@ GameObject:
   - component: {fileID: 5821047392856102844}
   - component: {fileID: 9083169161819440607}
   - component: {fileID: 5922623881930885248}
+  - component: {fileID: 6535601020591293650}
   m_Layer: 10
   m_Name: Player
   m_TagString: Player
@@ -5707,6 +5708,8 @@ MonoBehaviour:
   crusaderStrikeBeamTrailWidth: 0.12
   crusaderStrikeBeamCenterOffset: {x: 0, y: 0.55, z: 0}
   crusaderStrikeBeamFinalSizeScale: 1.2
+  crusaderStrikeBeamMinSpawnIntervalSeconds: 0.03
+  crusaderStrikeBeamMaxNonFinalSpawnsPerFrame: 1
   whirlingBladeColor: {r: 0.9169811, g: 0.48521498, b: 0.08131714, a: 1}
   whirlingBladeDuration: 0.22
   whirlingBladeSpinDegrees: 720
@@ -5773,6 +5776,7 @@ MonoBehaviour:
   executionersDescentShockwaveDuration: 0.45
   executionersDescentShockwaveLineWidth: 0.22
   executionersDescentShockwaveGroundOffset: 0.15
+  enemyPounceTelegraphGroundOffset: 0.02
   shadowStrikeBurstColor: {r: 0.35, g: 0.15, b: 0.55, a: 0.9}
   shadowStrikeBurstDuration: 0.22
   shadowStrikeBurstRadius: 1.1
@@ -6304,6 +6308,7 @@ MonoBehaviour:
   fadeDuration: 1
   levelLoadScreenFadeSeconds: 1
   levelLoadBlackHoldSeconds: 0
+  townLoadBlackHoldSeconds: 0.2
   debugSnap: 0
 --- !u!114 &8305620475968429046
 MonoBehaviour:
@@ -6479,6 +6484,8 @@ MonoBehaviour:
   buffController: {fileID: 0}
   playerController: {fileID: 0}
   sprintHudIconHoldSeconds: 0.01
+  sprintKeyDownDebounceSeconds: 0.22
+  sprintTapStabilitySeconds: 0.18
   sprintDashDurationSeconds: 0.12
 --- !u!114 &966196259100907935
 MonoBehaviour:
@@ -6580,8 +6587,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fed23c1b59b963341ac3f96ea93c7917, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLevelTransition
-  shrinkDurationSeconds: 2
-  mapTeleportShrinkDurationSeconds: 1
   shrinkToScale: 0.01
 --- !u!114 &5821047392856102844
 MonoBehaviour:
@@ -6640,6 +6645,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7ed28708524a824baa8889c36da474a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerWorldInteractFocus
+--- !u!114 &6535601020591293650
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bc5d90ce4a83a2449d39274096e1324, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ConditionalAutoBattleSetController
+  equipment: {fileID: 966196259100907935}
+  actionBar: {fileID: 0}
+  characterStats: {fileID: 4199332309700179123}
+  combatController: {fileID: 343137512557904079}
+  evaluationIntervalSeconds: 0.15
 --- !u!1 &7830489794965648568
 GameObject:
   m_ObjectHideFlags: 0

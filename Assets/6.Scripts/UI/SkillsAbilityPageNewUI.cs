@@ -77,6 +77,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         new AbilityPresetButtonUI[SkillsManager.AbilityPresetSlotCount];
     private bool _pendingAbilityPresetLabelRefresh;
     private ActionBarUI _cachedActionBar;
+    private EquipmentManager _cachedEquipment;
     private Coroutine _deferredProgressionRefresh;
     private Coroutine _deferredOpenRefresh;
     private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
@@ -811,6 +812,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             GameLog.Add("Empty preset");
             return;
         }
+
+        // QoL: if this preset is linked to a weapon set (Set 1/2), jump to that set so edits immediately reflect on the bar.
+        TrySyncEditingPresetToAssignedSet(skillType);
 
         SaveManager.Instance?.Save();
         EnsureHorizontalTimelineReference();
@@ -1551,6 +1555,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
 
         AutoSaveSelectedPresetForSkill(type);
+        TrySyncEditingPresetToAssignedSet(type);
         RefreshAbilityPresetButtonLabels();
     }
 
@@ -1574,7 +1579,36 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
 
         AutoSaveSelectedPresetForSkill(type);
+        TrySyncEditingPresetToAssignedSet(type);
         RefreshAbilityPresetButtonLabels();
+    }
+
+    private void TrySyncEditingPresetToAssignedSet(SkillType skillType)
+    {
+        if (skillsManager == null || !SkillsManager.IsCombatSkillType(skillType))
+            return;
+
+        if (!skillsManager.TryGetActiveAbilityPresetSlot(skillType, out int activeSlot))
+            return;
+
+        if (!skillsManager.TryGetWeaponSetIndexForPreset(skillType, activeSlot, out int weaponSetIndex))
+            return;
+
+        ActionBarUI bar = _cachedActionBar != null
+            ? _cachedActionBar
+            : (_cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include));
+
+        if (_cachedEquipment == null)
+            _cachedEquipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+
+        // Gear swap can be blocked by the weapon set cooldown; even if it is blocked, we still switch the bar loadout.
+        _cachedEquipment?.TrySetActiveWeaponSet(weaponSetIndex);
+
+        if (bar != null)
+        {
+            bar.SetCombatLoadoutSet(weaponSetIndex);
+            bar.ApplyCombatLoadoutFromSkillRowPicks(skillType);
+        }
     }
 
     private void AutoSaveSelectedPresetForSkill(SkillType skillType)
