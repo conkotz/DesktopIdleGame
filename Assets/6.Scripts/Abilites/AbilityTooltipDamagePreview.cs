@@ -400,6 +400,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsHuntersSwiftness(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HuntersSwiftnessAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsTornado(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.TornadoAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsHammerTempest(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HammerTempestAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -786,6 +789,12 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsTornado(def))
+        {
+            AppendTornadoTooltipScaling(scaling, S, stats, skillsManager);
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsWhirlwind(def))
         {
             scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
@@ -1061,6 +1070,15 @@ public static class AbilityTooltipDamagePreview
         {
             AppendHuntersSwiftnessTooltipEffects(body, O, skillsManager, includeEnhancementEffects);
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.HuntersSwiftnessBaseDurationSeconds:0.#}s"));
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsTornado(def))
+        {
+            AppendTornadoTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.TornadoBaseDurationSeconds:0.#}s"));
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1663,6 +1681,9 @@ public static class AbilityTooltipDamagePreview
         if (IsHuntersSwiftness(def))
             return BuildHuntersSwiftnessCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
 
+        if (IsTornado(def))
+            return BuildTornadoCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
+
         CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
             def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects, enhancementChoiceOverride);
@@ -2028,6 +2049,81 @@ public static class AbilityTooltipDamagePreview
         AppendHuntersSwiftnessTooltipEffects(body, O, skillsManager, includeEnhancementEffects);
         if (includeDuration)
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.HuntersSwiftnessBaseDurationSeconds:0.#}s"));
+        return body.ToString().TrimEnd();
+    }
+
+    private static int GetTornadoBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged,
+            AbilityCombatPower.TornadoEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static void AppendTornadoTooltipScaling(
+        StringBuilder scaling,
+        System.Func<string, string> S,
+        CharacterStats stats,
+        SkillsManager skillsManager)
+    {
+        if (scaling == null)
+            return;
+
+        scaling.AppendLine(S($"+{AbilityCombatPower.TornadoActiveGlobalPhysicalDamageBonus * 100f:0.#}% global physical damage while active"));
+
+        int enhance = GetTornadoBranchChoice(skillsManager);
+        if (enhance == AbilityCombatPower.TornadoEnh1LightningTornadoChoiceIndex)
+        {
+            scaling.AppendLine(S(
+                $"Lightning arcs within {AbilityCombatPower.TornadoLightningAbsorbRange:0.#} range add " +
+                $"{AbilityCombatPower.TornadoLightningInfusionPerArcFraction * 100f:0.#}% of arc damage per second (once per cast)"));
+        }
+    }
+
+    private static void AppendTornadoTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        bool includeEnhancementEffects)
+    {
+        AppendDetailsEffectParagraph(body, O(
+            $"{AbilityCombatPower.TornadoBaseMinDamagePerSecond:0.#}–{AbilityCombatPower.TornadoBaseMaxDamagePerSecond:0.#} physical damage per second"));
+
+        if (!includeEnhancementEffects)
+            return;
+
+        int enhance = GetTornadoBranchChoice(skillsManager);
+        if (enhance == AbilityCombatPower.TornadoEnh1LightningTornadoChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                "Can absorb one nearby lightning arc. The arc chains through the tornado to a nearby enemy, " +
+                "and the tornado gains bonus lightning damage per second for the rest of its duration."));
+        }
+        else if (enhance == AbilityCombatPower.TornadoEnh2BowInfusedChoiceIndex && stats != null)
+        {
+            float bowMin = stats.MinSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction;
+            float bowMax = stats.MaxSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction;
+            AppendDetailsEffectParagraph(body, O(
+                $"Cannot absorb lightning. Adds {bowMin:0.#}–{bowMax:0.#} physical damage per second based on your equipped bow."));
+        }
+    }
+
+    private static string BuildTornadoCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool includeDuration,
+        bool includeEnhancementEffects)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        CharacterStats stats = FindLocalPlayerStats();
+        AppendTornadoTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+        if (includeDuration)
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.TornadoBaseDurationSeconds:0.#}s"));
         return body.ToString().TrimEnd();
     }
 

@@ -5917,6 +5917,7 @@ MonoBehaviour:
   tripleShotVolleyFlashRadius: 0.42
   tripleShotVolleyFlashOffset: {x: 0, y: 0.55, z: 0}
   lightningArcPrefab: {fileID: 8429156374829103849, guid: e7b2c9345a6d4789bcde0123456789ab, type: 3}
+  tornadoPrefab: {fileID: 729469573040607778, guid: f83950bd55dfadf48b5f148510b853f1, type: 3}
   staticArrowsTrailLingerSeconds: 0.35
   staticArrowsTrailWidth: 0.06
   staticArrowsTrailStartAlpha: 0.9

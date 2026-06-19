@@ -65,6 +65,25 @@ public static class AbilityCombatPower
     public const float HuntersSwiftnessTrapStunDurationSeconds = 2f;
     public const int HuntersSwiftnessUnlockLevel = 25;
     public const string HuntersSwiftnessTrapOutgoingDamageSourceLabel = "Hunter Trap";
+    public const string TornadoAbilityId = "tornado";
+    public const string TornadoEnhancementParentSpineNodeId = "Lv45_0";
+    public const int TornadoEnh1LightningTornadoChoiceIndex = 0;
+    public const int TornadoEnh2BowInfusedChoiceIndex = 1;
+    public const float TornadoBaseDurationSeconds = 15f;
+    public const float TornadoBaseMinDamagePerSecond = 15f;
+    public const float TornadoBaseMaxDamagePerSecond = 30f;
+    public const float TornadoDamageTickIntervalSeconds = 1f;
+    public const float TornadoMoveSpeed = 2f;
+    public const float TornadoAttachDistance = 0.65f;
+    public const float TornadoLightningAbsorbRange = 8f;
+    public const float TornadoLightningInfusionPerArcFraction = 0.5f;
+    public const float TornadoEnh2Scale = 1.2f;
+    public const float TornadoBaseScale = 1f;
+    public const float TornadoSpriteOpacity = 0.55f;
+    public const float TornadoEnh2BowDamageFraction = 0.25f;
+    public const float TornadoActiveGlobalPhysicalDamageBonus = 0.10f;
+    public const int TornadoUnlockLevel = 45;
+    public const string TornadoOutgoingDamageSourceLabel = "Tornado";
 
     /// <summary>+N damage every two ranged levels after <paramref name="abilityUnlockLevel"/> (unlock level uses base damage only).</summary>
     public static float ComputeRangedLevelBonusAfterUnlock(

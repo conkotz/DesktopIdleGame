@@ -688,6 +688,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         abilityVfx?.StopWarBannerVfx();
         abilityVfx?.StopLightningRodVfx();
         ClearAllHuntersSwiftnessTraps();
+        ForceEndTornadoEarly(applyCooldown: false, awardDeferredCooldown: false);
         abilityVfx?.DestroyHammerTempestOrbitVfx();
     }
 
@@ -719,6 +720,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (_huntersSwiftnessActive || HasActiveHuntersSwiftnessTraps)
             return true;
+        if (_tornadoActive)
+            return true;
         if (IsHammerTempestActive)
             return true;
         if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive)
@@ -747,6 +750,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (_energyInfusionActive || _warBannerActive || _lightningRodActive || IsHammerTempestActive)
             return true;
         if (_huntersSwiftnessActive || HasActiveHuntersSwiftnessTraps)
+            return true;
+        if (_tornadoActive)
             return true;
         if (_whirlwindChanneling)
             return true;
@@ -787,6 +792,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         CleanupHuntersSwiftnessIfExpired();
         SyncHuntersSwiftnessHudBuff();
         TickHuntersSwiftnessTraps();
+        CleanupTornadoIfExpired();
+        SyncTornadoHudBuff();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
         TickBattleEngineOverloadExpiry();
@@ -854,6 +861,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         CleanupHuntersSwiftnessIfExpired();
         TickHuntersSwiftness();
         SyncHuntersSwiftnessHudBuff();
+        CleanupTornadoIfExpired();
+        SyncTornadoHudBuff();
         TickHammerTempest();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
@@ -1117,6 +1126,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return IsLightningRodActive;
         if (IsHuntersSwiftnessAbilityId(abilityId))
             return IsHuntersSwiftnessActive;
+        if (IsTornadoAbilityId(abilityId))
+            return IsTornadoActive;
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -1243,6 +1254,12 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (IsTornadoAbilityId(abilityId))
+        {
+            ForceEndTornadoEarly(applyCooldown: true, awardDeferredCooldown: true);
+            return;
+        }
+
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndHammerTempestEarly(applyCooldown: true);
@@ -1334,6 +1351,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.WarBannerAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.LightningRodAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.HuntersSwiftnessAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.TornadoAbilityId);
         TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
         TryEndLingeringIfRemovedFromActionBar(CrusaderStrikeId);
         TryEndLingeringIfRemovedFromActionBar(FlameChargeId);
@@ -3597,6 +3615,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsHuntersSwiftnessAbilityId(def.abilityId) && IsHuntersSwiftnessActive)
             return false;
 
+        if (IsTornadoAbilityId(def.abilityId) && IsTornadoActive)
+            return false;
+
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
@@ -3745,6 +3766,14 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsHuntersSwiftnessAbilityId(def.abilityId))
         {
             BeginHuntersSwiftnessCast(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (IsTornadoAbilityId(def.abilityId))
+        {
+            BeginTornadoCast(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -7462,7 +7491,13 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         Vector3 from = GetEnemyVfxCenter(primaryTarget);
         Vector3 to = GetEnemyVfxCenter(chainTarget);
-        abilityVfx?.SpawnStaticArrowsCritLightningArc(from, to, primaryTarget.transform);
+        float arcLightning = arcSplit.magic;
+        TornadoLightningRouter.RouteLightningArc(
+            abilityVfx,
+            from,
+            to,
+            arcLightning,
+            primaryTarget.transform);
 
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
@@ -8983,6 +9018,9 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
 
         if (IsHuntersSwiftnessAbilityId(id))
+            return;
+
+        if (IsTornadoAbilityId(id))
             return;
 
         if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)

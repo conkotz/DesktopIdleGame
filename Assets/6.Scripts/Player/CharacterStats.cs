@@ -828,6 +828,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatMoveSpeedPercentBonus;
     private float _huntersSwiftnessMoveSpeedPercentBonus;
     private float _huntersSwiftnessEvadeChance;
+    private float _tornadoGlobalPhysicalPercentBonus;
     private float _combatFlatManaRegenPerSecond;
     private float _abilityChannelMoveSpeedMultiplier = 1f;
     private float _combatDamageTakenMultiplier = 1f;
@@ -909,6 +910,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (changed)
             NotifyStatsChanged();
+    }
+
+    public void ApplyTornadoCombatModifiers(float globalPhysicalPercentBonus)
+    {
+        if (!Mathf.Approximately(_tornadoGlobalPhysicalPercentBonus, globalPhysicalPercentBonus))
+        {
+            _tornadoGlobalPhysicalPercentBonus = globalPhysicalPercentBonus;
+            NotifyStatsChanged();
+        }
+    }
+
+    public void ClearTornadoCombatModifiers()
+    {
+        if (_tornadoGlobalPhysicalPercentBonus > 0.0001f)
+        {
+            _tornadoGlobalPhysicalPercentBonus = 0f;
+            NotifyStatsChanged();
+        }
     }
 
     public void ClearWarBannerCombatModifiers()
@@ -4653,6 +4672,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         total += GetBloodbathPhysicalDamagePercent();
         total += GetWayOfTheSlayerBleedChancePhysicalConversionFraction();
         total += _combatGlobalPhysicalDamagePercentBonus;
+        total += _tornadoGlobalPhysicalPercentBonus;
         return Mathf.Max(0f, total);
     }
 

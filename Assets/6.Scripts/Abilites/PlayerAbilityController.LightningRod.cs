@@ -229,7 +229,13 @@ public partial class PlayerAbilityController
             return;
 
         Vector3 arcEnd = GetEnemyVfxCenter(enemy);
-        abilityVfx?.SpawnStaticArrowsCritLightningArc(arcStart, arcEnd, enemy.transform);
+        float arcDamage = ComputeLightningRodArcDamage();
+        TornadoLightningRouter.RouteLightningArc(
+            abilityVfx,
+            arcStart,
+            arcEnd,
+            arcDamage,
+            enemy.transform);
 
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();

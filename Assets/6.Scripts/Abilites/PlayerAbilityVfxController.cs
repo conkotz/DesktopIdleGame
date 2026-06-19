@@ -278,6 +278,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     [Header("Static Arrows (Range Lv5) VFX")]
     [SerializeField] private LightningArcVfx lightningArcPrefab;
+    [SerializeField] private GameObject tornadoPrefab;
     [SerializeField, Min(0.05f)] private float staticArrowsTrailLingerSeconds = 0.35f;
     [SerializeField, Min(0.01f)] private float staticArrowsTrailWidth = 0.06f;
     [SerializeField, Range(0f, 1f)] private float staticArrowsTrailStartAlpha = 0.9f;
@@ -3676,6 +3677,52 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         if (instance != null)
             instance.UseExactSegmentLength = true;
+    }
+
+    public TornadoInstance SpawnTornadoInstance(
+        PlayerAbilityController owner,
+        TornadoCastGroup group,
+        EnemyBaseController initialTarget,
+        float durationSeconds,
+        float worldScale,
+        bool canAbsorbLightning,
+        bool useBowPhysicalBonus,
+        float bowPhysicalMinBonus,
+        float bowPhysicalMaxBonus,
+        Vector3 spawnPoint)
+    {
+        if (tornadoPrefab == null || owner == null)
+            return null;
+
+        Transform parent = LaneGroundEffectPlacement.ResolveGroundEffectsRoot()
+            ?? LaneGroundEffectPlacement.ResolveLaneFloorTransform();
+        GameObject instance = Instantiate(tornadoPrefab, spawnPoint, Quaternion.identity, parent);
+        if (!instance.TryGetComponent(out TornadoInstance tornado))
+            tornado = instance.AddComponent<TornadoInstance>();
+
+        Collider2D col = instance.GetComponent<Collider2D>();
+        if (col != null)
+            LaneGroundEffectPlacement.AlignColliderBottomToLaneFloor(col, instance.transform, 0.02f);
+        else
+            LaneGroundEffectPlacement.PlaceOnLaneFloor(instance.transform, spawnPoint, 0.02f);
+
+        float spawnX = initialTarget != null && !initialTarget.IsDead
+            ? initialTarget.transform.position.x
+            : spawnPoint.x;
+        tornado.SnapBottomToFloorAtX(spawnX);
+
+        tornado.Initialize(
+            owner,
+            group,
+            initialTarget,
+            durationSeconds,
+            worldScale,
+            canAbsorbLightning,
+            useBowPhysicalBonus,
+            bowPhysicalMinBonus,
+            bowPhysicalMaxBonus);
+
+        return tornado;
     }
 
     public void SetStaticArrowsBuffArrowVisual(bool active)

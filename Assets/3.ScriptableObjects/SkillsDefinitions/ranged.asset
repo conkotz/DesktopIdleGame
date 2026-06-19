@@ -856,6 +856,38 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 45
+    title: Tornado
+    description: Summon a huge tornado to tear through enemies and periodically damage
+      enemies near it with physical damage.
+    icon: {fileID: -5345310618126530808, guid: d4e5d23606c78724483c1a5478eb1b17, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 1ec07d0d53cb10fdd6c893cb521284da, type: 2}
+    presentation: {fileID: 11400000, guid: 2cd32ed3c0b79c9c8f793593ef04fbfc, type: 2}
+    choices:
+    - requiredLevel: 48
+      title: Lightning Tornado
+      description: The tornado can absorb one nearby lightning arc. The arc chains
+        through the tornado to a nearby enemy, and the tornado gains bonus lightning
+        damage per second for the rest of its duration.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 48
+      title: Bow Tempest
+      description: The tornado can no longer absorb lightning, but gains physical
+        damage based on 25% of your equipped bow.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 46
     title: Beastmaster's Bond III
     description: +8% Minion Damage

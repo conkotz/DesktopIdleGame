@@ -684,6 +684,13 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.TornadoAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged, AbilityCombatPower.TornadoEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);
