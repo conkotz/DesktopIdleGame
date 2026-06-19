@@ -8,6 +8,8 @@ public static class GameTooltipTexts
 {
     public const string BurnTitle = "Burn";
 
+    private const string InheritedMinionScalingNote = "\n\n(50% reduced for inherited minions)";
+
     /// <summary>Burn overview (stats hover, debuff icon). Matches equipment panel: legend + one short line.</summary>
     public static readonly string BurnMechanicDescription =
         "chance | tick mult (gear) | duration | stacks to combust\n\n" +
@@ -136,33 +138,34 @@ public static class GameTooltipTexts
             case "MinionDamageText":
                 title = "Minion damage";
                 description =
-                    "Percentage bonus damage for your minions and summons.\n\n" +
-                    "Applies whether a minion inherits your weapon hit damage or uses its own base damage. " +
-                    "Does not change your hero's personal damage.";
+                    "Percentage bonus damage for your minions and summons." +
+                    InheritedMinionScalingNote;
                 return true;
 
             case "ConditionalMinionAtkSpeedText":
             case "MinionAttackSpeedText":
                 title = "Minion attack speed";
                 description =
-                    "Percentage bonus attack speed for your minions.\n\n" +
-                    "Total minion attack speed cannot fall below 10% of base. Does not change your hero attack speed.";
+                    "Percentage bonus attack speed for your minions. " +
+                    "Total minion attack speed cannot fall below 10% of base." +
+                    InheritedMinionScalingNote;
                 return true;
 
             case "ConditionalMinionCritRateText":
             case "MinionCritChanceText":
                 title = "Minion critical chance";
                 description =
-                    "Additive critical strike chance for minion hits.\n\n" +
-                    "Minion crits always deal ×1.5 total damage (+50% bonus); that multiplier is fixed.";
+                    "Additive critical strike chance for minion hits. " +
+                    "Minion crits always deal ×1.5 total damage (+50% bonus); that multiplier is fixed." +
+                    InheritedMinionScalingNote;
                 return true;
 
             case "ConditionalMinionMaxLifeText":
             case "MinionMaxLifeText":
                 title = "Minion max HP";
                 description =
-                    "Percentage bonus to minion and summon maximum HP.\n\n" +
-                    "Minions that inherit your weapon hits gain half as much from this stat as pure minion-source summons.";
+                    "Percentage bonus to minion and summon maximum HP." +
+                    InheritedMinionScalingNote;
                 return true;
 
             case "PhysicalBonusText":

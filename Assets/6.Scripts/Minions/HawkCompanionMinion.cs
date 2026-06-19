@@ -49,7 +49,7 @@ public class HawkCompanionMinion : MonoBehaviour
     private float _hoverPauseUntil;
 
     private const float EnemyScanIntervalSeconds = 0.1f;
-    private const float HoverPauseIntervalMinSeconds = 5f;
+    private const float HoverPauseIntervalMinSeconds = 3f;
     private const float HoverPauseIntervalMaxSeconds = 10f;
     private const float HoverPauseDurationMinSeconds = 2f;
     private const float HoverPauseDurationMaxSeconds = 3f;
@@ -268,18 +268,8 @@ public class HawkCompanionMinion : MonoBehaviour
         if (TryTickFollowOwner())
             return;
 
-        if (CanEngageTargets() &&
-            Time.time >= _nextStrikeReadyTime &&
-            Time.time >= _nextEnemyScanAt)
-        {
-            _nextEnemyScanAt = Time.time + EnemyScanIntervalSeconds;
-            EnemyBaseController enemy = ResolveStrikeTargetCandidate();
-            if (enemy)
-            {
-                BeginDive(enemy);
-                return;
-            }
-        }
+        if (TryBeginStrikeIfReady())
+            return;
 
         TickPatrolFlight();
     }
@@ -338,6 +328,7 @@ public class HawkCompanionMinion : MonoBehaviour
         _strikeTarget = enemy;
         _isPatrolling = false;
         _state = MotionState.Diving;
+        ScheduleNextStrike();
 
         float dx = enemy.transform.position.x - transform.position.x;
         ApplyHorizontalFlightFacing(dx < 0f);
@@ -387,6 +378,9 @@ public class HawkCompanionMinion : MonoBehaviour
 
     private void TickSwoopRecovering()
     {
+        if (TryBeginStrikeIfReady())
+            return;
+
         Vector3 before = transform.position;
         float step = _presentation.returnSpeed * Time.deltaTime;
         transform.position += _swoopCarryDirection * step;
@@ -407,11 +401,14 @@ public class HawkCompanionMinion : MonoBehaviour
 
     private void TickReturning()
     {
+        if (TryBeginStrikeIfReady())
+            return;
+
         Vector3 before = transform.position;
         transform.position = Vector3.MoveTowards(
             transform.position,
             _returnGlideTarget,
-            _presentation.returnSpeed * Time.deltaTime);
+            _presentation.horizontalFlightSpeed * Time.deltaTime);
 
         ApplyFlightFacingFromMovement(transform.position - before);
         transform.rotation = Quaternion.identity;
@@ -419,12 +416,16 @@ public class HawkCompanionMinion : MonoBehaviour
             spriteRenderer.flipY = false;
 
         if (Vector3.Distance(transform.position, _returnGlideTarget) <= _presentation.wanderArrivalDistance + 0.05f)
-        {
-            _strikeTarget = null;
-            _state = MotionState.Flying;
-            BeginPatrol();
-            ScheduleNextStrike();
-        }
+            ResumeIdleFlightAfterReturn();
+    }
+
+    private void ResumeIdleFlightAfterReturn()
+    {
+        _strikeTarget = null;
+        _state = MotionState.Flying;
+        _hoverPauseUntil = 0f;
+        ScheduleNextHoverPause();
+        BeginPatrol(forceMinTravel: true);
     }
 
     private void BeginSwoopRecover(Vector3 lastDiveDelta)
@@ -475,28 +476,41 @@ public class HawkCompanionMinion : MonoBehaviour
         _nextHoverPauseAt = Time.time + UnityEngine.Random.Range(HoverPauseIntervalMinSeconds, HoverPauseIntervalMaxSeconds);
     }
 
-    private void BeginPatrol()
+    private void BeginPatrol(bool forceMinTravel = false)
     {
         _isPatrolling = true;
-        ExtendPatrolTarget(GetOwnerPosition());
+        ExtendPatrolTarget(GetOwnerPosition(), forceMinTravel);
     }
 
-    private void ExtendPatrolTarget(Vector3 ownerPos)
+    private void ExtendPatrolTarget(Vector3 ownerPos, bool forceMinTravel = false)
     {
         float myX = transform.position.x;
-        float dist = UnityEngine.Random.Range(_presentation.wanderDistanceMin, _presentation.wanderDistanceMax);
-        float candidateX = myX + _patrolDirection * dist;
+        float minTravel = forceMinTravel ? _presentation.wanderDistanceMin : 0f;
 
-        if (Mathf.Abs(candidateX - ownerPos.x) > _presentation.maxWanderRadiusFromPlayer)
+        for (int attempt = 0; attempt < 4; attempt++)
         {
+            float dist = UnityEngine.Random.Range(_presentation.wanderDistanceMin, _presentation.wanderDistanceMax);
+            float candidateX = myX + _patrolDirection * dist;
+
+            if (Mathf.Abs(candidateX - ownerPos.x) > _presentation.maxWanderRadiusFromPlayer)
+            {
+                _patrolDirection = -_patrolDirection;
+                candidateX = myX + _patrolDirection * dist;
+            }
+
+            if (Mathf.Abs(candidateX - ownerPos.x) > _presentation.maxWanderRadiusFromPlayer)
+                candidateX = ownerPos.x + _patrolDirection * _presentation.maxWanderRadiusFromPlayer * 0.5f;
+
+            if (!forceMinTravel || Mathf.Abs(candidateX - myX) >= minTravel)
+            {
+                _patrolTargetX = candidateX;
+                return;
+            }
+
             _patrolDirection = -_patrolDirection;
-            candidateX = myX + _patrolDirection * dist;
         }
 
-        if (Mathf.Abs(candidateX - ownerPos.x) > _presentation.maxWanderRadiusFromPlayer)
-            candidateX = ownerPos.x + _patrolDirection * _presentation.maxWanderRadiusFromPlayer * 0.5f;
-
-        _patrolTargetX = candidateX;
+        _patrolTargetX = myX + _patrolDirection * Mathf.Max(minTravel, _presentation.wanderDistanceMin);
     }
 
     private void ApplyHorizontalFlightFacing(bool facingLeft)
@@ -515,6 +529,22 @@ public class HawkCompanionMinion : MonoBehaviour
     private bool CanEngageTargets() =>
         MinionControlService.CurrentStance != MinionControlStance.Passive;
 
+    private bool TryBeginStrikeIfReady()
+    {
+        if (!CanEngageTargets() ||
+            Time.time < _nextStrikeReadyTime ||
+            Time.time < _nextEnemyScanAt)
+            return false;
+
+        _nextEnemyScanAt = Time.time + EnemyScanIntervalSeconds;
+        EnemyBaseController enemy = ResolveStrikeTargetCandidate();
+        if (!enemy)
+            return false;
+
+        BeginDive(enemy);
+        return true;
+    }
+
     private EnemyBaseController ResolveStrikeTargetCandidate()
     {
         MinionControlStance stance = MinionControlService.CurrentStance;
@@ -529,7 +559,7 @@ public class HawkCompanionMinion : MonoBehaviour
             return GetOwnerCurrentTarget();
         }
 
-        return FindRandomEnemyInRange(GetOwnerPosition(), _presentation.attackRange);
+        return FindRandomEnemyInRange(transform.position, _presentation.attackRange);
     }
 
     private void ApplyDiveFacingRotation(Vector3 toStrike)

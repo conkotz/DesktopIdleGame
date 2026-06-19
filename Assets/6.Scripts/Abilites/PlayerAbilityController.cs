@@ -54,6 +54,9 @@ public partial class PlayerAbilityController : MonoBehaviour
                               _instance._whirlwindChanneling || _instance._bladestormRoutine != null ||
                               _instance._flameChargeRoutine != null || _instance._snipeCharging);
 
+    /// <summary>True during the Flame Charge dash window; click-to-move keeps its destination (same as sprint dash).</summary>
+    public static bool IsFlameChargeDashing { get; private set; }
+
     public static bool IsWhirlwindAutoChanneling =>
         _instance != null && _instance._whirlwindChanneling && _instance._whirlwindAutoChanneling;
 
@@ -1187,7 +1190,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
             abilityVfx?.EndFlameChargePlayerGlow();
             player?.SetTeleportDamageImmune(false);
-            player?.SetMovementLocked(false);
+            IsFlameChargeDashing = false;
             _flameChargeChargesInitialized = false;
             _flameChargePerChargeCooldownEnds = Array.Empty<float>();
             return;
@@ -9763,7 +9766,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         bool volcanic = enhance == 1;
         bool blockOverlappingTrails = enhance == 0;
 
-        player.SetMovementLocked(true);
+        player.InterruptForSprintDash();
+        IsFlameChargeDashing = true;
         player.SetTeleportDamageImmune(true);
         player.TriggerAttackAnimVisualOnly();
         abilityVfx?.BeginFlameChargePlayerGlow();
@@ -9777,36 +9781,41 @@ public partial class PlayerAbilityController : MonoBehaviour
         float traveled = 0f;
         float nextTrailAt = 0f;
 
-        for (float t = 0f; t < dashDuration; t += Time.deltaTime)
+        try
         {
-            float u = Mathf.Clamp01(t / dashDuration);
-            Vector3 pos = Vector3.Lerp(start, end, u);
-            player.SetHorizontalPositionForScriptedMove(pos.x, facing, laneRefX);
+            for (float t = 0f; t < dashDuration; t += Time.deltaTime)
+            {
+                float u = Mathf.Clamp01(t / dashDuration);
+                Vector3 pos = Vector3.Lerp(start, end, u);
+                player.SetHorizontalPositionForScriptedMove(pos.x, facing, laneRefX);
 
-            traveled = Vector3.Distance(start, pos);
-            while (traveled >= nextTrailAt)
+                traveled = Vector3.Distance(start, pos);
+                while (traveled >= nextTrailAt)
+                {
+                    TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);
+                    nextTrailAt += AbilityCombatPower.FlameChargeTrailSegmentSpacing;
+                }
+
+                yield return null;
+            }
+
+            player.SetHorizontalPositionForScriptedMove(end.x, facing, laneRefX);
+            while (traveled >= nextTrailAt - 0.001f)
             {
                 TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);
                 nextTrailAt += AbilityCombatPower.FlameChargeTrailSegmentSpacing;
             }
 
-            yield return null;
+            if (volcanic)
+                ApplyFlameChargeVolcanicExplosion(def, end);
         }
-
-        player.SetHorizontalPositionForScriptedMove(end.x, facing, laneRefX);
-        while (traveled >= nextTrailAt - 0.001f)
+        finally
         {
-            TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);
-            nextTrailAt += AbilityCombatPower.FlameChargeTrailSegmentSpacing;
+            abilityVfx?.EndFlameChargePlayerGlow();
+            player.SetTeleportDamageImmune(false);
+            IsFlameChargeDashing = false;
+            _flameChargeRoutine = null;
         }
-
-        if (volcanic)
-            ApplyFlameChargeVolcanicExplosion(def, end);
-
-        abilityVfx?.EndFlameChargePlayerGlow();
-        player.SetTeleportDamageImmune(false);
-        player.SetMovementLocked(false);
-        _flameChargeRoutine = null;
     }
 
     private void TrySpawnFlameChargeTrailSegment(
@@ -9919,6 +9928,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             StopCoroutine(_flameChargeRoutine);
             _flameChargeRoutine = null;
         }
+
+        IsFlameChargeDashing = false;
 
         if (_activeSoulforgedWeaponMinions.Count > 0)
         {

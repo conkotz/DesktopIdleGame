@@ -896,10 +896,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(rangedDamageBonusText);
         Wire(abilityPowerText);
         Wire(cooldownReductionText);
-        Wire(minionDamageText);
-        Wire(minionAttackSpeedText);
-        Wire(minionCritChanceText);
-        Wire(minionMaxLifeText);
+        WireFixedGuardLine(minionDamageText, "MinionDamageText");
+        WireFixedGuardLine(minionAttackSpeedText, "MinionAttackSpeedText");
+        WireFixedGuardLine(minionCritChanceText, "MinionCritChanceText");
+        WireFixedGuardLine(minionMaxLifeText, "MinionMaxLifeText");
         WireFixedGuardLine(guardFlatText, "GuardFlatText");
         WireFixedGuardLine(maxGuardPercentText, "MaxGuardPercentText");
 
@@ -940,13 +940,19 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 case "ConditionalRangedPhysBonusText":
                 case "MinionDamageText":
                 case "ConditionalMinionDmgText":
+                    WireFixedGuardLine(tmp, "MinionDamageText");
+                    break;
                 case "MinionAttackSpeedText":
                 case "ConditionalMinionAtkSpeedText":
+                    WireFixedGuardLine(tmp, "MinionAttackSpeedText");
+                    break;
                 case "MinionCritChanceText":
                 case "ConditionalMinionCritRateText":
+                    WireFixedGuardLine(tmp, "MinionCritChanceText");
+                    break;
                 case "MinionMaxLifeText":
                 case "ConditionalMinionMaxLifeText":
-                    Wire(tmp);
+                    WireFixedGuardLine(tmp, "MinionMaxLifeText");
                     break;
             }
         }

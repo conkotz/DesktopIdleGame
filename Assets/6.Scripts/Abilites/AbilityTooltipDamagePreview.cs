@@ -28,10 +28,6 @@ public static class AbilityTooltipDamagePreview
     private const string InheritMinionDamageRuleLine =
         "This minion inherits a portion of the damage from your total damage";
 
-    /// <summary>Blue scaling line for inherit Soulforged-style minions (matches Power Slash "Deals %..." accent).</summary>
-    private const string InheritMinionDealsBonusScalingLine =
-        "Deals bonus damage from minion damage scaling (reduced for inherited minions)";
-
     private const int SoulforgedWeaponChoiceSourceLevel = AbilityCombatPower.SoulforgedWeaponEnhancementSourceLevel;
     private const int SoulforgedWeaponSwarmChoiceIndex = AbilityCombatPower.SoulforgedWeaponSwarmChoiceIndex;
     private const int SoulforgedWeaponExtendedDurationChoiceIndex = AbilityCombatPower.SoulforgedWeaponExtendedDurationChoiceIndex;
@@ -701,6 +697,10 @@ public static class AbilityTooltipDamagePreview
                 AppendMinionSpawnTooltipScalingLines(scaling, S, def, stats);
             else
                 AppendMinionSpawnTooltipScalingLinesNoStats(scaling, S, def);
+
+            if (IsHawkCompanion(def))
+                AppendHawkCompanionRangedLevelScalingLine(scaling, S, skillsManager);
+
             return scaling.ToString().TrimEnd();
         }
 
@@ -1907,7 +1907,7 @@ public static class AbilityTooltipDamagePreview
         System.Func<string, string> S,
         AbilityDefinition def)
     {
-        AppendMinionOwnerScalingPercentLines(body, S, null, includeMaxHp: !IsHawkCompanion(def));
+        AppendMinionOwnerScalingPercentLines(body, S, def, null);
     }
 
     private static void AppendMinionSpawnTooltipEffectLines(
@@ -1932,25 +1932,53 @@ public static class AbilityTooltipDamagePreview
         AbilityDefinition def,
         CharacterStats stats)
     {
-        AppendMinionOwnerScalingPercentLines(body, S, stats, includeMaxHp: !IsHawkCompanion(def));
+        AppendMinionOwnerScalingPercentLines(body, S, def, stats);
     }
 
     private static void AppendMinionOwnerScalingPercentLines(
         StringBuilder body,
         System.Func<string, string> S,
-        CharacterStats stats,
-        bool includeMaxHp)
+        AbilityDefinition def,
+        CharacterStats stats)
     {
+        MinionDefinition minionDef = def != null ? def.minionSpawnDefinition : null;
+        MinionCombatConfig cfg = minionDef != null
+            ? MinionCombatConfig.AfterDeserialize(minionDef.combatConfig)
+            : default;
+
+        float ownerBonusScale = cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit
+            ? MinionRuntimeStatsCalculator.InheritMinionOwnerBonusScale
+            : 1f;
+
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+        {
+            float inheritPct = Mathf.Max(0f, cfg.inheritDamageCoefficient) * 100f;
+            body.AppendLine(S($"{inheritPct:0.#}% inherited weapon damage"));
+        }
+
         float dmgPct = stats != null ? stats.FinalMinionDamagePercentPoints : 0f;
         float apsPct = stats != null ? stats.FinalMinionAttackSpeedPercentPoints : 0f;
         float critPct = stats != null ? stats.FinalMinionCritChancePercentPoints : 0f;
         float hpPct = stats != null ? stats.FinalMinionMaxLifePercentPoints : 0f;
 
-        body.AppendLine(S($"{FormatSignedPercentPointsForTooltip(dmgPct)} damage from your minion damage"));
-        body.AppendLine(S($"{FormatSignedPercentPointsForTooltip(apsPct)} attack speed from your minion attack speed"));
-        body.AppendLine(S($"{FormatSignedPercentPointsForTooltip(critPct)} crit chance from your minion crit chance"));
-        if (includeMaxHp)
-            body.AppendLine(S($"{FormatSignedPercentPointsForTooltip(hpPct)} max HP from your minion max HP"));
+        body.AppendLine(S(FormatMinionBoostStatLine(dmgPct, ownerBonusScale, "minion damage")));
+        body.AppendLine(S(FormatMinionBoostStatLine(apsPct, ownerBonusScale, "minion attack speed")));
+        body.AppendLine(S(FormatMinionBoostStatLine(critPct, ownerBonusScale, "minion crit chance")));
+        if (MinionDefinitionHasHealth(minionDef))
+            body.AppendLine(S(FormatMinionBoostStatLine(hpPct, ownerBonusScale, "minion max HP")));
+    }
+
+    private static bool MinionDefinitionHasHealth(MinionDefinition minionDef) =>
+        minionDef && (minionDef.ownerMaxHealthFraction > 0f || minionDef.baseMaxHealth > 0f);
+
+    private static string FormatMinionBoostStatLine(float ownerPercentPoints, float ownerBonusScale, string label)
+    {
+        if (Mathf.Approximately(ownerBonusScale, 1f))
+            return $"{FormatSignedPercentPointsForTooltip(ownerPercentPoints)} {label}";
+
+        float effective = ownerPercentPoints * ownerBonusScale;
+        return
+            $"{FormatSignedPercentPointsForTooltip(effective)} ({FormatSignedPercentPointsForTooltip(ownerPercentPoints)}) {label}";
     }
 
     /// <summary>Flat damage from owner Minion Damage % on one hit (matches runtime × pre-hit base; inherit uses half scaling).</summary>
@@ -2235,7 +2263,7 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O("Inherits your maximum health and basic defences (armour, magic resist and corruption resist)."));
         body.AppendLine(O("Summons a soulforged clone."));
         body.AppendLine(O(
-            $"Releases a warcry on summon, then every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#}s, granting allies within {AbilityCombatPower.SoulforgedWarriorWarcryAllyRange:0.#} range +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
+            $"Releases a warcry every {AbilityCombatPower.SoulforgedWarriorWarcryIntervalSeconds:0.#} seconds (the first at {AbilityCombatPower.SoulforgedWarriorWarcryFirstDelaySeconds:0.#}s), granting allies +{AbilityCombatPower.SoulforgedWarriorWarcryPhysicalDamageBonus * 100f:0.#}% physical damage for {AbilityCombatPower.SoulforgedWarriorWarcryBuffDurationSeconds:0.#}s."));
         AppendSoulforgedWarriorEnhancementLines(body, O, skillsManager);
         float dur = def?.minionSpawnDefinition != null
             ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
@@ -2286,7 +2314,15 @@ public static class AbilityTooltipDamagePreview
     {
         body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseMinPhysical:0.#} - {AbilityCombatPower.HawkCompanionBaseMaxPhysical:0.#} damage on hit"));
         body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseAttackSpeed} attacks per second"));
-        body.AppendLine(O($"+{AbilityCombatPower.HawkCompanionPhysicalPerTwoRangedLevels:0.#} physical damage every 2 ranged levels"));
+    }
+
+    private static void AppendHawkCompanionRangedLevelScalingLine(
+        StringBuilder body,
+        System.Func<string, string> S,
+        SkillsManager skillsManager)
+    {
+        body.AppendLine(S(
+            $"+{AbilityCombatPower.HawkCompanionPhysicalPerTwoRangedLevels:0.#} physical damage every 2 ranged levels"));
     }
 
     private static void AppendHawkCompanionTooltipEffectLines(
@@ -2308,7 +2344,6 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"+{mdFlat} damage from Minion Damage{dmgSuffix}"));
         body.AppendLine(O($"{minD} - {maxD} damage on hit"));
         body.AppendLine(O($"{AbilityCombatPower.HawkCompanionBaseAttackSpeed} attacks per second"));
-        body.AppendLine(O($"+{AbilityCombatPower.HawkCompanionPhysicalPerTwoRangedLevels:0.#} physical damage every 2 ranged levels"));
 
         if (!includeEnhancementEffects || skillsManager == null)
             return;

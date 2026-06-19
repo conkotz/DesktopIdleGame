@@ -268,25 +268,14 @@ public class SoulforgedWarriorMinion : MonoBehaviour
 
     private void ApplyWarcryAllyBuffs()
     {
-        float range = AbilityCombatPower.SoulforgedWarriorWarcryAllyRange;
-        float rangeSq = range * range;
-        Vector3 myPos = transform.position;
-
         if (_ownerStats)
-        {
-            float distSq = (_ownerStats.transform.position - myPos).sqrMagnitude;
-            if (distSq <= rangeSq)
-                ApplyPhysicalBuffToCharacter(_ownerStats);
-        }
+            ApplyPhysicalBuffToCharacter(_ownerStats);
 
         IReadOnlyList<MinionCombatTarget> allies = MinionCombatTarget.ActiveTargets;
         for (int i = 0; i < allies.Count; i++)
         {
             MinionCombatTarget ally = allies[i];
             if (!ally || ally == combatTarget || !ally.IsAlive)
-                continue;
-
-            if ((ally.transform.position - myPos).sqrMagnitude > rangeSq)
                 continue;
 
             ApplyPhysicalBuffToCharacter(ally.Stats);

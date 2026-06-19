@@ -1106,7 +1106,7 @@ public class PlayerController : MonoBehaviour
         _keyboardManualMoveThisFrame = false;
         _keyboardSteerDir = 0f;
 
-        if (movementLocked || _isDead)
+        if (movementLocked || _isDead || IsScriptedHorizontalDashActive)
         {
             _keyboardSteerNotified = false;
             return;
@@ -1147,7 +1147,7 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyKeyboardMovementDelta()
     {
-        if (PlayerSprintInput.IsSprintDashing)
+        if (IsScriptedHorizontalDashActive)
             return;
 
         if (!_keyboardManualMoveThisFrame || Mathf.Abs(_keyboardSteerDir) < 0.01f)
@@ -1928,7 +1928,10 @@ public class PlayerController : MonoBehaviour
         MerchantClick.CancelPendingOpen();
     }
 
-    /// <summary>Interrupts gather/pickup paths when the player starts a sprint dash; click-to-move and combat chase keep their destination.</summary>
+    private static bool IsScriptedHorizontalDashActive =>
+        PlayerSprintInput.IsSprintDashing || PlayerAbilityController.IsFlameChargeDashing;
+
+    /// <summary>Interrupts gather/pickup paths when the player starts a scripted dash; click-to-move and combat chase keep their destination.</summary>
     public void InterruptForSprintDash()
     {
         if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
@@ -2235,7 +2238,7 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToPoint()
     {
-        if (PlayerSprintInput.IsSprintDashing)
+        if (IsScriptedHorizontalDashActive)
             return;
 
         if (_keyboardManualMoveThisFrame)

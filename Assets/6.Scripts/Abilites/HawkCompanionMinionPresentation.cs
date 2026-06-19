@@ -87,7 +87,7 @@ public struct HawkCompanionMinionPresentation
         horizontalFlightSpeed = 3.375f,
         wanderDistanceMin = 1f,
         wanderDistanceMax = 3f,
-        maxWanderRadiusFromPlayer = 3f,
+        maxWanderRadiusFromPlayer = 4f,
         followStopDistance = 2.5f,
         maxLeashDistanceFromPlayer = AbilityCombatPower.SoulforgedWarriorMaxLeashDistance,
         idleWanderDelaySeconds = 0.1f,
