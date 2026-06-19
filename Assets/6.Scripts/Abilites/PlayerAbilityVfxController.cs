@@ -308,6 +308,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float seekerArrowTrailStartAlpha = 0.95f;
     [SerializeField] private Color seekerArrowTrailColor = Color.white;
 
+    [Header("Lightning Rod (Range Lv15) VFX")]
+    [SerializeField] private Sprite lightningRodSprite;
+    [SerializeField] private Color lightningRodTint = Color.white;
+    [SerializeField, Min(0.5f)] private float lightningRodWorldScale = 1.5f;
+    [SerializeField, Min(0f)] private float lightningRodGroundYOffset = 0f;
+    [SerializeField] private string lightningRodSortingLayer = "Foreground";
+    [SerializeField] private int lightningRodSortingOrder = 10;
+
     [Header("War Banner (Melee Lv35) VFX")]
     [SerializeField] private Sprite warBannerSprite;
     [SerializeField] private Color warBannerTint = Color.white;
@@ -418,6 +426,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private float _nextWarBannerOverlapCheckTime;
     private float _nextWarBannerSortRefreshTime;
     private bool _lastWarBannerOverlapState;
+    private GameObject _lightningRodVisualRoot;
+    private SpriteRenderer _lightningRodRenderer;
+    private bool _lightningRodAnchored;
     private GameObject _hammerTempestOrbitRoot;
     private Coroutine _hammerTempestOrbitRoutine;
     private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
@@ -517,6 +528,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroyEnergyInfusionGlowVfx();
         EndSnipeChargeVfx();
         StopWarBannerVfx();
+        StopLightningRodVfx();
         DestroyHammerTempestOrbitVfx();
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
@@ -3934,6 +3946,110 @@ public class PlayerAbilityVfxController : MonoBehaviour
             _warBannerVisualRoot = null;
             _warBannerRenderer = null;
         }
+    }
+
+    public void AnchorLightningRodAt(Vector3 impactWorldPosition)
+    {
+        EnsureLightningRodVisuals();
+        ApplyLightningRodVisualSettings();
+        EnsureLightningRodParentedToWorldContent();
+        _lightningRodAnchored = true;
+        SnapLightningRodSpriteBottomToWorldY(impactWorldPosition.x, GetLightningRodLandingBottomWorldY());
+        EnsureLightningRodRendererVisible();
+    }
+
+    public void MaintainLightningRodAt(Vector3 worldPoint)
+    {
+        if (!_lightningRodAnchored || _lightningRodVisualRoot == null)
+            return;
+
+        EnsureLightningRodParentedToWorldContent();
+        SnapLightningRodSpriteBottomToWorldY(worldPoint.x, GetLightningRodLandingBottomWorldY());
+        EnsureLightningRodRendererVisible();
+    }
+
+    public void StopLightningRodVfx()
+    {
+        _lightningRodAnchored = false;
+        if (_lightningRodVisualRoot != null)
+        {
+            Destroy(_lightningRodVisualRoot);
+            _lightningRodVisualRoot = null;
+            _lightningRodRenderer = null;
+        }
+    }
+
+    private void EnsureLightningRodVisuals()
+    {
+        if (_lightningRodVisualRoot != null)
+            return;
+
+        _lightningRodVisualRoot = new GameObject("LightningRodVisual");
+        _lightningRodRenderer = _lightningRodVisualRoot.AddComponent<SpriteRenderer>();
+        ApplyLightningRodSorting(_lightningRodRenderer);
+    }
+
+    private void ApplyLightningRodVisualSettings()
+    {
+        if (_lightningRodRenderer == null)
+            return;
+
+        if (lightningRodSprite == null)
+            return;
+
+        _lightningRodRenderer.sprite = lightningRodSprite;
+        _lightningRodRenderer.color = lightningRodTint;
+        _lightningRodRenderer.transform.localScale = Vector3.one * lightningRodWorldScale;
+        EnsureLightningRodRendererVisible();
+    }
+
+    private void EnsureLightningRodRendererVisible()
+    {
+        if (_lightningRodRenderer == null)
+            return;
+
+        _lightningRodRenderer.enabled = lightningRodSprite != null;
+    }
+
+    private void EnsureLightningRodParentedToWorldContent()
+    {
+        if (_lightningRodVisualRoot == null)
+            return;
+
+        Transform parent = LaneGroundEffectPlacement.ResolveGroundEffectsRoot()
+            ?? LaneGroundEffectPlacement.ResolveLaneFloorTransform();
+        if (parent != null && _lightningRodVisualRoot.transform.parent != parent)
+            _lightningRodVisualRoot.transform.SetParent(parent, worldPositionStays: true);
+    }
+
+    private void SnapLightningRodSpriteBottomToWorldY(float worldX, float bottomWorldY)
+    {
+        if (_lightningRodVisualRoot == null || _lightningRodRenderer == null)
+            return;
+
+        Vector3 pos = _lightningRodVisualRoot.transform.position;
+        pos.x = worldX;
+        pos.z = 0f;
+        _lightningRodVisualRoot.transform.position = pos;
+
+        float deltaY = bottomWorldY - _lightningRodRenderer.bounds.min.y;
+        if (Mathf.Abs(deltaY) > 1e-5f)
+            _lightningRodVisualRoot.transform.position += new Vector3(0f, deltaY, 0f);
+    }
+
+    private float GetLightningRodLandingBottomWorldY()
+    {
+        float floorTop = LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+        return floorTop + lightningRodGroundYOffset;
+    }
+
+    private void ApplyLightningRodSorting(SpriteRenderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        renderer.sortingLayerName = lightningRodSortingLayer;
+        renderer.sortingOrder = lightningRodSortingOrder;
     }
 
     private void EnsureWarBannerVisuals()

@@ -394,6 +394,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsWarBanner(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.WarBannerAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsLightningRod(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.LightningRodAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsHammerTempest(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HammerTempestAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -769,6 +772,17 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsLightningRod(def))
+        {
+            AppendLightningRodRangedLevelScalingLine(scaling, S);
+            if (stats != null)
+            {
+                scaling.AppendLine(S(
+                    $"+{stats.LightningSkillDamageTotalScalingPercentPoints:0.#}% lightning damage"));
+            }
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsWhirlwind(def))
         {
             scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
@@ -1026,6 +1040,15 @@ public static class AbilityTooltipDamagePreview
             float dur = GetWarBannerTooltipDurationSeconds(def, skillsManager);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsLightningRod(def))
+        {
+            AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1622,6 +1645,9 @@ public static class AbilityTooltipDamagePreview
         if (IsWarBanner(def))
             return BuildWarBannerCompactEffectsBody(def, skillsManager, includeDuration, displayStacks, includeEnhancementEffects);
 
+        if (IsLightningRod(def))
+            return BuildLightningRodCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
+
         CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
             def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects, enhancementChoiceOverride);
@@ -1838,6 +1864,90 @@ public static class AbilityTooltipDamagePreview
     private static void AppendWarBannerBaseTooltipEffects(StringBuilder body, System.Func<string, string> O)
     {
         AppendWarBannerSkillTreeEffectLines(body, O, skillsManager: null, includeEnhancementEffects: false);
+    }
+
+    private static int GetLightningRodBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged,
+            AbilityCombatPower.LightningRodEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static void AppendLightningRodRangedLevelScalingLine(
+        StringBuilder body,
+        System.Func<string, string> S)
+    {
+        body.AppendLine(S(
+            $"+{AbilityCombatPower.LightningRodLightningPerTwoRangedLevels:0.#} lightning damage every 2 ranged levels"));
+    }
+
+    private static float GetLightningRodPeriodicArcIntervalForTooltip(
+        SkillsManager skillsManager,
+        bool includeEnhancementEffects)
+    {
+        if (includeEnhancementEffects
+            && GetLightningRodBranchChoice(skillsManager) == AbilityCombatPower.LightningRodEnh1FasterArcsChoiceIndex)
+        {
+            return AbilityCombatPower.LightningRodEnh1PeriodicArcIntervalSeconds;
+        }
+
+        return AbilityCombatPower.LightningRodPeriodicArcIntervalSeconds;
+    }
+
+    private static void AppendLightningRodTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        bool includeEnhancementEffects)
+    {
+        int rangedLevel = skillsManager != null ? skillsManager.GetLevel(SkillType.Ranged) : 0;
+        if (stats != null)
+        {
+            AbilityCombatPower.GetLightningRodArcDamageBounds(rangedLevel, stats, out float minD, out float maxD);
+            AppendDetailsEffectParagraph(body, O(
+                $"{Mathf.RoundToInt(minD)}–{Mathf.RoundToInt(maxD)} lightning damage on arc hits"));
+        }
+        else
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"{AbilityCombatPower.LightningRodBaseMinLightningDamage:0.#}–{AbilityCombatPower.LightningRodBaseMaxLightningDamage:0.#} lightning damage on arc hits"));
+        }
+
+        float periodicInterval = GetLightningRodPeriodicArcIntervalForTooltip(skillsManager, includeEnhancementEffects);
+        AppendDetailsEffectParagraph(body, O(
+            $"Lightning arcs up to {AbilityCombatPower.LightningRodMaxPeriodicArcTargets} enemies every {periodicInterval:0.#}s (one burst on spawn)"));
+        AppendDetailsEffectParagraph(body, O(
+            $"Lightning damage dealt to enemies within {AbilityCombatPower.LightningRodArcRange:0.#} range can surge back through the rod (max every {AbilityCombatPower.LightningRodSurgeCooldownSeconds:0.#}s)"));
+
+        if (!includeEnhancementEffects)
+            return;
+
+        int enhance = GetLightningRodBranchChoice(skillsManager);
+        if (enhance == AbilityCombatPower.LightningRodEnh2ExpiryChainChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                "On expiry, chains lightning to nearby enemies and applies shock"));
+        }
+    }
+
+    private static string BuildLightningRodCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool includeDuration,
+        bool includeEnhancementEffects)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        CharacterStats stats = FindLocalPlayerStats();
+        AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+        if (includeDuration)
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
+        return body.ToString().TrimEnd();
     }
 
     /// <summary>Legacy hook — ability combat stats belong in the details panel Effect column.</summary>

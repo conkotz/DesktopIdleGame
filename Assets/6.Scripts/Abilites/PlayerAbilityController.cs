@@ -686,6 +686,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
         abilityVfx?.StopWarBannerVfx();
+        abilityVfx?.StopLightningRodVfx();
         abilityVfx?.DestroyHammerTempestOrbitVfx();
     }
 
@@ -713,6 +714,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (_warBannerActive && _warBannerDeployed)
             return true;
+        if (_lightningRodActive)
+            return true;
         if (IsHammerTempestActive)
             return true;
         if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive)
@@ -738,7 +741,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (_cleavingChopActive || _spectralAxeActive || _avatarOfForestActive)
             return true;
-        if (_energyInfusionActive || _warBannerActive || IsHammerTempestActive)
+        if (_energyInfusionActive || _warBannerActive || _lightningRodActive || IsHammerTempestActive)
             return true;
         if (_whirlwindChanneling)
             return true;
@@ -774,6 +777,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncSpectralAxeHudBuff();
         CleanupWarBannerIfExpired();
         SyncWarBannerHudBuff();
+        CleanupLightningRodIfExpired();
+        SyncLightningRodHudBuff();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
         TickBattleEngineOverloadExpiry();
@@ -835,6 +840,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         CleanupWarBannerIfExpired();
         TickWarBanner();
         SyncWarBannerHudBuff();
+        CleanupLightningRodIfExpired();
+        TickLightningRod();
+        SyncLightningRodHudBuff();
         TickHammerTempest();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
@@ -1094,6 +1102,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return _energyInfusionActive;
         if (IsWarBannerAbilityId(abilityId))
             return IsWarBannerActive;
+        if (IsLightningRodAbilityId(abilityId))
+            return IsLightningRodActive;
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -1208,6 +1218,12 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (IsLightningRodAbilityId(abilityId))
+        {
+            ForceEndLightningRodEarly(applyCooldown: true, runExpiryChain: false);
+            return;
+        }
+
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndHammerTempestEarly(applyCooldown: true);
@@ -1297,6 +1313,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(AvatarOfTheForestId);
         TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.WarBannerAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.LightningRodAbilityId);
         TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
         TryEndLingeringIfRemovedFromActionBar(CrusaderStrikeId);
         TryEndLingeringIfRemovedFromActionBar(FlameChargeId);
@@ -3554,6 +3571,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsWarBannerAbilityId(def.abilityId) && (_warBannerCastRoutine != null || IsWarBannerActive))
             return false;
 
+        if (IsLightningRodAbilityId(def.abilityId) && IsLightningRodActive)
+            return false;
+
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
@@ -3686,6 +3706,14 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsWarBannerAbilityId(def.abilityId))
         {
             BeginWarBannerCast(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (IsLightningRodAbilityId(def.abilityId))
+        {
+            BeginLightningRodCast(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -4014,13 +4042,18 @@ public partial class PlayerAbilityController : MonoBehaviour
         int mag = Mathf.Max(0, Mathf.RoundToInt(hit.magic));
         int corr = Mathf.Max(0, Mathf.RoundToInt(hit.corruptionDamage));
         string sourceLabel = GetAbilityOutgoingDamageSourceLabel(def.abilityId);
-        int dealt = 0;
+        float physDealt = 0f;
+        float magDealt = 0f;
+        int corrDealt = 0;
         if (phys > 0)
-            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
+            physDealt = Mathf.Max(0f, target.TakeDamage(phys, DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel));
         if (mag > 0)
-            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
+            magDealt = Mathf.Max(0f, target.TakeDamage(mag, DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel));
         if (corr > 0)
-            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
+            corrDealt = target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
+
+        TryNotifyLightningRodSurgeFromDealt(target, physDealt, magDealt, sourceLabel);
+        int dealt = Mathf.RoundToInt(physDealt + magDealt + corrDealt);
 
         TryGrantBattleEngineEnergyOnAbilityHit(def, dealt > 0);
 
@@ -6609,7 +6642,31 @@ public partial class PlayerAbilityController : MonoBehaviour
             combat?.TryApplySecondarySpecialistDualWieldFollowUp(target, hit, wasCrit);
         }
 
+        TryNotifyLightningRodSurgeFromDealt(target, result.physical, result.magic, sourceLabel);
+
         return result;
+    }
+
+    private void TryNotifyLightningRodSurgeFromDealt(
+        EnemyBaseController target,
+        float physicalDealt,
+        float magicDealt,
+        string outgoingDamageSourceLabel)
+    {
+        if (target == null || magicDealt <= 0f)
+            return;
+
+        if (string.Equals(
+                outgoingDamageSourceLabel,
+                AbilityCombatPower.LightningRodOutgoingDamageSourceLabel,
+                System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        float lightningDealt = EstimateLightningDamagePortion(physicalDealt, magicDealt);
+        if (lightningDealt > 0f)
+            TryLightningRodSurgeOnLightningHit(target, lightningDealt);
     }
 
     private DealtHit ApplyAbilitySplitDamageToEnemy(
@@ -8889,6 +8946,9 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         // Timed buff overlaps cast cooldown (same contract as Energy Infusion / Cleaving Strikes).
         if (IsWarBannerAbilityId(id))
+            return;
+
+        if (IsLightningRodAbilityId(id))
             return;
 
         if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)

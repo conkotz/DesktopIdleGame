@@ -3093,7 +3093,53 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats != null && result.Total > 0f)
             HuntersMarkCombat.TryApplyFromPlayerHit(target, stats, result.Total);
 
+        TryNotifyLightningRodSurge(target, result.physical, result.magic, sourceLabel);
+
         return result;
+    }
+
+    private void TryNotifyLightningRodSurge(
+        EnemyBaseController target,
+        float physicalDealt,
+        float magicDealt,
+        string outgoingDamageSourceLabel)
+    {
+        if (abilityController == null || target == null || magicDealt <= 0f)
+            return;
+
+        if (string.Equals(
+                outgoingDamageSourceLabel,
+                AbilityCombatPower.LightningRodOutgoingDamageSourceLabel,
+                System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        float lightningDealt = abilityController.EstimateLightningDamagePortion(physicalDealt, magicDealt);
+        if (lightningDealt <= 0f)
+            return;
+
+        abilityController.TryLightningRodSurgeOnLightningHit(target, lightningDealt);
+    }
+
+    /// <summary>Owner-sourced lightning hits (minions, etc.) that bypass split-damage estimation.</summary>
+    public void NotifyLightningRodSurgeFromLightningHit(
+        EnemyBaseController target,
+        float lightningDealt,
+        string outgoingDamageSourceLabel)
+    {
+        if (abilityController == null || target == null || lightningDealt <= 0f)
+            return;
+
+        if (string.Equals(
+                outgoingDamageSourceLabel,
+                AbilityCombatPower.LightningRodOutgoingDamageSourceLabel,
+                System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        abilityController.TryLightningRodSurgeOnLightningHit(target, lightningDealt);
     }
 
     private bool HasAilmentConditionalDamageBonusOnTarget(EnemyBaseController target)

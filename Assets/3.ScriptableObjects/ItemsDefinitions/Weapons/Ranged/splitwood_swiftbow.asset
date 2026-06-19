@@ -29,13 +29,14 @@ MonoBehaviour:
   rarity: 1
   value: 150
   equipSlot: 1
+  uniquelyEquipped: 0
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
   weaponStats:
-    minPhysicalDamage: 8
-    maxPhysicalDamage: 13
+    minPhysicalDamage: 4
+    maxPhysicalDamage: 7
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -72,7 +73,6 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -115,7 +115,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0
+    meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -192,6 +192,7 @@ MonoBehaviour:
     secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -230,6 +231,9 @@ MonoBehaviour:
     destroyChanceOnFailure: 0
     cursed: 0
     allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 0
+    modRolls: []
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

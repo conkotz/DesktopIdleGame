@@ -650,7 +650,7 @@ public class HawkCompanionMinion : MonoBehaviour
             int lightning = Mathf.RoundToInt(total);
             if (lightning > 0)
             {
-                enemy.TakeDamage(
+                int dealt = enemy.TakeDamage(
                     lightning,
                     DamageType.Magic,
                     crit,
@@ -658,6 +658,8 @@ public class HawkCompanionMinion : MonoBehaviour
                     null,
                     DpsDamageBucket.Minion,
                     outgoingDpsSourceLabel: label);
+                if (dealt > 0)
+                    NotifyOwnerLightningRodSurge(enemy, dealt, label);
             }
 
             TryApplyLightningShock(enemy, atk);
@@ -691,6 +693,24 @@ public class HawkCompanionMinion : MonoBehaviour
                 label,
                 attributeOutgoingToMinion: true);
         }
+    }
+
+    private void NotifyOwnerLightningRodSurge(
+        EnemyBaseController enemy,
+        float lightningDealt,
+        string outgoingSourceLabel)
+    {
+        if (enemy == null || lightningDealt <= 0f)
+            return;
+
+        Transform owner = _attackerTransform != null ? _attackerTransform : _homeAnchor;
+        if (owner == null)
+            return;
+
+        PlayerCombatController combat = owner.GetComponent<PlayerCombatController>();
+        if (combat == null)
+            combat = owner.GetComponentInParent<PlayerCombatController>();
+        combat?.NotifyLightningRodSurgeFromLightningHit(enemy, lightningDealt, outgoingSourceLabel);
     }
 
     private void TryApplyLightningShock(EnemyBaseController enemy, Transform atk)

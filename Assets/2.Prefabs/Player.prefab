@@ -5950,6 +5950,12 @@ MonoBehaviour:
   warBannerFadeWhenPlayerOverlaps: 1
   warBannerOverlapAlpha: 0.5
   warBannerOverlapScanInterval: 0.1
+  lightningRodSprite: {fileID: 2102038073974554466, guid: 4df046dc9f6d1bb47a03b220ae6e9f56, type: 3}
+  lightningRodTint: {r: 1, g: 1, b: 1, a: 1}
+  lightningRodWorldScale: 1.5
+  lightningRodGroundYOffset: 0
+  lightningRodSortingLayer: Foreground
+  lightningRodSortingOrder: 10
   hammerTempestHammerSprite: {fileID: 4687727764133868624, guid: a6c8e023557d16f4c8968c13917dd559, type: 3}
   hammerTempestHammerTint: {r: 1, g: 0.92, b: 0.35, a: 1}
   hammerTempestCenterOffset: {x: 0, y: 0.75, z: 0}

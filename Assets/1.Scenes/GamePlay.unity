@@ -133020,97 +133020,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 828170804}
   m_CullTransparentMesh: 1
---- !u!1 &828333807
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 828333809}
-  - component: {fileID: 828333808}
-  m_Layer: 0
-  m_Name: Segment0
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!212 &828333808
-SpriteRenderer:
-  serializedVersion: 2
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 828333807}
-  m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: -588798813
-  m_SortingLayer: 5
-  m_SortingOrder: 42
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: -2288160928693112098, guid: 8f9158092eccc7f4bb7f36d12f464c97, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 11.9116335, y: 1.35}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 0
-  m_SpriteSortPoint: 0
---- !u!4 &828333809
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 828333807}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.52, y: 0.58, z: 0}
-  m_LocalScale: {x: 0.33580616, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &828995615
 GameObject:
   m_ObjectHideFlags: 0
@@ -304136,6 +304045,7 @@ MonoBehaviour:
   minusLevelButton: {fileID: 1273490502}
   addResourcesButton: {fileID: 262442159}
   addGoldButton: {fileID: 1930290508}
+  addCombatItemsButton: {fileID: 0}
   devWeaponButton: {fileID: 401800553}
   skipTutorialButton: {fileID: 2097416002}
   resetCooldownsButton: {fileID: 469032140}
@@ -304154,9 +304064,12 @@ MonoBehaviour:
   logsDef: {fileID: 0}
   stoneChunkDef: {fileID: 0}
   devDestroyerMaceDef: {fileID: 0}
+  splitwoodArrowDef: {fileID: 0}
+  hardwoodArrowDef: {fileID: 0}
   grantResourcePackStoneFishLogs: 100
   grantResourcePackLinenLeather: 50
   grantGoldAmount: 50000
+  grantCombatArrowAmount: 500
 --- !u!114 &2009123729
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -322186,4 +322099,3 @@ SceneRoots:
   - {fileID: 852128585}
   - {fileID: 2041091447}
   - {fileID: 2032161452}
-  - {fileID: 828333809}

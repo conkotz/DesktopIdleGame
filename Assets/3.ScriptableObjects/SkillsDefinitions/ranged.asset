@@ -407,6 +407,37 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 15
+    title: Lightning Rod
+    description: Drop a lightning rod at the target location. Hitting an enemy with lightning
+      damage near the rod causes a surge of electricity to arc to that enemy. Lightning
+      also arcs out occasionally to nearby enemies.
+    icon: {fileID: 2102038073974554466, guid: 4df046dc9f6d1bb47a03b220ae6e9f56, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: b5a1b3cf67260d69be797ff588bb6fb5, type: 2}
+    presentation: {fileID: 11400000, guid: 8bc64a0540661020b8b53b6782548c89, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Rapid Discharge
+      description: Reduce the frequency of periodic lightning arcs to 4 seconds.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Final Surge
+      description: On expiry the rod emits a chaining arc that spreads to nearby enemies
+        and applies shock.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Static Arrows I
     description: +5% Ranged Shock Chance

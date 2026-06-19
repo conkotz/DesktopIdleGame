@@ -31,6 +31,52 @@ public static class AbilityCombatPower
     public const float StaticArrowsCritArcRange = 10f;
     public const float StaticArrowsCritArcDamageFraction = 0.5f;
     public const string StaticArrowsChainLightningOutgoingDamageSourceLabel = "Static Arrows (Chain Lightning)";
+    public const string LightningRodAbilityId = "lightning_rod";
+    public const string LightningRodEnhancementParentSpineNodeId = "Lv15_0";
+    public const int LightningRodEnh1FasterArcsChoiceIndex = 0;
+    public const int LightningRodEnh2ExpiryChainChoiceIndex = 1;
+    public const float LightningRodBaseDurationSeconds = 20f;
+    public const float LightningRodArcRange = 8f;
+    public const int LightningRodMaxPeriodicArcTargets = 5;
+    public const float LightningRodPeriodicArcIntervalSeconds = 5f;
+    public const float LightningRodEnh1PeriodicArcIntervalSeconds = 4f;
+    public const float LightningRodSurgeCooldownSeconds = 2f;
+    public const float LightningRodBaseMinLightningDamage = 10f;
+    public const float LightningRodBaseMaxLightningDamage = 20f;
+    public const float LightningRodLightningPerTwoRangedLevels = 1f;
+    public const int LightningRodUnlockLevel = 15;
+    public const string LightningRodOutgoingDamageSourceLabel = "Lightning Rod";
+
+    /// <summary>+N damage every two ranged levels after <paramref name="abilityUnlockLevel"/> (unlock level uses base damage only).</summary>
+    public static float ComputeRangedLevelBonusAfterUnlock(
+        int rangedLevel,
+        int abilityUnlockLevel,
+        float bonusPerTwoLevels)
+    {
+        int levelsPastUnlock = Mathf.Max(0, rangedLevel - abilityUnlockLevel);
+        return bonusPerTwoLevels * Mathf.Floor(levelsPastUnlock / 2f);
+    }
+
+    public static void GetLightningRodArcDamageBounds(
+        int rangedLevel,
+        CharacterStats stats,
+        out float minDamage,
+        out float maxDamage)
+    {
+        float bonus = ComputeRangedLevelBonusAfterUnlock(
+            rangedLevel,
+            LightningRodUnlockLevel,
+            LightningRodLightningPerTwoRangedLevels);
+        minDamage = LightningRodBaseMinLightningDamage + bonus;
+        maxDamage = LightningRodBaseMaxLightningDamage + bonus;
+
+        if (stats == null)
+            return;
+
+        float lightningMult = 1f + stats.LightningSkillDamageTotalScalingPercentPoints / 100f;
+        minDamage *= lightningMult;
+        maxDamage *= lightningMult;
+    }
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
     public const int SnipeFasterChargeChoiceIndex = 0;
