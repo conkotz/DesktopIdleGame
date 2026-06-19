@@ -72,6 +72,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     public bool ForceUnarmed { get; private set; }
     private bool _suppressSaveForSetSwap;
     private bool _suppressGearSlotUiEventsForSetSwap;
+    private bool _coalesceVisualsChangedDuringSetSwap;
 
     public const float WeaponSetSwapCooldownSeconds = 2f;
     private float _weaponSetSwapLockedUntilUnscaled = -999f;
@@ -272,16 +273,26 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // -------------------------
     private void NotifyMainHandChanged()
     {
-        OnMainHandChanged?.Invoke(MainHandItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.MainHand, MainHandItemId);
-        OnVisualsChanged?.Invoke();
+        if (!_suppressGearSlotUiEventsForSetSwap)
+        {
+            OnMainHandChanged?.Invoke(MainHandItemId);
+            OnUISlotChanged?.Invoke(EquipmentUISlotType.MainHand, MainHandItemId);
+        }
+
+        if (!_coalesceVisualsChangedDuringSetSwap)
+            OnVisualsChanged?.Invoke();
     }
 
     private void NotifyOffHandChanged()
     {
-        OnOffHandChanged?.Invoke(OffHandItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.OffHand, OffHandItemId);
-        OnVisualsChanged?.Invoke();
+        if (!_suppressGearSlotUiEventsForSetSwap)
+        {
+            OnOffHandChanged?.Invoke(OffHandItemId);
+            OnUISlotChanged?.Invoke(EquipmentUISlotType.OffHand, OffHandItemId);
+        }
+
+        if (!_coalesceVisualsChangedDuringSetSwap)
+            OnVisualsChanged?.Invoke();
     }
 
     private void NotifyOffHandStackChanged(int stackAmount)
@@ -293,16 +304,15 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         NotifyMainHandChanged();
         NotifyOffHandChanged();
-        OnActiveSetChanged?.Invoke(activeWeaponSetIndex);
+
+        if (!_suppressGearSlotUiEventsForSetSwap)
+            OnActiveSetChanged?.Invoke(activeWeaponSetIndex);
     }
 
     private void NotifyGearSlotsChanged()
     {
         if (_suppressGearSlotUiEventsForSetSwap)
-        {
-            OnVisualsChanged?.Invoke();
             return;
-        }
 
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, GetHelmetForSet(activeWeaponSetIndex));
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, GetBodyForSet(activeWeaponSetIndex));
@@ -311,6 +321,20 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, GetPendantForSet(activeWeaponSetIndex));
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, GetRing1ForSet(activeWeaponSetIndex));
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, GetRing2ForSet(activeWeaponSetIndex));
+
+        if (!_coalesceVisualsChangedDuringSetSwap)
+            OnVisualsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// One batched notify after a weapon-set swap. Skips per-armor UISlot spam; slot UIs repaint from
+    /// <see cref="OnActiveSetChanged"/> and listeners still get main/off-hand changes for vitals/combat power.
+    /// </summary>
+    private void PublishWeaponSetSwapCompleted()
+    {
+        OnMainHandChanged?.Invoke(MainHandItemId);
+        OnOffHandChanged?.Invoke(OffHandItemId);
+        OnActiveSetChanged?.Invoke(activeWeaponSetIndex);
         OnVisualsChanged?.Invoke();
     }
 
@@ -926,17 +950,17 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         _suppressSaveForSetSwap = true;
         _suppressGearSlotUiEventsForSetSwap = true;
+        _coalesceVisualsChangedDuringSetSwap = true;
         try
         {
             activeWeaponSetIndex = NormalizeSetIndex(nextSetIndex);
-            NotifyWeaponSetChanged();
-            NotifyGearSlotsChanged();
         }
         finally
         {
             _suppressGearSlotUiEventsForSetSwap = false;
+            _coalesceVisualsChangedDuringSetSwap = false;
             _suppressSaveForSetSwap = false;
-            NotifyGearSlotsChanged();
+            PublishWeaponSetSwapCompleted();
         }
     }
 

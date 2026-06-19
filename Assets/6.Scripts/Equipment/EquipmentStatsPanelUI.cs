@@ -298,12 +298,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private void HandleRefresh(string _) => QueueStatsRefresh();
     private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueStatsRefresh();
     private void HandleToolChanged(int _, string __) => QueueImmediateRefresh();
-    private void HandleActiveSetChanged(int _)
-    {
-        // Weapon swap can suppress per-slot UI events; repaint immediately and again next frame.
-        Refresh();
-        QueueImmediateRefresh();
-    }
+    private void HandleActiveSetChanged(int _) => QueueStatsRefresh();
 
     private void WireStatTooltipsOnce()
     {

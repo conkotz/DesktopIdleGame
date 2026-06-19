@@ -2951,7 +2951,7 @@ public static class AbilityTooltipDamagePreview
         if (selected == AbilityCombatPower.StaticArrowsChainLightningChoiceIndex)
         {
             AppendDetailsEffectParagraph(body, O(
-                $"{AbilityCombatPower.StaticArrowsStaticArcChance * 100f:0.#}% chance to arc lightning to a nearby enemy within {AbilityCombatPower.StaticArrowsStaticArcRange:0.#} range for {AbilityCombatPower.StaticArrowsStaticArcDamageFraction * 100f:0.#}% of the hit's damage."));
+                $"{AbilityCombatPower.StaticArrowsStaticArcChance * 100f:0.#}% chance to arc lightning to a nearby enemy within {AbilityCombatPower.StaticArrowsStaticArcRange:0.#} range equal to the hit's lightning damage."));
         }
     }
 

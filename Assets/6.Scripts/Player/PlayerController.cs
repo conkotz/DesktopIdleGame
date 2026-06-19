@@ -500,6 +500,7 @@ public class PlayerController : MonoBehaviour
 {
             equipment.OnMainHandChanged += HandleEquipmentChanged;
             equipment.OnOffHandChanged += HandleEquipmentChanged;
+            equipment.OnActiveSetChanged += HandleActiveWeaponSetChanged;
 
             // ✅ NEW: fires for Helmet/Body/Boots/Trinket/Pendant/Ring1/Ring2 etc
             equipment.OnUISlotChanged += HandleAnyUISlotChanged;
@@ -533,6 +534,7 @@ public class PlayerController : MonoBehaviour
         {
             equipment.OnMainHandChanged -= HandleEquipmentChanged;
             equipment.OnOffHandChanged -= HandleEquipmentChanged;
+            equipment.OnActiveSetChanged -= HandleActiveWeaponSetChanged;
 
             // ✅ NEW
             equipment.OnUISlotChanged -= HandleAnyUISlotChanged;
@@ -618,6 +620,7 @@ public class PlayerController : MonoBehaviour
         SyncWoodcuttingFlowStateHudBuffIfNeeded();
         TickFishingCalmWatersLingerDecay();
         SyncFishingCalmWatersMajorHudBuffIfNeeded();
+        FlushQueuedGearVitalsRecalc();
     }
 
     private void TickStateMachine()
@@ -678,11 +681,32 @@ public class PlayerController : MonoBehaviour
 
     private void HandleEquipmentChanged(string _) 
     { 
-        RecalculateMaxVitalsFromGear(); 
+        QueueRecalculateMaxVitalsFromGear();
+    }
+
+    private void HandleActiveWeaponSetChanged(int _)
+    {
+        QueueRecalculateMaxVitalsFromGear();
     }
 
     private void HandleAnyUISlotChanged(EquipmentUISlotType slot, string itemId)
     {
+        QueueRecalculateMaxVitalsFromGear();
+    }
+
+    private bool _gearVitalsRecalcQueued;
+
+    private void QueueRecalculateMaxVitalsFromGear()
+    {
+        _gearVitalsRecalcQueued = true;
+    }
+
+    private void FlushQueuedGearVitalsRecalc()
+    {
+        if (!_gearVitalsRecalcQueued)
+            return;
+
+        _gearVitalsRecalcQueued = false;
         RecalculateMaxVitalsFromGear();
     }
 

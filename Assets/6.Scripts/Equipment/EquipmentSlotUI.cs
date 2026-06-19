@@ -281,20 +281,20 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (!_bound) return;
         if (_subscribed) return;
 
-        _mainCb ??= _ => RefreshFromState();
-        _offCb ??= _ => RefreshFromState();
+        _mainCb ??= _ => QueueRefreshFromState();
+        _offCb ??= _ => QueueRefreshFromState();
         _offStackCb ??= stack =>
         {
             if (slotType == EquipmentUISlotType.OffHand)
                 RefreshOffHandStackLabel(stack);
         };
-        _toolCb ??= (_, __) => RefreshFromState();
+        _toolCb ??= (_, __) => QueueRefreshFromState();
         _uiSlotCb ??= (uiSlot, _) =>
         {
             if (uiSlot == slotType)
-                RefreshFromState();
+                QueueRefreshFromState();
         };
-        _activeSetCb ??= _ => RefreshFromState();
+        _activeSetCb ??= _ => QueueRefreshFromState();
 
         Unsubscribe();
 
@@ -330,6 +330,21 @@ public class EquipmentSlotUI : MonoBehaviour,
     }
 
     private FlipInsideBounds.PreferredSide _preferredSide;
+    private bool _refreshFromStateQueued;
+
+    private void QueueRefreshFromState()
+    {
+        _refreshFromStateQueued = true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!_refreshFromStateQueued)
+            return;
+
+        _refreshFromStateQueued = false;
+        RefreshFromState();
+    }
 
     public void SetTooltipDocking(
         RectTransform tooltipHeightRect,

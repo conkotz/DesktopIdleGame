@@ -207,12 +207,12 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         if (_actionBar == null)
             _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         _actionBar?.ExitGatheringBarToCombat();
-        _characterStats?.NotifyWeaponSetSwapped();
         RefreshVisuals();
-        yield return null; // spread swap load across frames
+        yield return null; // equipment batch notify
         _actionBar?.SetCombatLoadoutSet(setIndex);
+        yield return null; // action bar loadout swap
         SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, _actionBar);
-        _characterStats?.NotifyStatsChanged();
+        _characterStats?.NotifyWeaponSetSwapped();
         RefreshVisuals();
         _swapInProgress = false;
     }

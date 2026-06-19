@@ -46,18 +46,16 @@ public class WeaponSetSwapInput : MonoBehaviour
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         actionBar?.ExitGatheringBarToCombat();
-        if (characterStats)
-            characterStats.NotifyWeaponSetSwapped();
-        yield return null; // spread swap load across frames
+        yield return null; // equipment batch notify
 
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         int setIndex = equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
         actionBar?.SetCombatLoadoutSet(setIndex);
-        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, actionBar);
+        yield return null; // action bar loadout swap
 
-        // Gear slot UI events are suppressed during swap; refresh panels after loadout bar catches up.
-        characterStats?.NotifyStatsChanged();
+        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, actionBar);
+        characterStats?.NotifyWeaponSetSwapped();
 
         _swapInProgress = false;
     }

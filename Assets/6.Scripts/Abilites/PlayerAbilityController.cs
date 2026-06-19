@@ -7566,13 +7566,11 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        float arcPotency = totalDealt * AbilityCombatPower.StaticArrowsStaticArcDamageFraction;
-        if (arcPotency <= 0f)
+        float lightningDealt = EstimateLightningDamagePortion(physicalDealt, magicDealt);
+        if (lightningDealt <= 0f)
             return;
 
-        SplitDamage arcSplit = BuildStaticArrowsStaticArcSplit(physicalDealt, magicDealt, corruptionDealt, arcPotency);
-        if (arcSplit.IsEmpty)
-            return;
+        SplitDamage arcSplit = new SplitDamage(0f, lightningDealt, 0f);
 
         float arcLightning = arcSplit.magic;
         chainTarget = TornadoLightningRouter.RouteLightningArc(
@@ -7652,20 +7650,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
 
         return best;
-    }
-
-    private static SplitDamage BuildStaticArrowsStaticArcSplit(
-        float physicalDealt,
-        float magicDealt,
-        float corruptionDealt,
-        float arcPotency)
-    {
-        float total = Mathf.Max(0.0001f, physicalDealt + magicDealt + corruptionDealt);
-        float scale = arcPotency / total;
-        return new SplitDamage(
-            Mathf.Max(0f, physicalDealt * scale),
-            Mathf.Max(0f, magicDealt * scale),
-            Mathf.Max(0f, corruptionDealt * scale));
     }
 
     private void ActivateStaticArrowsBuff()

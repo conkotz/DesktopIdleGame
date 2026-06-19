@@ -30,7 +30,6 @@ public static class AbilityCombatPower
     public const float StaticArrowsFullyChargedDamageBonus = 0.10f;
     public const float StaticArrowsStaticArcRange = 10f;
     public const float StaticArrowsStaticArcChance = 0.5f;
-    public const float StaticArrowsStaticArcDamageFraction = 0.5f;
     public const string StaticArrowsStaticArcOutgoingDamageSourceLabel = "Static Arrows (Static Arc)";
     public const string LightningRodAbilityId = "lightning_rod";
     public const string LightningRodEnhancementParentSpineNodeId = "Lv15_0";

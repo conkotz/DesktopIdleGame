@@ -192,8 +192,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Static Arc
-      description: 50% chance to send an arc of lightning to a nearby enemy dealing
-        50% of the hit's damage.
+      description: 50% chance to send an arc of lightning to a nearby enemy equal
+        to the lightning damage of the hit.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

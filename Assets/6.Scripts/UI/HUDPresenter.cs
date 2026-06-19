@@ -124,22 +124,38 @@ public class HUDPresenter : MonoBehaviour
     /// Combat power is derived (abilities, buffs, gear). The HUD must refresh when stats notify —
     /// e.g. action bar assignment changes do not touch equipment events.
     /// </summary>
+    private bool _combatPowerRefreshQueued;
+
+    private void QueueCombatPowerRefresh()
+    {
+        _combatPowerRefreshQueued = true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!_combatPowerRefreshQueued)
+            return;
+
+        _combatPowerRefreshQueued = false;
+        RefreshNameAndCombatPower();
+    }
+
     private void HandleStatsChangedForCombatPower()
     {
         if (stats != null && !stats.LastStatsChangeAffectsCombatPower)
             return;
 
-        RefreshNameAndCombatPower();
+        QueueCombatPowerRefresh();
     }
 
     private void HandleEquipmentChanged(string _)
     {
-        RefreshNameAndCombatPower();
+        QueueCombatPowerRefresh();
     }
 
     private void HandleUISlotChanged(EquipmentUISlotType _, string __)
     {
-        RefreshNameAndCombatPower();
+        QueueCombatPowerRefresh();
     }
 
     private void HandleCombatTargetChanged()
