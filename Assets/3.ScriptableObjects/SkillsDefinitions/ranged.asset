@@ -191,9 +191,9 @@ MonoBehaviour:
     presentation: {fileID: 11400000, guid: d9e5b2c34f6a7589b2c3d4e5f6789012, type: 2}
     choices:
     - requiredLevel: 8
-      title: Chain Lightning
-      description: On crit, send an arc of lightning to a nearby enemy dealing 50%
-        of the hit's damage.
+      title: Static Arc
+      description: 50% chance to send an arc of lightning to a nearby enemy dealing
+        50% of the hit's damage.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -457,7 +457,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Piercing Path
-      description: Penetrating Shot now hits all enemies in its path.
+      description: Penetrating Shot now hits all enemies in its path. Each enemy pierced
+        after the first reduces damage by 15% (up to 60% reduced).
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

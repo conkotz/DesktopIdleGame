@@ -45,6 +45,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // Events used by UI + equippers
     public event Action<string> OnMainHandChanged;
     public event Action<string> OnOffHandChanged;
+    /// <summary>Fired when a consumable off-hand stack count changes but the equipped item id is unchanged.</summary>
+    public event Action<int> OnOffHandStackChanged;
     public event Action OnVisualsChanged;
 
     public int ActiveWeaponSetIndex => activeWeaponSetIndex;
@@ -280,6 +282,11 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         OnOffHandChanged?.Invoke(OffHandItemId);
         OnUISlotChanged?.Invoke(EquipmentUISlotType.OffHand, OffHandItemId);
         OnVisualsChanged?.Invoke();
+    }
+
+    private void NotifyOffHandStackChanged(int stackAmount)
+    {
+        OnOffHandStackChanged?.Invoke(stackAmount);
     }
 
     private void NotifyWeaponSetChanged()
@@ -1170,6 +1177,13 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             SaveManager.Instance.Save();
     }
 
+    private void RequestDeferredSave()
+    {
+        if (_suppressSaveForSetSwap)
+            return;
+        SaveManager.Instance?.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+    }
+
 
     // -------------------------
     // Equip validation
@@ -1438,8 +1452,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         else
             SetOffHandForSet(activeWeaponSetIndex, currentOff, currentAmount);
 
-        NotifyOffHandChanged();
-        RequestImmediateSave();
+        if (currentAmount <= 0)
+            NotifyOffHandChanged();
+        else
+            NotifyOffHandStackChanged(currentAmount);
+
+        SaveManager.Instance?.NotifyInventoryChangedDebounced();
         return true;
     }
 

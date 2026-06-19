@@ -303,6 +303,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public const string MeleeLowHpDisplaySuffix = "(<30% HP)";
     public const string RangedLowHpDisplaySuffix = "(<30% HP)";
     public const float RangedLoneHunterNearbyRadius = 3f;
+    private const float RangedLoneHunterRecheckIntervalSeconds = 0.25f;
+    private float _rangedLoneHunterCheckedAt = float.NegativeInfinity;
+    private bool _rangedLoneHunterCachedActive;
+    private Transform _rangedLoneHunterCachedRoot;
     public const float RangedLongshotDistantRangeFraction = 0.75f;
     public const float RangedFullHpThreshold01 = 0.999f;
     public const int PredatorsInstinctMajorPassiveLevel = 20;
@@ -4407,6 +4411,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!playerRoot)
             return false;
 
+        if (_rangedLoneHunterCachedRoot == playerRoot
+            && Time.time < _rangedLoneHunterCheckedAt + RangedLoneHunterRecheckIntervalSeconds)
+        {
+            return _rangedLoneHunterCachedActive;
+        }
+
+        _rangedLoneHunterCachedRoot = playerRoot;
+        _rangedLoneHunterCheckedAt = Time.time;
+        _rangedLoneHunterCachedActive = ComputeRangedLoneHunterActive(playerRoot);
+        return _rangedLoneHunterCachedActive;
+    }
+
+    private bool ComputeRangedLoneHunterActive(Transform playerRoot)
+    {
         Collider2D playerCol = playerRoot.GetComponent<Collider2D>();
         float playerHalf = playerCol ? playerCol.bounds.extents.x : 0f;
         float playerX = playerRoot.position.x;

@@ -137,6 +137,7 @@ public partial class PlayerAbilityController
         float returnSpeed = speed * AbilityCombatPower.PenetratingShotReturnTravelSpeedMultiplier;
         int nextEnemyIndex = 0;
         int outboundHitCount = 0;
+        int pierceIndex = 0;
         var outboundHit = new HashSet<EnemyBaseController>();
 
         while (travelDist < outboundEnd)
@@ -157,9 +158,10 @@ public partial class PlayerAbilityController
                         ApplyPenetratingShotHit(
                             enemy,
                             def,
-                            1f,
+                            GetPenetratingShotPierceDamageMultiplier(pierceIndex, allInPath),
                             AbilityCombatPower.PenetratingShotOutgoingDamageSourceLabel);
                         outboundHitCount++;
+                        pierceIndex++;
                     }
                 }
 
@@ -173,6 +175,8 @@ public partial class PlayerAbilityController
         {
             var returnHit = new HashSet<EnemyBaseController>();
             int returnEnemyIndex = forwardHits.Count - 1;
+            while (returnEnemyIndex >= 0 && forwardHits[returnEnemyIndex].dist > outboundEnd + 0.05f)
+                returnEnemyIndex--;
 
             while (travelDist > 0f)
             {
@@ -182,8 +186,11 @@ public partial class PlayerAbilityController
                 abilityVfx?.UpdatePenetratingShotVisual(vfx, pos, -facing);
 
                 while (returnEnemyIndex >= 0
-                       && forwardHits[returnEnemyIndex].dist >= travelDist - 0.05f
-                       && forwardHits[returnEnemyIndex].dist <= outboundEnd + 0.05f)
+                       && forwardHits[returnEnemyIndex].dist > outboundEnd + 0.05f)
+                    returnEnemyIndex--;
+
+                while (returnEnemyIndex >= 0
+                       && forwardHits[returnEnemyIndex].dist >= travelDist - 0.05f)
                 {
                     EnemyBaseController enemy = forwardHits[returnEnemyIndex].enemy;
                     if (enemy != null && !enemy.IsDead && returnHit.Add(enemy))
@@ -236,5 +243,16 @@ public partial class PlayerAbilityController
 
         if (player != null && dealt.Total > 0f)
             player.ApplyLifeSteal(dealt.Total);
+    }
+
+    private static float GetPenetratingShotPierceDamageMultiplier(int enemiesAlreadyHit, bool piercingPath)
+    {
+        if (!piercingPath || enemiesAlreadyHit <= 0)
+            return 1f;
+
+        float reduction = Mathf.Min(
+            AbilityCombatPower.PenetratingShotPierceMaxDamageReduction,
+            enemiesAlreadyHit * AbilityCombatPower.PenetratingShotPierceDamageReductionPerEnemy);
+        return 1f - reduction;
     }
 }

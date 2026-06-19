@@ -7523,7 +7523,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     public void ClearStaticArrowsPendingSwingFlag() => _staticArrowsAppliedThisHit = false;
 
     /// <summary>
-    /// Enhancement: on crit, arc lightning to a nearby enemy for a fraction of the hit damage dealt.
+    /// Enhancement: chance to arc lightning to a nearby enemy for a fraction of the hit damage dealt.
     /// </summary>
     public void TryStaticArrowsCritLightningArc(
         EnemyBaseController primaryTarget,
@@ -7533,34 +7533,54 @@ public partial class PlayerAbilityController : MonoBehaviour
         bool wasCrit)
     {
         float totalDealt = Mathf.Max(0f, physicalDealt) + Mathf.Max(0f, magicDealt) + Mathf.Max(0f, corruptionDealt);
-        if (!wasCrit || primaryTarget == null || primaryTarget.IsDead || totalDealt <= 0f)
+        if (primaryTarget == null || primaryTarget.IsDead || totalDealt <= 0f)
             return;
         if (!_staticArrowsAppliedThisHit)
             return;
         if (GetStaticArrowsSelectedChoice() != AbilityCombatPower.StaticArrowsChainLightningChoiceIndex)
             return;
-
-        EnemyBaseController chainTarget = FindStaticArrowsCritArcTarget(primaryTarget);
-        if (chainTarget == null)
+        if (UnityEngine.Random.value >= AbilityCombatPower.StaticArrowsStaticArcChance)
             return;
 
-        float arcPotency = totalDealt * AbilityCombatPower.StaticArrowsCritArcDamageFraction;
+        EnemyBaseController chainTarget = FindStaticArrowsStaticArcTarget(primaryTarget);
+        Vector3 from = GetEnemyVfxCenter(primaryTarget);
+        Vector3 to;
+        Transform sortingReference = primaryTarget.transform;
+
+        if (chainTarget != null)
+        {
+            to = GetEnemyVfxCenter(chainTarget);
+        }
+        else if (TornadoLightningRouter.TryFindTornadoNear(
+                     from,
+                     AbilityCombatPower.StaticArrowsStaticArcRange,
+                     out TornadoInstance tornado,
+                     out Vector3 tornadoAnchor))
+        {
+            sortingReference = tornado.transform;
+            to = tornadoAnchor;
+            chainTarget = null;
+        }
+        else
+        {
+            return;
+        }
+
+        float arcPotency = totalDealt * AbilityCombatPower.StaticArrowsStaticArcDamageFraction;
         if (arcPotency <= 0f)
             return;
 
-        SplitDamage arcSplit = BuildStaticArrowsCritArcSplit(physicalDealt, magicDealt, corruptionDealt, arcPotency);
+        SplitDamage arcSplit = BuildStaticArrowsStaticArcSplit(physicalDealt, magicDealt, corruptionDealt, arcPotency);
         if (arcSplit.IsEmpty)
             return;
 
-        Vector3 from = GetEnemyVfxCenter(primaryTarget);
-        Vector3 to = GetEnemyVfxCenter(chainTarget);
         float arcLightning = arcSplit.magic;
         chainTarget = TornadoLightningRouter.RouteLightningArc(
             abilityVfx,
             from,
             to,
             arcLightning,
-            primaryTarget.transform,
+            sortingReference,
             chainTarget);
 
         if (combat == null)
@@ -7568,8 +7588,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (combat == null || chainTarget == null || chainTarget.IsDead)
             return;
 
-        string label = AbilityCombatPower.StaticArrowsChainLightningOutgoingDamageSourceLabel;
-        combat.ApplyStaticArrowsCritArcDamage(chainTarget, arcSplit, wasCrit, label);
+        string label = AbilityCombatPower.StaticArrowsStaticArcOutgoingDamageSourceLabel;
+        combat.ApplyStaticArrowsCritArcDamage(chainTarget, arcSplit, wasCrit: false, label);
     }
 
     private static Vector3 GetEnemyVfxCenter(EnemyBaseController enemy)
@@ -7604,13 +7624,13 @@ public partial class PlayerAbilityController : MonoBehaviour
         return enemy.transform.position;
     }
 
-    private EnemyBaseController FindStaticArrowsCritArcTarget(EnemyBaseController origin)
+    private EnemyBaseController FindStaticArrowsStaticArcTarget(EnemyBaseController origin)
     {
         if (!origin)
             return null;
 
         Vector3 originPos = origin.transform.position;
-        float range = AbilityCombatPower.StaticArrowsCritArcRange;
+        float range = AbilityCombatPower.StaticArrowsStaticArcRange;
         float rangeSq = range * range;
 
         IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
@@ -7634,7 +7654,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         return best;
     }
 
-    private static SplitDamage BuildStaticArrowsCritArcSplit(
+    private static SplitDamage BuildStaticArrowsStaticArcSplit(
         float physicalDealt,
         float magicDealt,
         float corruptionDealt,

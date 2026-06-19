@@ -340,6 +340,8 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
         Then `\n\n` before committed enhancement line (e.g. bleed).
   - **Triple Shot:** arrow damage lines = ONE group.
         Then `\n\n` before "Fires N arrows (...)" line.
+  - **Penetrating Shot:** damage range lines = ONE group.
+        Then `\n\n` before hit-cap line, range line, and "Consumes 1 arrow on cast."
   - **Seeker Arrows (major passive):** separate paragraphs for:
         damage per hit | proc chance | committed enhancement (each `\n\n` apart).
         Scaling stays in SCALING section — never duplicate in EFFECT.
@@ -798,6 +800,13 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - F6–F12 DebugPerformanceToggles can disable overhead UI / floating text to isolate ability cost.
 
   After adding a hot path: note it in SYSTEMS_MAP §12 if it runs every frame or per enemy.
+
+  Ammo / off-hand support stacks (ranged auto attacks + arrow-consuming actives):
+  - NEVER call SaveManager.Save() / RequestImmediateSave on every stack decrement.
+  - Use RequestSave(SaveRequestKind.InventoryChanged) (debounced) for stack-only changes.
+  - Fire OnOffHandStackChanged for count-only UI (equipment slot xN label); reserve full
+        OnOffHandChanged for item id swaps / empty off-hand (triggers vitals + combat power HUD).
+  - Throttle expensive nearby-enemy scans (Lone Hunter, Hunter's Swiftness) — ~0.25s cache OK.
 ## N) COMMON MISTAKES (from recent melee abilities)
 
 - Wrong enhancement spine id (e.g. using 25 instead of Lv25_0) → choice always -1, enhancements never apply.
@@ -850,6 +859,10 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   Presentation_ability_battle_trance
   Presentation_ability_energy_infusion
   Presentation_ability_flame_charge
+  Presentation_ability_lightning_rod
+  Presentation_ability_penetrating_shot
+  Presentation_ability_hunters_swiftness
+  Presentation_ability_tornado
 
 ## Reference — ability assets (Assets/3.ScriptableObjects/AbilitiesDefinitions/)
   Melee/Ability_executioners_descent.asset   — executioners_descent (Lv45 slot 1)
@@ -866,6 +879,10 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 ## Reference — enhancement parent spine ids (Ranged examples)
   Lv5_0 / Lv5_1           — Triple Shot / Snipe (abilities, not majors)
   Lv10_0                  — Seeker Arrows (first MajorPassive at Lv10 on ranged tree; choices at Lv13)
+  Lv15_0                  — Lightning Rod
+  Lv15_1                  — Penetrating Shot
+  Lv25_0                  — Hunter's Swiftness
+  Lv45_0                  — Tornado
 
 ## Reference — enhancement parent spine ids (Melee examples)
   Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places

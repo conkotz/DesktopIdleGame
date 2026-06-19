@@ -353,7 +353,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// </summary>
     public EnemyBaseController ResolveManualStarterAttackTarget()
     {
-        if (ShouldIdlePickFurthestEnemyFirst())
+        if (idleCombatEnabled && ShouldIdlePickFurthestEnemyFirst())
         {
             if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy &&
                 IsValidCombatTarget(_target))
@@ -1409,7 +1409,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Returns true when no consumable support is required or enough stacks remain.</summary>
     public bool HasConsumableOffHandSupportAmmo()
     {
-        var equipment = GetComponent<EquipmentManager>();
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
         if (!equipment)
             return true;
 
@@ -1424,7 +1424,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Consumes one off-hand support stack when the equipped support is attack-consumable (e.g. arrows).</summary>
     public bool TryConsumeOffHandSupportAmmoOnUse()
     {
-        var equipment = GetComponent<EquipmentManager>();
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
         if (!equipment)
             return true;
 
@@ -2820,7 +2820,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (attacker == null || attacker.IsDead || !attacker.gameObject.activeInHierarchy)
             return false;
 
-        if (ShouldIdlePickFurthestEnemyFirst() && IsEnemyWithinLongbowMeleeThreatRange(attacker))
+        if (idleCombatEnabled && ShouldIdlePickFurthestEnemyFirst() && IsEnemyWithinLongbowMeleeThreatRange(attacker))
         {
             if (_target != attacker)
                 SetTargetInternal(attacker);

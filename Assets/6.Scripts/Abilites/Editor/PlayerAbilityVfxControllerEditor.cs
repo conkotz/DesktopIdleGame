@@ -332,6 +332,26 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "seekerArrowTrailColor"
     };
 
+    private static readonly string[] LightningRodVfxFieldNames =
+    {
+        "lightningRodSprite",
+        "lightningRodTint",
+        "lightningRodWorldScale",
+        "lightningRodGroundYOffset",
+        "lightningRodSortingLayer",
+        "lightningRodSortingOrder"
+    };
+
+    private static readonly string[] PenetratingShotVfxFieldNames =
+    {
+        "penetratingShotPrefab"
+    };
+
+    private static readonly string[] TornadoVfxFieldNames =
+    {
+        "tornadoPrefab"
+    };
+
     private static readonly string[] GatheringFrenzySharedFieldNames =
     {
         "lumberFrenzyOrbitVfxPrefab",
@@ -450,6 +470,9 @@ public class PlayerAbilityVfxControllerEditor : Editor
         new(VfxSkillTab.Range, "SnipeVfx", 5, "Snipe", SnipeVfxFieldNames),
         new(VfxSkillTab.Range, "HawkCompanionMinionVfx", 5, "Hawk Companion", HawkCompanionFieldNames),
         new(VfxSkillTab.Range, "SeekerArrowVfx", 5, "Seeker Arrows", SeekerArrowVfxFieldNames),
+        new(VfxSkillTab.Range, "LightningRodVfx", 15, "Lightning Rod", LightningRodVfxFieldNames),
+        new(VfxSkillTab.Range, "PenetratingShotVfx", 15, "Penetrating Shot", PenetratingShotVfxFieldNames),
+        new(VfxSkillTab.Range, "TornadoVfx", 45, "Tornado", TornadoVfxFieldNames),
 
         new(VfxSkillTab.Woodcutting, "LumberFrenzyVfx", 5, "Lumber Frenzy",
             LumberFrenzyFieldNames, GatheringFrenzySharedFieldNames),

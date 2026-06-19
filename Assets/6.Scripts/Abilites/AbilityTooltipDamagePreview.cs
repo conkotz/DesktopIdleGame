@@ -2825,15 +2825,25 @@ public static class AbilityTooltipDamagePreview
             liveDamageMultiplier,
             " on hit");
         if (damageLines.Count > 0)
+        {
+            if (body.Length > 0)
+                body.Append(DetailsEffectParagraphGap);
             AppendEffectLineGroup(body, damageLines);
+        }
 
         int choice = includeEnhancementEffects ? GetPenetratingShotBranchChoice(skillsManager) : -1;
         if (choice == AbilityCombatPower.PenetratingShotEnh1AllInPathChoiceIndex)
-            body.AppendLine(O("Hits all enemies in its path."));
+            AppendDetailsEffectParagraph(body, O("Hits all enemies in its path."));
         else
-            body.AppendLine(O($"Hits up to {AbilityCombatPower.PenetratingShotBaseMaxHits} enemies."));
+            AppendDetailsEffectParagraph(body, O($"Hits up to {AbilityCombatPower.PenetratingShotBaseMaxHits} enemies."));
 
-        body.AppendLine(O($"Range: {stats.Range:0.#}"));
+        AppendDetailsEffectParagraph(body, O($"Range: {stats.Range:0.#}"));
+
+        if (choice == AbilityCombatPower.PenetratingShotEnh1AllInPathChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"Each enemy pierced after the first reduces damage by {AbilityCombatPower.PenetratingShotPierceDamageReductionPerEnemy * 100f:0.#}% (up to {AbilityCombatPower.PenetratingShotPierceMaxDamageReduction * 100f:0.#}% reduced)."));
+        }
     }
 
     private static void AppendTripleShotTooltipHitDamage(
@@ -2941,7 +2951,7 @@ public static class AbilityTooltipDamagePreview
         if (selected == AbilityCombatPower.StaticArrowsChainLightningChoiceIndex)
         {
             AppendDetailsEffectParagraph(body, O(
-                $"On crit, arcs lightning to a nearby enemy within {AbilityCombatPower.StaticArrowsCritArcRange:0.#} range for {AbilityCombatPower.StaticArrowsCritArcDamageFraction * 100f:0.#}% of the hit's damage."));
+                $"{AbilityCombatPower.StaticArrowsStaticArcChance * 100f:0.#}% chance to arc lightning to a nearby enemy within {AbilityCombatPower.StaticArrowsStaticArcRange:0.#} range for {AbilityCombatPower.StaticArrowsStaticArcDamageFraction * 100f:0.#}% of the hit's damage."));
         }
     }
 

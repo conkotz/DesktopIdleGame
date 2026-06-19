@@ -10,7 +10,8 @@ public static class TornadoLightningRouter
         Vector3 arcEnd,
         float arcLightningDamage,
         Transform sortingReference,
-        EnemyBaseController defaultChainTarget)
+        EnemyBaseController defaultChainTarget,
+        HashSet<EnemyBaseController> excludeChainTargets = null)
     {
         if (vfx == null || arcLightningDamage <= 0f)
             return defaultChainTarget;
@@ -24,11 +25,15 @@ public static class TornadoLightningRouter
             tornado.AbsorbLightningArc(arcLightningDamage);
             current = tornadoPoint;
 
-            EnemyBaseController nearestFromTornado = FindNearestEnemyTo(tornadoPoint);
+            EnemyBaseController nearestFromTornado = FindNearestEnemyTo(tornadoPoint, excludeChainTargets);
             if (nearestFromTornado != null)
             {
                 chainTarget = nearestFromTornado;
                 arcEnd = GetEnemyVfxCenter(nearestFromTornado);
+            }
+            else
+            {
+                chainTarget = null;
             }
         }
 
@@ -36,6 +41,35 @@ public static class TornadoLightningRouter
             vfx.SpawnStaticArrowsCritLightningArc(current, arcEnd, sortingReference);
 
         return chainTarget;
+    }
+
+    /// <summary>Nearest absorb-capable tornado within <paramref name="range"/> of <paramref name="point"/>.</summary>
+    public static bool TryFindTornadoNear(Vector3 point, float range, out TornadoInstance tornado, out Vector3 anchor)
+    {
+        tornado = null;
+        anchor = Vector3.zero;
+
+        float rangeSq = range * range;
+        float bestDistSq = float.MaxValue;
+        IReadOnlyList<TornadoInstance> active = TornadoCombatRegistry.ActiveInstances;
+
+        for (int i = 0; i < active.Count; i++)
+        {
+            TornadoInstance candidate = active[i];
+            if (candidate == null || !candidate.IsAlive || !candidate.CanAbsorbLightning)
+                continue;
+
+            Vector3 candidateAnchor = candidate.GetLightningArcAnchor();
+            float distSq = (candidateAnchor - point).sqrMagnitude;
+            if (distSq > rangeSq || distSq >= bestDistSq)
+                continue;
+
+            bestDistSq = distSq;
+            tornado = candidate;
+            anchor = candidateAnchor;
+        }
+
+        return tornado != null;
     }
 
     private static bool TryFindAbsorbingTornado(
@@ -69,7 +103,9 @@ public static class TornadoLightningRouter
         return tornado != null;
     }
 
-    private static EnemyBaseController FindNearestEnemyTo(Vector3 origin)
+    private static EnemyBaseController FindNearestEnemyTo(
+        Vector3 origin,
+        HashSet<EnemyBaseController> exclude = null)
     {
         float range = AbilityCombatPower.TornadoLightningAbsorbRange;
         float rangeSq = range * range;
@@ -81,6 +117,8 @@ public static class TornadoLightningRouter
         {
             EnemyBaseController enemy = enemies[i];
             if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+            if (exclude != null && exclude.Contains(enemy))
                 continue;
 
             float distSq = (enemy.transform.position - origin).sqrMagnitude;

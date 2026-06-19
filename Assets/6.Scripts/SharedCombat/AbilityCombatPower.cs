@@ -28,9 +28,10 @@ public static class AbilityCombatPower
     public const float StaticArrowsPhysicalToLightningConversionFraction = 0.5f;
     public const float StaticArrowsFullyChargedConversionFraction = 1f;
     public const float StaticArrowsFullyChargedDamageBonus = 0.10f;
-    public const float StaticArrowsCritArcRange = 10f;
-    public const float StaticArrowsCritArcDamageFraction = 0.5f;
-    public const string StaticArrowsChainLightningOutgoingDamageSourceLabel = "Static Arrows (Chain Lightning)";
+    public const float StaticArrowsStaticArcRange = 10f;
+    public const float StaticArrowsStaticArcChance = 0.5f;
+    public const float StaticArrowsStaticArcDamageFraction = 0.5f;
+    public const string StaticArrowsStaticArcOutgoingDamageSourceLabel = "Static Arrows (Static Arc)";
     public const string LightningRodAbilityId = "lightning_rod";
     public const string LightningRodEnhancementParentSpineNodeId = "Lv15_0";
     public const int LightningRodEnh1FasterArcsChoiceIndex = 0;
@@ -52,6 +53,8 @@ public static class AbilityCombatPower
     public const int PenetratingShotEnh2ReturningShotChoiceIndex = 1;
     public const int PenetratingShotBaseMaxHits = 3;
     public const float PenetratingShotReturnDamageFraction = 0.5f;
+    public const float PenetratingShotPierceDamageReductionPerEnemy = 0.15f;
+    public const float PenetratingShotPierceMaxDamageReduction = 0.60f;
     public const float PenetratingShotTravelSpeed = 22.5f;
     public const float PenetratingShotReturnTravelSpeedMultiplier = 1.25f;
     public const int PenetratingShotUnlockLevel = 15;

@@ -423,6 +423,7 @@ Priority ordered — largest practical impact first.
 | **Find in LateUpdate** | `DesktopWindow/DesktopOverlayClickThrough` | `UniWindowController` lookup if unset |
 | **GetComponent in Update** | `Player/PlayerCombatController` | Target collider cache refresh |
 | **Save spikes** | `SaveLoad/SaveManager` | `FindObjectsByType` + LINQ when saving; `Update` autosave |
+| **Save spikes (fixed)** | `Equipment/EquipmentManager` | `ConsumeOffHandSupport` must NOT call immediate `Save()` per arrow — use deferred `InventoryChanged` save + `OnOffHandStackChanged` for stack UI only |
 | **Heavy UI rebuild** | `Skills/SkillTreeViewUI`, `WorldMap/WorldMapPageUI` | Large instantiate/destroy on open/refresh |
 | **Expensive global search** | `UI/MainMenuWindowUI` | `Resources.FindObjectsOfTypeAll<Transform>()` for tab wiring |
 | **Debug** | `Common/UIRaycastProbe` | Per-frame `RaycastAll` + string build |

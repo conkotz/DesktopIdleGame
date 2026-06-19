@@ -78,6 +78,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     private Action<string> _mainCb;
     private Action<string> _offCb;
+    private Action<int> _offStackCb;
     private Action<int, string> _toolCb;
     private Action<EquipmentUISlotType, string> _uiSlotCb;
     private Action<int> _activeSetCb;
@@ -282,6 +283,11 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         _mainCb ??= _ => RefreshFromState();
         _offCb ??= _ => RefreshFromState();
+        _offStackCb ??= stack =>
+        {
+            if (slotType == EquipmentUISlotType.OffHand)
+                RefreshOffHandStackLabel(stack);
+        };
         _toolCb ??= (_, __) => RefreshFromState();
         _uiSlotCb ??= (uiSlot, _) =>
         {
@@ -294,6 +300,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         equipment.OnMainHandChanged += _mainCb;
         equipment.OnOffHandChanged += _offCb;
+        equipment.OnOffHandStackChanged += _offStackCb;
         equipment.OnUISlotChanged += _uiSlotCb;
         equipment.OnActiveSetChanged += _activeSetCb;
 
@@ -309,6 +316,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         {
             if (_mainCb != null) equipment.OnMainHandChanged -= _mainCb;
             if (_offCb != null) equipment.OnOffHandChanged -= _offCb;
+            if (_offStackCb != null) equipment.OnOffHandStackChanged -= _offStackCb;
             if (_uiSlotCb != null) equipment.OnUISlotChanged -= _uiSlotCb;
             if (_activeSetCb != null) equipment.OnActiveSetChanged -= _activeSetCb;
         }
@@ -353,6 +361,15 @@ public class EquipmentSlotUI : MonoBehaviour,
             label.text = GetDisplayLabel();
 
         RefreshRarityBorder(_def);
+    }
+
+    private void RefreshOffHandStackLabel(int stackAmount)
+    {
+        if (!_bound || slotType != EquipmentUISlotType.OffHand || label == null)
+            return;
+
+        if (_def != null && _def.IsCombatSupport)
+            label.text = $"x{Mathf.Max(1, stackAmount)}";
     }
 
     private void SetEmptyVisual()

@@ -12,6 +12,7 @@ public partial class PlayerAbilityController
     private float _lastSyncedLightningRodHudEnd = float.NaN;
     private AbilityDefinition _lightningRodCooldownAbilityDef;
     private readonly List<EnemyBaseController> _lightningRodTargetScratch = new();
+    private readonly List<TornadoInstance> _lightningRodTornadoScratch = new();
     private readonly HashSet<EnemyBaseController> _lightningRodHitScratch = new();
 
     private static bool IsLightningRodAbilityId(string abilityId) =>
@@ -179,13 +180,34 @@ public partial class PlayerAbilityController
             maxCount: AbilityCombatPower.LightningRodMaxPeriodicArcTargets);
 
         Vector3 from = GetLightningRodVfxCenter();
-        for (int i = 0; i < _lightningRodTargetScratch.Count; i++)
+        _lightningRodHitScratch.Clear();
+
+        if (_lightningRodTargetScratch.Count > 0)
         {
-            EnemyBaseController enemy = _lightningRodTargetScratch[i];
-            if (enemy == null || enemy.IsDead)
+            for (int i = 0; i < _lightningRodTargetScratch.Count; i++)
+            {
+                EnemyBaseController enemy = _lightningRodTargetScratch[i];
+                if (enemy == null || enemy.IsDead)
+                    continue;
+
+                FireLightningRodArcToEnemy(enemy, from, applyShock: false, _lightningRodHitScratch);
+            }
+
+            return;
+        }
+
+        CollectTornadosNearLightningRod(
+            _lightningRodTornadoScratch,
+            AbilityCombatPower.LightningRodArcRange,
+            maxCount: AbilityCombatPower.LightningRodMaxPeriodicArcTargets);
+
+        for (int i = 0; i < _lightningRodTornadoScratch.Count; i++)
+        {
+            TornadoInstance tornado = _lightningRodTornadoScratch[i];
+            if (tornado == null || !tornado.IsAlive || !tornado.CanAbsorbLightning)
                 continue;
 
-            FireLightningRodArcToEnemy(enemy, from, applyShock: false);
+            FireLightningRodArcToTornado(tornado, from, applyShock: false, _lightningRodHitScratch);
         }
     }
 
@@ -202,7 +224,7 @@ public partial class PlayerAbilityController
         if (current == null)
             return;
 
-        FireLightningRodArcToEnemy(current, GetLightningRodVfxCenter(), applyShock: true);
+        FireLightningRodArcToEnemy(current, GetLightningRodVfxCenter(), applyShock: true, _lightningRodHitScratch);
         _lightningRodHitScratch.Add(current);
 
         while (true)
@@ -214,7 +236,7 @@ public partial class PlayerAbilityController
             if (next == null)
                 break;
 
-            FireLightningRodArcToEnemy(next, GetEnemyVfxCenter(current), applyShock: true);
+            FireLightningRodArcToEnemy(next, GetEnemyVfxCenter(current), applyShock: true, _lightningRodHitScratch);
             _lightningRodHitScratch.Add(next);
             current = next;
         }
@@ -223,7 +245,8 @@ public partial class PlayerAbilityController
     private void FireLightningRodArcToEnemy(
         EnemyBaseController enemy,
         Vector3 arcStart,
-        bool applyShock)
+        bool applyShock,
+        HashSet<EnemyBaseController> excludeChainTargets = null)
     {
         if (enemy == null || enemy.IsDead)
             return;
@@ -236,20 +259,54 @@ public partial class PlayerAbilityController
             arcEnd,
             arcDamage,
             enemy.transform,
-            enemy);
+            enemy,
+            excludeChainTargets);
 
+        ApplyLightningRodArcDamage(damageTarget, arcDamage, applyShock, excludeChainTargets);
+    }
+
+    private void FireLightningRodArcToTornado(
+        TornadoInstance tornado,
+        Vector3 arcStart,
+        bool applyShock,
+        HashSet<EnemyBaseController> excludeChainTargets = null)
+    {
+        if (tornado == null || !tornado.IsAlive || !tornado.CanAbsorbLightning)
+            return;
+
+        Vector3 arcEnd = tornado.GetLightningArcAnchor();
+        float arcDamage = ComputeLightningRodArcDamage();
+        EnemyBaseController damageTarget = TornadoLightningRouter.RouteLightningArc(
+            abilityVfx,
+            arcStart,
+            arcEnd,
+            arcDamage,
+            tornado.transform,
+            defaultChainTarget: null,
+            excludeChainTargets);
+
+        ApplyLightningRodArcDamage(damageTarget, arcDamage, applyShock, excludeChainTargets);
+    }
+
+    private void ApplyLightningRodArcDamage(
+        EnemyBaseController damageTarget,
+        float arcDamage,
+        bool applyShock,
+        HashSet<EnemyBaseController> excludeChainTargets)
+    {
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
         if (combat == null || damageTarget == null || damageTarget.IsDead)
             return;
 
-        float damage = ComputeLightningRodArcDamage();
-        SplitDamage rolled = new SplitDamage(0f, damage, 0f);
+        SplitDamage rolled = new SplitDamage(0f, arcDamage, 0f);
         combat.ApplyStaticArrowsCritArcDamage(
             damageTarget,
             rolled,
             wasCrit: false,
             AbilityCombatPower.LightningRodOutgoingDamageSourceLabel);
+
+        excludeChainTargets?.Add(damageTarget);
 
         if (!applyShock || stats == null)
             return;
@@ -317,6 +374,39 @@ public partial class PlayerAbilityController
         {
             float da = (a.transform.position - _lightningRodAnchor).sqrMagnitude;
             float db = (b.transform.position - _lightningRodAnchor).sqrMagnitude;
+            return da.CompareTo(db);
+        });
+
+        if (dest.Count > maxCount)
+            dest.RemoveRange(maxCount, dest.Count - maxCount);
+    }
+
+    private void CollectTornadosNearLightningRod(
+        List<TornadoInstance> dest,
+        float range,
+        int maxCount)
+    {
+        dest.Clear();
+        float rangeSq = range * range;
+        IReadOnlyList<TornadoInstance> active = TornadoCombatRegistry.ActiveInstances;
+
+        for (int i = 0; i < active.Count; i++)
+        {
+            TornadoInstance candidate = active[i];
+            if (candidate == null || !candidate.IsAlive || !candidate.CanAbsorbLightning)
+                continue;
+
+            float distSq = (candidate.GetLightningArcAnchor() - _lightningRodAnchor).sqrMagnitude;
+            if (distSq > rangeSq)
+                continue;
+
+            dest.Add(candidate);
+        }
+
+        dest.Sort((a, b) =>
+        {
+            float da = (a.GetLightningArcAnchor() - _lightningRodAnchor).sqrMagnitude;
+            float db = (b.GetLightningArcAnchor() - _lightningRodAnchor).sqrMagnitude;
             return da.CompareTo(db);
         });
 
