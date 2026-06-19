@@ -34,6 +34,15 @@ public static class AbilityTooltipAdjustments
                 cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - AbilityCombatPower.TripleShotEnhancementCooldownReductionSeconds);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.StaticArrowsAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, AbilityCombatPower.StaticArrowsEnhancementParentSpineNodeId, -1);
+            if (selected == AbilityCombatPower.StaticArrowsFullyChargedChoiceIndex)
+                weaponDamageMultiplier += AbilityCombatPower.StaticArrowsFullyChargedDamageBonus;
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(

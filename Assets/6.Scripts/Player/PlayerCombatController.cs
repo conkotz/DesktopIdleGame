@@ -1077,6 +1077,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         {
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
             abilityController.ApplyActiveDamageConversions(ref rolled);
+            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
         }
 
         SwingOutgoingAttribution swingAttribution = abilityController != null
@@ -1633,6 +1634,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             rangedProjectileRotationOffset
         );
 
+        if (abilityController != null && abilityController.ShouldAttachStaticArrowsProjectileTrail)
+        {
+            PlayerAbilityVfxController vfx = ResolveAbilityVfx();
+            SnipeLingeringTrailFollower.TrailSettings trailSettings = vfx != null
+                ? vfx.GetStaticArrowsTrailSettings()
+                : SnipeLingeringTrailFollower.TrailSettings.Default;
+            SnipeLingeringTrailFollower.Create(proj.transform, trailSettings);
+        }
+
         travelTime = Mathf.Max(0f, proj.EstimatedTravelTime);
         return true;
     }
@@ -1843,6 +1853,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         {
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
             abilityController.ApplyActiveDamageConversions(ref rolled);
+            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
         }
 
         SwingOutgoingAttribution swingAttribution = abilityController != null
@@ -1995,6 +2006,18 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             cleaveExtraTargets > 0)
         {
             ApplyCleaveSecondaryHits(targetToHit, cleaveExtraTargets, alreadyHit);
+        }
+
+        if (primaryHitSucceeded && abilityController != null)
+        {
+            abilityController.TryStaticArrowsCritLightningArc(
+                targetToHit,
+                dealt.physical,
+                dealt.magic,
+                dealt.corruptionDamage,
+                wasCrit);
+            abilityController.TryConsumeStaticArrowsHitOnSuccessfulAttack();
+            abilityController.ClearStaticArrowsPendingSwingFlag();
         }
 
         if (primaryHitSucceeded && triggerCrescentSlash && abilityController != null)
@@ -2332,6 +2355,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             TryApplyElementalMagicAilment(target, dealt, forceElementalAilment);
             TryApplyMeleeShock(target, dealt);
         }
+    }
+
+    public void ApplyStaticArrowsCritArcDamage(
+        EnemyBaseController target,
+        SplitDamage rolled,
+        bool wasCrit,
+        string outgoingDamageSourceLabel)
+    {
+        ApplySecondaryHitPipeline(target, rolled, wasCrit, forceElementalAilment: false, outgoingDamageSourceLabel);
     }
 
     public void ToggleIdleCombat()

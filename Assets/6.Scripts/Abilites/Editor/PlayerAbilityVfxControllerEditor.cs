@@ -299,6 +299,15 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "tripleShotVolleyFlashOffset"
     };
 
+    private static readonly string[] StaticArrowsVfxFieldNames =
+    {
+        "lightningArcPrefab",
+        "staticArrowsTrailLingerSeconds",
+        "staticArrowsTrailWidth",
+        "staticArrowsTrailStartAlpha",
+        "staticArrowsTrailColor"
+    };
+
     private static readonly string[] SnipeVfxFieldNames =
     {
         "snipeChargeRingColor",
@@ -437,6 +446,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
         new(VfxSkillTab.Melee, "BladestormVfx", 45, "Bladestorm", BladestormVfxFieldNames),
 
         new(VfxSkillTab.Range, "TripleShotVfx", 5, "Triple Shot", TripleShotVfxFieldNames),
+        new(VfxSkillTab.Range, "StaticArrowsVfx", 5, "Static Arrows", StaticArrowsVfxFieldNames),
         new(VfxSkillTab.Range, "SnipeVfx", 5, "Snipe", SnipeVfxFieldNames),
         new(VfxSkillTab.Range, "HawkCompanionMinionVfx", 5, "Hawk Companion", HawkCompanionFieldNames),
         new(VfxSkillTab.Range, "SeekerArrowVfx", 5, "Seeker Arrows", SeekerArrowVfxFieldNames),

@@ -14,13 +14,16 @@ public class SnipeLingeringTrailFollower : MonoBehaviour
         public float Width;
         public float StartAlpha;
         public Color Color;
+        /// <summary>When false, the trail is destroyed as soon as the projectile is removed (no hang-time fade).</summary>
+        public bool LingerOnDetach;
 
         public static TrailSettings Default => new TrailSettings
         {
             LingerSeconds = 1.5f,
             Width = 0.18f,
             StartAlpha = 0.95f,
-            Color = Color.white
+            Color = Color.white,
+            LingerOnDetach = true
         };
     }
 
@@ -36,8 +39,10 @@ public class SnipeLingeringTrailFollower : MonoBehaviour
             return null;
 
         TrailSettings resolved = settings ?? TrailSettings.Default;
-        var trailGo = new GameObject("SnipeArrowTrail");
-        trailGo.transform.position = followTarget.position;
+
+        var trailGo = new GameObject("ProjectileTrail");
+        trailGo.transform.SetParent(followTarget, false);
+        trailGo.transform.localPosition = Vector3.zero;
 
         var follower = trailGo.AddComponent<SnipeLingeringTrailFollower>();
         follower._followTarget = followTarget;
@@ -65,6 +70,12 @@ public class SnipeLingeringTrailFollower : MonoBehaviour
         _detached = true;
         _followTarget = null;
 
+        if (!_settings.LingerOnDetach)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         if (_trail != null)
         {
             _trail.emitting = false;
@@ -88,11 +99,10 @@ public class SnipeLingeringTrailFollower : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
 
-            // Shrinking trail.time removes the oldest vertices first (player side).
             _trail.time = Mathf.Lerp(startTrailTime, 0f, t);
 
             float alpha = Mathf.Lerp(startAlpha, 0f, t);
-            ApplyTrailAlpha(alpha);
+            ApplyTrailColor(alpha);
 
             yield return null;
         }
@@ -100,64 +110,44 @@ public class SnipeLingeringTrailFollower : MonoBehaviour
         Destroy(gameObject);
     }
 
-    private void ApplyTrailAlpha(float alpha)
+    private void ApplyTrailColor(float alpha)
     {
         if (_trail == null)
             return;
 
         Color c = _settings.Color;
-        c.a *= Mathf.Clamp01(alpha);
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(c, 0f),
-                new GradientColorKey(c, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(c.a, 0f),
-                new GradientAlphaKey(c.a, 1f)
-            });
-        _trail.colorGradient = gradient;
+        c.a = _settings.Color.a * Mathf.Clamp01(alpha);
+
+        SpritesLineTrailUtility.ApplyVertexColors(_trail, c);
+
+        Material mat = _trail.material;
+        if (mat != null)
+            SpritesLineTrailUtility.ConfigureTrailMaterialColor(mat, c);
     }
 
     private TrailRenderer ConfigureTrail(GameObject owner, Transform followTarget)
     {
         TrailRenderer trail = owner.AddComponent<TrailRenderer>();
-        trail.time = Mathf.Max(0.1f, _settings.LingerSeconds);
-        trail.minVertexDistance = 0.015f;
-        trail.widthMultiplier = Mathf.Max(0.01f, _settings.Width);
-        trail.numCornerVertices = 4;
-        trail.numCapVertices = 2;
-        trail.alignment = LineAlignment.View;
-        trail.textureMode = LineTextureMode.Stretch;
-        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        trail.receiveShadows = false;
-        trail.emitting = true;
 
-        Shader shader = Shader.Find("Sprites/Default");
-        if (shader != null)
-            trail.material = new Material(shader);
+        Color c = _settings.Color;
+        c.a = _settings.Color.a * Mathf.Clamp01(_settings.StartAlpha);
+
+        SpriteRenderer projectileSprite = followTarget.GetComponentInChildren<SpriteRenderer>();
+        int layerId = projectileSprite != null ? projectileSprite.sortingLayerID : 0;
+        int order = projectileSprite != null ? projectileSprite.sortingOrder - 1 : 40;
+
+        SpritesLineTrailUtility.ConfigureTrail(
+            trail,
+            c,
+            _settings.Width,
+            _settings.LingerSeconds,
+            layerId,
+            order);
 
         trail.widthCurve = new AnimationCurve(
             new Keyframe(0f, 1f),
             new Keyframe(1f, 0.15f));
 
-        ApplyTrailAlpha(_settings.StartAlpha);
-
-        SpriteRenderer projectileSprite = followTarget.GetComponentInChildren<SpriteRenderer>();
-        if (projectileSprite != null)
-        {
-            trail.sortingLayerID = projectileSprite.sortingLayerID;
-            trail.sortingOrder = projectileSprite.sortingOrder - 1;
-        }
-        else
-        {
-            trail.sortingOrder = 40;
-        }
-
-        trail.Clear();
         return trail;
     }
 }

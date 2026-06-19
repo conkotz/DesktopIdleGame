@@ -15,6 +15,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private PlayerController player;
     [SerializeField] private PlayerCombatController combat;
 
+    private RangedAttackVisualController _rangedAttackVisuals;
+
     [Header("Runtime particle material (optional)")]
     [Tooltip("Optional override for runtime particle/trail materials. Leave empty to use Sprites/Default (tinted by particle color), then Resources/Vfx/AbilityVfx_ParticlesUnlit, then URP particle shaders.")]
     [SerializeField] private Material runtimeParticleMaterialTemplate;
@@ -273,6 +275,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float tripleShotVolleyFlashLineWidth = 0.1f;
     [SerializeField, Min(0.1f)] private float tripleShotVolleyFlashRadius = 0.42f;
     [SerializeField] private Vector3 tripleShotVolleyFlashOffset = new Vector3(0f, 0.55f, 0f);
+
+    [Header("Static Arrows (Range Lv5) VFX")]
+    [SerializeField] private LightningArcVfx lightningArcPrefab;
+    [SerializeField, Min(0.05f)] private float staticArrowsTrailLingerSeconds = 0.35f;
+    [SerializeField, Min(0.01f)] private float staticArrowsTrailWidth = 0.06f;
+    [SerializeField, Range(0f, 1f)] private float staticArrowsTrailStartAlpha = 0.9f;
+    [SerializeField] private Color staticArrowsTrailColor = new Color(1f, 0.9f, 0.25f, 0.95f);
 
     [Header("Snipe (Range Lv5) VFX")]
     [Tooltip("Yellow charge rings (50% opacity) that rise up the player while Snipe is charging.")]
@@ -3638,6 +3647,46 @@ public class PlayerAbilityVfxController : MonoBehaviour
             tripleShotVolleyFlashDuration,
             sortingOrderBump: 10,
             objectName: "TripleShotVolleyFlash"));
+    }
+
+    public void SpawnStaticArrowsCritLightningArc(Vector3 worldStart, Vector3 worldEnd, Transform sortingReference)
+    {
+        LightningArcVfx instance = LightningArcVfx.Spawn(
+            lightningArcPrefab,
+            worldStart,
+            worldEnd,
+            parent: null,
+            sortingReference: sortingReference != null ? sortingReference : (player != null ? player.transform : transform),
+            randomSeed: UnityEngine.Random.Range(int.MinValue, int.MaxValue));
+
+        if (instance != null)
+            instance.UseExactSegmentLength = true;
+    }
+
+    public void SetStaticArrowsBuffArrowVisual(bool active)
+    {
+        RangedAttackVisualController visuals = ResolveRangedAttackVisuals();
+        if (visuals != null)
+            visuals.SetBuffArrowVisualActive(active);
+    }
+
+    public SnipeLingeringTrailFollower.TrailSettings GetStaticArrowsTrailSettings()
+    {
+        return new SnipeLingeringTrailFollower.TrailSettings
+        {
+            LingerSeconds = Mathf.Max(0.05f, staticArrowsTrailLingerSeconds),
+            Width = Mathf.Max(0.01f, staticArrowsTrailWidth),
+            StartAlpha = Mathf.Clamp01(staticArrowsTrailStartAlpha),
+            Color = staticArrowsTrailColor,
+            LingerOnDetach = false
+        };
+    }
+
+    private RangedAttackVisualController ResolveRangedAttackVisuals()
+    {
+        if (_rangedAttackVisuals == null && player != null)
+            _rangedAttackVisuals = player.GetComponentInChildren<RangedAttackVisualController>(true);
+        return _rangedAttackVisuals;
     }
 
     public SnipeLingeringTrailFollower.TrailSettings GetSnipeTrailSettings()

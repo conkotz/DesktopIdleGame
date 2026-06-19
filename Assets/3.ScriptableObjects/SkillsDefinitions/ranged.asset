@@ -174,6 +174,36 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 5
+    title: Static Arrows
+    description: Your auto attacks become infused with lightning.
+    icon: {fileID: -2787588912550640783, guid: b5a0081520694e54bb623cc63796ab0a, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: c8f4a1b23d5e6478a1b2c3d4e5f67890, type: 2}
+    presentation: {fileID: 11400000, guid: d9e5b2c34f6a7589b2c3d4e5f6789012, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Chain Lightning
+      description: On crit, send an arc of lightning to a nearby enemy dealing 50% of
+        the hit's damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 8
+      title: Fully Charged
+      description: Increase the conversion to 100% of physical damage to lightning
+        and deal an extra 10% damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 6
     title: Deadeye Training I
     description: +3% Ranged Damage

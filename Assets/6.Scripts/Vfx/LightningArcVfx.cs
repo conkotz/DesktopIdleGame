@@ -52,6 +52,14 @@ public sealed class LightningArcVfx : MonoBehaviour
     private readonly List<SpriteRenderer> _segmentRenderers = new();
     private Coroutine _playRoutine;
     private bool _playedExternally;
+    private bool _useExactSegmentLength;
+
+    /// <summary>When true, arc length matches the distance between points (no over-scale variance).</summary>
+    public bool UseExactSegmentLength
+    {
+        get => _useExactSegmentLength;
+        set => _useExactSegmentLength = value;
+    }
 
     public bool DestroyWhenFinished
     {
@@ -71,14 +79,14 @@ public sealed class LightningArcVfx : MonoBehaviour
         LightningArcVfx instance;
         if (prefab != null)
         {
-            instance = Instantiate(prefab, worldStart, Quaternion.identity, parent);
+            instance = Instantiate(prefab, Vector3.zero, Quaternion.identity, parent);
         }
         else
         {
             var go = new GameObject("LightningArc");
             if (parent != null)
                 go.transform.SetParent(parent, worldPositionStays: true);
-            go.transform.position = worldStart;
+            go.transform.position = Vector3.zero;
             instance = go.AddComponent<LightningArcVfx>();
         }
 
@@ -127,7 +135,9 @@ public sealed class LightningArcVfx : MonoBehaviour
         if (_playRoutine != null)
             StopCoroutine(_playRoutine);
 
-        _playRoutine = StartCoroutine(CoPlayChain(waypoints, randomSeed));
+        int baseSeed = randomSeed ?? UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+        LayoutChain(waypoints, baseSeed, 1f, deterministic: false);
+        _playRoutine = StartCoroutine(CoPlayChain(waypoints, baseSeed));
     }
 
     public void StopAndHide()
@@ -220,11 +230,8 @@ public sealed class LightningArcVfx : MonoBehaviour
     private Vector3 ResolvePreviewEnd() =>
         useTransformAsPreviewStart ? transform.position + previewEndOffset : previewWorldEnd;
 
-    private IEnumerator CoPlayChain(IReadOnlyList<Vector3> waypoints, int? randomSeed)
+    private IEnumerator CoPlayChain(IReadOnlyList<Vector3> waypoints, int baseSeed)
     {
-        int baseSeed = randomSeed ?? UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-        LayoutChain(waypoints, baseSeed, 1f, deterministic: false);
-
         float flickerTime = Mathf.Max(0f, flickerDuration);
         int frames = Mathf.Max(1, flickerFrames);
         if (flickerTime > 0.001f && frames > 1)
@@ -301,19 +308,24 @@ public sealed class LightningArcVfx : MonoBehaviour
 
         float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
         Transform segmentTransform = renderer.transform;
-        Vector3 anchor = ResolveSegmentAnchor(sprite, start, end);
-        segmentTransform.position = new Vector3(anchor.x, anchor.y, 0f);
-        segmentTransform.rotation = Quaternion.Euler(0f, 0f, angle);
 
         float spriteWidth = Mathf.Max(0.001f, sprite.bounds.size.x);
-        float lengthScale = deterministic ? 1f : 1f + (NextSigned(rng) * lengthVariance);
+        float lengthScale = _useExactSegmentLength || deterministic
+            ? 1f
+            : 1f + (NextSigned(rng) * lengthVariance);
+        float scaledLength = distance * lengthScale;
         float thickness = deterministic
             ? thicknessScale
             : thicknessScale * (1f + (NextSigned(rng) * thicknessVariance));
         renderer.flipY = !deterministic && randomFlipY && rng.Next(0, 2) == 0;
 
+        Vector3 direction = delta / distance;
+        float pivotNormX = sprite.pivot.x / Mathf.Max(1f, sprite.rect.width);
+        segmentTransform.position = start + direction * (scaledLength * pivotNormX);
+        segmentTransform.rotation = Quaternion.Euler(0f, 0f, angle);
+
         segmentTransform.localScale = new Vector3(
-            (distance / spriteWidth) * lengthScale,
+            scaledLength / spriteWidth,
             Mathf.Abs(thickness),
             1f);
 
@@ -378,15 +390,6 @@ public sealed class LightningArcVfx : MonoBehaviour
             renderer.sortingLayerID = layerId;
             renderer.sortingOrder = order;
         }
-    }
-
-    private static Vector3 ResolveSegmentAnchor(Sprite sprite, Vector3 start, Vector3 end)
-    {
-        if (sprite == null)
-            return start;
-
-        float pivotX = sprite.pivot.x / Mathf.Max(1f, sprite.rect.width);
-        return Vector3.Lerp(start, end, Mathf.Clamp01(pivotX));
     }
 
     private bool HasAnySprite() => GetValidVariants().Length > 0 || defaultArcSprite != null;

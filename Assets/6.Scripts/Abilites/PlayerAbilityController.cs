@@ -71,6 +71,7 @@ public partial class PlayerAbilityController : MonoBehaviour
     }
     private const string PowerSlashId = "power_slash";
     private const string TripleShotId = "triple_shot";
+    private const string StaticArrowsId = "static_arrows";
     private const string CrusaderStrikeId = "crusader_strike";
     public const string CrusaderStrikeFireBalanceHudBuffId = "crusader_strike_fire_balance";
     private const string WhirlwindId = "whirlwind";
@@ -231,6 +232,16 @@ public partial class PlayerAbilityController : MonoBehaviour
     private float _cleavingBuffEndsAt;
     private float _cleavingBuffDuration;
     private bool _cleavingBuffActive;
+
+    private bool _staticArrowsBuffActive;
+    private int _staticArrowsHitsRemaining;
+    private float _staticArrowsBuffEndsAt;
+    private float _staticArrowsBuffDuration;
+    private bool _staticArrowsAppliedThisHit;
+    private int _lastSyncedStaticArrowsHudStacks = int.MinValue;
+    private float _lastSyncedStaticArrowsHudEnd = float.NaN;
+    /// <summary>When Static Arrows charges are spent (or the buff is cleared), this ability gets <see cref="StartCooldown"/>.</summary>
+    private AbilityDefinition _staticArrowsCooldownAbilityDef;
     private int _lastSyncedCleavingHudStacks = int.MinValue;
     private float _lastSyncedCleavingHudEnd = float.NaN;
     private bool _lumberFrenzyActive;
@@ -424,6 +435,14 @@ public partial class PlayerAbilityController : MonoBehaviour
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(TripleShotId),
+                1f);
+        }
+
+        if (_staticArrowsAppliedThisHit)
+        {
+            return new PlayerCombatController.SwingOutgoingAttribution(
+                "Auto Attack",
+                GetAbilityOutgoingDamageSourceLabel(StaticArrowsId),
                 1f);
         }
 
@@ -732,6 +751,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncCrusaderStrikeFireBalanceHudBuff();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
+        CleanupStaticArrowsIfExpired();
+        SyncStaticArrowsHudBuff();
         CleanupLumberFrenzyIfExpired();
         CleanupFishingFrenzyIfExpired();
         SyncLumberFrenzyHudBuff();
@@ -769,6 +790,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncCrusaderStrikeFireBalanceHudBuff();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
+        CleanupStaticArrowsIfExpired();
+        SyncStaticArrowsHudBuff();
         CleanupLumberFrenzyIfExpired();
         CleanupFishingFrenzyIfExpired();
         abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive, _fishingFrenzyActive);
@@ -1055,6 +1078,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return IsSpectralAxeActive;
         if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
             return _cleavingBuffActive;
+        if (string.Equals(abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase))
+            return _staticArrowsBuffActive;
         if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
             return _energyInfusionActive;
         if (IsWarBannerAbilityId(abilityId))
@@ -1129,6 +1154,11 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndCleavingStrikesBuffEarly();
+            return;
+        }
+        if (string.Equals(abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndStaticArrowsBuffEarly();
             return;
         }
 
@@ -1250,6 +1280,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
 
         TryEndLingeringIfRemovedFromActionBar(CleavingStrikesId);
+        TryEndLingeringIfRemovedFromActionBar(StaticArrowsId);
         TryEndLingeringIfRemovedFromActionBar(LumberFrenzyId);
         TryEndLingeringIfRemovedFromActionBar(FishingFrenzyId);
         TryEndLingeringIfRemovedFromActionBar(CleavingChopId);
@@ -1520,6 +1551,15 @@ public partial class PlayerAbilityController : MonoBehaviour
         _cleavingBuffEndsAt = 0f;
         _cleavingBuffDuration = 0f;
         SyncCleavingStrikesHudBuff();
+    }
+
+    private void ForceEndStaticArrowsBuffEarly()
+    {
+        if (!_staticArrowsBuffActive)
+            return;
+
+        _staticArrowsHitsRemaining = 0;
+        FinishStaticArrowsBuffAndStartCooldown();
     }
 
     private void ForceEndLumberFrenzyEarly()
@@ -2109,7 +2149,9 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private void LogAbilityUsed(AbilityDefinition def)
     {
-        if (def != null && !def.SpawnsMinionOnCast && !IsGatheringAbilitySkill(def.sourceSkill))
+        bool resumesCombat = AbilityResumesCombatOnCast(def);
+
+        if (def != null && !def.SpawnsMinionOnCast && !IsGatheringAbilitySkill(def.sourceSkill) && resumesCombat)
         {
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
@@ -2117,7 +2159,24 @@ public partial class PlayerAbilityController : MonoBehaviour
             combat?.NotifyExplicitCombatEngage();
         }
 
-        ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: true);
+        ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: resumesCombat);
+    }
+
+    /// <summary>Self-buff / utility casts that should not resume paused combat or start a hit session.</summary>
+    private static bool AbilityResumesCombatOnCast(AbilityDefinition def)
+    {
+        if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+            return true;
+
+        if (def.tag == AbilityTag.Buff || def.tag == AbilityTag.ToggleBuff)
+            return false;
+
+        string id = def.abilityId;
+        return !string.Equals(id, StaticArrowsId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(id, FishingFrenzyId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(id, CleavingChopId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(id, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsGatheringAbilitySkill(SkillType skillType)
@@ -3476,6 +3535,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
             return false;
 
+        if (string.Equals(def.abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase) && _staticArrowsBuffActive)
+            return false;
+
         if (string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase) && IsAvatarOfTheForestActive)
             return false;
 
@@ -3597,6 +3659,15 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             ActivateCleavingStrikesBuff();
             StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (string.Equals(def.abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateStaticArrowsBuff();
+            _staticArrowsCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -7193,6 +7264,306 @@ public partial class PlayerAbilityController : MonoBehaviour
         buffController.SetHudAbilityBuff(CleavingStrikesId, displayStacks, _cleavingBuffEndsAt, _cleavingBuffDuration);
     }
 
+    public bool IsStaticArrowsActive => _staticArrowsBuffActive;
+
+    /// <summary>
+    /// Scales the current auto attack while Static Arrows charges remain and converts physical to lightning.
+    /// </summary>
+    public void ApplyStaticArrowsAutoAttackScaling(ref SplitDamage rolled)
+    {
+        _staticArrowsAppliedThisHit = false;
+        CleanupStaticArrowsIfExpired();
+        if (!_staticArrowsBuffActive || rolled.IsEmpty)
+            return;
+
+        if (stats == null || stats.CurrentAttackSkill != AttackSkill.Ranged)
+            return;
+
+        AbilityDefinition def = GetAbilityDefinition(StaticArrowsId);
+        if (def == null)
+            return;
+
+        float weaponMult = GetStaticArrowsWeaponDamageMultiplier(def);
+        float apM = GetAbilityPowerDamageMultiplierForAbility(def);
+        float allM = def.GetEffectiveAllDamageMultiplier();
+        float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+        float overloadMult = GetBattleEngineOverloadDamageMultiplier();
+
+        rolled.physical = ((rolled.physical * weaponMult + ailmentBonus) * apM * allM) * overloadMult;
+        rolled.magic = ((rolled.magic * weaponMult + elementBonus) * apM * allM) * overloadMult;
+        rolled.corruptionDamage = ((rolled.corruptionDamage * weaponMult) * apM * allM) * overloadMult;
+        rolled.physical = Mathf.Max(0f, rolled.physical);
+        rolled.magic = Mathf.Max(0f, rolled.magic);
+        rolled.corruptionDamage = Mathf.Max(0f, rolled.corruptionDamage);
+
+        ApplyStaticArrowsPhysicalToLightningConversion(ref rolled);
+        _staticArrowsAppliedThisHit = true;
+    }
+
+    private void ApplyStaticArrowsPhysicalToLightningConversion(ref SplitDamage hit)
+    {
+        float frac = GetStaticArrowsPhysicalToLightningConversionFraction();
+        if (frac <= 0f)
+            return;
+
+        float converted = Mathf.Max(0f, hit.physical) * frac;
+        if (converted <= 0f)
+            return;
+
+        hit = new SplitDamage(
+            Mathf.Max(0f, hit.physical - converted),
+            Mathf.Max(0f, hit.magic + converted),
+            Mathf.Max(0f, hit.corruptionDamage));
+    }
+
+    /// <summary>Called after a successful primary auto attack lands while Static Arrows is active.</summary>
+    public bool TryConsumeStaticArrowsHitOnSuccessfulAttack()
+    {
+        CleanupStaticArrowsIfExpired();
+        if (!_staticArrowsBuffActive || _staticArrowsHitsRemaining <= 0)
+            return false;
+
+        _staticArrowsHitsRemaining--;
+        CleanupStaticArrowsIfExpired();
+        SyncStaticArrowsHudBuff();
+        return true;
+    }
+
+    public void ClearStaticArrowsPendingSwingFlag() => _staticArrowsAppliedThisHit = false;
+
+    /// <summary>
+    /// Enhancement: on crit, arc lightning to a nearby enemy for a fraction of the hit damage dealt.
+    /// </summary>
+    public void TryStaticArrowsCritLightningArc(
+        EnemyBaseController primaryTarget,
+        float physicalDealt,
+        float magicDealt,
+        float corruptionDealt,
+        bool wasCrit)
+    {
+        float totalDealt = Mathf.Max(0f, physicalDealt) + Mathf.Max(0f, magicDealt) + Mathf.Max(0f, corruptionDealt);
+        if (!wasCrit || primaryTarget == null || primaryTarget.IsDead || totalDealt <= 0f)
+            return;
+        if (!_staticArrowsAppliedThisHit)
+            return;
+        if (GetStaticArrowsSelectedChoice() != AbilityCombatPower.StaticArrowsChainLightningChoiceIndex)
+            return;
+
+        EnemyBaseController chainTarget = FindStaticArrowsCritArcTarget(primaryTarget);
+        if (chainTarget == null)
+            return;
+
+        float arcPotency = totalDealt * AbilityCombatPower.StaticArrowsCritArcDamageFraction;
+        if (arcPotency <= 0f)
+            return;
+
+        SplitDamage arcSplit = BuildStaticArrowsCritArcSplit(physicalDealt, magicDealt, corruptionDealt, arcPotency);
+        if (arcSplit.IsEmpty)
+            return;
+
+        Vector3 from = GetEnemyVfxCenter(primaryTarget);
+        Vector3 to = GetEnemyVfxCenter(chainTarget);
+        abilityVfx?.SpawnStaticArrowsCritLightningArc(from, to, primaryTarget.transform);
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return;
+
+        string label = GetAbilityOutgoingDamageSourceLabel(StaticArrowsId);
+        combat.ApplyStaticArrowsCritArcDamage(chainTarget, arcSplit, wasCrit, label);
+    }
+
+    private static Vector3 GetEnemyVfxCenter(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return Vector3.zero;
+
+        SpriteRenderer sr = enemy.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
+            return sr.bounds.center;
+
+        Collider2D best = null;
+        float bestArea = 0f;
+        Collider2D[] cols = enemy.GetComponentsInChildren<Collider2D>();
+        for (int i = 0; i < cols.Length; i++)
+        {
+            Collider2D col = cols[i];
+            if (!col || !col.enabled)
+                continue;
+
+            float area = col.bounds.size.x * col.bounds.size.y;
+            if (area <= bestArea)
+                continue;
+
+            bestArea = area;
+            best = col;
+        }
+
+        if (best != null)
+            return best.bounds.center;
+
+        return enemy.transform.position;
+    }
+
+    private EnemyBaseController FindStaticArrowsCritArcTarget(EnemyBaseController origin)
+    {
+        if (!origin)
+            return null;
+
+        Vector3 originPos = origin.transform.position;
+        float range = AbilityCombatPower.StaticArrowsCritArcRange;
+        float rangeSq = range * range;
+
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDistSq = float.MaxValue;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyBaseController candidate = enemies[i];
+            if (candidate == null || candidate.IsDead || !candidate.gameObject.activeInHierarchy || candidate == origin)
+                continue;
+
+            float distSq = (candidate.transform.position - originPos).sqrMagnitude;
+            if (distSq > rangeSq || distSq >= bestDistSq)
+                continue;
+
+            bestDistSq = distSq;
+            best = candidate;
+        }
+
+        return best;
+    }
+
+    private static SplitDamage BuildStaticArrowsCritArcSplit(
+        float physicalDealt,
+        float magicDealt,
+        float corruptionDealt,
+        float arcPotency)
+    {
+        float total = Mathf.Max(0.0001f, physicalDealt + magicDealt + corruptionDealt);
+        float scale = arcPotency / total;
+        return new SplitDamage(
+            Mathf.Max(0f, physicalDealt * scale),
+            Mathf.Max(0f, magicDealt * scale),
+            Mathf.Max(0f, corruptionDealt * scale));
+    }
+
+    private void ActivateStaticArrowsBuff()
+    {
+        _staticArrowsBuffActive = true;
+        _staticArrowsHitsRemaining = AbilityCombatPower.StaticArrowsAutoAttackCount;
+        _staticArrowsAppliedThisHit = false;
+        _staticArrowsBuffDuration = AbilityCombatPower.StaticArrowsBaseDurationSeconds;
+        _staticArrowsBuffEndsAt = Time.time + _staticArrowsBuffDuration;
+        _lastSyncedStaticArrowsHudStacks = int.MinValue;
+        _lastSyncedStaticArrowsHudEnd = float.NaN;
+        abilityVfx?.SetStaticArrowsBuffArrowVisual(true);
+        SyncStaticArrowsHudBuff();
+    }
+
+    private void FinishStaticArrowsBuffAndStartCooldown()
+    {
+        if (!_staticArrowsBuffActive)
+            return;
+
+        _staticArrowsBuffActive = false;
+        _staticArrowsHitsRemaining = 0;
+        _staticArrowsAppliedThisHit = false;
+        _staticArrowsBuffEndsAt = 0f;
+        _staticArrowsBuffDuration = 0f;
+
+        abilityVfx?.SetStaticArrowsBuffArrowVisual(false);
+
+        if (_staticArrowsCooldownAbilityDef)
+            StartCooldown(_staticArrowsCooldownAbilityDef);
+        _staticArrowsCooldownAbilityDef = null;
+
+        SyncStaticArrowsHudBuff();
+    }
+
+    public bool ShouldAttachStaticArrowsProjectileTrail => _staticArrowsAppliedThisHit;
+
+    private void CleanupStaticArrowsIfExpired()
+    {
+        if (!_staticArrowsBuffActive)
+            return;
+
+        // End only when both duration and hit budget are satisfied: slow weapons can finish all swings after
+        // the timer; fast weapons keep the buff until the timer after spending all hit charges.
+        bool hitsConsumed = _staticArrowsHitsRemaining <= 0;
+        bool durationElapsed = Time.time >= _staticArrowsBuffEndsAt;
+        if (hitsConsumed && durationElapsed)
+            FinishStaticArrowsBuffAndStartCooldown();
+    }
+
+    private void SyncStaticArrowsHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_staticArrowsBuffActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(StaticArrowsId))
+                buffController.ClearHudAbilityBuff(StaticArrowsId);
+            _lastSyncedStaticArrowsHudStacks = int.MinValue;
+            _lastSyncedStaticArrowsHudEnd = float.NaN;
+            return;
+        }
+
+        if (IsOnCooldown(StaticArrowsId, out _))
+        {
+            buffController.ClearHudAbilityBuff(StaticArrowsId);
+            _lastSyncedStaticArrowsHudStacks = int.MinValue;
+            _lastSyncedStaticArrowsHudEnd = float.NaN;
+            return;
+        }
+
+        int displayStacks = _staticArrowsHitsRemaining > 0 ? _staticArrowsHitsRemaining : 1;
+        if (_lastSyncedStaticArrowsHudStacks == displayStacks &&
+            Mathf.Approximately(_lastSyncedStaticArrowsHudEnd, _staticArrowsBuffEndsAt))
+            return;
+
+        _lastSyncedStaticArrowsHudStacks = displayStacks;
+        _lastSyncedStaticArrowsHudEnd = _staticArrowsBuffEndsAt;
+        buffController.SetHudAbilityBuff(StaticArrowsId, displayStacks, _staticArrowsBuffEndsAt, _staticArrowsBuffDuration);
+    }
+
+    private float GetStaticArrowsWeaponDamageMultiplier(AbilityDefinition def)
+    {
+        float weaponMult = def != null && def.weaponDamageMultiplier > 0f
+            ? def.weaponDamageMultiplier
+            : AbilityCombatPower.StaticArrowsWeaponDamageMultiplier;
+        if (GetStaticArrowsSelectedChoice() == AbilityCombatPower.StaticArrowsFullyChargedChoiceIndex)
+            weaponMult += AbilityCombatPower.StaticArrowsFullyChargedDamageBonus;
+        return weaponMult;
+    }
+
+    private float GetStaticArrowsPhysicalToLightningConversionFraction()
+    {
+        return GetStaticArrowsSelectedChoice() == AbilityCombatPower.StaticArrowsFullyChargedChoiceIndex
+            ? AbilityCombatPower.StaticArrowsFullyChargedConversionFraction
+            : AbilityCombatPower.StaticArrowsPhysicalToLightningConversionFraction;
+    }
+
+    private int GetStaticArrowsSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        if (selected < 0)
+            selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged,
+                AbilityCombatPower.StaticArrowsEnhancementParentSpineNodeId,
+                -1);
+        return selected;
+    }
+
     private void ActivateLumberFrenzyBuff()
     {
         _lumberFrenzyActive = true;
@@ -8375,6 +8746,14 @@ public partial class PlayerAbilityController : MonoBehaviour
             return _cleavingHitsRemaining > 0 ? _cleavingHitsRemaining : 1;
         }
 
+        if (string.Equals(abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase))
+        {
+            CleanupStaticArrowsIfExpired();
+            if (!_staticArrowsBuffActive)
+                return 0;
+            return _staticArrowsHitsRemaining > 0 ? _staticArrowsHitsRemaining : 1;
+        }
+
         if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
         {
             RefreshFlameChargeChargesFromSkillTree();
@@ -8470,6 +8849,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return _crescentSlashQueued;
         if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
             return IsCrusaderStrikeComboInProgress();
+        if (string.Equals(abilityId, StaticArrowsId, StringComparison.OrdinalIgnoreCase))
+            return _staticArrowsBuffActive;
 
         return false;
     }

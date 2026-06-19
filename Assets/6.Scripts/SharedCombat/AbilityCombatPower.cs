@@ -18,6 +18,18 @@ public static class AbilityCombatPower
     public const float TripleShotPhantomArrowIntervalSeconds = 0.3f;
     public const float TripleShotEnhancementDamageBonus = 0.10f;
     public const float TripleShotEnhancementCooldownReductionSeconds = 2f;
+    public const string StaticArrowsAbilityId = "static_arrows";
+    public const string StaticArrowsEnhancementParentSpineNodeId = "Lv5_3";
+    public const int StaticArrowsChainLightningChoiceIndex = 0;
+    public const int StaticArrowsFullyChargedChoiceIndex = 1;
+    public const float StaticArrowsWeaponDamageMultiplier = 1.2f;
+    public const int StaticArrowsAutoAttackCount = 5;
+    public const float StaticArrowsBaseDurationSeconds = 6f;
+    public const float StaticArrowsPhysicalToLightningConversionFraction = 0.5f;
+    public const float StaticArrowsFullyChargedConversionFraction = 1f;
+    public const float StaticArrowsFullyChargedDamageBonus = 0.10f;
+    public const float StaticArrowsCritArcRange = 10f;
+    public const float StaticArrowsCritArcDamageFraction = 0.5f;
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
     public const int SnipeFasterChargeChoiceIndex = 0;
@@ -771,6 +783,7 @@ public static class AbilityCombatPower
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref weaponMult, ref cd);
         ApplyTripleShotChoiceAdjustments(def, ref weaponMult, ref cd);
+        ApplyStaticArrowsChoiceAdjustments(def, ref weaponMult, ref cd);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
@@ -811,6 +824,24 @@ public static class AbilityCombatPower
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             return Mathf.Max(0f, volleyTotal * procRate);
+        }
+
+        // Static Arrows: buffs the next N auto attacks at weapon-scaled damage.
+        if (string.Equals(def.abilityId, StaticArrowsAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float saAllM = def.GetEffectiveAllDamageMultiplier();
+            float apM = stats.GetAbilityPowerDamageMultiplier();
+            float weaponEff = weaponMult <= 0f ? 1f : weaponMult;
+            float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+            float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+            float physPerHit = (avgPhys * weaponEff + ailmentBonus) * apM * saAllM;
+            float magPerHit = (avgMag * weaponEff + elementBonus) * apM * saAllM;
+            float corrPerHit = (avgCorruption * weaponEff) * apM * saAllM;
+            float perHitTotal = (physPerHit + magPerHit + corrPerHit) * critFactor;
+            float buffTotal = perHitTotal * StaticArrowsAutoAttackCount;
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            return Mathf.Max(0f, buffTotal * procRate);
         }
 
         if (string.Equals(def.abilityId, SnipeAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -1058,6 +1089,23 @@ public static class AbilityCombatPower
             weaponDamageMultiplier += TripleShotEnhancementDamageBonus;
         else if (selected == 1)
             cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - TripleShotEnhancementCooldownReductionSeconds);
+    }
+
+    private static void ApplyStaticArrowsChoiceAdjustments(AbilityDefinition def, ref float weaponDamageMultiplier, ref float cooldownSeconds)
+    {
+        if (!def || !string.Equals(def.abilityId, StaticArrowsAbilityId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        if (selected < 0)
+            selected = sm.GetSkillChoiceSelection(SkillType.Ranged, StaticArrowsEnhancementParentSpineNodeId, -1);
+
+        if (selected == StaticArrowsFullyChargedChoiceIndex)
+            weaponDamageMultiplier += StaticArrowsFullyChargedDamageBonus;
     }
 
     private static int GetRendSelectedChoiceForCombatPower()

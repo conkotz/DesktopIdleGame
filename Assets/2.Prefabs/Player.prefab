@@ -5842,6 +5842,28 @@ MonoBehaviour:
     spectralTint: {r: 0.7207546, g: 0.2104272, b: 0.18902804, a: 0.9}
     placeholderWeaponSprite: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     spriteSortingOrder: 4
+  hawkCompanionMinionPresentation:
+    attackRange: 0
+    flightHeightAbovePlayer: 0
+    horizontalFlightSpeed: 0
+    wanderDistanceMin: 0
+    wanderDistanceMax: 0
+    maxWanderRadiusFromPlayer: 0
+    followStopDistance: 0
+    maxLeashDistanceFromPlayer: 0
+    idleWanderDelaySeconds: 0
+    wanderArrivalDistance: 0
+    diveSpeed: 0
+    returnSpeed: 0
+    diveStrikeArrivalDistance: 0
+    swoopArcCarryDistance: 0
+    strikeHeightAboveEnemy: 0
+    wobbleAmplitudeX: 0
+    wobbleAmplitudeY: 0
+    wobbleFrequency: 0
+    rotationWobbleDegrees: 0
+    visualWorldScale: 0
+    spriteSortingOrder: 0
   spectralAxeTint: {r: 0.55, g: 0.8, b: 1, a: 0.85}
   spectralAxeVisualLift: 1.35
   spectralAxeSpinDegreesPerSecond: 720
@@ -5889,6 +5911,32 @@ MonoBehaviour:
   energyInfusionGlowEmissionRate: 38
   energyInfusionParticleStartSizeMin: 0.032
   energyInfusionParticleStartSizeMax: 0.058
+  tripleShotVolleyFlashColor: {r: 0.92, g: 0.98, b: 1, a: 0.75}
+  tripleShotVolleyFlashDuration: 0.16
+  tripleShotVolleyFlashLineWidth: 0.1
+  tripleShotVolleyFlashRadius: 0.42
+  tripleShotVolleyFlashOffset: {x: 0, y: 0.55, z: 0}
+  lightningArcPrefab: {fileID: 8429156374829103849, guid: e7b2c9345a6d4789bcde0123456789ab, type: 3}
+  staticArrowsTrailLingerSeconds: 0.35
+  staticArrowsTrailWidth: 0.06
+  staticArrowsTrailStartAlpha: 0.9
+  staticArrowsTrailColor: {r: 1, g: 0.9, b: 0.25, a: 0.95}
+  snipeChargeRingColor: {r: 1, g: 0.92, b: 0.15, a: 0.5}
+  snipeChargeRingBottomOffset: {x: 0, y: 0.06, z: 0}
+  snipeChargeRingRadius: 0.58
+  snipeChargeRingLineWidth: 0.055
+  snipeChargeRingTopGapDegrees: 52
+  snipeChargeRingSegments: 36
+  snipeChargeRingSpawnIntervalSeconds: 0.2
+  snipeChargeRingRiseSpeedMultiplier: 5
+  snipeTrailLingerSeconds: 1.5
+  snipeTrailWidth: 0.18
+  snipeTrailStartAlpha: 0.95
+  snipeTrailColor: {r: 1, g: 1, b: 1, a: 1}
+  seekerArrowTrailLingerSeconds: 1.5
+  seekerArrowTrailWidth: 0.1
+  seekerArrowTrailStartAlpha: 0.95
+  seekerArrowTrailColor: {r: 1, g: 1, b: 1, a: 1}
   warBannerSprite: {fileID: 4575528367620855910, guid: 0c3dc46a851bd6d4992b9004c635a15c, type: 3}
   warBannerTint: {r: 1, g: 1, b: 1, a: 1}
   warBannerWorldScale: 2
@@ -5899,6 +5947,9 @@ MonoBehaviour:
   warBannerSortingLayer: Foreground
   warBannerSortingOrderOffsetFromPlayer: -5
   warBannerSortingOrder: 10
+  warBannerFadeWhenPlayerOverlaps: 1
+  warBannerOverlapAlpha: 0.5
+  warBannerOverlapScanInterval: 0.1
   hammerTempestHammerSprite: {fileID: 4687727764133868624, guid: a6c8e023557d16f4c8968c13917dd559, type: 3}
   hammerTempestHammerTint: {r: 1, g: 0.92, b: 0.35, a: 1}
   hammerTempestCenterOffset: {x: 0, y: 0.75, z: 0}
@@ -5970,6 +6021,7 @@ MonoBehaviour:
   gatherStateName: gather
   attackTriggerName: Attack
   rangedAttackTriggerName: RangedAttack
+  rangedAttackStateName: range_attack
   magicAttackTriggerName: MagicAttack
   hurtTriggerName: Hurt
   dieTriggerName: Die
@@ -6433,8 +6485,11 @@ MonoBehaviour:
   offHand: {fileID: 1961589182886891017}
   bow: {fileID: 4743721962739816599}
   arrow: {fileID: 5286985708663891203}
+  equippedOffHandRenderer: {fileID: 0}
   bowRenderer: {fileID: 1933729866197141820}
   arrowRenderer: {fileID: 2185241915679290693}
+  staticArrowsBuffOutlineColor: {r: 1, g: 0.92, b: 0.35, a: 0.78431374}
+  staticArrowsBuffOutlineScale: 1.1
   rangedAttackState: range_attack
 --- !u!114 &2141707508347274369
 MonoBehaviour:
@@ -6634,6 +6689,18 @@ MonoBehaviour:
   player: {fileID: 0}
   combat: {fileID: 0}
   interactFocus: {fileID: 5922623881930885248}
+--- !u!114 &5922623881930885248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7ed28708524a824baa8889c36da474a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerWorldInteractFocus
 --- !u!114 &7182938475610293847
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6655,18 +6722,8 @@ MonoBehaviour:
   pulseFadeSeconds: 0.75
   pulseHoldAtPeakSeconds: 1.5
   player: {fileID: 0}
---- !u!114 &5922623881930885248
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7288908651960985007}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c7ed28708524a824baa8889c36da474a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerWorldInteractFocus
+  combat: {fileID: 0}
+  interactFocus: {fileID: 0}
 --- !u!114 &6535601020591293650
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6681,6 +6738,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ConditionalAutoBattleSetController
   equipment: {fileID: 966196259100907935}
   actionBar: {fileID: 0}
+  actionBarWindow: {fileID: 0}
   characterStats: {fileID: 4199332309700179123}
   combatController: {fileID: 343137512557904079}
   evaluationIntervalSeconds: 0.15

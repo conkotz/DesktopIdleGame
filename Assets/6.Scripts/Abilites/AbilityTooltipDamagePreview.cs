@@ -328,6 +328,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsTripleShot(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.TripleShotAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsStaticArrows(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.StaticArrowsAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsSnipe(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SnipeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -345,7 +348,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
-        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsSnipe(def))
+        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsStaticArrows(def) || IsSnipe(def))
             return false;
 
         const float scalingEpsilon = 0.0001f;
@@ -483,9 +486,10 @@ public static class AbilityTooltipDamagePreview
             durationSeconds = AbilityCombatPower.CleavingStrikesLastingMomentumDurationSeconds;
         }
 
-        body.AppendLine(O($"+{extraTargets} nearby enemies per strike"));
-        body.AppendLine(O("40% reduced damage on cleaved hits."));
-        body.AppendLine(O($"Duration {durationSeconds:0.#}s or {empoweredHits} hits"));
+        AppendDetailsEffectParagraph(body, O($"+{extraTargets} nearby enemies per strike"));
+        AppendDetailsEffectParagraph(body, O("40% reduced damage on cleaved hits."));
+        AppendDetailsEffectParagraph(body, O(
+            $"Duration {empoweredHits} hits or {durationSeconds:0.#}s if hits are used up first."));
     }
 
     private static void AppendSoulforgedWeaponDurationLine(
@@ -736,6 +740,26 @@ public static class AbilityTooltipDamagePreview
             scaling.AppendLine(S($"Cast 1: {AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
             scaling.AppendLine(S($"Cast 2: {AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
             scaling.AppendLine(S($"Cast 3: {AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
+            if (stats != null)
+            {
+                float apBonusPct = Mathf.Max(0f, (stats.GetAbilityPowerDamageMultiplier() - 1f) * 100f);
+                if (apBonusPct > 0.05f)
+                    scaling.AppendLine(S($"+{apBonusPct:0.#}% damage from Ability Power"));
+            }
+            return scaling.ToString().TrimEnd();
+        }
+
+        if (IsStaticArrows(def))
+        {
+            float effectiveWeaponMult = def.weaponDamageMultiplier > 0f
+                ? def.weaponDamageMultiplier
+                : AbilityCombatPower.StaticArrowsWeaponDamageMultiplier;
+            int selected = GetStaticArrowsSelectedChoice(skillsManager);
+            if (selected == AbilityCombatPower.StaticArrowsFullyChargedChoiceIndex)
+                effectiveWeaponMult += AbilityCombatPower.StaticArrowsFullyChargedDamageBonus;
+
+            scaling.AppendLine(S(
+                $"{effectiveWeaponMult * 100f:0.#}% of your weapon physical or Lightning damage"));
             if (stats != null)
             {
                 float apBonusPct = Mathf.Max(0f, (stats.GetAbilityPowerDamageMultiplier() - 1f) * 100f);
@@ -1373,6 +1397,10 @@ public static class AbilityTooltipDamagePreview
         else if (IsTripleShot(def))
         {
             AppendTripleShotTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
+        }
+        else if (IsStaticArrows(def))
+        {
+            AppendStaticArrowsTooltipHitDamage(body, O, def, stats, skillsManager, weaponMult, allM, liveDamageMultiplier, includeEnhancementEffects);
         }
         else if (IsSnipe(def))
         {
@@ -2457,6 +2485,79 @@ public static class AbilityTooltipDamagePreview
             $"Fires {AbilityCombatPower.TripleShotArrowCount} arrows ({AbilityCombatPower.TripleShotPhantomArrowIntervalSeconds:0.#}s apart). Phantom arrows do not consume ammo."));
     }
 
+    private static int GetStaticArrowsSelectedChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Ranged, 5, -1);
+        if (selected < 0)
+            selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged,
+                AbilityCombatPower.StaticArrowsEnhancementParentSpineNodeId,
+                -1);
+        return selected;
+    }
+
+    private static void AppendStaticArrowsTooltipHitDamage(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        SkillsManager skillsManager,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier,
+        bool includeEnhancementEffects = true)
+    {
+        string suffix = " on hit";
+        int selected = GetStaticArrowsSelectedChoice(skillsManager);
+        float conversionFrac = selected == AbilityCombatPower.StaticArrowsFullyChargedChoiceIndex
+            ? AbilityCombatPower.StaticArrowsFullyChargedConversionFraction
+            : AbilityCombatPower.StaticArrowsPhysicalToLightningConversionFraction;
+
+        if (!stats)
+        {
+            AppendEffectLineGroup(body, new List<string> { O("+0 damage on hit") });
+            AppendDetailsEffectParagraph(body, O(FormatStaticArrowsDurationEffectLine()));
+            return;
+        }
+
+        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
+
+        float convertedPhys = physHit * conversionFrac;
+        float displayPhys = Mathf.Max(0f, physHit - convertedPhys);
+        float displayLightning = lightningHit + convertedPhys + untypedMagicHit;
+
+        var damageLines = new List<string>();
+        CollectElementAwareDamageLines(
+            damageLines,
+            O,
+            displayPhys,
+            fireHit,
+            iceHit,
+            displayLightning,
+            0f,
+            corrHit,
+            suffix);
+        AppendEffectLineGroup(body, damageLines);
+
+        int conversionPct = Mathf.RoundToInt(conversionFrac * 100f);
+        AppendDetailsEffectParagraph(body, O(FormatStaticArrowsDurationEffectLine()));
+        AppendDetailsEffectParagraph(body, O(
+            $"Converts {conversionPct}% of physical damage to lightning."));
+
+        if (!includeEnhancementEffects || selected < 0)
+            return;
+
+        if (selected == AbilityCombatPower.StaticArrowsChainLightningChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"On crit, arcs lightning to a nearby enemy within {AbilityCombatPower.StaticArrowsCritArcRange:0.#} range for {AbilityCombatPower.StaticArrowsCritArcDamageFraction * 100f:0.#}% of the hit's damage."));
+        }
+    }
+
     private const string DetailsEffectParagraphGap = "\n\n";
 
     private static void AppendDetailsEffectParagraph(StringBuilder body, string line)
@@ -2512,6 +2613,9 @@ public static class AbilityTooltipDamagePreview
     }
 
     private static void AppendSnipeTooltipChargeDamageGroup(StringBuilder body, List<string> lines)
+        => AppendEffectLineGroup(body, lines);
+
+    private static void AppendEffectLineGroup(StringBuilder body, List<string> lines)
     {
         if (lines == null || lines.Count == 0)
             return;
@@ -2520,6 +2624,12 @@ public static class AbilityTooltipDamagePreview
             body.Append(DetailsEffectParagraphGap);
 
         body.Append(string.Join("\n", lines));
+    }
+
+    private static string FormatStaticArrowsDurationEffectLine()
+    {
+        return
+            $"Duration {AbilityCombatPower.StaticArrowsAutoAttackCount} hits or {AbilityCombatPower.StaticArrowsBaseDurationSeconds:0.#}s if hits are used up first.";
     }
 
     private static int ResolveSnipeEnhancementChoice(SkillsManager skillsManager, int enhancementChoiceOverride)
@@ -2644,6 +2754,24 @@ public static class AbilityTooltipDamagePreview
         float corrHit,
         string suffix)
     {
+        var lines = new List<string>();
+        CollectElementAwareDamageLines(
+            lines, O, physHit, fireHit, iceHit, lightningHit, magicHit, corrHit, suffix);
+        foreach (string line in lines)
+            body.AppendLine(line);
+    }
+
+    private static void CollectElementAwareDamageLines(
+        List<string> lines,
+        System.Func<string, string> O,
+        float physHit,
+        float fireHit,
+        float iceHit,
+        float lightningHit,
+        float magicHit,
+        float corrHit,
+        string suffix)
+    {
         int p = Mathf.RoundToInt(Mathf.Max(0f, physHit));
         int f = Mathf.RoundToInt(Mathf.Max(0f, fireHit));
         int i = Mathf.RoundToInt(Mathf.Max(0f, iceHit));
@@ -2652,20 +2780,20 @@ public static class AbilityTooltipDamagePreview
         int c = Mathf.RoundToInt(Mathf.Max(0f, corrHit));
 
         if (p > 0)
-            body.AppendLine(O($"{p} Physical damage{suffix}"));
+            lines.Add(O($"{p} Physical damage{suffix}"));
         if (f > 0)
-            body.AppendLine(O($"{f} Fire damage{suffix}"));
+            lines.Add(O($"{f} Fire damage{suffix}"));
         if (i > 0)
-            body.AppendLine(O($"{i} Ice damage{suffix}"));
+            lines.Add(O($"{i} Ice damage{suffix}"));
         if (l > 0)
-            body.AppendLine(O($"{l} Lightning damage{suffix}"));
+            lines.Add(O($"{l} Lightning damage{suffix}"));
         if (m > 0)
-            body.AppendLine(O($"{m} Magic damage{suffix}"));
+            lines.Add(O($"{m} Magic damage{suffix}"));
         if (c > 0)
-            body.AppendLine(O($"{c} Corruption damage{suffix}"));
+            lines.Add(O($"{c} Corruption damage{suffix}"));
 
         if (p == 0 && f == 0 && i == 0 && l == 0 && m == 0 && c == 0)
-            body.AppendLine(O($"+0 damage{suffix}"));
+            lines.Add(O($"+0 damage{suffix}"));
     }
 
     private static void SplitHitDamageForTooltipDisplay(
