@@ -334,6 +334,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private bool warBannerFadeWhenPlayerOverlaps = true;
     [SerializeField, Range(0.1f, 1f)] private float warBannerOverlapAlpha = 0.5f;
     [SerializeField, Min(0.02f)] private float warBannerOverlapScanInterval = 0.1f;
+    [SerializeField] private bool lightningRodFadeWhenPlayerOverlaps = true;
 
     [Header("Hammer Tempest (Melee Lv35) VFX")]
     [Tooltip("Sprite for each orbiting hammer (e.g. SmallGoldenHammer). Uses Guardian's Hammer sprite if empty.")]
@@ -424,11 +425,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private PlayerController _warBannerOverlapPlayer;
     private SpriteRenderer[] _warBannerOverlapPlayerRenderers = System.Array.Empty<SpriteRenderer>();
     private float _nextWarBannerOverlapCheckTime;
-    private float _nextWarBannerSortRefreshTime;
     private bool _lastWarBannerOverlapState;
     private GameObject _lightningRodVisualRoot;
     private SpriteRenderer _lightningRodRenderer;
     private bool _lightningRodAnchored;
+    private Color _lightningRodBaseTint;
+    private float _nextLightningRodOverlapCheckTime;
+    private bool _lastLightningRodOverlapState;
     private GameObject _hammerTempestOrbitRoot;
     private Coroutine _hammerTempestOrbitRoutine;
     private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
@@ -3888,6 +3891,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     {
         if (_warBannerAnchored && _warBannerRenderer != null && _warBannerRenderer.enabled)
             RefreshWarBannerOverlapFade();
+
+        if (_lightningRodAnchored && _lightningRodRenderer != null && _lightningRodRenderer.enabled)
+            RefreshLightningRodOverlapFade();
     }
 
     public void BeginWarBannerDescent(Vector3 targetWorld, float descentSeconds)
@@ -3918,7 +3924,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         _warBannerAnchored = true;
-        _nextWarBannerSortRefreshTime = 0f;
+        _nextWarBannerOverlapCheckTime = 0f;
         SnapWarBannerSpriteBottomToWorldY(impactWorldPosition.x, GetWarBannerLandingBottomWorldY());
         EnsureWarBannerRendererVisible();
     }
@@ -3939,7 +3945,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     {
         _warBannerAnchored = false;
         _lastWarBannerOverlapState = false;
-        _nextWarBannerSortRefreshTime = 0f;
+        _nextWarBannerOverlapCheckTime = 0f;
         if (_warBannerVisualRoot != null)
         {
             Destroy(_warBannerVisualRoot);
@@ -3954,8 +3960,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
         ApplyLightningRodVisualSettings();
         EnsureLightningRodParentedToWorldContent();
         _lightningRodAnchored = true;
+        _nextLightningRodOverlapCheckTime = 0f;
         SnapLightningRodSpriteBottomToWorldY(impactWorldPosition.x, GetLightningRodLandingBottomWorldY());
         EnsureLightningRodRendererVisible();
+        RefreshLightningRodOverlapFade();
     }
 
     public void MaintainLightningRodAt(Vector3 worldPoint)
@@ -3966,11 +3974,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
         EnsureLightningRodParentedToWorldContent();
         SnapLightningRodSpriteBottomToWorldY(worldPoint.x, GetLightningRodLandingBottomWorldY());
         EnsureLightningRodRendererVisible();
+        RefreshLightningRodOverlapFade();
     }
 
     public void StopLightningRodVfx()
     {
         _lightningRodAnchored = false;
+        _lastLightningRodOverlapState = false;
+        _nextLightningRodOverlapCheckTime = 0f;
         if (_lightningRodVisualRoot != null)
         {
             Destroy(_lightningRodVisualRoot);
@@ -3998,6 +4009,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
             return;
 
         _lightningRodRenderer.sprite = lightningRodSprite;
+        _lightningRodBaseTint = lightningRodTint;
         _lightningRodRenderer.color = lightningRodTint;
         _lightningRodRenderer.transform.localScale = Vector3.one * lightningRodWorldScale;
         EnsureLightningRodRendererVisible();
@@ -4173,40 +4185,57 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         Color c = _warBannerBaseTint;
         c.a = _warBannerBaseTint.a * (overlaps ? warBannerOverlapAlpha : 1f);
-        if (Time.unscaledTime >= _nextWarBannerSortRefreshTime)
+        _warBannerRenderer.color = c;
+    }
+
+    private void RefreshLightningRodOverlapFade()
+    {
+        if (_lightningRodRenderer == null || !_lightningRodRenderer.enabled)
+            return;
+
+        if (_lightningRodBaseTint.a <= 0.001f)
+            _lightningRodBaseTint = lightningRodTint;
+
+        bool overlaps = false;
+        if (lightningRodFadeWhenPlayerOverlaps)
         {
-            _nextWarBannerSortRefreshTime = Time.unscaledTime + warBannerOverlapScanInterval;
-            ApplyWarBannerSorting(_warBannerRenderer);
+            if (Time.unscaledTime >= _nextLightningRodOverlapCheckTime)
+            {
+                _nextLightningRodOverlapCheckTime = Time.unscaledTime + warBannerOverlapScanInterval;
+                _lastLightningRodOverlapState = IsPlayerOverlappingGroundSprite(_lightningRodRenderer);
+            }
+
+            overlaps = _lastLightningRodOverlapState;
+        }
+        else
+        {
+            _lastLightningRodOverlapState = false;
         }
 
-        _warBannerRenderer.color = c;
+        Color c = _lightningRodBaseTint;
+        c.a = _lightningRodBaseTint.a * (overlaps ? warBannerOverlapAlpha : 1f);
+        _lightningRodRenderer.color = c;
+    }
+
+    private bool IsPlayerOverlappingGroundSprite(SpriteRenderer groundSpriteRenderer)
+    {
+        if (groundSpriteRenderer == null || groundSpriteRenderer.sprite == null)
+            return false;
+
+        Bounds spriteBounds = groundSpriteRenderer.bounds;
+        if (spriteBounds.size.sqrMagnitude < 0.0001f)
+            return false;
+
+        EnsureWarBannerOverlapPlayerCached();
+        return IsUnitOverlappingWarBanner(
+            spriteBounds,
+            _warBannerOverlapPlayer != null ? _warBannerOverlapPlayer.transform : null,
+            _warBannerOverlapPlayerRenderers);
     }
 
     private bool IsPlayerOverlappingWarBanner()
     {
-        if (_warBannerRenderer == null || _warBannerRenderer.sprite == null)
-            return false;
-
-        Bounds bannerBounds = _warBannerRenderer.bounds;
-        if (bannerBounds.size.sqrMagnitude < 0.0001f)
-            return false;
-
-        EnsureWarBannerOverlapPlayerCached();
-        if (IsUnitOverlappingWarBanner(bannerBounds, _warBannerOverlapPlayer != null ? _warBannerOverlapPlayer.transform : null, _warBannerOverlapPlayerRenderers))
-            return true;
-
-        MinionUnit[] minions = FindObjectsByType<MinionUnit>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < minions.Length; i++)
-        {
-            MinionUnit minion = minions[i];
-            if (minion == null || !minion.gameObject.activeInHierarchy || !minion.IsAliveVisual)
-                continue;
-
-            if (IsUnitOverlappingWarBanner(bannerBounds, minion.transform, null))
-                return true;
-        }
-
-        return false;
+        return IsPlayerOverlappingGroundSprite(_warBannerRenderer);
     }
 
     private static bool IsUnitOverlappingWarBanner(Bounds bannerBounds, Transform unit, SpriteRenderer[] cachedRenderers)
@@ -4925,6 +4954,65 @@ public class PlayerAbilityVfxController : MonoBehaviour
             "InnerLandingRing");
 
         return root;
+    }
+
+    public GameObject SpawnHunterTrapFloorMark(Vector3 worldPosition)
+    {
+        float radius = AbilityCombatPower.HuntersSwiftnessTrapDiameterWorld * 0.5f;
+        Vector3 groundCenter = new Vector3(
+            worldPosition.x,
+            worldPosition.y + enemyPounceTelegraphGroundOffset,
+            worldPosition.z);
+
+        Transform parent = LaneGroundEffectPlacement.ResolveGroundEffectsRoot()
+            ?? LaneGroundEffectPlacement.ResolveLaneFloorTransform();
+        var root = new GameObject("HunterTrapFloorMark");
+        if (parent != null)
+            root.transform.SetParent(parent, false);
+        root.transform.position = groundCenter;
+
+        const float groundEllipseYSquash = 0.07f;
+        Color fillColor = new Color(1f, 0.12f, 0.1f, 0.42f);
+        Color ringColor = new Color(1f, 0.2f, 0.12f, 0.78f);
+
+        Sprite areaSprite = executionersDescentShockwaveSprite != null
+            ? executionersDescentShockwaveSprite
+            : executionersDescentMarkSprite;
+
+        SpriteRenderer fillRenderer = null;
+        if (areaSprite != null)
+        {
+            var fillGo = new GameObject("TrapFill");
+            fillGo.transform.SetParent(root.transform, false);
+            fillRenderer = fillGo.AddComponent<SpriteRenderer>();
+            fillRenderer.sprite = areaSprite;
+            fillRenderer.color = fillColor;
+            ApplyExecutionersDescentSorting(fillRenderer);
+            fillRenderer.sortingOrder = executionersDescentSortingOrder - 2;
+            float fillScale = radius * 1.44f;
+            fillGo.transform.localScale = new Vector3(fillScale, fillScale * groundEllipseYSquash, 1f);
+        }
+
+        CreateEnemyPounceTelegraphRing(
+            root.transform,
+            radius,
+            ringColor,
+            executionersDescentShockwaveLineWidth * 0.85f,
+            groundEllipseYSquash,
+            "TrapRing");
+
+        var pulse = root.AddComponent<HunterTrapFloorPulse>();
+        pulse.Configure(fillRenderer, null, 1.6f);
+
+        return root;
+    }
+
+    public void DestroyHunterTrapFloorMark(GameObject trapRoot)
+    {
+        if (trapRoot == null)
+            return;
+
+        Destroy(trapRoot);
     }
 
     private void CreateEnemyPounceTelegraphRing(

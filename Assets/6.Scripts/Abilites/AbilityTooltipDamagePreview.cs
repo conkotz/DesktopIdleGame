@@ -397,6 +397,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsLightningRod(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.LightningRodAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsHuntersSwiftness(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.HuntersSwiftnessAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsHammerTempest(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HammerTempestAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -1054,6 +1057,15 @@ public static class AbilityTooltipDamagePreview
             return body.ToString().TrimEnd();
         }
 
+        if (IsHuntersSwiftness(def))
+        {
+            AppendHuntersSwiftnessTooltipEffects(body, O, skillsManager, includeEnhancementEffects);
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.HuntersSwiftnessBaseDurationSeconds:0.#}s"));
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
         if (IsAvatarOfTheForest(def))
         {
             AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
@@ -1648,6 +1660,9 @@ public static class AbilityTooltipDamagePreview
         if (IsLightningRod(def))
             return BuildLightningRodCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
 
+        if (IsHuntersSwiftness(def))
+            return BuildHuntersSwiftnessCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
+
         CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
             def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects, enhancementChoiceOverride);
@@ -1947,6 +1962,72 @@ public static class AbilityTooltipDamagePreview
         AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
         if (includeDuration)
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
+        return body.ToString().TrimEnd();
+    }
+
+    private static int GetHuntersSwiftnessBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged,
+            AbilityCombatPower.HuntersSwiftnessEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static void AppendHuntersSwiftnessTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        bool includeEnhancementEffects)
+    {
+        int enhance = includeEnhancementEffects ? GetHuntersSwiftnessBranchChoice(skillsManager) : -1;
+        bool nimbleHunter = enhance == AbilityCombatPower.HuntersSwiftnessEnh2NimbleHunterChoiceIndex;
+
+        float moveSpeed = (AbilityCombatPower.HuntersSwiftnessBaseMoveSpeedBonus
+            + (nimbleHunter ? AbilityCombatPower.HuntersSwiftnessEnh2MoveSpeedBonus : 0f)) * 100f;
+        float nearbyMoveSpeed = (AbilityCombatPower.HuntersSwiftnessNearbyEnemyMoveSpeedBonus
+            + (nimbleHunter ? AbilityCombatPower.HuntersSwiftnessEnh2MoveSpeedBonus : 0f)) * 100f;
+        float evade = (AbilityCombatPower.HuntersSwiftnessBaseEvadeChance
+            + (nimbleHunter ? AbilityCombatPower.HuntersSwiftnessEnh2EvadeChanceBonus : 0f)) * 100f;
+
+        AppendDetailsEffectParagraph(body, O($"+{moveSpeed:0.#}% increased movement speed"));
+        if (nimbleHunter)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"+{nearbyMoveSpeed:0.#}% increased movement speed if an enemy is within {AbilityCombatPower.HuntersSwiftnessNimbleHunterNearbySideRange:0.#} range either side of you"));
+        }
+        else
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"+{nearbyMoveSpeed:0.#}% increased movement speed if an enemy is within {AbilityCombatPower.HuntersSwiftnessNearbyEnemyRange:0.#} range"));
+        }
+
+        AppendDetailsEffectParagraph(body, O($"+{evade:0.#}% chance to evade"));
+        AppendDetailsEffectParagraph(body, O(AbilityCombatPower.HuntersSwiftnessEvadeTooltipNote));
+
+        if (!includeEnhancementEffects)
+            return;
+
+        if (enhance == AbilityCombatPower.HuntersSwiftnessEnh1HunterTrapsChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body, O(
+                $"Every {AbilityCombatPower.HuntersSwiftnessTrapDropIntervalSeconds:0.#}s drop a trap below you. Enemies that step on a trap are stunned for {AbilityCombatPower.HuntersSwiftnessTrapStunDurationSeconds:0.#}s and take {AbilityCombatPower.HuntersSwiftnessTrapWeaponDamageFraction * 100f:0.#}% weapon damage. Traps stack; each enemy can only be affected once per cast."));
+        }
+    }
+
+    private static string BuildHuntersSwiftnessCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool includeDuration,
+        bool includeEnhancementEffects)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        AppendHuntersSwiftnessTooltipEffects(body, O, skillsManager, includeEnhancementEffects);
+        if (includeDuration)
+            AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.HuntersSwiftnessBaseDurationSeconds:0.#}s"));
         return body.ToString().TrimEnd();
     }
 

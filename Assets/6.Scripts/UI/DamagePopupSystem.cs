@@ -456,11 +456,14 @@ public class DamagePopupSystem : MonoBehaviour
         bool isDot,
         Vector3 direction,
         bool blocked = false,
-        Transform target = null)
+        Transform target = null,
+        bool evaded = false)
     {
         bool isLingeringStatus =
             blocked ||
+            evaded ||
             kind == FloatingDamageTextUI.PopupDamageKind.Blocked ||
+            kind == FloatingDamageTextUI.PopupDamageKind.Evaded ||
             kind == FloatingDamageTextUI.PopupDamageKind.Immune;
 
         float xJitter = isLingeringStatus
@@ -503,6 +506,8 @@ public class DamagePopupSystem : MonoBehaviour
 
         if (kind == FloatingDamageTextUI.PopupDamageKind.Immune)
             floater.InitImmune(direction);
+        else if (evaded || kind == FloatingDamageTextUI.PopupDamageKind.Evaded)
+            floater.InitEvaded(direction);
         else if (blocked || kind == FloatingDamageTextUI.PopupDamageKind.Blocked)
             floater.InitBlocked(direction);
         else

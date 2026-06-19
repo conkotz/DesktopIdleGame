@@ -723,7 +723,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
 
         string label = sourceName.Trim();
-        if (string.Equals(label, "Auto Attack", System.StringComparison.OrdinalIgnoreCase))
+        if (IsAutoAttackOutgoingSource(label))
             return false;
         if (string.Equals(label, OutgoingBleedingSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return false;
@@ -3590,7 +3590,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         float autoAmount = afterPowerSlash - bleedAmount - poisonAmount - shockAmount - burnAmount;
 
         if (autoAmount > 0f)
-            RecordDamageForDps(autoAmount, DpsDamageBucket.Physical, swingAttribution.primarySource);
+            RecordDamageForDps(autoAmount, DpsDamageBucket.Physical, GetCurrentAutoAttackOutgoingSourceLabel());
         if (powerSlashAmount > 0f)
             RecordDamageForDps(powerSlashAmount, DpsDamageBucket.Physical, swingAttribution.bonusSource);
         if (bleedAmount > 0f)
@@ -3641,6 +3641,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     public const string OutgoingPoisonSourceLabel = "Poison";
     public const string OutgoingBurningSourceLabel = "Burning";
     public const string OutgoingShockSourceLabel = "Shock";
+    public const string AutoAttackMeleeSourceLabel = "Auto Attack (Melee)";
+    public const string AutoAttackRangedSourceLabel = "Auto Attack (Ranged)";
+    public const string AutoAttackMagicSourceLabel = "Auto Attack (Magic)";
+    public const string AutoAttackLegacySourceLabel = "Auto Attack";
     public const string DefaultMinionOutgoingSourceLabel = "Soulforged Weapon";
     public const string HpRegenHealingSourceLabel = "HP Regen";
     public const string PotionHealingSourceLabel = "Potion Healing";
@@ -3651,6 +3655,36 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     public const string AbilityHealthRefundHealingSourceLabel = "Ability Health Refund";
     public const string GenericHealingSourceLabel = "Healing";
     public const string WarBannerTriumphantRallyHealingSourceLabel = "Triumphant Rally";
+
+    public static bool IsAutoAttackOutgoingSource(string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return false;
+
+        string label = sourceName.Trim();
+        return string.Equals(label, AutoAttackLegacySourceLabel, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(label, AutoAttackMeleeSourceLabel, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(label, AutoAttackRangedSourceLabel, System.StringComparison.OrdinalIgnoreCase)
+               || string.Equals(label, AutoAttackMagicSourceLabel, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string GetAutoAttackOutgoingSourceLabel(AttackSkill attackSkill)
+    {
+        return attackSkill switch
+        {
+            AttackSkill.Ranged => AutoAttackRangedSourceLabel,
+            AttackSkill.Magic => AutoAttackMagicSourceLabel,
+            _ => AutoAttackMeleeSourceLabel
+        };
+    }
+
+    private string GetCurrentAutoAttackOutgoingSourceLabel()
+    {
+        if (stats == null)
+            return AutoAttackLegacySourceLabel;
+
+        return GetAutoAttackOutgoingSourceLabel(stats.CurrentAttackSkill);
+    }
 
     /// <summary>
     /// Green +HP floating text for every labeled heal except natural HP regen ticks
@@ -3682,9 +3716,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return bucketLabel;
 
         if (!string.IsNullOrWhiteSpace(swingAttribution.primarySource))
-            return swingAttribution.primarySource;
+        {
+            if (IsAutoAttackOutgoingSource(swingAttribution.primarySource))
+                return GetCurrentAutoAttackOutgoingSourceLabel();
+            return swingAttribution.primarySource.Trim();
+        }
 
-        return "Auto Attack";
+        return GetCurrentAutoAttackOutgoingSourceLabel();
     }
 
     private static string OutgoingSourceLabelForBucket(DpsDamageBucket? bucket)

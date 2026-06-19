@@ -687,6 +687,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
         abilityVfx?.StopWarBannerVfx();
         abilityVfx?.StopLightningRodVfx();
+        ClearAllHuntersSwiftnessTraps();
         abilityVfx?.DestroyHammerTempestOrbitVfx();
     }
 
@@ -716,6 +717,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (_lightningRodActive)
             return true;
+        if (_huntersSwiftnessActive || HasActiveHuntersSwiftnessTraps)
+            return true;
         if (IsHammerTempestActive)
             return true;
         if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive)
@@ -742,6 +745,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (_cleavingChopActive || _spectralAxeActive || _avatarOfForestActive)
             return true;
         if (_energyInfusionActive || _warBannerActive || _lightningRodActive || IsHammerTempestActive)
+            return true;
+        if (_huntersSwiftnessActive || HasActiveHuntersSwiftnessTraps)
             return true;
         if (_whirlwindChanneling)
             return true;
@@ -779,6 +784,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncWarBannerHudBuff();
         CleanupLightningRodIfExpired();
         SyncLightningRodHudBuff();
+        CleanupHuntersSwiftnessIfExpired();
+        SyncHuntersSwiftnessHudBuff();
+        TickHuntersSwiftnessTraps();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
         TickBattleEngineOverloadExpiry();
@@ -843,6 +851,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         CleanupLightningRodIfExpired();
         TickLightningRod();
         SyncLightningRodHudBuff();
+        CleanupHuntersSwiftnessIfExpired();
+        TickHuntersSwiftness();
+        SyncHuntersSwiftnessHudBuff();
         TickHammerTempest();
         CleanupHammerTempestIfExpired();
         SyncHammerTempestHudBuff();
@@ -1104,6 +1115,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return IsWarBannerActive;
         if (IsLightningRodAbilityId(abilityId))
             return IsLightningRodActive;
+        if (IsHuntersSwiftnessAbilityId(abilityId))
+            return IsHuntersSwiftnessActive;
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
             return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -1224,6 +1237,12 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (IsHuntersSwiftnessAbilityId(abilityId))
+        {
+            ForceEndHuntersSwiftnessEarly(applyCooldown: true, clearTraps: false, awardDeferredCooldown: true);
+            return;
+        }
+
         if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndHammerTempestEarly(applyCooldown: true);
@@ -1314,6 +1333,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.WarBannerAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.LightningRodAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.HuntersSwiftnessAbilityId);
         TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
         TryEndLingeringIfRemovedFromActionBar(CrusaderStrikeId);
         TryEndLingeringIfRemovedFromActionBar(FlameChargeId);
@@ -3574,6 +3594,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsLightningRodAbilityId(def.abilityId) && IsLightningRodActive)
             return false;
 
+        if (IsHuntersSwiftnessAbilityId(def.abilityId) && IsHuntersSwiftnessActive)
+            return false;
+
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
@@ -3714,6 +3737,14 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsLightningRodAbilityId(def.abilityId))
         {
             BeginLightningRodCast(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (IsHuntersSwiftnessAbilityId(def.abilityId))
+        {
+            BeginHuntersSwiftnessCast(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -8949,6 +8980,9 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
 
         if (IsLightningRodAbilityId(id))
+            return;
+
+        if (IsHuntersSwiftnessAbilityId(id))
             return;
 
         if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)

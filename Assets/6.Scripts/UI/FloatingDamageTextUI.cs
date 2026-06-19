@@ -16,6 +16,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         Poison,
         PoisonCrit,
         Blocked,
+        Evaded,
         Immune,
         Healing
     }
@@ -86,6 +87,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
     [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
+    [SerializeField] private Color evadeColor = new Color32(95, 220, 130, 255);
     [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
     [SerializeField] private Color shockPresentationColor = new Color32(255, 190, 70, 255);
@@ -122,6 +124,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     public Color StunPresentationColor => stunPresentationColor;
     public Color ExecutePresentationColor => executePresentationColor;
     public Color BlockPresentationColor => blockColor;
+    public Color EvadePresentationColor => evadeColor;
     public Color ParryPresentationColor => parryColor;
 
     /// <summary>Colour for lingering status labels (Bleeding, Stunned, Blocked, Parry, etc.).</summary>
@@ -154,6 +157,9 @@ public class FloatingDamageTextUI : MonoBehaviour
                 return true;
             case "Blocked":
                 color = blockColor;
+                return true;
+            case "Evaded":
+                color = evadeColor;
                 return true;
             case "Immune":
                 color = blockColor;
@@ -288,6 +294,11 @@ public class FloatingDamageTextUI : MonoBehaviour
         InitLingeringStatus("Blocked", blockColor);
     }
 
+    public void InitEvaded(Vector3 worldDirection = default)
+    {
+        InitLingeringStatus("Evaded", evadeColor);
+    }
+
     public void InitParry(Vector3 worldDirection = default, string label = "Parry")
     {
         string textLabel = string.IsNullOrWhiteSpace(label) ? "Parry" : label.Trim();
@@ -380,6 +391,7 @@ public class FloatingDamageTextUI : MonoBehaviour
             PopupDamageKind.Poison => poisonColor,
             PopupDamageKind.PoisonCrit => poisonCritColor,
             PopupDamageKind.Blocked => blockColor,
+            PopupDamageKind.Evaded => evadeColor,
             PopupDamageKind.Immune => blockColor,
             PopupDamageKind.Healing => healingColor,
             _ => physicalColor

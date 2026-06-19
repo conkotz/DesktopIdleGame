@@ -613,6 +613,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float TotalMoveSpeedPercent =>
         GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
         GetActiveRangedMinorBonuses().rangedMoveSpeedPercent + CombatMoveSpeedPercentBonus +
+        HuntersSwiftnessMoveSpeedPercentBonus +
         GetWayOfTheBerserkerMoveSpeedBonusFraction() +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f) +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodMoveSpeed) : 0f);
@@ -765,6 +766,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         set => SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, value);
     }
 
+    /// <summary>Hunter's Swiftness additive move speed fraction while the buff is active.</summary>
+    public float HuntersSwiftnessMoveSpeedPercentBonus
+    {
+        get => _huntersSwiftnessMoveSpeedPercentBonus;
+        private set => SetCombatStatAdditive(ref _huntersSwiftnessMoveSpeedPercentBonus, value);
+    }
+
+    /// <summary>Chance to fully evade incoming hits while Hunter's Swiftness is active (0.08 = 8%).</summary>
+    public float HuntersSwiftnessEvadeChance => _huntersSwiftnessEvadeChance;
+
     /// <summary>Combat-only multiplier for ability channel movement penalties (0.5 = 50% speed while channeling).</summary>
     public float AbilityChannelMoveSpeedMultiplier
     {
@@ -815,6 +826,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatMeleeDamageMultiplier = 1f;
     private float _combatAttackSpeedPercentBonus;
     private float _combatMoveSpeedPercentBonus;
+    private float _huntersSwiftnessMoveSpeedPercentBonus;
+    private float _huntersSwiftnessEvadeChance;
     private float _combatFlatManaRegenPerSecond;
     private float _abilityChannelMoveSpeedMultiplier = 1f;
     private float _combatDamageTakenMultiplier = 1f;
@@ -862,6 +875,35 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!Mathf.Approximately(_combatGlobalPhysicalDamagePercentBonus, globalPhysicalDamagePercentBonus))
         {
             _combatGlobalPhysicalDamagePercentBonus = globalPhysicalDamagePercentBonus;
+            changed = true;
+        }
+
+        if (changed)
+            NotifyStatsChanged();
+    }
+
+    public void ApplyHuntersSwiftnessCombatModifiers(float moveSpeedPercentBonus, float evadeChance)
+    {
+        bool changed = false;
+        changed |= SetCombatStatAdditive(ref _huntersSwiftnessMoveSpeedPercentBonus, moveSpeedPercentBonus, notify: false);
+        float clampedEvade = Mathf.Clamp01(evadeChance);
+        if (!Mathf.Approximately(_huntersSwiftnessEvadeChance, clampedEvade))
+        {
+            _huntersSwiftnessEvadeChance = clampedEvade;
+            changed = true;
+        }
+
+        if (changed)
+            NotifyStatsChanged();
+    }
+
+    public void ClearHuntersSwiftnessCombatModifiers()
+    {
+        bool changed = false;
+        changed |= SetCombatStatAdditive(ref _huntersSwiftnessMoveSpeedPercentBonus, 0f, notify: false);
+        if (_huntersSwiftnessEvadeChance > 0.0001f)
+        {
+            _huntersSwiftnessEvadeChance = 0f;
             changed = true;
         }
 
@@ -5547,7 +5589,29 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float armorRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
+        return TakeDamage(
+            amount,
+            type,
+            out blocked,
+            out _,
+            out hpDamageDealt,
+            out mitigationReport,
+            armorRatingMultiplier,
+            magicResistRatingMultiplier);
+    }
+
+    public float TakeDamage(
+        float amount,
+        DamageType type,
+        out bool blocked,
+        out bool evaded,
+        out float hpDamageDealt,
+        out DpsMitigationBreakdown mitigationReport,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f)
+    {
         blocked = false;
+        evaded = false;
         hpDamageDealt = 0f;
         mitigationReport = default;
         if (_isDead) return 0f;
@@ -5556,6 +5620,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             amount,
             type,
             out blocked,
+            out evaded,
             out mitigationReport,
             armorRatingMultiplier,
             magicResistRatingMultiplier);
@@ -5740,11 +5805,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float rawDamage,
         DamageType type,
         out bool blocked,
+        out bool evaded,
         out DpsMitigationBreakdown mitigationReport,
         float armorRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
+        evaded = false;
         mitigationReport = default;
 
         rawDamage = Mathf.Max(0f, rawDamage);
@@ -5754,19 +5821,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float consumableDr = GetConsumableFlatDamageReductionFraction();
         GetExternalMitigationRatingMultipliers(ref armorRatingMultiplier, ref magicResistRatingMultiplier);
 
+        float mitigated;
         switch (type)
         {
             case DamageType.Typless:
-                // No armor/MR/block; still affected by shock + War Banner damage-reduction multipliers.
-                return ApplyFinalIncomingDamageMultipliers(rawDamage);
+                mitigated = ApplyFinalIncomingDamageMultipliers(rawDamage);
+                break;
 
             case DamageType.Corruption:
                 {
                     float afterMelee = ApplyMeleeDamageReduction(rawDamage);
                     float afterCorrupt = MitigateByRating(afterMelee, CorruptionResist * defMult);
                     mitigationReport.CorruptionResist = Mathf.Max(0f, afterMelee - afterCorrupt);
-                    return ApplyFinalIncomingDamageMultipliers(
+                    mitigated = ApplyFinalIncomingDamageMultipliers(
                         ApplyFlatDamageTakenReduction(afterCorrupt, consumableDr));
+                    break;
                 }
 
             case DamageType.Physical:
@@ -5790,8 +5859,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
                         mitigationReport.Blocked = Mathf.Max(0f, beforeBlock - dmg);
                     }
 
-                    return ApplyFinalIncomingDamageMultipliers(
+                    mitigated = ApplyFinalIncomingDamageMultipliers(
                         ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(dmg), consumableDr));
+                    break;
                 }
 
             case DamageType.Magic:
@@ -5800,16 +5870,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
                         rawDamage,
                         MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier));
                     mitigationReport.MagicResist = Mathf.Max(0f, rawDamage - afterMr);
-                    return ApplyFinalIncomingDamageMultipliers(
+                    mitigated = ApplyFinalIncomingDamageMultipliers(
                         ApplyFlatDamageTakenReduction(
                             ApplyMeleeDamageReduction(afterMr),
                             consumableDr));
+                    break;
                 }
 
             default:
-                return ApplyFinalIncomingDamageMultipliers(
+                mitigated = ApplyFinalIncomingDamageMultipliers(
                     ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(rawDamage), consumableDr));
+                break;
         }
+
+        if (_huntersSwiftnessEvadeChance > 0f
+            && mitigated > 0f
+            && type != DamageType.Magic
+            && UnityEngine.Random.value < _huntersSwiftnessEvadeChance)
+        {
+            evaded = true;
+            blocked = false;
+            return 0f;
+        }
+
+        return mitigated;
     }
 
     /// <summary>Shock (ailment) + combat buffs such as War Banner damage reduction. Applied to all incoming damage.</summary>

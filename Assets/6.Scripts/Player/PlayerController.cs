@@ -4499,10 +4499,12 @@ public class PlayerController : MonoBehaviour
 
         float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
+        bool evaded;
         float finalDamage = characterStats.TakeDamage(
             amount,
             type,
             out blocked,
+            out evaded,
             out float hpDamage,
             out DpsMitigationBreakdown mitigationReport);
         if (combat != null)
@@ -4518,7 +4520,7 @@ public class PlayerController : MonoBehaviour
         if (combat != null && attacker != null && hpDamage > 0.001f)
             combat.TryRetaliateFromAttacker(attacker);
 
-        if (blocked)
+        if (blocked || evaded)
             wasCrit = false;
 
         if (DamagePopupSystem.Instance != null && ToggleSettingsStore.Get(ToggleSettingId.ShowIncomingDamageNumbers))
@@ -4527,7 +4529,7 @@ public class PlayerController : MonoBehaviour
             Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;
 
             GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out Vector3 pos, out Vector3 dir);
-            if (blocked && DamagePopupSystem.Instance != null)
+            if ((blocked || evaded) && DamagePopupSystem.Instance != null)
             {
                 Vector3 dealerPos = attacker != null ? attacker.position : transform.position;
                 pos = DamagePopupSystem.Instance.ResolveLingeringStatusWorldPos(
@@ -4556,11 +4558,12 @@ public class PlayerController : MonoBehaviour
                 false,
                 dir,
                 blocked,
-                transform
+                transform,
+                evaded
             );
         }
 
-        if (!blocked && !_isDead && hpDamage > 0.001f)
+        if (!blocked && !evaded && !_isDead && hpDamage > 0.001f)
         {
             TriggerHurtAnim();
         }

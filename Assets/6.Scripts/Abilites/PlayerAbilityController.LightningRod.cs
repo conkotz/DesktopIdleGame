@@ -66,7 +66,14 @@ public partial class PlayerAbilityController
         if (IsLightningRodActive)
             ForceEndLightningRodEarly(applyCooldown: false, awardDeferredCooldown: false, runExpiryChain: false);
 
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
         float anchorX = transform.position.x;
+        EnemyBaseController attackTarget = combat != null ? combat.CurrentTarget : null;
+        if (attackTarget != null && !attackTarget.IsDead && attackTarget.gameObject.activeInHierarchy)
+            anchorX = attackTarget.transform.position.x;
+
         Vector3 anchor = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(
             new Vector3(anchorX, 0f, 0f),
             0.08f);

@@ -46,6 +46,25 @@ public static class AbilityCombatPower
     public const float LightningRodLightningPerTwoRangedLevels = 1f;
     public const int LightningRodUnlockLevel = 15;
     public const string LightningRodOutgoingDamageSourceLabel = "Lightning Rod";
+    public const string HuntersSwiftnessAbilityId = "hunters_swiftness";
+    public const string HuntersSwiftnessEnhancementParentSpineNodeId = "Lv25_0";
+    public const int HuntersSwiftnessEnh1HunterTrapsChoiceIndex = 0;
+    public const int HuntersSwiftnessEnh2NimbleHunterChoiceIndex = 1;
+    public const float HuntersSwiftnessBaseDurationSeconds = 10f;
+    public const float HuntersSwiftnessNearbyEnemyRange = 8f;
+    public const float HuntersSwiftnessNimbleHunterNearbySideRange = 4f;
+    public const float HuntersSwiftnessBaseMoveSpeedBonus = 0.25f;
+    public const float HuntersSwiftnessNearbyEnemyMoveSpeedBonus = 0.40f;
+    public const float HuntersSwiftnessEnh2MoveSpeedBonus = 0.10f;
+    public const float HuntersSwiftnessBaseEvadeChance = 0.08f;
+    public const float HuntersSwiftnessEnh2EvadeChanceBonus = 0.04f;
+    public const string HuntersSwiftnessEvadeTooltipNote = "(Evade fully mitigates non magic attacks)";
+    public const float HuntersSwiftnessTrapDropIntervalSeconds = 2f;
+    public const float HuntersSwiftnessTrapDiameterWorld = 2f;
+    public const float HuntersSwiftnessTrapWeaponDamageFraction = 0.25f;
+    public const float HuntersSwiftnessTrapStunDurationSeconds = 2f;
+    public const int HuntersSwiftnessUnlockLevel = 25;
+    public const string HuntersSwiftnessTrapOutgoingDamageSourceLabel = "Hunter Trap";
 
     /// <summary>+N damage every two ranged levels after <paramref name="abilityUnlockLevel"/> (unlock level uses base damage only).</summary>
     public static float ComputeRangedLevelBonusAfterUnlock(

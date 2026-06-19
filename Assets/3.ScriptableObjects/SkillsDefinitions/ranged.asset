@@ -163,8 +163,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Lightning Infused
-      description: The hawk becomes lightning infused, converting all its physical damage
-        to lightning and gains 50% chance to shock.
+      description: The hawk becomes lightning infused, converting all its physical
+        damage to lightning and gains 50% chance to shock.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -192,8 +192,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Chain Lightning
-      description: On crit, send an arc of lightning to a nearby enemy dealing 50% of
-        the hit's damage.
+      description: On crit, send an arc of lightning to a nearby enemy dealing 50%
+        of the hit's damage.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -286,8 +286,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 10
     title: Seeker Arrows
-    description: Has a chance on every auto attack to fire a phantom seeker arrow at your target.
-      Seeker arrows cannot apply on-hit effects.
+    description: Has a chance on every auto attack to fire a phantom seeker arrow
+      at your target. Seeker arrows cannot apply on-hit effects.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -315,9 +315,9 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 10
     title: Hunter's Mark
-    description: Enemies hit by auto attacks or other non-minion abilities apply Hunter's
-      Mark for 10 seconds (refreshed on hit). Marked enemies take 20% increased damage
-      from minions.
+    description: Enemies hit by auto attacks or other non-minion abilities apply
+      Hunter's Mark for 10 seconds (refreshed on hit). Marked enemies take 20% increased
+      damage from minions.
     icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -333,7 +333,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 13
       title: Deep Mark
-      description: Increase the minion damage bonus of Hunter's Mark by 10% (30% total).
+      description: Increase the minion damage bonus of Hunter's Mark by 10% (30%
+        total).
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -409,10 +410,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Lightning Rod
-    description: Drop a lightning rod at the target location. Hitting an enemy with lightning
-      damage near the rod causes a surge of electricity to arc to that enemy. Lightning
-      also arcs out occasionally to nearby enemies.
-    icon: {fileID: 2102038073974554466, guid: 4df046dc9f6d1bb47a03b220ae6e9f56, type: 3}
+    description: Drop a lightning rod at the target location. Hitting an enemy with
+      lightning damage near the rod causes a surge of electricity to arc to that
+      enemy. Lightning also arcs out occasionally to nearby enemies.
+    icon: {fileID: 4023242619808263884, guid: 19cfc432ed907ce4eba4948dd3653b17, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -433,8 +434,8 @@ MonoBehaviour:
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Final Surge
-      description: On expiry the rod emits a chaining arc that spreads to nearby enemies
-        and applies shock.
+      description: On expiry the rod emits a chaining arc that spreads to nearby
+        enemies and applies shock.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -566,6 +567,39 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 25
+    title: Hunter's Swiftness
+    description: Gain increased movement speed, increasing further if enemies are nearby.
+      Whilst under the effects of Hunter's Swiftness, become nimble allowing you to
+      evade enemy attacks.
+    icon: {fileID: -7783470860475980206, guid: 547bf7b305e98464b9c98549a8419ca6, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 7a056af10aeff4094f23c4ddd61a4181, type: 2}
+    presentation: {fileID: 11400000, guid: 6d9d1d99a29ffa8cbd02c625905bba4c, type: 2}
+    choices:
+    - requiredLevel: 28
+      title: Hunter Traps
+      description: Every 2 seconds drop a trap on the ground below you. If an enemy
+        steps on this trap they become stunned and take 25% weapon damage. Traps can
+        stack, but can only trigger on each enemy once.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 28
+      title: Nimble Hunter
+      description: Gain an additional +10% movement speed bonus and an extra 4% chance
+        to evade.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 26
     title: Beastmaster's Bond I
     description: +5% Minion Damage

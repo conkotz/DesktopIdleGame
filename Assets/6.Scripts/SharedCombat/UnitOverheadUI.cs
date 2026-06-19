@@ -2916,13 +2916,23 @@ public class UnitOverheadUI : MonoBehaviour
     {
         results.Clear();
 
-        if (ailments.HasBleed)
+        if (ailments.HasPlayerBleed)
         {
             results.Add(new DebuffStripEntry
             {
                 Key = "Bleed",
                 Sprite = bleedIcon,
-                Stacks = Mathf.Max(1, ailments.BleedStacks)
+                Stacks = Mathf.Max(1, ailments.PlayerBleedStacks)
+            });
+        }
+
+        if (ailments.HasMinionBleed)
+        {
+            results.Add(new DebuffStripEntry
+            {
+                Key = "BleedMinion",
+                Sprite = bleedIcon,
+                Stacks = Mathf.Max(1, ailments.MinionBleedStacks)
             });
         }
 
