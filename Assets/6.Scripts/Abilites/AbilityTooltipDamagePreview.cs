@@ -2028,20 +2028,24 @@ public static class AbilityTooltipDamagePreview
         float evade = (AbilityCombatPower.HuntersSwiftnessBaseEvadeChance
             + (nimbleHunter ? AbilityCombatPower.HuntersSwiftnessEnh2EvadeChanceBonus : 0f)) * 100f;
 
-        AppendDetailsEffectParagraph(body, O($"+{moveSpeed:0.#}% increased movement speed"));
+        var coreLines = new List<string>
+        {
+            O($"+{moveSpeed:0.#}% increased movement speed")
+        };
         if (nimbleHunter)
         {
-            AppendDetailsEffectParagraph(body, O(
+            coreLines.Add(O(
                 $"+{nearbyMoveSpeed:0.#}% increased movement speed if an enemy is within {AbilityCombatPower.HuntersSwiftnessNimbleHunterNearbySideRange:0.#} range either side of you"));
         }
         else
         {
-            AppendDetailsEffectParagraph(body, O(
+            coreLines.Add(O(
                 $"+{nearbyMoveSpeed:0.#}% increased movement speed if an enemy is within {AbilityCombatPower.HuntersSwiftnessNearbyEnemyRange:0.#} range"));
         }
 
-        AppendDetailsEffectParagraph(body, O($"+{evade:0.#}% chance to evade"));
-        AppendDetailsEffectParagraph(body, O(AbilityCombatPower.HuntersSwiftnessEvadeTooltipNote));
+        coreLines.Add(O($"+{evade:0.#}% chance to evade"));
+        coreLines.Add(O(AbilityCombatPower.HuntersSwiftnessEvadeTooltipNote));
+        AppendEffectLineGroup(body, coreLines);
 
         if (!includeEnhancementEffects)
             return;
@@ -2142,7 +2146,7 @@ public static class AbilityTooltipDamagePreview
         {
             AppendDetailsEffectParagraph(body, O(
                 "Lightning arcs can be absorbed by the tornado. the arc then chains to a nearby enemy. " +
-                "bonus lightning damage is added per second for its duration"));
+                "Bonus lightning damage is added per second for its duration and it grows in size hitting enemies in a wider radius."));
         }
     }
 

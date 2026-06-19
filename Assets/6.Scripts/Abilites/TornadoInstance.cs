@@ -22,6 +22,8 @@ public sealed class TornadoInstance : MonoBehaviour
     private float _bowPhysicalMinBonus;
     private float _bowPhysicalMaxBonus;
     private float _colliderBottomBelowRoot;
+    private float _baseWorldScale;
+    private bool _lightningInfusionScaleApplied;
 
     public bool IsAlive => _owner != null && Time.time < _endsAt;
     public bool CanAbsorbLightning => _canAbsorbLightning && IsAlive;
@@ -57,8 +59,10 @@ public sealed class TornadoInstance : MonoBehaviour
         _useBowPhysicalBonus = useBowPhysicalBonus;
         _bowPhysicalMinBonus = Mathf.Max(0f, bowPhysicalMinBonus);
         _bowPhysicalMaxBonus = Mathf.Max(_bowPhysicalMinBonus, bowPhysicalMaxBonus);
+        _baseWorldScale = Mathf.Max(0.1f, worldScale);
+        _lightningInfusionScaleApplied = false;
 
-        transform.localScale = Vector3.one * Mathf.Max(0.1f, worldScale);
+        transform.localScale = Vector3.one * _baseWorldScale;
         ApplySpriteOpacity();
         CacheColliderBottomOffset();
         TornadoCombatRegistry.Register(this);
@@ -105,6 +109,18 @@ public sealed class TornadoInstance : MonoBehaviour
 
         float infusionBonus = arcLightningDamage * AbilityCombatPower.TornadoLightningInfusionPerArcFraction;
         _lightningInfusionBonus = Mathf.Max(_lightningInfusionBonus, infusionBonus);
+        ApplyLightningInfusionScaleIfNeeded();
+    }
+
+    private void ApplyLightningInfusionScaleIfNeeded()
+    {
+        if (!_canAbsorbLightning || _lightningInfusionScaleApplied || _lightningInfusionBonus <= 0.001f)
+            return;
+
+        _lightningInfusionScaleApplied = true;
+        float infusedScale = _baseWorldScale * (1f + AbilityCombatPower.TornadoLightningInfusionScaleBonus);
+        transform.localScale = Vector3.one * infusedScale;
+        CacheColliderBottomOffset();
     }
 
     private void ApplySpriteOpacity()

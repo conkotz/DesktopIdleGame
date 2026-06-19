@@ -43,9 +43,13 @@ public partial class PlayerAbilityController
         _huntersSwiftnessDuration = AbilityCombatPower.HuntersSwiftnessBaseDurationSeconds;
         _huntersSwiftnessEndsAt = Time.time + _huntersSwiftnessDuration;
         _huntersSwiftnessNextTrapDropAt = Time.time;
+        _huntersSwiftnessNearbyEnemyActive = false;
+        _huntersSwiftnessNextNearbyCheckAt = 0f;
+        _huntersSwiftnessAppliedMoveSpeed = -1f;
+        _huntersSwiftnessAppliedEvade = -1f;
         _lastSyncedHuntersSwiftnessHudEnd = float.NaN;
 
-        RefreshHuntersSwiftnessCombatModifiers();
+        RefreshHuntersSwiftnessCombatModifiers(forceNearbyCheck: true);
         SyncHuntersSwiftnessHudBuff();
 
         if (HasHuntersSwiftnessTrapsEnhancement())
@@ -67,6 +71,10 @@ public partial class PlayerAbilityController
         _huntersSwiftnessEndsAt = 0f;
         _huntersSwiftnessDuration = 0f;
         _huntersSwiftnessNextTrapDropAt = 0f;
+        _huntersSwiftnessNearbyEnemyActive = false;
+        _huntersSwiftnessNextNearbyCheckAt = 0f;
+        _huntersSwiftnessAppliedMoveSpeed = -1f;
+        _huntersSwiftnessAppliedEvade = -1f;
         _lastSyncedHuntersSwiftnessHudEnd = float.NaN;
 
         stats?.ClearHuntersSwiftnessCombatModifiers();
@@ -103,11 +111,17 @@ public partial class PlayerAbilityController
         ForceEndHuntersSwiftnessEarly(applyCooldown: false, clearTraps: false, awardDeferredCooldown: true);
     }
 
+    private float _huntersSwiftnessNextNearbyCheckAt;
+    private bool _huntersSwiftnessNearbyEnemyActive;
+    private float _huntersSwiftnessAppliedMoveSpeed = -1f;
+    private float _huntersSwiftnessAppliedEvade = -1f;
+    private const float HuntersSwiftnessNearbyRecheckIntervalSeconds = 0.25f;
+
     private void TickHuntersSwiftness()
     {
         if (_huntersSwiftnessActive)
         {
-            RefreshHuntersSwiftnessCombatModifiers();
+            RefreshHuntersSwiftnessCombatModifiersIfNeeded();
 
             if (HasHuntersSwiftnessTrapsEnhancement() && Time.time >= _huntersSwiftnessNextTrapDropAt)
             {
@@ -119,16 +133,33 @@ public partial class PlayerAbilityController
         TickHuntersSwiftnessTraps();
     }
 
-    private void RefreshHuntersSwiftnessCombatModifiers()
+    private void RefreshHuntersSwiftnessCombatModifiersIfNeeded()
+    {
+        if (!_huntersSwiftnessActive || stats == null)
+            return;
+
+        if (Time.time < _huntersSwiftnessNextNearbyCheckAt)
+            return;
+
+        _huntersSwiftnessNextNearbyCheckAt = Time.time + HuntersSwiftnessNearbyRecheckIntervalSeconds;
+        RefreshHuntersSwiftnessCombatModifiers(forceNearbyCheck: true);
+    }
+
+    private void RefreshHuntersSwiftnessCombatModifiers(bool forceNearbyCheck = false)
     {
         if (!_huntersSwiftnessActive || stats == null)
             return;
 
         bool nimbleHunter = GetHuntersSwiftnessSelectedChoice()
             == AbilityCombatPower.HuntersSwiftnessEnh2NimbleHunterChoiceIndex;
-        bool nearbyEnemy = IsAnyEnemyWithinHuntersSwiftnessNearbyRange(nimbleHunter);
 
-        float moveSpeed = nearbyEnemy
+        if (forceNearbyCheck)
+        {
+            bool nearbyEnemy = IsAnyEnemyWithinHuntersSwiftnessNearbyRange(nimbleHunter);
+            _huntersSwiftnessNearbyEnemyActive = nearbyEnemy;
+        }
+
+        float moveSpeed = _huntersSwiftnessNearbyEnemyActive
             ? AbilityCombatPower.HuntersSwiftnessNearbyEnemyMoveSpeedBonus
             : AbilityCombatPower.HuntersSwiftnessBaseMoveSpeedBonus;
 
@@ -139,6 +170,12 @@ public partial class PlayerAbilityController
         if (nimbleHunter)
             evade += AbilityCombatPower.HuntersSwiftnessEnh2EvadeChanceBonus;
 
+        if (Mathf.Approximately(moveSpeed, _huntersSwiftnessAppliedMoveSpeed)
+            && Mathf.Approximately(evade, _huntersSwiftnessAppliedEvade))
+            return;
+
+        _huntersSwiftnessAppliedMoveSpeed = moveSpeed;
+        _huntersSwiftnessAppliedEvade = evade;
         stats.ApplyHuntersSwiftnessCombatModifiers(moveSpeed, evade);
     }
 

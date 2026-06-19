@@ -350,14 +350,18 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         string basePct = FormatSignedPercentFrom01(characterStats.MoveSpeedBonusPercent);
         float baseSpeed = characterStats.FinalMoveSpeed;
+        float huntersSwiftnessBonus = characterStats.HuntersSwiftnessMoveSpeedPercentBonus;
+        string huntersSwiftnessPart = huntersSwiftnessBonus > 0.0001f
+            ? $", Hunter's Swiftness {FormatSignedPercentFrom01(huntersSwiftnessBonus)}"
+            : string.Empty;
 
         if (!PlayerSprintInput.ShouldApplyMoveSpeedBonus() && !PlayerSprintInput.IsSprinting)
-            return $"Move Speed: {basePct} ({baseSpeed:0.#})";
+            return $"Move Speed: {basePct} ({baseSpeed:0.#}{huntersSwiftnessPart})";
 
         float sprintingSpeed = PlayerSprintInput.ApplySprintBonus(baseSpeed);
         float sprintPct = PlayerSprintInput.GetSprintBonusPercentOfBase(baseSpeed);
         return
-            $"Move Speed: {basePct} ({baseSpeed:0.#} → {sprintingSpeed:0.#}, +{sprintPct:0.#}% sprint)";
+            $"Move Speed: {basePct} ({baseSpeed:0.#}{huntersSwiftnessPart} → {sprintingSpeed:0.#}, +{sprintPct:0.#}% sprint)";
     }
 
     private void HandleStatsChanged()

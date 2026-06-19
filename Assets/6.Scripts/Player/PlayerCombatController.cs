@@ -161,6 +161,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     [Tooltip("Longbow idle auto-battle: if the player was damaged by an enemy within this window, prefer that enemy when acquiring a new target (before furthest-in-range).")]
     [SerializeField, Min(0.1f)] private float longbowPrioritizeRecentAttackerSeconds = 2.5f;
 
+    [Tooltip("Longbow: edge-to-edge gap at or below this distance counts as a melee threat for retargeting off a distant engaged enemy.")]
+    [SerializeField, Min(0.1f)] private float longbowMeleeThreatRetargetGap = 3f;
+
     [Tooltip("While idle combat is on, every N seconds all dropped items on the scene begin vacuuming to the player and are picked up on contact.")]
     [SerializeField, Min(0.5f)] private float idleAutoPickupIntervalSeconds = 20f;
     private float _nextIdleAutoPickupTime;
@@ -352,6 +355,14 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (ShouldIdlePickFurthestEnemyFirst())
         {
+            if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy &&
+                IsValidCombatTarget(_target))
+                return _target;
+
+            EnemyBaseController meleeThreat = TryPickLongbowMeleeThreatAttacker();
+            if (meleeThreat != null)
+                return meleeThreat;
+
             EnemyBaseController recentAttacker = TryPickLongbowIdleRecentAttackerInRange();
             if (recentAttacker != null)
                 return recentAttacker;
@@ -359,7 +370,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return FindFurthestEnemyInAttackRange();
         }
 
-        return FindClosestEnemyInAttackRange(preferCurrentTarget: false);
+        return FindClosestEnemyInAttackRange(preferCurrentTarget: true);
     }
 
     /// <summary>Max edge gap for melee abilities that may walk into range before firing (Power Slash, Crusader Strike).</summary>
@@ -2575,6 +2586,41 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return true;
     }
 
+    private EnemyBaseController TryPickLongbowMeleeThreatAttacker()
+    {
+        if (_lastEnemyThatDamagedPlayer == null)
+            return null;
+
+        if (Time.time - _lastEnemyThatDamagedPlayerTime > longbowPrioritizeRecentAttackerSeconds)
+            return null;
+
+        EnemyBaseController enemy = _lastEnemyThatDamagedPlayer;
+        if (enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return null;
+
+        if (!IsEnemyWithinLongbowMeleeThreatRange(enemy))
+            return null;
+
+        return enemy;
+    }
+
+    private bool IsEnemyWithinLongbowMeleeThreatRange(EnemyBaseController enemy)
+    {
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy || stats == null)
+            return false;
+
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+        float enemyHalf = HalfWidthX(enemyCol);
+        float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+        return gap <= longbowMeleeThreatRetargetGap;
+    }
+
     /// <summary>
     /// Longbow idle acquisition: if the player was damaged by an enemy recently, prefer that enemy when it is still alive and in bow range.
     /// </summary>
@@ -2624,10 +2670,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return FindClosestLivingEnemy();
         }
 
-        // 2) Longbow smart-pick only applies when acquiring a target from idle.
-        // Once already engaged, keep current target stable.
+        // 2) Longbow: keep the engaged target unless a melee-range attacker needs attention.
         if (ShouldIdlePickFurthestEnemyFirst())
+        {
+            EnemyBaseController meleeThreat = TryPickLongbowMeleeThreatAttacker();
+            if (meleeThreat != null && meleeThreat != current)
+                return meleeThreat;
+
             return current;
+        }
 
         // 3) Smart retarget: if a closer enemy appears while moving, switch.
         if (!idleAllowRetargetToCloserEnemy)
@@ -2760,13 +2811,25 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     public bool TryRetaliateFromAttacker(Transform attackerTransform)
     {
-        if (!retaliationEnabled)
-            return false;
         if (attackerTransform == null)
             return false;
 
         EnemyBaseController attacker = attackerTransform.GetComponentInParent<EnemyBaseController>();
         if (attacker == null || attacker.IsDead || !attacker.gameObject.activeInHierarchy)
+            return false;
+
+        if (ShouldIdlePickFurthestEnemyFirst() && IsEnemyWithinLongbowMeleeThreatRange(attacker))
+        {
+            if (_target != attacker)
+                SetTargetInternal(attacker);
+
+            if (_playerRequestedCombatPause)
+                NotifyExplicitCombatEngage();
+
+            return true;
+        }
+
+        if (!retaliationEnabled)
             return false;
 
         if (_playerRequestedCombatPause)

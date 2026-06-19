@@ -78,6 +78,7 @@ public static class AbilityCombatPower
     public const float TornadoAttachDistance = 0.65f;
     public const float TornadoLightningAbsorbRange = 8f;
     public const float TornadoLightningInfusionPerArcFraction = 0.4f;
+    public const float TornadoLightningInfusionScaleBonus = 0.3f;
     public const float TornadoEnh2Scale = 1.2f;
     public const float TornadoBaseScale = 1f;
     public const float TornadoSpriteOpacity = 0.55f;
