@@ -7,6 +7,7 @@ public partial class PlayerAbilityController
     {
         public Vector3 Position;
         public GameObject VisualRoot;
+        public float ExpiresAt;
     }
 
     private bool _huntersSwiftnessActive;
@@ -183,7 +184,8 @@ public partial class PlayerAbilityController
         var trap = new HuntersSwiftnessTrapState
         {
             Position = floorPoint,
-            VisualRoot = abilityVfx != null ? abilityVfx.SpawnHunterTrapFloorMark(floorPoint) : null
+            VisualRoot = abilityVfx != null ? abilityVfx.SpawnHunterTrapFloorMark(floorPoint) : null,
+            ExpiresAt = Time.time + AbilityCombatPower.HuntersSwiftnessTrapLifetimeSeconds
         };
         _huntersSwiftnessTraps.Add(trap);
     }
@@ -200,6 +202,11 @@ public partial class PlayerAbilityController
         for (int trapIndex = _huntersSwiftnessTraps.Count - 1; trapIndex >= 0; trapIndex--)
         {
             HuntersSwiftnessTrapState trap = _huntersSwiftnessTraps[trapIndex];
+            if (Time.time >= trap.ExpiresAt)
+            {
+                RemoveHuntersSwiftnessTrapAt(trapIndex);
+                continue;
+            }
 
             for (int i = 0; i < enemies.Count; i++)
             {

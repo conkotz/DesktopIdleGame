@@ -230,22 +230,23 @@ public partial class PlayerAbilityController
 
         Vector3 arcEnd = GetEnemyVfxCenter(enemy);
         float arcDamage = ComputeLightningRodArcDamage();
-        TornadoLightningRouter.RouteLightningArc(
+        EnemyBaseController damageTarget = TornadoLightningRouter.RouteLightningArc(
             abilityVfx,
             arcStart,
             arcEnd,
             arcDamage,
-            enemy.transform);
+            enemy.transform,
+            enemy);
 
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
-        if (combat == null)
+        if (combat == null || damageTarget == null || damageTarget.IsDead)
             return;
 
         float damage = ComputeLightningRodArcDamage();
         SplitDamage rolled = new SplitDamage(0f, damage, 0f);
         combat.ApplyStaticArrowsCritArcDamage(
-            enemy,
+            damageTarget,
             rolled,
             wasCrit: false,
             AbilityCombatPower.LightningRodOutgoingDamageSourceLabel);
@@ -253,7 +254,7 @@ public partial class PlayerAbilityController
         if (!applyShock || stats == null)
             return;
 
-        AilmentController ailments = enemy.GetComponent<AilmentController>();
+        AilmentController ailments = damageTarget.GetComponent<AilmentController>();
         if (ailments == null)
             return;
 

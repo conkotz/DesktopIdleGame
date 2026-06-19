@@ -875,16 +875,15 @@ MonoBehaviour:
     choices:
     - requiredLevel: 48
       title: Lightning Tornado
-      description: The tornado can absorb one nearby lightning arc. The arc chains
-        through the tornado to a nearby enemy, and the tornado gains bonus lightning
-        damage per second for the rest of its duration.
+      description: The tornado can absorb nearby lightning arcs. Each arc chains through
+        the tornado to a nearby enemy. Bonus lightning damage per second is based on
+        the strongest arc absorbed during its duration.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 48
       title: Bow Tempest
-      description: The tornado can no longer absorb lightning, but gains physical
-        damage based on 25% of your equipped bow.
+      description: The tornado gains physical damage based on 40% of your equipped bow.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

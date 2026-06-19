@@ -63,6 +63,7 @@ public static class AbilityCombatPower
     public const float HuntersSwiftnessTrapDiameterWorld = 2f;
     public const float HuntersSwiftnessTrapWeaponDamageFraction = 0.25f;
     public const float HuntersSwiftnessTrapStunDurationSeconds = 2f;
+    public const float HuntersSwiftnessTrapLifetimeSeconds = 10f;
     public const int HuntersSwiftnessUnlockLevel = 25;
     public const string HuntersSwiftnessTrapOutgoingDamageSourceLabel = "Hunter Trap";
     public const string TornadoAbilityId = "tornado";
@@ -76,12 +77,11 @@ public static class AbilityCombatPower
     public const float TornadoMoveSpeed = 2f;
     public const float TornadoAttachDistance = 0.65f;
     public const float TornadoLightningAbsorbRange = 8f;
-    public const float TornadoLightningInfusionPerArcFraction = 0.5f;
+    public const float TornadoLightningInfusionPerArcFraction = 0.4f;
     public const float TornadoEnh2Scale = 1.2f;
     public const float TornadoBaseScale = 1f;
     public const float TornadoSpriteOpacity = 0.55f;
-    public const float TornadoEnh2BowDamageFraction = 0.25f;
-    public const float TornadoActiveGlobalPhysicalDamageBonus = 0.10f;
+    public const float TornadoEnh2BowDamageFraction = 0.40f;
     public const int TornadoUnlockLevel = 45;
     public const string TornadoOutgoingDamageSourceLabel = "Tornado";
 
@@ -114,6 +114,10 @@ public static class AbilityCombatPower
         float lightningMult = 1f + stats.LightningSkillDamageTotalScalingPercentPoints / 100f;
         minDamage *= lightningMult;
         maxDamage *= lightningMult;
+
+        float apMult = stats.GetAbilityPowerDamageMultiplier();
+        minDamage *= apMult;
+        maxDamage *= apMult;
     }
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";

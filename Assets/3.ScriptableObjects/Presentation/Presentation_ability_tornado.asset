@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
   notes: Presentation for tornado
   displayNameOverride: Tornado
-  icon: {fileID: -5345310618126530808, guid: d4e5d23606c78724483c1a5478eb1b17, type: 3}
-  shortDescription: Summon a huge tornado that tears through enemies with physical damage per second.
+  icon: {fileID: 6233643196801466386, guid: 454666031037d714095583b6590b3ce3, type: 3}
+  shortDescription: Summon a huge tornado that tears through enemies with physical
+    damage per second.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

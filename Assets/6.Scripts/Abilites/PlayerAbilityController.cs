@@ -3616,7 +3616,19 @@ public partial class PlayerAbilityController : MonoBehaviour
             return false;
 
         if (IsTornadoAbilityId(def.abilityId) && IsTornadoActive)
-            return false;
+        {
+            if (!showLockedFeedback)
+                return false;
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
+            RetargetActiveTornado();
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
 
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
@@ -7492,16 +7504,17 @@ public partial class PlayerAbilityController : MonoBehaviour
         Vector3 from = GetEnemyVfxCenter(primaryTarget);
         Vector3 to = GetEnemyVfxCenter(chainTarget);
         float arcLightning = arcSplit.magic;
-        TornadoLightningRouter.RouteLightningArc(
+        chainTarget = TornadoLightningRouter.RouteLightningArc(
             abilityVfx,
             from,
             to,
             arcLightning,
-            primaryTarget.transform);
+            primaryTarget.transform,
+            chainTarget);
 
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
-        if (combat == null)
+        if (combat == null || chainTarget == null || chainTarget.IsDead)
             return;
 
         string label = AbilityCombatPower.StaticArrowsChainLightningOutgoingDamageSourceLabel;

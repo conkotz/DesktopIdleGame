@@ -785,6 +785,7 @@ public static class AbilityTooltipDamagePreview
             {
                 scaling.AppendLine(S(
                     $"+{stats.LightningSkillDamageTotalScalingPercentPoints:0.#}% lightning damage"));
+                AppendAbilityPowerScalingLine(scaling, S, stats);
             }
             return scaling.ToString().TrimEnd();
         }
@@ -792,6 +793,7 @@ public static class AbilityTooltipDamagePreview
         if (IsTornado(def))
         {
             AppendTornadoTooltipScaling(scaling, S, stats, skillsManager);
+            AppendAbilityPowerScalingLine(scaling, S, stats);
             return scaling.ToString().TrimEnd();
         }
 
@@ -831,6 +833,19 @@ public static class AbilityTooltipDamagePreview
 
         AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allDamageMult);
         return scaling.ToString().TrimEnd();
+    }
+
+    private static void AppendAbilityPowerScalingLine(
+        StringBuilder scaling,
+        System.Func<string, string> S,
+        CharacterStats stats)
+    {
+        if (scaling == null || stats == null)
+            return;
+
+        float apBonusPct = Mathf.Max(0f, (stats.GetAbilityPowerDamageMultiplier() - 1f) * 100f);
+        if (apBonusPct > 0.05f)
+            scaling.AppendLine(S($"+{apBonusPct:0.#}% damage from Ability Power"));
     }
 
     /// <summary>
@@ -2034,7 +2049,7 @@ public static class AbilityTooltipDamagePreview
         if (enhance == AbilityCombatPower.HuntersSwiftnessEnh1HunterTrapsChoiceIndex)
         {
             AppendDetailsEffectParagraph(body, O(
-                $"Every {AbilityCombatPower.HuntersSwiftnessTrapDropIntervalSeconds:0.#}s drop a trap below you. Enemies that step on a trap are stunned for {AbilityCombatPower.HuntersSwiftnessTrapStunDurationSeconds:0.#}s and take {AbilityCombatPower.HuntersSwiftnessTrapWeaponDamageFraction * 100f:0.#}% weapon damage. Traps stack; each enemy can only be affected once per cast."));
+                $"Every {AbilityCombatPower.HuntersSwiftnessTrapDropIntervalSeconds:0.#}s drop a trap below you. Enemies that step on a trap are stunned for {AbilityCombatPower.HuntersSwiftnessTrapStunDurationSeconds:0.#}s and take {AbilityCombatPower.HuntersSwiftnessTrapWeaponDamageFraction * 100f:0.#}% weapon damage. Traps expire after {AbilityCombatPower.HuntersSwiftnessTrapLifetimeSeconds:0.#}s; each enemy can only be affected once per cast."));
         }
     }
 
@@ -2072,16 +2087,40 @@ public static class AbilityTooltipDamagePreview
         if (scaling == null)
             return;
 
-        scaling.AppendLine(S($"+{AbilityCombatPower.TornadoActiveGlobalPhysicalDamageBonus * 100f:0.#}% global physical damage while active"));
-
         int enhance = GetTornadoBranchChoice(skillsManager);
         if (enhance == AbilityCombatPower.TornadoEnh1LightningTornadoChoiceIndex)
         {
             scaling.AppendLine(S(
-                $"Lightning arcs within {AbilityCombatPower.TornadoLightningAbsorbRange:0.#} range add " +
-                $"{AbilityCombatPower.TornadoLightningInfusionPerArcFraction * 100f:0.#}% of arc damage per second (once per cast)"));
+                "Lightning arcs absorbed by the tornado, add 40% of the hits damage per second"));
+        }
+        else if (enhance == AbilityCombatPower.TornadoEnh2BowInfusedChoiceIndex)
+        {
+            scaling.AppendLine(S("Adds 40% of your weapons physical damage"));
         }
     }
+
+    private static void GetTornadoTickDamageBounds(
+        CharacterStats stats,
+        int enhanceChoice,
+        out int tickMin,
+        out int tickMax)
+    {
+        float apMult = stats != null ? stats.GetAbilityPowerDamageMultiplier() : 1f;
+        float min = AbilityCombatPower.TornadoBaseMinDamagePerSecond * apMult;
+        float max = AbilityCombatPower.TornadoBaseMaxDamagePerSecond * apMult;
+
+        if (enhanceChoice == AbilityCombatPower.TornadoEnh2BowInfusedChoiceIndex && stats != null)
+        {
+            min += stats.MinSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction * apMult;
+            max += stats.MaxSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction * apMult;
+        }
+
+        tickMin = Mathf.RoundToInt(min);
+        tickMax = Mathf.RoundToInt(max);
+    }
+
+    private const string TornadoSeekEffectText =
+        "Tornado seeks out closest enemies. Reactivating tornado will cause it to seek a new target.";
 
     private static void AppendTornadoTooltipEffects(
         StringBuilder body,
@@ -2090,25 +2129,20 @@ public static class AbilityTooltipDamagePreview
         CharacterStats stats,
         bool includeEnhancementEffects)
     {
-        AppendDetailsEffectParagraph(body, O(
-            $"{AbilityCombatPower.TornadoBaseMinDamagePerSecond:0.#}–{AbilityCombatPower.TornadoBaseMaxDamagePerSecond:0.#} physical damage per second"));
+        int enhance = includeEnhancementEffects ? GetTornadoBranchChoice(skillsManager) : -1;
+        GetTornadoTickDamageBounds(stats, enhance, out int tickMin, out int tickMax);
+        AppendDetailsEffectParagraph(body, O($"{tickMin}–{tickMax} physical damage per second"));
+
+        AppendDetailsEffectParagraph(body, O(TornadoSeekEffectText));
 
         if (!includeEnhancementEffects)
             return;
 
-        int enhance = GetTornadoBranchChoice(skillsManager);
         if (enhance == AbilityCombatPower.TornadoEnh1LightningTornadoChoiceIndex)
         {
             AppendDetailsEffectParagraph(body, O(
-                "Can absorb one nearby lightning arc. The arc chains through the tornado to a nearby enemy, " +
-                "and the tornado gains bonus lightning damage per second for the rest of its duration."));
-        }
-        else if (enhance == AbilityCombatPower.TornadoEnh2BowInfusedChoiceIndex && stats != null)
-        {
-            float bowMin = stats.MinSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction;
-            float bowMax = stats.MaxSplitDamage.physical * AbilityCombatPower.TornadoEnh2BowDamageFraction;
-            AppendDetailsEffectParagraph(body, O(
-                $"Cannot absorb lightning. Adds {bowMin:0.#}–{bowMax:0.#} physical damage per second based on your equipped bow."));
+                "Lightning arcs can be absorbed by the tornado. the arc then chains to a nearby enemy. " +
+                "bonus lightning damage is added per second for its duration"));
         }
     }
 
@@ -2749,23 +2783,27 @@ public static class AbilityTooltipDamagePreview
         float allM,
         float liveDamageMultiplier)
     {
-        string suffix = " per arrow on hit";
         if (!stats)
         {
             body.AppendLine(O("Arrow damage"));
             return;
         }
 
-        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
-
-        var arrowDamageLines = new StringBuilder();
-        AppendElementAwareDamageLines(arrowDamageLines, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
-        if (arrowDamageLines.Length > 0)
+        var arrowDamageLines = new List<string>();
+        CollectAbilityHitDamageRangeLines(
+            arrowDamageLines,
+            O,
+            def,
+            stats,
+            weaponMult,
+            allM,
+            liveDamageMultiplier,
+            " per arrow on hit");
+        if (arrowDamageLines.Count > 0)
         {
             if (body.Length > 0)
                 body.Append(DetailsEffectParagraphGap);
-            body.Append(arrowDamageLines.ToString().TrimEnd());
+            AppendEffectLineGroup(body, arrowDamageLines);
         }
 
         AppendDetailsEffectParagraph(body, O(
@@ -2955,16 +2993,21 @@ public static class AbilityTooltipDamagePreview
         float liveDamageMultiplier,
         string suffix)
     {
-        var lineBuilder = new StringBuilder();
-        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
-        AppendElementAwareDamageLines(lineBuilder, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+        var lineBuilder = new List<string>();
+        CollectAbilityHitDamageRangeLines(
+            lineBuilder,
+            O,
+            def,
+            stats,
+            weaponMult,
+            allM,
+            liveDamageMultiplier,
+            suffix);
 
-        foreach (string raw in lineBuilder.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        foreach (string line in lineBuilder)
         {
-            string line = raw.Trim();
-            if (line.Length > 0)
-                lines.Add(line);
+            if (!string.IsNullOrWhiteSpace(line))
+                lines.Add(line.Trim());
         }
     }
 
@@ -3107,6 +3150,107 @@ public static class AbilityTooltipDamagePreview
         ice = Mathf.RoundToInt(Mathf.Max(0f, iceHit));
         lightning = Mathf.RoundToInt(Mathf.Max(0f, lightningHit));
         magic = Mathf.RoundToInt(Mathf.Max(0f, untypedMagicHit));
+    }
+
+    private static void CollectAbilityHitDamageRangeLines(
+        List<string> lines,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier,
+        string suffix)
+    {
+        if (!def || !stats)
+        {
+            lines.Add(O($"+0 damage{suffix}"));
+            return;
+        }
+
+        ComputeAbilityHitSplitBounds(
+            def,
+            stats,
+            weaponMult,
+            allM,
+            out float physMin,
+            out float physMax,
+            out float magMin,
+            out float magMax,
+            out float corrMin,
+            out float corrMax,
+            liveDamageMultiplier);
+
+        DistributeMagicLaneDamage(stats, magMin, out float fireMin, out float iceMin, out float lightningMin, out float magicMin);
+        DistributeMagicLaneDamage(stats, magMax, out float fireMax, out float iceMax, out float lightningMax, out float magicMax);
+
+        AppendDamageRangeLine(lines, O, physMin, physMax, "Physical damage", suffix);
+        AppendDamageRangeLine(lines, O, fireMin, fireMax, "Fire damage", suffix);
+        AppendDamageRangeLine(lines, O, iceMin, iceMax, "Ice damage", suffix);
+        AppendDamageRangeLine(lines, O, lightningMin, lightningMax, "Lightning damage", suffix);
+        AppendDamageRangeLine(lines, O, magicMin, magicMax, "Magic damage", suffix);
+        AppendDamageRangeLine(lines, O, corrMin, corrMax, "Corruption damage", suffix);
+
+        if (lines.Count == 0)
+            lines.Add(O($"+0 damage{suffix}"));
+    }
+
+    private static void AppendDamageRangeLine(
+        List<string> lines,
+        System.Func<string, string> O,
+        float minHit,
+        float maxHit,
+        string label,
+        string suffix)
+    {
+        int min = Mathf.RoundToInt(Mathf.Max(0f, minHit));
+        int max = Mathf.RoundToInt(Mathf.Max(0f, maxHit));
+        if (min <= 0 && max <= 0)
+            return;
+
+        if (min == max)
+            lines.Add(O($"{min} {label}{suffix}"));
+        else
+            lines.Add(O($"{min}–{max} {label}{suffix}"));
+    }
+
+    private static void ComputeAbilityHitSplitBounds(
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        out float physHitMin,
+        out float physHitMax,
+        out float magHitMin,
+        out float magHitMax,
+        out float corrHitMin,
+        out float corrHitMax,
+        float liveDamageMultiplier = 1f)
+    {
+        physHitMin = physHitMax = magHitMin = magHitMax = corrHitMin = corrHitMax = 0f;
+        if (!def || !stats)
+            return;
+
+        float wEff = weaponMult <= 0f ? 1f : weaponMult;
+        float minPhys = Mathf.Max(0f, stats.MinSplitDamage.physical);
+        float maxPhys = Mathf.Max(0f, stats.MaxSplitDamage.physical);
+        float minMag = Mathf.Max(0f, stats.MinSplitDamage.magic);
+        float maxMag = Mathf.Max(0f, stats.MaxSplitDamage.magic);
+        float minCorr = Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage);
+        float maxCorr = Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage);
+
+        float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+        float apM = stats.GetAbilityPowerDamageMultiplier();
+        float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        float scale = Mathf.Max(0f, allM) * apM * Mathf.Max(0f, liveDamageMultiplier);
+
+        physHitMin = (minPhys * wEff + ailmentBonus) * scale;
+        physHitMax = (maxPhys * wEff + ailmentBonus) * scale;
+        magHitMin = (minMag * wEff * elemM + elementBonus * elemM) * scale;
+        magHitMax = (maxMag * wEff * elemM + elementBonus * elemM) * scale;
+        corrHitMin = minCorr * wEff * scale;
+        corrHitMax = maxCorr * wEff * scale;
     }
 
     private static void ComputeAverageAbilityHitSplit(

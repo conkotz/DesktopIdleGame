@@ -21,6 +21,16 @@ public partial class PlayerAbilityController
             return;
 
         SplitDamage scaled = hit;
+        AbilityDefinition tornadoDef = GetAbilityDefinition(AbilityCombatPower.TornadoAbilityId);
+        float apMult = GetAbilityPowerDamageMultiplierForAbility(tornadoDef);
+        if (apMult > 1.0001f || apMult < 0.9999f)
+        {
+            scaled = new SplitDamage(
+                scaled.physical * apMult,
+                scaled.magic * apMult,
+                scaled.corruptionDamage * apMult);
+        }
+
         if (applyGlobalPhysical && scaled.physical > 0f)
         {
             float mult = 1f + stats.GlobalPhysicalDamageBonusPercentPoints / 100f;
@@ -81,8 +91,20 @@ public partial class PlayerAbilityController
         _tornadoEndsAt = Time.time + _tornadoDuration;
         _lastSyncedTornadoHudEnd = float.NaN;
 
-        stats?.ApplyTornadoCombatModifiers(AbilityCombatPower.TornadoActiveGlobalPhysicalDamageBonus);
         SyncTornadoHudBuff();
+    }
+
+    private void RetargetActiveTornado()
+    {
+        if (_activeTornadoGroup == null)
+            return;
+
+        for (int i = 0; i < _activeTornadoGroup.Instances.Count; i++)
+        {
+            TornadoInstance instance = _activeTornadoGroup.Instances[i];
+            if (instance != null)
+                instance.RetargetToClosestEnemy(preferDifferentTarget: true);
+        }
     }
 
     private Vector3 GetTornadoSpawnPoint()
@@ -138,7 +160,6 @@ public partial class PlayerAbilityController
         DestroyActiveTornadoInstances();
         _activeTornadoGroup = null;
 
-        stats?.ClearTornadoCombatModifiers();
         SyncTornadoHudBuff();
 
         if (!awardDeferredCooldown)

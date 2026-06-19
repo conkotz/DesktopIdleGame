@@ -18,15 +18,24 @@ public sealed class TornadoInstance : MonoBehaviour
     private float _nextDamageTickAt;
     private float _lightningInfusionBonus;
     private bool _canAbsorbLightning;
-    private bool _hasConsumedLightningArc;
     private bool _useBowPhysicalBonus;
     private float _bowPhysicalMinBonus;
     private float _bowPhysicalMaxBonus;
     private float _colliderBottomBelowRoot;
 
     public bool IsAlive => _owner != null && Time.time < _endsAt;
-    public bool CanAbsorbLightning => _canAbsorbLightning && !_hasConsumedLightningArc && IsAlive;
+    public bool CanAbsorbLightning => _canAbsorbLightning && IsAlive;
     public EnemyBaseController CurrentTarget => _target;
+
+    public void RetargetToClosestEnemy(bool preferDifferentTarget)
+    {
+        EnemyBaseController exclude = preferDifferentTarget ? _target : null;
+        EnemyBaseController next = FindBestTarget(exclude);
+        if (next == null && exclude != null)
+            next = FindBestTarget(null);
+
+        _target = next;
+    }
 
     public void Initialize(
         PlayerAbilityController owner,
@@ -94,8 +103,8 @@ public sealed class TornadoInstance : MonoBehaviour
         if (!CanAbsorbLightning || arcLightningDamage <= 0f)
             return;
 
-        _lightningInfusionBonus += arcLightningDamage * AbilityCombatPower.TornadoLightningInfusionPerArcFraction;
-        _hasConsumedLightningArc = true;
+        float infusionBonus = arcLightningDamage * AbilityCombatPower.TornadoLightningInfusionPerArcFraction;
+        _lightningInfusionBonus = Mathf.Max(_lightningInfusionBonus, infusionBonus);
     }
 
     private void ApplySpriteOpacity()
@@ -135,10 +144,10 @@ public sealed class TornadoInstance : MonoBehaviour
         if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
             return;
 
-        _target = FindBestTarget();
+        _target = FindBestTarget(null);
     }
 
-    private EnemyBaseController FindBestTarget()
+    private EnemyBaseController FindBestTarget(EnemyBaseController exclude)
     {
         if (_owner == null)
             return null;
@@ -152,6 +161,8 @@ public sealed class TornadoInstance : MonoBehaviour
         {
             EnemyBaseController enemy = enemies[i];
             if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+            if (exclude != null && enemy == exclude)
                 continue;
             float distSq = (enemy.transform.position - origin).sqrMagnitude;
             if (distSq >= bestDistSq)
