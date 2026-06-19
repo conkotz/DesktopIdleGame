@@ -6563,6 +6563,10 @@ public partial class PlayerAbilityController : MonoBehaviour
             ?? (def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null));
 
         TryGrantBattleEngineEnergyOnAbilityHit(def, dealt.Total > 0f);
+
+        if (dealt.Total > 0f && stats != null)
+            HuntersMarkCombat.TryApplyFromPlayerHit(target, stats, dealt.Total);
+
         return dealt;
     }
 

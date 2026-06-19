@@ -3183,6 +3183,52 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float GetSeekerArrowProcChanceFraction() =>
         IsSeekerArrowsMajorPassiveActive() ? AbilityCombatPower.SeekerArrowProcChance : 0f;
 
+    public bool IsHuntersMarkMajorPassiveActive() =>
+        GetRangedLevel10MajorPassiveRowPick() == 1 && AreRangedMajorPassiveEffectsEnabled();
+
+    public int GetHuntersMarkEnhancementPick()
+    {
+        if (!IsHuntersMarkMajorPassiveActive())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, -1)
+            : -1;
+    }
+
+    public float GetHuntersMarkMinionDamageBonusFraction()
+    {
+        if (!IsHuntersMarkMajorPassiveActive())
+            return 0f;
+
+        float bonus = AbilityCombatPower.HuntersMarkBaseMinionDamageBonusFraction;
+        if (GetHuntersMarkEnhancementPick() == AbilityCombatPower.HuntersMarkEnhancementDeepMarkChoiceIndex)
+            bonus += AbilityCombatPower.HuntersMarkDeepMarkExtraMinionDamageBonusFraction;
+
+        return bonus;
+    }
+
+    public float GetHuntersMarkMinionCritChanceBonus()
+    {
+        if (!IsHuntersMarkMajorPassiveActive())
+            return 0f;
+
+        return GetHuntersMarkEnhancementPick() == AbilityCombatPower.HuntersMarkEnhancementPredatorsBroodChoiceIndex
+            ? AbilityCombatPower.HuntersMarkPredatorsBroodMinionCritChanceBonus
+            : 0f;
+    }
+
+    public float GetHuntersMarkMinionAilmentChanceBonus()
+    {
+        if (!IsHuntersMarkMajorPassiveActive())
+            return 0f;
+
+        return GetHuntersMarkEnhancementPick() == AbilityCombatPower.HuntersMarkEnhancementPredatorsBroodChoiceIndex
+            ? AbilityCombatPower.HuntersMarkPredatorsBroodMinionAilmentChanceBonus
+            : 0f;
+    }
+
     public int GetParryEnhancementPick()
     {
         if (!IsParryMajorPassiveActive())

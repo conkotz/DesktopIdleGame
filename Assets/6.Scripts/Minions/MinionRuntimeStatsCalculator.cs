@@ -34,6 +34,8 @@ public static class MinionRuntimeStatsCalculator
 
         float mScale = OwnerMinionBonusScale(config.damageSourceMode);
         float dmgMult = 1f + owner.FinalMinionDamagePercent * mScale;
+        float ailmentBonus = owner.GetHuntersMarkMinionAilmentChanceBonus();
+        float critBonus = owner.GetHuntersMarkMinionCritChanceBonus();
 
         if (config.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
@@ -59,20 +61,20 @@ public static class MinionRuntimeStatsCalculator
             if (aps < MinAttacksPerSecond)
                 aps = MinAttacksPerSecond;
 
-            float crit = Mathf.Clamp01(owner.CritChance * iCrit + owner.FinalMinionCritChance * mScale);
+            float crit = Mathf.Clamp01(owner.CritChance * iCrit + owner.FinalMinionCritChance * mScale + critBonus);
 
             float critEx = Mathf.Max(0f, owner.CritMultiplier - 1f);
             float critMult = 1f + critEx * iCritMult;
             critMult = Mathf.Max(1f, critMult);
             var ailments = new MinionAilmentChances
             {
-                poisonChance = Mathf.Clamp01(owner.PoisonChance * ac),
-                bleedChance = Mathf.Clamp01(owner.BleedChance * ac),
-                burnChance = Mathf.Clamp01(owner.BurnApplyChance * ac),
-                shockChance = Mathf.Clamp01(owner.MeleeShockChance * ac)
+                poisonChance = Mathf.Clamp01(owner.PoisonChance * ac + ailmentBonus),
+                bleedChance = Mathf.Clamp01(owner.BleedChance * ac + ailmentBonus),
+                burnChance = Mathf.Clamp01(owner.BurnApplyChance * ac + ailmentBonus),
+                shockChance = Mathf.Clamp01(owner.MeleeShockChance * ac + ailmentBonus)
             };
 
-            float magicAil = Mathf.Clamp01(owner.MagicAilmentApplyChance * ac);
+            float magicAil = Mathf.Clamp01(owner.MagicAilmentApplyChance * ac + ailmentBonus);
 
             return new MinionRuntimeCombatStats
             {
@@ -97,7 +99,15 @@ public static class MinionRuntimeStatsCalculator
         if (baseAps < MinAttacksPerSecond)
             baseAps = MinAttacksPerSecond;
 
-        float baseCrit = Mathf.Clamp01(config.pureMinionCritChance + owner.FinalMinionCritChance * mScale);
+        float baseCrit = Mathf.Clamp01(config.pureMinionCritChance + owner.FinalMinionCritChance * mScale + critBonus);
+        MinionAilmentChances pureAilments = config.ailmentChances;
+        pureAilments = new MinionAilmentChances
+        {
+            poisonChance = Mathf.Clamp01(pureAilments.poisonChance + ailmentBonus),
+            bleedChance = Mathf.Clamp01(pureAilments.bleedChance + ailmentBonus),
+            burnChance = Mathf.Clamp01(pureAilments.burnChance + ailmentBonus),
+            shockChance = Mathf.Clamp01(pureAilments.shockChance + ailmentBonus)
+        };
 
         return new MinionRuntimeCombatStats
         {
@@ -105,8 +115,8 @@ public static class MinionRuntimeStatsCalculator
             AttacksPerSecond = baseAps,
             CritChance = baseCrit,
             CritDamageMultiplier = CharacterStats.MinionCritDamageMultiplier,
-            AilmentChances = config.ailmentChances,
-            MagicAilmentApplyChance = 0f
+            AilmentChances = pureAilments,
+            MagicAilmentApplyChance = ailmentBonus
         };
     }
 

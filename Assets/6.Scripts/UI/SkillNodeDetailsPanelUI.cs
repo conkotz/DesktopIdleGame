@@ -1532,15 +1532,19 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                 && !string.IsNullOrWhiteSpace(capstoneBody))
                 return capstoneBody;
 
-            if (!string.IsNullOrWhiteSpace(spineId)
-                && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
-                && !string.IsNullOrWhiteSpace(meleeBody))
-                return meleeBody;
+            if (!string.IsNullOrWhiteSpace(spineId))
+            {
+                SkillType skillType = binding.Skill.skillType;
+                if (skillType == SkillType.Ranged
+                    && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string rangedBody)
+                    && !string.IsNullOrWhiteSpace(rangedBody))
+                    return rangedBody;
 
-            if (!string.IsNullOrWhiteSpace(spineId)
-                && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string rangedBody)
-                && !string.IsNullOrWhiteSpace(rangedBody))
-                return rangedBody;
+                if (skillType == SkillType.Melee
+                    && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
+                    && !string.IsNullOrWhiteSpace(meleeBody))
+                    return meleeBody;
+            }
 
             if (string.Equals(spineId, AbilityCombatPower.SoulforgedWeaponEnhancementParentSpineNodeId, StringComparison.Ordinal))
             {

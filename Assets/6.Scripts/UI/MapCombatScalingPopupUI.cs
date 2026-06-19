@@ -41,6 +41,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private Scrollbar _detailsVerticalScrollbar;
     private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
     private MapEnhancementScalingSlotUI[] _enhancementSlots;
+    private RectTransform _enhancementSlotsRow;
     private TMP_Text _appliedEffectsText;
     private TMP_Text _enhancementReloadWarningText;
     private SharedTooltipUI _sharedTooltip;
@@ -540,11 +541,11 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         slotsColumnVlg.childForceExpandWidth = true;
         slotsColumnVlg.childForceExpandHeight = false;
 
-        RectTransform slotsRow = CreateChild(slotsColumn, "EnhancementSlots");
-        LayoutElement slotsLe = slotsRow.gameObject.AddComponent<LayoutElement>();
+        _enhancementSlotsRow = CreateChild(slotsColumn, "EnhancementSlots");
+        LayoutElement slotsLe = _enhancementSlotsRow.gameObject.AddComponent<LayoutElement>();
         slotsLe.minHeight = slotSize;
 
-        HorizontalLayoutGroup slotsHlg = slotsRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        HorizontalLayoutGroup slotsHlg = _enhancementSlotsRow.gameObject.AddComponent<HorizontalLayoutGroup>();
         slotsHlg.spacing = 10;
         slotsHlg.childAlignment = TextAnchor.MiddleLeft;
         slotsHlg.childControlWidth = true;
@@ -554,7 +555,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         _enhancementSlots = new MapEnhancementScalingSlotUI[MapEnhancementService.SlotCount];
         for (int i = 0; i < MapEnhancementService.SlotCount; i++)
-            _enhancementSlots[i] = BuildEnhancementSlot(slotsRow, i, slotSize);
+            _enhancementSlots[i] = BuildEnhancementSlot(_enhancementSlotsRow, i, slotSize);
 
         RectTransform helpRt = CreateChild(slotsColumn, "EnhancementHelp");
         TMP_Text helpText = helpRt.gameObject.AddComponent<TextMeshProUGUI>();
@@ -695,11 +696,12 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
             return;
 
         var anchorRect = anchor as RectTransform;
-        if (anchorRect != null && _panelRoot != null)
+        RectTransform slotsArea = _enhancementSlotsRow != null ? _enhancementSlotsRow : anchorRect;
+        if (anchorRect != null && slotsArea != null && _panelRoot != null)
         {
             _sharedTooltip.ConfigureDocking(
                 anchorRect,
-                _panelRoot,
+                slotsArea,
                 FlipInsideBounds.PreferredSide.Right,
                 _panelRoot);
         }
@@ -710,7 +712,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
             string.Empty,
             body,
             measureRect: anchorRect,
-            heightRect: _panelRoot,
+            heightRect: slotsArea,
             preferredSide: FlipInsideBounds.PreferredSide.Right,
             useHudTooltipScale: false);
     }

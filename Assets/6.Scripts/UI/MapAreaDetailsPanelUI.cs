@@ -148,7 +148,7 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
             : unknownLocationText;
 
         string locationType = def != null
-            ? FormatNodeType(def.nodeType)
+            ? FormatLocationType(def, progress)
             : unknownLocationTypeText;
 
         _isCombatMap = def != null && def.nodeType == MapNodeType.Combat;
@@ -221,6 +221,23 @@ public class MapAreaDetailsPanelUI : MonoBehaviour
             return GameplayLevelBootstrapper.Instance.ActiveDefinition;
 
         return ActiveLevelContext.Current;
+    }
+
+    private static string FormatLocationType(MapNodeDefinition def, WorldMapProgressManager progress)
+    {
+        if (def == null)
+            return "Unknown";
+
+        if (def.nodeType == MapNodeType.Combat && def.spawnGroupPlans != null && def.spawnGroupPlans.Count > 0)
+        {
+            int slider = def.IsMapCombatScalingEnabled()
+                ? MapCombatScaling.GetEffectiveSliderValue(def, progress)
+                : MapCombatScaling.SliderMin;
+            MapEnhancementAggregate enhancements = MapEnhancementService.BuildAggregate(def);
+            return MapCombatScaling.BuildCombatLocationTypeRichText(def, slider, enhancements);
+        }
+
+        return FormatNodeType(def.nodeType);
     }
 
     private static string FormatNodeType(MapNodeType type)

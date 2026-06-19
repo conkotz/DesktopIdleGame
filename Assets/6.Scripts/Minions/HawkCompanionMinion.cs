@@ -32,6 +32,7 @@ public class HawkCompanionMinion : MonoBehaviour
     private MotionState _state = MotionState.Flying;
     private EnemyBaseController _strikeTarget;
     private MinionRuntimeCombatStats _runtimeStats;
+    private MinionOwnerWeaponSnapshot _ownerWeaponSnapshot;
     private bool _lightningInfused;
     private bool _initialized;
 
@@ -83,6 +84,7 @@ public class HawkCompanionMinion : MonoBehaviour
             return false;
 
         _ownerStats = ownerStats;
+        _ownerWeaponSnapshot = MinionOwnerWeaponSnapshot.From(ownerStats);
         _skillsManager = skillsManager ? skillsManager : SkillsManager.Instance;
         _def = definition;
         _presentation = HawkCompanionMinionPresentation.Resolve(presentationFromController);
@@ -663,9 +665,10 @@ public class HawkCompanionMinion : MonoBehaviour
         }
 
         int phys = Mathf.RoundToInt(Mathf.Max(0f, d.physical));
+        float physDealt = 0f;
         if (phys > 0)
         {
-            enemy.TakeDamage(
+            physDealt = enemy.TakeDamage(
                 phys,
                 DamageType.Physical,
                 crit,
@@ -674,11 +677,30 @@ public class HawkCompanionMinion : MonoBehaviour
                 DpsDamageBucket.Minion,
                 outgoingDpsSourceLabel: label);
         }
+
+        if (physDealt > 0f)
+        {
+            MinionHitEffects.ApplyAilmentsFromOwnerWeapon(
+                enemy,
+                in _ownerWeaponSnapshot,
+                in _runtimeStats,
+                physDealt,
+                0f,
+                0f,
+                atk,
+                label,
+                attributeOutgoingToMinion: true);
+        }
     }
 
     private void TryApplyLightningShock(EnemyBaseController enemy, Transform atk)
     {
-        if (UnityEngine.Random.value > AbilityCombatPower.HawkCompanionLightningShockChance)
+        float shockChance = AbilityCombatPower.HawkCompanionLightningShockChance;
+        if (_ownerStats != null)
+            shockChance += _ownerStats.GetHuntersMarkMinionAilmentChanceBonus();
+        shockChance = Mathf.Clamp01(shockChance);
+
+        if (UnityEngine.Random.value > shockChance)
             return;
 
         AilmentController ailments = enemy.GetComponent<AilmentController>();

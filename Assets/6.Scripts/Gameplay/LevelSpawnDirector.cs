@@ -198,6 +198,11 @@ public class LevelSpawnDirector : MonoBehaviour
 
             MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
             var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int scalingSlider = def.IsMapCombatScalingEnabled()
+                ? MapCombatScaling.GetEffectiveSliderValue(def, WorldMapProgressManager.Instance)
+                : MapCombatScaling.SliderMin;
+            Dictionary<string, int> scalingExtraSpawns =
+                MapCombatScaling.BuildScalingExtraSpawnsByEnemyId(def, scalingSlider);
 
             // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
             SpawnAllPlans(
@@ -207,7 +212,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 IsFixedPointWorldPrefabRow,
                 requireExactNamedPoint: true,
                 mapEnhancements,
-                extraSpawnBonusesApplied);
+                extraSpawnBonusesApplied,
+                scalingExtraSpawns);
 
             // Pass 2: enemies, items, and anything without a fixed named point.
             SpawnAllPlans(
@@ -217,7 +223,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 row => !IsFixedPointWorldPrefabRow(row),
                 requireExactNamedPoint: false,
                 mapEnhancements,
-                extraSpawnBonusesApplied);
+                extraSpawnBonusesApplied,
+                scalingExtraSpawns);
         }
 
         SpawnInMapTeleporters(def, groups, parent);
@@ -230,7 +237,8 @@ public class LevelSpawnDirector : MonoBehaviour
         Func<SpawnPrefabCount, bool> rowFilter,
         bool requireExactNamedPoint,
         MapEnhancementAggregate mapEnhancements,
-        HashSet<string> extraSpawnBonusesApplied)
+        HashSet<string> extraSpawnBonusesApplied,
+        Dictionary<string, int> scalingExtraSpawns)
     {
         for (int i = 0; i < def.spawnGroupPlans.Count; i++)
         {
@@ -257,7 +265,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 rowFilter: rowFilter,
                 requireExactNamedPoint: requireExactNamedPoint,
                 mapEnhancements: mapEnhancements,
-                extraSpawnBonusesApplied: extraSpawnBonusesApplied);
+                extraSpawnBonusesApplied: extraSpawnBonusesApplied,
+                scalingExtraSpawns: scalingExtraSpawns);
         }
     }
 
@@ -528,7 +537,8 @@ public class LevelSpawnDirector : MonoBehaviour
         Func<SpawnPrefabCount, bool> rowFilter = null,
         bool requireExactNamedPoint = false,
         MapEnhancementAggregate mapEnhancements = null,
-        HashSet<string> extraSpawnBonusesApplied = null)
+        HashSet<string> extraSpawnBonusesApplied = null,
+        Dictionary<string, int> scalingExtraSpawns = null)
     {
         if (plan.spawns == null)
             return;
@@ -665,6 +675,7 @@ public class LevelSpawnDirector : MonoBehaviour
                 entry,
                 defForInit,
                 mapEnhancements,
+                scalingExtraSpawns,
                 extraSpawnBonusesApplied);
 
             for (int c = 0; c < spawnCount; c++)
@@ -1182,24 +1193,34 @@ public class LevelSpawnDirector : MonoBehaviour
     }
 
     /// <summary>
-    /// Adds map-enhancement extra spawns to the first spawn row for each enemy id (AllSpawns / spawnGroupPlans).
+    /// Adds map-enhancement and scaling extra spawns to the first spawn row for each enemy id (AllSpawns / spawnGroupPlans).
     /// Extras use the same spawn, elite, and respawn rules as the base row count.
     /// </summary>
     private static int GetEnemySpawnCountWithMapEnhancementExtras(
         SpawnPrefabCount entry,
         EnemyDefinition defForInit,
         MapEnhancementAggregate aggregate,
+        IReadOnlyDictionary<string, int> scalingExtraSpawns,
         HashSet<string> extraBonusesApplied)
     {
         int count = entry != null ? entry.count : 0;
-        if (aggregate == null || defForInit == null || string.IsNullOrWhiteSpace(defForInit.enemyId))
+        if (defForInit == null || string.IsNullOrWhiteSpace(defForInit.enemyId))
             return count;
 
         string enemyId = defForInit.enemyId.Trim();
         if (extraBonusesApplied != null && extraBonusesApplied.Contains(enemyId))
             return count;
 
-        if (!aggregate.extraSpawnsByEnemyId.TryGetValue(enemyId, out int extra) || extra <= 0)
+        int extra = 0;
+        if (aggregate != null &&
+            aggregate.extraSpawnsByEnemyId.TryGetValue(enemyId, out int enhancementExtra))
+            extra += enhancementExtra;
+
+        if (scalingExtraSpawns != null &&
+            scalingExtraSpawns.TryGetValue(enemyId, out int scalingExtra))
+            extra += scalingExtra;
+
+        if (extra <= 0)
             return count;
 
         extraBonusesApplied?.Add(enemyId);

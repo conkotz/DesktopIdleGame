@@ -70,12 +70,15 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Sprite shadowStrikeLethalMarkIcon;
     [Tooltip("Shadow Strike — Shadow Execution mark (enhancement 2). Assign in inspector.")]
     [SerializeField] private Sprite shadowStrikeExecutionMarkIcon;
+    [Tooltip("Hunter's Mark (Ranged Lv10 major passive). Assign in inspector.")]
+    [SerializeField] private Sprite huntersMarkIcon;
 
     [Header("Auto Bind")]
     [SerializeField] private CharacterStats characterStats;
     [SerializeField] private EnemyBaseController enemy;
     [SerializeField] private AilmentController ailments;
     private EnemyShadowStrikeMarks _shadowStrikeMarks;
+    private EnemyHuntersMark _huntersMark;
 
     [Header("Minion overhead layout")]
     [Tooltip("Extra canvas-pixel nudge when projecting minion HP/name overhead (x negative = left on screen).")]
@@ -1498,6 +1501,16 @@ public class UnitOverheadUI : MonoBehaviour
         match.RefreshDebuffIconStrip();
     }
 
+    public static void RefreshHuntersMarkForEnemy(EnemyBaseController enemyController)
+    {
+        UnitOverheadUI match = FindOverheadForEnemy(enemyController);
+        if (match == null)
+            return;
+
+        match.EnsureHuntersMarkSubscription();
+        match.RefreshDebuffIconStrip();
+    }
+
     private void EnsureShadowStrikeMarksSubscription()
     {
         if (enemy == null)
@@ -1513,6 +1526,23 @@ public class UnitOverheadUI : MonoBehaviour
         _shadowStrikeMarks = marks;
         if (_shadowStrikeMarks != null)
             _shadowStrikeMarks.OnMarksChanged += HandleShadowStrikeMarksChanged;
+    }
+
+    private void EnsureHuntersMarkSubscription()
+    {
+        if (enemy == null)
+            return;
+
+        EnemyHuntersMark mark = enemy.GetComponent<EnemyHuntersMark>();
+        if (mark == _huntersMark)
+            return;
+
+        if (_huntersMark != null)
+            _huntersMark.OnMarkChanged -= HandleHuntersMarkChanged;
+
+        _huntersMark = mark;
+        if (_huntersMark != null)
+            _huntersMark.OnMarkChanged += HandleHuntersMarkChanged;
     }
 
     private static UnitOverheadUI FindOverheadForEnemy(EnemyBaseController enemyController)
@@ -1835,6 +1865,10 @@ public class UnitOverheadUI : MonoBehaviour
         if (_shadowStrikeMarks != null)
             _shadowStrikeMarks.OnMarksChanged += HandleShadowStrikeMarksChanged;
 
+        _huntersMark = enemy != null ? enemy.GetComponent<EnemyHuntersMark>() : null;
+        if (_huntersMark != null)
+            _huntersMark.OnMarkChanged += HandleHuntersMarkChanged;
+
         ToggleSettingsStore.Changed += HandleToggleSettingChanged;
     }
 
@@ -1866,6 +1900,10 @@ public class UnitOverheadUI : MonoBehaviour
         if (_shadowStrikeMarks != null)
             _shadowStrikeMarks.OnMarksChanged -= HandleShadowStrikeMarksChanged;
         _shadowStrikeMarks = null;
+
+        if (_huntersMark != null)
+            _huntersMark.OnMarkChanged -= HandleHuntersMarkChanged;
+        _huntersMark = null;
     }
 
     private void HandleToggleSettingChanged(ToggleSettingId setting, bool _)
@@ -1910,6 +1948,11 @@ public class UnitOverheadUI : MonoBehaviour
     }
 
     private void HandleShadowStrikeMarksChanged()
+    {
+        AilmentUiRebuildCoordinator.MarkUnitOverheadDirty(this);
+    }
+
+    private void HandleHuntersMarkChanged()
     {
         AilmentUiRebuildCoordinator.MarkUnitOverheadDirty(this);
     }
@@ -2813,6 +2856,7 @@ public class UnitOverheadUI : MonoBehaviour
     {
         RefreshPlayerOverheadAilmentPresentation();
         EnsureShadowStrikeMarksSubscription();
+        EnsureHuntersMarkSubscription();
         RefreshDebuffIconStrip();
     }
 
@@ -2846,9 +2890,16 @@ public class UnitOverheadUI : MonoBehaviour
         for (int i = 0; i < s_debuffStripScratch.Count; i++)
         {
             DebuffStripEntry entry = s_debuffStripScratch[i];
+            if (entry.Sprite == null)
+                continue;
+
             if (!_debuffIconsByKey.TryGetValue(entry.Key, out GameObject icon) || icon == null)
             {
+                int countBeforeSpawn = spawnedDebuffIcons.Count;
                 SpawnDebuffIcon(entry.Sprite, entry.Key, entry.Stacks);
+                if (spawnedDebuffIcons.Count <= countBeforeSpawn)
+                    continue;
+
                 icon = spawnedDebuffIcons[spawnedDebuffIcons.Count - 1];
                 _debuffIconsByKey[entry.Key] = icon;
                 _debuffIconKeyOrder.Add(entry.Key);
@@ -2940,6 +2991,32 @@ public class UnitOverheadUI : MonoBehaviour
                 });
             }
         }
+
+        EnemyHuntersMark huntersMark = _huntersMark != null
+            ? _huntersMark
+            : enemy != null ? enemy.GetComponent<EnemyHuntersMark>() : null;
+        if (huntersMark != null && huntersMark.IsActive)
+        {
+            Sprite markSprite = ResolveHuntersMarkDebuffIcon();
+            if (markSprite != null)
+            {
+                results.Add(new DebuffStripEntry
+                {
+                    Key = "HuntersMark",
+                    Sprite = markSprite,
+                    Stacks = 1
+                });
+            }
+        }
+    }
+
+    private Sprite ResolveHuntersMarkDebuffIcon()
+    {
+        if (huntersMarkIcon != null)
+            return huntersMarkIcon;
+        if (shadowStrikeLethalMarkIcon != null)
+            return shadowStrikeLethalMarkIcon;
+        return shockIcon;
     }
 
     private static void UpdateDebuffIconStacks(GameObject icon, Sprite sprite, int stacks)

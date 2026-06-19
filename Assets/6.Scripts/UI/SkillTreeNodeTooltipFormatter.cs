@@ -193,16 +193,26 @@ public static class SkillTreeNodeTooltipFormatter
 
         string desc;
         string spineId = binding.ResolveSpineNodeId();
-        if (skill != null && parentUnlock != null
-            && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string meleeChoiceBody))
+        if (skill != null && parentUnlock != null && !string.IsNullOrEmpty(spineId))
         {
-            desc = meleeChoiceBody;
-        }
-        else if (skill != null && parentUnlock != null
-            && !string.IsNullOrEmpty(spineId)
-            && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string rangedChoiceBody))
-        {
-            desc = rangedChoiceBody;
+            if (skill.skillType == SkillType.Ranged
+                && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string rangedChoiceBody))
+            {
+                desc = rangedChoiceBody;
+            }
+            else if (skill.skillType == SkillType.Melee
+                && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string meleeChoiceBody))
+            {
+                desc = meleeChoiceBody;
+            }
+            else
+            {
+                desc = choice != null
+                    ? SkillsAbilityPresentationResolver.ResolveChoiceDescription(choice)
+                    : string.Empty;
+                if (string.IsNullOrWhiteSpace(desc))
+                    desc = "No description yet.";
+            }
         }
         else
         {

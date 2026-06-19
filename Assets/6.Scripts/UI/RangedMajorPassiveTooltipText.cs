@@ -17,13 +17,21 @@ public static class RangedMajorPassiveTooltipText
         out string body)
     {
         body = null;
-        if (!string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
-            return false;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            body = CombineTooltipLines(
+                BuildSeekerArrowsScalingBody(),
+                BuildSeekerArrowsEffectBody(stats, selectedChoice));
+            return true;
+        }
 
-        body = CombineTooltipLines(
-            BuildSeekerArrowsScalingBody(),
-            BuildSeekerArrowsEffectBody(stats, selectedChoice));
-        return true;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            body = BuildHuntersMarkEffectBody(stats, selectedChoice);
+            return true;
+        }
+
+        return false;
     }
 
     public static bool TryBuildDetailsPanelSections(
@@ -35,12 +43,20 @@ public static class RangedMajorPassiveTooltipText
     {
         scalingText = null;
         effectText = null;
-        if (!string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
-            return false;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            scalingText = BuildSeekerArrowsScalingBody();
+            effectText = BuildSeekerArrowsEffectBody(stats, selectedChoice);
+            return true;
+        }
 
-        scalingText = BuildSeekerArrowsScalingBody();
-        effectText = BuildSeekerArrowsEffectBody(stats, selectedChoice);
-        return true;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            effectText = BuildHuntersMarkEffectBody(stats, selectedChoice);
+            return true;
+        }
+
+        return false;
     }
 
     public static string BuildSeekerArrowsScalingBody() =>
@@ -50,21 +66,45 @@ public static class RangedMajorPassiveTooltipText
     public static bool TryBuildChoiceTooltipBody(string parentSpineNodeId, int choiceIndex, out string body)
     {
         body = null;
-        if (!string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
-            return false;
-
-        if (choiceIndex == AbilityCombatPower.SeekerArrowsEnhancementChainChoiceIndex)
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
-            body = "When this effect triggers, it can also trigger itself.";
-            return true;
+            if (choiceIndex == AbilityCombatPower.SeekerArrowsEnhancementChainChoiceIndex)
+            {
+                body = "When this effect triggers, it can also trigger itself.";
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.SeekerArrowsEnhancementVolleyChoiceIndex)
+            {
+                body =
+                    $"{AbilityCombatPower.SeekerArrowVolleyProcChance * 100f:0.#}% chance to trigger seeker arrow " +
+                    $"{AbilityCombatPower.SeekerArrowVolleyCount} consecutive times.";
+                return true;
+            }
+
+            return false;
         }
 
-        if (choiceIndex == AbilityCombatPower.SeekerArrowsEnhancementVolleyChoiceIndex)
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
-            body =
-                $"{AbilityCombatPower.SeekerArrowVolleyProcChance * 100f:0.#}% chance to trigger seeker arrow " +
-                $"{AbilityCombatPower.SeekerArrowVolleyCount} consecutive times.";
-            return true;
+            if (choiceIndex == AbilityCombatPower.HuntersMarkEnhancementDeepMarkChoiceIndex)
+            {
+                body =
+                    $"Increase the minion damage bonus of Hunter's Mark by " +
+                    $"{AbilityCombatPower.HuntersMarkDeepMarkExtraMinionDamageBonusFraction * 100f:0.#}% " +
+                    $"({(AbilityCombatPower.HuntersMarkBaseMinionDamageBonusFraction + AbilityCombatPower.HuntersMarkDeepMarkExtraMinionDamageBonusFraction) * 100f:0.#}% total).";
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.HuntersMarkEnhancementPredatorsBroodChoiceIndex)
+            {
+                body =
+                    $"Minions gain +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionCritChanceBonus * 100f:0.#}% crit chance " +
+                    $"and +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionAilmentChanceBonus * 100f:0.#}% chance to apply ailments.";
+                return true;
+            }
+
+            return false;
         }
 
         return false;
@@ -73,13 +113,23 @@ public static class RangedMajorPassiveTooltipText
     public static bool TryBuildFlavorDescription(string parentSpineNodeId, out string flavor)
     {
         flavor = null;
-        if (!string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
-            return false;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.SeekerArrowsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor =
+                "Has a chance on every auto attack to fire a phantom seeker arrow at your target. " +
+                "Seeker arrows cannot apply on-hit effects.";
+            return true;
+        }
 
-        flavor =
-            "Has a chance on every auto attack to fire a phantom seeker arrow at your target. " +
-            "Seeker arrows cannot apply on-hit effects.";
-        return true;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor =
+                "Enemies hit by auto attacks or other non-minion abilities apply Hunter's Mark for 10 seconds. " +
+                "Marked enemies take increased damage from minions.";
+            return true;
+        }
+
+        return false;
     }
 
     public static string BuildSeekerArrowsEffectBody(CharacterStats stats, int selectedChoice = -1)
@@ -87,13 +137,40 @@ public static class RangedMajorPassiveTooltipText
         var sb = new StringBuilder();
         AppendParagraph(sb, FormatSeekerArrowDamageLine(stats));
         AppendParagraph(sb, FormatSeekerArrowProcChanceLine());
-        if (TryGetCommittedEnhancementEffectLine(selectedChoice, out string enhancementLine))
+        if (TryGetSeekerArrowsCommittedEnhancementEffectLine(selectedChoice, out string enhancementLine))
             AppendParagraph(sb, enhancementLine);
 
         return sb.ToString();
     }
 
-    private static bool TryGetCommittedEnhancementEffectLine(int selectedChoice, out string line)
+    public static string BuildHuntersMarkEffectBody(CharacterStats stats, int selectedChoice = -1)
+    {
+        var sb = new StringBuilder();
+        float bonus = stats != null
+            ? stats.GetHuntersMarkMinionDamageBonusFraction()
+            : AbilityCombatPower.HuntersMarkBaseMinionDamageBonusFraction;
+        AppendParagraph(sb,
+            "Enemies hit by auto attacks or other non-minion abilities apply Hunter's Mark.");
+        AppendParagraph(sb,
+            $"Marked enemies take +{bonus * 100f:0.#}% damage from minions for {AbilityCombatPower.HuntersMarkDurationSeconds:0.#}s (refreshed on hit).");
+
+        if (selectedChoice == AbilityCombatPower.HuntersMarkEnhancementDeepMarkChoiceIndex)
+        {
+            AppendParagraph(sb,
+                $"Deep Mark: +{AbilityCombatPower.HuntersMarkDeepMarkExtraMinionDamageBonusFraction * 100f:0.#}% minion damage bonus " +
+                $"({(AbilityCombatPower.HuntersMarkBaseMinionDamageBonusFraction + AbilityCombatPower.HuntersMarkDeepMarkExtraMinionDamageBonusFraction) * 100f:0.#}% total).");
+        }
+        else if (selectedChoice == AbilityCombatPower.HuntersMarkEnhancementPredatorsBroodChoiceIndex)
+        {
+            AppendParagraph(sb,
+                $"Predator's Brood: minions gain +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionCritChanceBonus * 100f:0.#}% crit chance " +
+                $"and +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionAilmentChanceBonus * 100f:0.#}% chance to apply ailments.");
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool TryGetSeekerArrowsCommittedEnhancementEffectLine(int selectedChoice, out string line)
     {
         line = null;
         if (selectedChoice == AbilityCombatPower.SeekerArrowsEnhancementChainChoiceIndex)

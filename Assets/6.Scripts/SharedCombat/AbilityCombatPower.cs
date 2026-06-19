@@ -57,6 +57,17 @@ public static class AbilityCombatPower
     public const int SeekerArrowsEnhancementChainChoiceIndex = 0;
     public const int SeekerArrowsEnhancementVolleyChoiceIndex = 1;
 
+    /// <summary>Ranged Lv10 major passive — Hunter's Mark (skill tree slot 1 at level 10).</summary>
+    public const string HuntersMarkMajorPassiveSpineNodeId = "Lv10_1";
+    public const int HuntersMarkMajorPassiveLevel = 10;
+    public const float HuntersMarkBaseMinionDamageBonusFraction = 0.20f;
+    public const float HuntersMarkDeepMarkExtraMinionDamageBonusFraction = 0.10f;
+    public const float HuntersMarkPredatorsBroodMinionCritChanceBonus = 0.15f;
+    public const float HuntersMarkPredatorsBroodMinionAilmentChanceBonus = 0.10f;
+    public const float HuntersMarkDurationSeconds = 10f;
+    public const int HuntersMarkEnhancementDeepMarkChoiceIndex = 0;
+    public const int HuntersMarkEnhancementPredatorsBroodChoiceIndex = 1;
+
     public static float GetSnipeChargeDurationSeconds(int selectedEnhancementChoice) =>
         selectedEnhancementChoice == SnipeFasterChargeChoiceIndex
             ? SnipeEnhancedChargeDurationSeconds

@@ -150,9 +150,11 @@ MonoBehaviour:
   shockIcon: {fileID: -427855172329239467, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
   shadowStrikeLethalMarkIcon: {fileID: -2267880405953355406, guid: 26f13797dc54a2044aeadf69a0c6e5a6, type: 3}
   shadowStrikeExecutionMarkIcon: {fileID: 4025690147335329928, guid: 81f31239f45cc994faa8adfebceb9402, type: 3}
+  huntersMarkIcon: {fileID: 8663357518877479891, guid: 038528562115bf042bdb34f72e9d3b50, type: 3}
   characterStats: {fileID: 0}
   enemy: {fileID: 0}
   ailments: {fileID: 0}
+  minionOverheadScreenNudge: {x: 12, y: 20}
   followTarget: {fileID: 0}
   worldOffset: {x: 0, y: 0, z: 0}
   parentCanvas: {fileID: 0}
@@ -175,6 +177,7 @@ MonoBehaviour:
   compactDamagePulseSeconds: 0.085
   compactDamagePulseMultiplier: 1.2
   compactDamageCritPulseMultiplier: 1.5
+  compactDamageCritPulseSeconds: 0.12
   enableOverlappingStack: 1
   stackHorizontalOverlapPaddingPx: 8
   stackAllowedOverlapBeforeStackPx: 20

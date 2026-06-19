@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5203215645743339790}
   - component: {fileID: 586752236171361894}
   - component: {fileID: 3760902187889514044}
+  - component: {fileID: 2171181237979450622}
   m_Layer: 7
   m_Name: NameLabel
   m_TagString: Untagged
@@ -181,6 +182,19 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 586752236171361894}
   m_maskType: 0
+--- !u!114 &2171181237979450622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7311164784060797909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b2c3d4e5f6789012345678abcdef01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelScreenClamp
+  screenTopMarginPixels: 6
 --- !u!1 &8347273920747777605
 GameObject:
   m_ObjectHideFlags: 0
@@ -342,6 +356,7 @@ MonoBehaviour:
   logWhenBlocked: 1
   blockedMessage: You cannot enter this area yet.
   arriveDistanceX: 0.08
+  laneBottomOffsetAboveFloor: 0
 --- !u!114 &722630353058482233
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -354,6 +369,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
-  nameLabels: []
+  nameLabels:
+  - {fileID: 3760902187889514044}
   searchInactiveChildren: 1
   sortingReference: {fileID: 433244304700921957}

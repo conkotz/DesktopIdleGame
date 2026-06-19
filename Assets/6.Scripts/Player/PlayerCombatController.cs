@@ -961,7 +961,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _isClosingDistanceForAttack = false;
             _wasInAttackRangeWithTarget = inAttackRange;
             player.ClearActionOverride();
-            player.StopMoveOnly();
             return;
         }
 
@@ -977,8 +976,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 _isClosingDistanceForAttack = false;
                 _wasInAttackRangeWithTarget = inAttackRange;
                 player.ClearActionOverride();
-                if (player.IsManualKeyboardSteering)
-                    player.StopMoveOnly();
                 return;
             }
         }
@@ -3017,6 +3014,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (stats != null && result.physical > 0f)
             stats.TryApplyTacticianStunOnEnemyHit(target);
+
+        if (stats != null && result.Total > 0f)
+            HuntersMarkCombat.TryApplyFromPlayerHit(target, stats, result.Total);
 
         return result;
     }

@@ -1505,6 +1505,13 @@ public class EnemyBaseController : MonoBehaviour
         float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
         float scaledAmount = Mathf.Max(0f, amount * shockMult);
 
+        if (dpsBucketOverride == DpsDamageBucket.Minion && scaledAmount > 0f)
+        {
+            EnemyHuntersMark huntersMark = GetComponent<EnemyHuntersMark>();
+            if (huntersMark != null)
+                scaledAmount *= huntersMark.GetMinionIncomingDamageMultiplier();
+        }
+
         if (wasCrit && scaledAmount > 0f)
         {
             EnemyShadowStrikeMarks shadowMarks = GetComponent<EnemyShadowStrikeMarks>();

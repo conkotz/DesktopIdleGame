@@ -70,6 +70,31 @@ public static class MapCombatScaling
         return 1f + (level - 1) * GoldBonusPerLevelAboveBase;
     }
 
+    /// <summary>Total extra enemy spawns from map scaling at this slider tier (+1 per tier above base).</summary>
+    public static int GetExtraSpawnCountFromSlider(int sliderValue)
+    {
+        int slider = Mathf.Clamp(sliderValue, SliderMin, SliderMax);
+        return slider <= SliderMin ? 0 : slider;
+    }
+
+    /// <summary>Selected slider tier clamped by kill unlocks (same cap used for active combat bonuses).</summary>
+    public static int GetEffectiveSliderValue(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node == null || !node.IsMapCombatScalingEnabled())
+            return SliderMin;
+
+        string nodeId = node.nodeId;
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return SliderMin;
+
+        progress ??= WorldMapProgressManager.Instance;
+        int kills = progress != null ? progress.GetEnemyKillsOnNode(nodeId) : 0;
+        int unlocked = GetUnlockedLevel(kills);
+        int selected = progress != null ? progress.GetCombatMapScalingSelectedTier(nodeId) : SliderMin;
+        int maxSlider = GetMaxSelectableSliderValue(unlocked, kills);
+        return Mathf.Clamp(selected, SliderMin, maxSlider);
+    }
+
     /// <summary>Maps world-map slider value (0–7) to gameplay scaling level (1–7). 0 = base; 1+ adds combat bonuses.</summary>
     public static int GetPlayLevelFromSliderValue(int sliderValue)
     {
@@ -157,7 +182,174 @@ public static class MapCombatScaling
         sb.AppendLine($"• Combat XP rate +{xpPct}% from base (elites grant double this scaled XP value)");
         sb.AppendLine($"• Loot drop chance +{lootPct}% from base");
         sb.AppendLine($"• Gold dropped +{goldPct}% from base");
+
+        int extraSpawns = GetExtraSpawnCountFromSlider(sliderValue);
+        if (extraSpawns > 0)
+        {
+            string spawnLabel = extraSpawns == 1 ? "spawn" : "spawns";
+            sb.AppendLine($"• +{extraSpawns} additional enemy {spawnLabel}");
+        }
+
         return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>Extra scaling spawns per enemy id, distributed round-robin across distinct map enemy types.</summary>
+    public static Dictionary<string, int> BuildScalingExtraSpawnsByEnemyId(MapNodeDefinition map, int sliderValue)
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (map == null)
+            return result;
+
+        int totalExtras = GetExtraSpawnCountFromSlider(sliderValue);
+        if (totalExtras <= 0)
+            return result;
+
+        List<string> orderedEnemyIds = CollectDistinctEnemyIdsInSpawnOrder(map);
+        if (orderedEnemyIds.Count == 0)
+            return result;
+
+        for (int i = 0; i < totalExtras; i++)
+        {
+            string enemyId = orderedEnemyIds[i % orderedEnemyIds.Count];
+            result.TryGetValue(enemyId, out int current);
+            result[enemyId] = current + 1;
+        }
+
+        return result;
+    }
+
+    public static List<MapEnemySpawnCountEntry> BuildEnemySpawnCounts(
+        MapNodeDefinition map,
+        int sliderValue,
+        MapEnhancementAggregate enhancements = null)
+    {
+        var entries = new List<MapEnemySpawnCountEntry>();
+        if (map?.spawnGroupPlans == null || map.spawnGroupPlans.Count == 0)
+            return entries;
+
+        var baseCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var displayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var spawnOrder = new List<string>();
+
+        for (int p = 0; p < map.spawnGroupPlans.Count; p++)
+        {
+            LevelSpawnGroupPlan plan = map.spawnGroupPlans[p];
+            if (plan?.spawns == null)
+                continue;
+
+            for (int s = 0; s < plan.spawns.Count; s++)
+            {
+                SpawnPrefabCount row = plan.spawns[s];
+                if (row?.enemyDefinition == null || row.count <= 0)
+                    continue;
+
+                string enemyId = row.enemyDefinition.enemyId?.Trim();
+                if (string.IsNullOrEmpty(enemyId))
+                    continue;
+
+                baseCounts.TryGetValue(enemyId, out int current);
+                baseCounts[enemyId] = current + row.count;
+
+                if (!displayNames.ContainsKey(enemyId))
+                {
+                    displayNames[enemyId] = ResolveEnemyDisplayName(row.enemyDefinition);
+                    spawnOrder.Add(enemyId);
+                }
+            }
+        }
+
+        if (spawnOrder.Count == 0)
+            return entries;
+
+        Dictionary<string, int> scalingExtras = BuildScalingExtraSpawnsByEnemyId(map, sliderValue);
+
+        for (int i = 0; i < spawnOrder.Count; i++)
+        {
+            string enemyId = spawnOrder[i];
+            int count = baseCounts.TryGetValue(enemyId, out int baseCount) ? baseCount : 0;
+
+            if (scalingExtras.TryGetValue(enemyId, out int scaleExtra))
+                count += scaleExtra;
+
+            if (enhancements?.extraSpawnsByEnemyId != null &&
+                enhancements.extraSpawnsByEnemyId.TryGetValue(enemyId, out int enhancementExtra))
+                count += enhancementExtra;
+
+            entries.Add(new MapEnemySpawnCountEntry(displayNames[enemyId], count));
+        }
+
+        return entries;
+    }
+
+    public static string BuildCombatLocationTypeRichText(
+        MapNodeDefinition map,
+        int sliderValue,
+        MapEnhancementAggregate enhancements = null)
+    {
+        List<MapEnemySpawnCountEntry> counts = BuildEnemySpawnCounts(map, sliderValue, enhancements);
+        if (counts.Count == 0)
+            return "Combat";
+
+        var suffix = new StringBuilder();
+        suffix.Append(" - ");
+        for (int i = 0; i < counts.Count; i++)
+        {
+            if (i > 0)
+                suffix.Append(", ");
+
+            MapEnemySpawnCountEntry entry = counts[i];
+            suffix.Append(entry.displayName);
+            suffix.Append(" (x");
+            suffix.Append(entry.count);
+            suffix.Append(')');
+        }
+
+        return $"Combat<size=75%>{suffix}</size>";
+    }
+
+    public static List<string> CollectDistinctEnemyIdsInSpawnOrder(MapNodeDefinition map)
+    {
+        var orderedIds = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (map?.spawnGroupPlans == null)
+            return orderedIds;
+
+        for (int p = 0; p < map.spawnGroupPlans.Count; p++)
+        {
+            LevelSpawnGroupPlan plan = map.spawnGroupPlans[p];
+            if (plan?.spawns == null)
+                continue;
+
+            for (int s = 0; s < plan.spawns.Count; s++)
+            {
+                SpawnPrefabCount row = plan.spawns[s];
+                if (row?.enemyDefinition == null || row.count <= 0)
+                    continue;
+
+                string enemyId = row.enemyDefinition.enemyId?.Trim();
+                if (string.IsNullOrEmpty(enemyId) || seen.Contains(enemyId))
+                    continue;
+
+                seen.Add(enemyId);
+                orderedIds.Add(enemyId);
+            }
+        }
+
+        return orderedIds;
+    }
+
+    private static string ResolveEnemyDisplayName(EnemyDefinition def)
+    {
+        if (def == null)
+            return "Enemy";
+
+        if (!string.IsNullOrWhiteSpace(def.displayName))
+            return def.displayName.Trim();
+
+        if (!string.IsNullOrWhiteSpace(def.enemyId))
+            return def.enemyId.Trim();
+
+        return def.name;
     }
 
     public static string BuildSpecialLootText(MapNodeDefinition node, int sliderValue)
@@ -239,6 +431,18 @@ public static class MapCombatScaling
             return name;
 
         return $"{name} - Scale {slider}";
+    }
+}
+
+public readonly struct MapEnemySpawnCountEntry
+{
+    public readonly string displayName;
+    public readonly int count;
+
+    public MapEnemySpawnCountEntry(string displayName, int count)
+    {
+        this.displayName = displayName;
+        this.count = count;
     }
 }
 

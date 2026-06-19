@@ -283,6 +283,36 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 10
+    title: Hunter's Mark
+    description: Enemies hit by auto attacks or other non-minion abilities apply Hunter's
+      Mark for 10 seconds (refreshed on hit). Marked enemies take 20% increased damage
+      from minions.
+    icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 13
+      title: Deep Mark
+      description: Increase the minion damage bonus of Hunter's Mark by 10% (30% total).
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 13
+      title: Predator's Brood
+      description: Minions gain +15% crit chance and +10% chance to apply ailments.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 11
     title: Sharpened Arrows III
     description: +2 Min Ranged Damage
