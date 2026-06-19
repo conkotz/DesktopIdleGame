@@ -348,7 +348,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
-        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsStaticArrows(def) || IsSnipe(def))
+        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsStaticArrows(def) || IsSnipe(def) || IsPenetratingShot(def))
             return false;
 
         const float scalingEpsilon = 0.0001f;
@@ -366,6 +366,9 @@ public static class AbilityTooltipDamagePreview
 
     private static bool IsCrescentSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CrescentSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPenetratingShot(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.PenetratingShotAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsGuardiansHammer(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.GuardiansHammerAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -1220,6 +1223,11 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O("Hits 3 enemies."));
             body.AppendLine(O($"Range: {AbilityCombatPower.CrescentSlashReach:0.#}"));
         }
+        else if (IsPenetratingShot(def))
+        {
+            AppendPenetratingShotTooltipEffects(
+                body, O, def, stats, skillsManager, weaponMult, allM, liveDamageMultiplier, includeEnhancementEffects);
+        }
         else if (IsCrusaderStrike(def))
         {
             int crusaderChoice = GetCrusaderStrikeSelectedChoice(skillsManager);
@@ -1925,6 +1933,17 @@ public static class AbilityTooltipDamagePreview
         return skillsManager.GetSkillChoiceSelection(
             SkillType.Ranged,
             AbilityCombatPower.LightningRodEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static int GetPenetratingShotBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged,
+            AbilityCombatPower.PenetratingShotEnhancementParentSpineNodeId,
             -1);
     }
 
@@ -2776,6 +2795,45 @@ public static class AbilityTooltipDamagePreview
         ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
         DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
         AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+    }
+
+    private static void AppendPenetratingShotTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        SkillsManager skillsManager,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier,
+        bool includeEnhancementEffects)
+    {
+        if (!stats)
+        {
+            body.AppendLine(O("+0 damage on hit"));
+            return;
+        }
+
+        var damageLines = new List<string>();
+        CollectAbilityHitDamageRangeLines(
+            damageLines,
+            O,
+            def,
+            stats,
+            weaponMult,
+            allM,
+            liveDamageMultiplier,
+            " on hit");
+        if (damageLines.Count > 0)
+            AppendEffectLineGroup(body, damageLines);
+
+        int choice = includeEnhancementEffects ? GetPenetratingShotBranchChoice(skillsManager) : -1;
+        if (choice == AbilityCombatPower.PenetratingShotEnh1AllInPathChoiceIndex)
+            body.AppendLine(O("Hits all enemies in its path."));
+        else
+            body.AppendLine(O($"Hits up to {AbilityCombatPower.PenetratingShotBaseMaxHits} enemies."));
+
+        body.AppendLine(O($"Range: {stats.Range:0.#}"));
     }
 
     private static void AppendTripleShotTooltipHitDamage(

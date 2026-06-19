@@ -1124,6 +1124,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return IsWarBannerActive;
         if (IsLightningRodAbilityId(abilityId))
             return IsLightningRodActive;
+        if (IsPenetratingShotAbilityId(abilityId))
+            return IsPenetratingShotInFlight;
         if (IsHuntersSwiftnessAbilityId(abilityId))
             return IsHuntersSwiftnessActive;
         if (IsTornadoAbilityId(abilityId))
@@ -1248,6 +1250,12 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (IsPenetratingShotAbilityId(abilityId))
+        {
+            AbortPenetratingShotInFlight();
+            return;
+        }
+
         if (IsHuntersSwiftnessAbilityId(abilityId))
         {
             ForceEndHuntersSwiftnessEarly(applyCooldown: true, clearTraps: false, awardDeferredCooldown: true);
@@ -1350,6 +1358,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.WarBannerAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.LightningRodAbilityId);
+        TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.PenetratingShotAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.HuntersSwiftnessAbilityId);
         TryEndLingeringIfRemovedFromActionBar(AbilityCombatPower.TornadoAbilityId);
         TryEndLingeringIfRemovedFromActionBar(HammerTempestId);
@@ -3261,6 +3270,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInCrescentSlashArc(out target);
 
+        if (IsPenetratingShotAbilityId(id))
+            return TryFindClosestEnemyInPenetratingShotLane(out target);
+
         if (string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInGuardiansHammerZone(out target);
 
@@ -3612,6 +3624,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsLightningRodAbilityId(def.abilityId) && IsLightningRodActive)
             return false;
 
+        if (IsPenetratingShotAbilityId(def.abilityId) && IsPenetratingShotInFlight)
+            return false;
+
         if (IsHuntersSwiftnessAbilityId(def.abilityId) && IsHuntersSwiftnessActive)
             return false;
 
@@ -3671,8 +3686,10 @@ public partial class PlayerAbilityController : MonoBehaviour
         bool isBladestorm = string.Equals(def.abilityId, BladestormId, StringComparison.OrdinalIgnoreCase);
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
+        bool isPenetratingShot = IsPenetratingShotAbilityId(def.abilityId);
         if (!isWhirlwind &&
             !isSnipe &&
+            !isPenetratingShot &&
             !UsesMeleeApproachOnActivate(def) &&
             !isGuardiansHammer &&
             !AbilityDefersEnergyUntilActivated(def) &&
@@ -3770,6 +3787,40 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsLightningRodAbilityId(def.abilityId))
         {
             BeginLightningRodCast(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (IsPenetratingShotAbilityId(def.abilityId))
+        {
+            if (!CanHitAnyEnemyWithPenetratingShot())
+                return false;
+
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+
+            if (combat != null && !combat.HasConsumableOffHandSupportAmmo())
+            {
+                if (showLockedFeedback)
+                    player?.ShowPopup("Out of arrows.");
+                return false;
+            }
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
+            if (combat != null && !combat.TryConsumeOffHandSupportAmmoOnUse())
+            {
+                RefundAbilityResourceCost(def);
+                if (showLockedFeedback)
+                    player?.ShowPopup("Out of arrows.");
+                return false;
+            }
+
+            BeginPenetratingShotCast(def);
+            player.TriggerAttackAnim();
+            StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);

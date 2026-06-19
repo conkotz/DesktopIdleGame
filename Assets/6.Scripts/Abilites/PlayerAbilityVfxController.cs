@@ -317,6 +317,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private string lightningRodSortingLayer = "Foreground";
     [SerializeField] private int lightningRodSortingOrder = 10;
 
+    [Header("Penetrating Shot (Range Lv15) VFX")]
+    [SerializeField] private GameObject penetratingShotPrefab;
+
     [Header("War Banner (Melee Lv35) VFX")]
     [SerializeField] private Sprite warBannerSprite;
     [SerializeField] private Color warBannerTint = Color.white;
@@ -4034,6 +4037,57 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(_lightningRodVisualRoot);
             _lightningRodVisualRoot = null;
             _lightningRodRenderer = null;
+        }
+    }
+
+    private GameObject _activePenetratingShotVisual;
+    private SpriteRenderer _activePenetratingShotRenderer;
+
+    public GameObject SpawnPenetratingShotVisual(Vector3 spawnWorldPosition, float facingSign)
+    {
+        DestroyPenetratingShotVisual(_activePenetratingShotVisual);
+
+        if (penetratingShotPrefab == null)
+            return null;
+
+        _activePenetratingShotVisual = Instantiate(penetratingShotPrefab, spawnWorldPosition, Quaternion.identity);
+        _activePenetratingShotRenderer = _activePenetratingShotVisual.GetComponent<SpriteRenderer>();
+        if (_activePenetratingShotRenderer != null && !TryApplyPlayerSpriteSortingToRenderer(_activePenetratingShotRenderer, 15))
+            _activePenetratingShotRenderer.sortingOrder = 25;
+
+        UpdatePenetratingShotVisual(_activePenetratingShotVisual, spawnWorldPosition, facingSign);
+        return _activePenetratingShotVisual;
+    }
+
+    public void UpdatePenetratingShotVisual(GameObject visual, Vector3 worldPosition, float velocitySignX)
+    {
+        if (visual == null)
+            return;
+
+        visual.transform.position = worldPosition;
+        SpriteRenderer renderer = visual == _activePenetratingShotVisual
+            ? _activePenetratingShotRenderer
+            : visual.GetComponent<SpriteRenderer>();
+        if (renderer == null)
+            return;
+
+        // Prefab art faces left; flip when traveling right.
+        renderer.flipX = velocitySignX > 0f;
+    }
+
+    public void DestroyPenetratingShotVisual(GameObject visual = null)
+    {
+        if (visual != null && visual != _activePenetratingShotVisual)
+        {
+            Destroy(visual);
+            return;
+        }
+
+        if (_activePenetratingShotVisual != null)
+        {
+            Destroy(_activePenetratingShotVisual);
+            _activePenetratingShotVisual = null;
+            _activePenetratingShotRenderer = null;
         }
     }
 

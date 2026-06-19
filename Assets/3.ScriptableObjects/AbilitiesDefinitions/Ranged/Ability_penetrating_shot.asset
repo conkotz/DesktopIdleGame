@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_penetrating_shot
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: penetrating_shot
+  displayName: Penetrating Shot
+  tag: 1
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: a8433854eae55cedcf51a0e8003abd13, type: 2}
+  cooldown: 10
+  energyCost: 25
+  manaCost: 0
+  healthCost: 0
+  weaponDamageMultiplier: 1.4
+  allDamageMultiplier: 1
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 2
+  sourceSkill: 4
+  unlockLevel: 15
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 0
+  minionSpawnDefinition: {fileID: 0}

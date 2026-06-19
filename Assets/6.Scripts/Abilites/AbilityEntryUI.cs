@@ -677,6 +677,13 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.PenetratingShotAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Ranged, AbilityCombatPower.PenetratingShotEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.HuntersSwiftnessAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(

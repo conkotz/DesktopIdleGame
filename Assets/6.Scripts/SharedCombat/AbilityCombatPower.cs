@@ -46,6 +46,17 @@ public static class AbilityCombatPower
     public const float LightningRodLightningPerTwoRangedLevels = 1f;
     public const int LightningRodUnlockLevel = 15;
     public const string LightningRodOutgoingDamageSourceLabel = "Lightning Rod";
+    public const string PenetratingShotAbilityId = "penetrating_shot";
+    public const string PenetratingShotEnhancementParentSpineNodeId = "Lv15_1";
+    public const int PenetratingShotEnh1AllInPathChoiceIndex = 0;
+    public const int PenetratingShotEnh2ReturningShotChoiceIndex = 1;
+    public const int PenetratingShotBaseMaxHits = 3;
+    public const float PenetratingShotReturnDamageFraction = 0.5f;
+    public const float PenetratingShotTravelSpeed = 22.5f;
+    public const float PenetratingShotReturnTravelSpeedMultiplier = 1.25f;
+    public const int PenetratingShotUnlockLevel = 15;
+    public const string PenetratingShotOutgoingDamageSourceLabel = "Penetrating Shot";
+    public const string PenetratingShotReturnOutgoingDamageSourceLabel = "Penetrating Shot (Return)";
     public const string HuntersSwiftnessAbilityId = "hunters_swiftness";
     public const string HuntersSwiftnessEnhancementParentSpineNodeId = "Lv25_0";
     public const int HuntersSwiftnessEnh1HunterTrapsChoiceIndex = 0;
@@ -1102,6 +1113,16 @@ public static class AbilityCombatPower
 
         float dps = Mathf.Max(0f, perCast / cd);
 
+        if (string.Equals(def.abilityId, PenetratingShotAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = GetPenetratingShotSelectedChoiceForCombatPower();
+            float expectedExtraHits = selected == PenetratingShotEnh1AllInPathChoiceIndex ? 2.5f : 2f;
+            float aoeLift = 1f + 0.055f * expectedExtraHits;
+            if (selected == PenetratingShotEnh2ReturningShotChoiceIndex)
+                aoeLift *= 1.08f;
+            return dps * aoeLift;
+        }
+
         if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             int selected = GetCrescentSlashSelectedChoiceForCombatPower();
@@ -1232,6 +1253,18 @@ public static class AbilityCombatPower
             return -1;
 
         return sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
+    }
+
+    private static int GetPenetratingShotSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(
+            SkillType.Ranged,
+            PenetratingShotEnhancementParentSpineNodeId,
+            -1);
     }
 
     private static int GetGuardiansHammerSelectedChoiceForCombatPower()

@@ -1724,7 +1724,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (rangedProjectilePrefab == null || targetAtFireTime == null)
             return false;
 
-        Vector3 start = GetSnipeProjectileSpawnPosition();
+        Vector3 start = GetRangedProjectileSpawnPosition();
         Vector3 targetCenter = GetTargetCenterMass(targetAtFireTime);
         float speed = rangedProjectileSpeed * AbilityCombatPower.SnipeProjectileSpeedMultiplier;
 
@@ -1746,7 +1746,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return true;
     }
 
-    private Vector3 GetSnipeProjectileSpawnPosition()
+    public Vector3 GetRangedProjectileSpawnPosition()
     {
         if (playerCol != null)
             return playerCol.bounds.center;
@@ -1757,6 +1757,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         return transform.position;
     }
+
+    private Vector3 GetSnipeProjectileSpawnPosition() => GetRangedProjectileSpawnPosition();
 
     private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out IMagicProjectileVisual bolt)
     {

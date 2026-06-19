@@ -439,6 +439,35 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 15
+    title: Penetrating Shot
+    description: Fires a penetrating arrow that pierces through enemies.
+    icon: {fileID: 793140594746169651, guid: 068615c35b78a5b45b82263fe8aa6c50, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: af6249999de9c104a6b89c9f9d937eaa, type: 2}
+    presentation: {fileID: 11400000, guid: a8433854eae55cedcf51a0e8003abd13, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Piercing Path
+      description: Penetrating Shot now hits all enemies in its path.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Returning Shot
+      description: The arrow returns when it reaches its final target, hitting all
+        enemies on its return but deals 50% less damage when returning.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Static Arrows I
     description: +5% Ranged Shock Chance
