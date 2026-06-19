@@ -1,0 +1,326 @@
+fileFormatVersion: 2
+guid: 76da95912eedf674c8b7595cfcd51cbb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7853590458756161048
+    second: LightningAcrSprite2_0
+  - first:
+      213: 7861583957261771264
+    second: LightningAcrSprite2_1
+  - first:
+      213: -3227248577257338887
+    second: LightningAcrSprite2_2
+  - first:
+      213: 3441867964123291368
+    second: LightningAcrSprite2_3
+  - first:
+      213: -2352390624168471411
+    second: LightningAcrSprite2_4
+  - first:
+      213: 5262182748883260130
+    second: LightningAcrSprite2_5
+  - first:
+      213: -2380286864700861650
+    second: LightningAcrSprite2_6
+  - first:
+      213: 6476691023715654611
+    second: LightningAcrSprite2_7
+  - first:
+      213: -4493612954202386544
+    second: LightningAcrSprite2_8
+  - first:
+      213: -9073247052933641250
+    second: LightningAcrSprite2_9
+  - first:
+      213: -437713985763430039
+    second: LightningAcrSprite2_10
+  - first:
+      213: -4675448724094125223
+    second: LightningAcrSprite2_11
+  - first:
+      213: -3209325069546991854
+    second: LightningAcrSprite2_12
+  - first:
+      213: -8439596480089577727
+    second: LightningAcrSprite2_13
+  - first:
+      213: -5603375237765189434
+    second: LightningAcrSprite2_14
+  - first:
+      213: -3699512523322625059
+    second: LightningAcrSprite2_15
+  - first:
+      213: -2994890347088470256
+    second: LightningAcrSprite2_16
+  - first:
+      213: 3334952725730444743
+    second: LightningAcrSprite2_17
+  - first:
+      213: -3068228307089571627
+    second: LightningAcrSprite2_18
+  - first:
+      213: 3511146929821898279
+    second: LightningAcrSprite2_19
+  - first:
+      213: 724793006536306446
+    second: LightningAcrSprite2_20
+  - first:
+      213: -4368162267329188732
+    second: LightningAcrSprite2_21
+  - first:
+      213: -3356165677086405369
+    second: LightningAcrSprite2_22
+  - first:
+      213: -1064740804594908765
+    second: LightningAcrSprite2_23
+  - first:
+      213: 7453310934568228997
+    second: LightningAcrSprite2_24
+  - first:
+      213: 5639038089925671653
+    second: LightningAcrSprite2_25
+  - first:
+      213: 5626025855642978485
+    second: LightningAcrSprite2_26
+  - first:
+      213: -6282692617968444689
+    second: LightningAcrSprite2_27
+  - first:
+      213: 3292806627222408013
+    second: LightningAcrSprite2_28
+  - first:
+      213: 7828943834316828097
+    second: LightningAcrSprite2_29
+  - first:
+      213: -2333903175180628819
+    second: LightningAcrSprite2_30
+  - first:
+      213: 4612942752396878889
+    second: LightningAcrSprite2_31
+  - first:
+      213: 267040946143427668
+    second: LightningAcrSprite2_32
+  - first:
+      213: -7311723735302758751
+    second: LightningAcrSprite2_33
+  - first:
+      213: 3971019736096584166
+    second: LightningAcrSprite2_34
+  - first:
+      213: -5073546200430064278
+    second: LightningAcrSprite2_35
+  - first:
+      213: 6226343825392906766
+    second: LightningAcrSprite2_36
+  - first:
+      213: -3386061798392396125
+    second: LightningAcrSprite2_37
+  - first:
+      213: 2436658415790295349
+    second: LightningAcrSprite2_38
+  - first:
+      213: -5251189220633842715
+    second: LightningAcrSprite2_39
+  - first:
+      213: 8529969786385239986
+    second: LightningAcrSprite2_40
+  - first:
+      213: -8257082353106566
+    second: LightningAcrSprite2_41
+  - first:
+      213: 357651578757330758
+    second: LightningAcrSprite2_42
+  - first:
+      213: -5997828902020651102
+    second: LightningAcrSprite2_43
+  - first:
+      213: -8348234264023672678
+    second: LightningAcrSprite2_44
+  - first:
+      213: 3840576961644129227
+    second: LightningAcrSprite2_45
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 1024
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: LightningArcSpriteSegment1
+      rect:
+        serializedVersion: 2
+        x: 298
+        y: 745
+        width: 1051
+        height: 133
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8e1217e7611720390800000000000000
+      internalID: -7853590458756161048
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LightningArcSpriteSegment2
+      rect:
+        serializedVersion: 2
+        x: 298
+        y: 501
+        width: 1053
+        height: 136
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ec9850f997c68e47bb3fb6f6db6e53f
+      internalID: 7861583957261771264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LightningArcSpriteSegment3
+      rect:
+        serializedVersion: 2
+        x: 322
+        y: 213
+        width: 998
+        height: 145
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd4ce696d44a1e9448a4b6aeb9ec3ab3
+      internalID: -3227248577257338887
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 2ec912a7a48eb7c4d83daba9ade8bead
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":1024.0,"y":1024.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      LightningArcSpriteSegment1: -7853590458756161048
+      LightningArcSpriteSegment2: 7861583957261771264
+      LightningArcSpriteSegment3: -3227248577257338887
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

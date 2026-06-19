@@ -53,7 +53,7 @@ MonoBehaviour:
       itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 20
+      count: 15
       portalTargetMapNodeId: 
       teleporterLinkId: 
       teleporterDestinationLabel: 

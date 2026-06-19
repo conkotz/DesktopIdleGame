@@ -43,7 +43,7 @@ MonoBehaviour:
   - battlegrounds_2
   biome: 0
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
@@ -56,6 +56,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 8
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
@@ -67,6 +69,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 6
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     shuffleSpawnPoints: 1
   - groupId: AllSpawns
     spawns:
@@ -81,7 +85,13 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: battlegrounds_2
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     shuffleSpawnPoints: 0
+  enabledSidePlayAreaIds: []
+  useDefaultSpawnOnMapTeleport: 0
+  defaultPlayerSpawnPointName: 
+  inMapTeleporters: []
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0
