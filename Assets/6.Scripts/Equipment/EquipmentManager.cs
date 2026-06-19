@@ -80,6 +80,17 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
     public bool IsWeaponSetSwapOnCooldown => Time.unscaledTime < _weaponSetSwapLockedUntilUnscaled;
 
+    private int _weaponSetSwapBatchDepth;
+    /// <summary>True while Tab/set-button swap coroutine is still applying gear, loadout, and preset.</summary>
+    public bool IsWeaponSetSwapBatchActive => _weaponSetSwapBatchDepth > 0;
+
+    public void BeginWeaponSetSwapBatch() => _weaponSetSwapBatchDepth++;
+
+    public void EndWeaponSetSwapBatch()
+    {
+        _weaponSetSwapBatchDepth = Mathf.Max(0, _weaponSetSwapBatchDepth - 1);
+    }
+
     [Header("Auto-Return Kicked Items")]
     [Tooltip("When 2H rules auto-unequip the other slot, return that item to inventory (or drop if full).")]
     [SerializeField] private bool autoReturnKickedItems = true;

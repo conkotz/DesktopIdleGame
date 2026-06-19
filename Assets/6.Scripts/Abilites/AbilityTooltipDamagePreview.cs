@@ -803,7 +803,14 @@ public static class AbilityTooltipDamagePreview
         if (IsWhirlwind(def))
         {
             scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
-            scaling.AppendLine(S("Attack speed determines hit frequency"));
+            if (stats != null)
+            {
+                int maxBonusPct = Mathf.RoundToInt(AbilityCombatPower.HammerTempestWeaponSpeedMaxHitDamageBonusFraction * 100f);
+                int speedBonusPct = AbilityCombatPower.GetWhirlwindWeaponSpeedHitDamageBonusPercent(stats.AttacksPerSecond);
+                scaling.AppendLine(S(
+                    $"+{speedBonusPct}% hit damage with your weapon ({stats.AttacksPerSecond:0.##} atk/s, max +{maxBonusPct}%)"));
+            }
+
             AppendAbilityTooltipBonusScalerLines(
                 scaling, S, def, stats, weaponMult, def.GetEffectiveAllDamageMultiplier());
             return scaling.ToString().TrimEnd();
@@ -827,11 +834,8 @@ public static class AbilityTooltipDamagePreview
         {
             int maxBonusPct = Mathf.RoundToInt(AbilityCombatPower.HammerTempestWeaponSpeedMaxHitDamageBonusFraction * 100f);
             int speedBonusPct = AbilityCombatPower.GetHammerTempestWeaponSpeedHitDamageBonusPercent(stats.AttacksPerSecond);
-            if (speedBonusPct > 0)
-            {
-                scaling.AppendLine(S(
-                    $"+{speedBonusPct}% hit damage with your weapon ({stats.AttacksPerSecond:0.##} atk/s, max +{maxBonusPct}%)"));
-            }
+            scaling.AppendLine(S(
+                $"+{speedBonusPct}% hit damage with your weapon ({stats.AttacksPerSecond:0.##} atk/s, max +{maxBonusPct}%)"));
         }
 
         AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allDamageMult);
@@ -1056,6 +1060,7 @@ public static class AbilityTooltipDamagePreview
             }
             body.AppendLine(string.Empty);
             body.AppendLine(O("Duration: Toggle"));
+            body.AppendLine(O("(Does not apply to channeling abilities.)"));
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1278,6 +1283,7 @@ public static class AbilityTooltipDamagePreview
                 AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
             body.AppendLine(O($"Channel: {AbilityCombatPower.FinalSeveranceChannelSeconds:0.#}s"));
+            body.AppendLine(O("Immune to all damage while channelling."));
             body.AppendLine(O(
                 $"Wide arc — up to {AbilityCombatPower.FinalSeveranceMaxTargets} enemies hit."));
 
@@ -1411,6 +1417,8 @@ public static class AbilityTooltipDamagePreview
 
             int wwEnhance = includeEnhancementEffects ? GetMeleeLv15BranchChoice(skillsManager, 0) : -1;
             float movePenalty = AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction;
+            body.AppendLine(O(
+                $"Hits {AbilityCombatPower.WhirlwindHitsPerSecond:0.#} times per second while channelling."));
             body.AppendLine(O($"Move speed is reduced by {movePenalty * 100f:0.#}% while channelling."));
 
             if (includeEnhancementEffects && wwEnhance == 0)

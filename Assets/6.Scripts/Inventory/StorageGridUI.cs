@@ -102,6 +102,8 @@ public class StorageGridUI : MonoBehaviour
 
     public bool IsDisplayPrewarmed => _displayPrewarmed;
 
+    public bool HasPendingRefresh => _dirty;
+
     public IEnumerator CoPrewarmPool()
     {
         ResolveStorageRef();
@@ -191,7 +193,6 @@ public class StorageGridUI : MonoBehaviour
     private void MarkDirty()
     {
         _dirty = true;
-        _displayPrewarmed = false;
     }
 
     public void RefreshNow()
@@ -212,9 +213,11 @@ public class StorageGridUI : MonoBehaviour
         EnsureTabBar();
         if (tabBar != null)
         {
-            tabBar.SelectFirstDisplayedTab();
+            StorageTabKind previousTab = _activeTab;
+            tabBar.SelectFirstDisplayedTab(notify: false);
             _activeTab = tabBar.ActiveTab;
-            _dirty = true;
+            if (_activeTab != previousTab)
+                _dirty = true;
         }
     }
 

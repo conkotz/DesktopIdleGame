@@ -461,6 +461,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private EnemyBaseController _target;
     private float _nextAttackTime;
+    private bool _autoAttackCadencePaused;
+    private float _pausedAutoAttackReadyAt;
+    private float _autoAttackCadencePausedAt;
     private float _nextIdleScanTime;
     private float _nextLowManaPopupTime;
     private float _nextSupportWeaponMismatchPopupTime;
@@ -529,7 +532,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (cooldown <= 0f)
             return 0f;
 
-        float remaining = Mathf.Max(0f, _nextAttackTime - Time.time);
+        float remaining = _autoAttackCadencePaused
+            ? Mathf.Max(0f, _pausedAutoAttackReadyAt - _autoAttackCadencePausedAt)
+            : Mathf.Max(0f, _nextAttackTime - Time.time);
         float readyProgress = 1f - (remaining / cooldown);
         return Mathf.Clamp01(readyProgress);
     }
@@ -537,6 +542,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Whether an ability may consume the current attack cycle right now.</summary>
     public bool CanConsumeAttackCycleNow()
     {
+        if (_autoAttackCadencePaused)
+            return false;
+
         return Time.time >= _nextAttackTime;
     }
 
@@ -564,7 +572,29 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null)
             return;
 
+        _autoAttackCadencePaused = false;
         _nextAttackTime = Time.time + GetAttackCooldownSeconds();
+    }
+
+    /// <summary>Freezes auto-attack cadence progress while Snipe is charging.</summary>
+    public void PauseAutoAttackCadence()
+    {
+        if (_autoAttackCadencePaused)
+            return;
+
+        _autoAttackCadencePaused = true;
+        _pausedAutoAttackReadyAt = _nextAttackTime;
+        _autoAttackCadencePausedAt = Time.time;
+    }
+
+    /// <summary>Restores auto-attack cadence to its pre-pause remaining time.</summary>
+    public void ResumeAutoAttackCadence()
+    {
+        if (!_autoAttackCadencePaused)
+            return;
+
+        _autoAttackCadencePaused = false;
+        _nextAttackTime = _pausedAutoAttackReadyAt;
     }
 
     public float GetCurrentDps()
@@ -2682,8 +2712,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return current;
         }
 
-        // 3) Smart retarget: if a closer enemy appears while moving, switch.
+        // 3) Smart retarget: if a closer enemy appears while pathing, switch.
         if (!idleAllowRetargetToCloserEnemy)
+            return current;
+
+        if (ShouldSuppressIdleRetargetToCloserEnemy(current))
             return current;
 
         EnemyBaseController closest = FindClosestLivingEnemy();
@@ -2699,6 +2732,38 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return closest;
 
         return current;
+    }
+
+    /// <summary>
+    /// Melee idle auto-battle: keep the current target while in range and actively fighting.
+    /// Closer-enemy switching is only allowed while still pathing toward a target.
+    /// </summary>
+    private bool ShouldSuppressIdleRetargetToCloserEnemy(EnemyBaseController current)
+    {
+        if (current == null)
+            return false;
+
+        if (IsIdlePathingTowardEnemy(current))
+            return false;
+
+        if (!IsEnemyWithinAttackRange(current))
+            return false;
+
+        return IsCombatEngaged();
+    }
+
+    private bool IsIdlePathingTowardEnemy(EnemyBaseController current)
+    {
+        if (current == null)
+            return false;
+
+        if (IsEnemyWithinAttackRange(current))
+            return false;
+
+        if (_isClosingDistanceForAttack)
+            return true;
+
+        return player != null && player.IsMoveToPointLocomotionActive;
     }
 
     private float GetCurrentMaxAttackRangeUnits()

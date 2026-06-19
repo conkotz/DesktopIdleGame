@@ -73,6 +73,7 @@ public partial class PlayerAbilityController
             player?.CancelSnipeChargeAttackAnim();
         abilityVfx?.EndSnipeChargeVfx();
         SyncSnipeHudBuff();
+        combat?.ResumeAutoAttackCadence();
     }
 
     public void CancelSnipeChargeFromPlayerStop()
@@ -92,6 +93,8 @@ public partial class PlayerAbilityController
         _snipeAutoBattleCharging = autoBattleFullCharge;
         _snipeActionBarHeld = !autoBattleFullCharge;
         _snipeResourceCommitted = true;
+        combat?.PauseAutoAttackCadence();
+        player?.StopMoveOnly();
         player?.BeginSnipeChargeAttackAnim();
         abilityVfx?.BeginSnipeChargeVfx(GetSnipeChargeDurationSeconds());
         SyncSnipeHudBuff();
@@ -117,12 +120,6 @@ public partial class PlayerAbilityController
 
         EnemyBaseController target = _snipeChargeTarget;
         if (target == null || target.IsDead)
-        {
-            CancelSnipeCharge(refundResource: true);
-            return;
-        }
-
-        if (combat != null && _snipeChargeDef.RequiresKeyboardRangeCheckToActivate() && !combat.IsEnemyWithinAttackRange(target))
         {
             CancelSnipeCharge(refundResource: true);
             return;
@@ -174,7 +171,6 @@ public partial class PlayerAbilityController
 
         PrepareBattleEngineAbilityHitSession(def);
         player?.ReleaseSnipeChargeAttackAnim();
-        combat?.ApplyFullAutoAttackCooldown();
         combat?.TryConsumeOffHandSupportAmmoOnUse();
         StartCooldown(def);
         if (globalCooldownSeconds > 0f)

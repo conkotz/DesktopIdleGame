@@ -1391,8 +1391,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 45
     title: Final Severance
-    description: Channel for 2 seconds, then strike up to 8 enemies in a wide arc
-      for 150% of your rolled Physical, Magic, and Corruption damage.
+    description: Channel for 1.5s, then slash up to 8 enemies in a wide arc. You are
+      immune to all damage while channelling.
     icon: {fileID: 4260696762056017133, guid: 7c07aff2dfe89ca43bc68f26c8c593b8, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0

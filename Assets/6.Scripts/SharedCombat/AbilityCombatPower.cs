@@ -308,9 +308,9 @@ public static class AbilityCombatPower
     /// <summary>Slow-reference APS — hit damage stays at the base weapon-% scale (1.0×).</summary>
     public const float HammerTempestWeaponSpeedSlowReferenceAps = 0.5f;
     /// <summary>Fast-reference APS — hit damage reaches <see cref="HammerTempestWeaponSpeedMaxHitDamageBonusFraction"/> bonus.</summary>
-    public const float HammerTempestWeaponSpeedFastReferenceAps = 1f;
-    /// <summary>Max extra per-hit damage for fast weapons (1.5× at fast reference APS).</summary>
-    public const float HammerTempestWeaponSpeedMaxHitDamageBonusFraction = 0.5f;
+    public const float HammerTempestWeaponSpeedFastReferenceAps = 1.5f;
+    /// <summary>Max extra per-hit damage for fast weapons (1.8× at fast reference APS).</summary>
+    public const float HammerTempestWeaponSpeedMaxHitDamageBonusFraction = 0.8f;
 
     public static float GetHammerTempestWeaponSpeedHitDamageMultiplier(float attacksPerSecond)
     {
@@ -326,6 +326,12 @@ public static class AbilityCombatPower
     {
         return Mathf.RoundToInt((GetHammerTempestWeaponSpeedHitDamageMultiplier(attacksPerSecond) - 1f) * 100f);
     }
+
+    public static float GetWhirlwindWeaponSpeedHitDamageMultiplier(float attacksPerSecond) =>
+        GetHammerTempestWeaponSpeedHitDamageMultiplier(attacksPerSecond);
+
+    public static int GetWhirlwindWeaponSpeedHitDamageBonusPercent(float attacksPerSecond) =>
+        GetHammerTempestWeaponSpeedHitDamageBonusPercent(attacksPerSecond);
 
 
     /// <summary>Melee Lv30 major passive — Battle Engine.</summary>
@@ -576,7 +582,7 @@ public static class AbilityCombatPower
         return Mathf.FloorToInt(ExecutionersDescentContinuumDurationSeconds / interval) + 1;
     }
 
-    public const float FinalSeveranceChannelSeconds = 2f;
+    public const float FinalSeveranceChannelSeconds = 1.5f;
     public const float FinalSeveranceHitRangeHalfWidth = 25f;
     public const int FinalSeveranceMaxTargets = 8;
     /// <summary>Enemy HP / MaxHP must be at or above this to count as full life for Worldbreaker.</summary>
@@ -598,6 +604,8 @@ public static class AbilityCombatPower
     public const float AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd = 0.10f;
 
     public const float WhirlwindChannelVfxIntervalSeconds = 0.2f;
+    public const float WhirlwindHitsPerSecond = 1.5f;
+    public const float WhirlwindHitIntervalSeconds = 1f / WhirlwindHitsPerSecond;
     public const float WhirlwindExpansiveRangePerStage = 0.1f;
     public const float WhirlwindExpansiveDamagePerSecond = 0.05f;
     public const float WhirlwindBaseMoveSpeedPenaltyFraction = 0.25f;
@@ -1087,8 +1095,8 @@ public static class AbilityCombatPower
         float perCast = raw * critFactor;
         if (string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
         {
-            float aps = Mathf.Max(0.01f, stats.AttacksPerSecond);
-            return perCast * aps * 1.08f; // Slight AoE coverage on top of APS-scaled per-target damage.
+            float perHit = perCast * GetWhirlwindWeaponSpeedHitDamageMultiplier(stats.AttacksPerSecond);
+            return perHit * WhirlwindHitsPerSecond * 1.08f;
         }
 
         if (string.Equals(def.abilityId, HammerTempestAbilityId, StringComparison.OrdinalIgnoreCase))

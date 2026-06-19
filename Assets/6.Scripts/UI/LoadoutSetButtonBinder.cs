@@ -204,17 +204,30 @@ public class LoadoutSetButtonBinder : MonoBehaviour
     private IEnumerator CoApplySet(int setIndex)
     {
         _swapInProgress = true;
-        if (_actionBar == null)
-            _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        _actionBar?.ExitGatheringBarToCombat();
-        RefreshVisuals();
-        yield return null; // equipment batch notify
-        _actionBar?.SetCombatLoadoutSet(setIndex);
-        yield return null; // action bar loadout swap
-        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, _actionBar);
-        _characterStats?.NotifyWeaponSetSwapped();
-        RefreshVisuals();
-        _swapInProgress = false;
+        _equipment?.BeginWeaponSetSwapBatch();
+        try
+        {
+            if (_actionBar == null)
+                _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+            _actionBar?.ExitGatheringBarToCombat();
+            RefreshVisuals();
+            yield return null;
+
+            _actionBar?.SetCombatLoadoutSet(setIndex);
+            yield return null;
+
+            SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, _actionBar);
+            yield return null;
+
+            _characterStats?.NotifyWeaponSetSwapped();
+            _actionBar?.CompleteWeaponSetSwapBatch();
+            RefreshVisuals();
+        }
+        finally
+        {
+            _equipment?.EndWeaponSetSwapBatch();
+            _swapInProgress = false;
+        }
     }
 
     private void RefreshVisuals()

@@ -5,8 +5,7 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Coalesces multiple <see cref="AilmentController.OnAilmentsChanged"/> UI rebuilds into one pass per frame.
-/// Static API only — uses <see cref="Canvas.willRenderCanvases"/> (no runtime GameObject spawn).
-/// Any legacy scene/runtime object with this component is destroyed in <see cref="Awake"/>.
+/// Flushes from a hidden runner's <see cref="LateUpdate"/> so icons stay in sync even when canvases do not repaint.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
@@ -14,17 +13,15 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
     private static readonly HashSet<UnitOverheadUI> PendingOverheads = new();
     private static readonly HashSet<BuffsDebuffsPanel> PendingPanels = new();
     private static readonly HashSet<BuffsDebuffsPanel> PendingBuffPanels = new();
-    private static bool _hookSubscribed;
-    private static int _lastFlushFrame = -1;
+    private static AilmentUiRebuildCoordinator _runner;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
-        UnsubscribeHook();
         PendingOverheads.Clear();
         PendingPanels.Clear();
         PendingBuffPanels.Clear();
-        _lastFlushFrame = -1;
+        _runner = null;
     }
 
     static AilmentUiRebuildCoordinator()
@@ -37,15 +34,25 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
         PendingOverheads.Clear();
         PendingPanels.Clear();
         PendingBuffPanels.Clear();
-        _lastFlushFrame = -1;
     }
 
-    /// <summary>
-    /// Destroys legacy scene/runtime orphans from the old dynamic-spawn implementation.
-    /// </summary>
+    /// <summary>Destroys legacy scene/runtime orphans from the old dynamic-spawn implementation.</summary>
     private void Awake()
     {
-        Destroy(gameObject);
+        if (_runner != null && _runner != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        _runner = this;
+        gameObject.hideFlags = HideFlags.HideAndDontSave;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void LateUpdate()
+    {
+        FlushPending();
     }
 
     public static void MarkUnitOverheadDirty(UnitOverheadUI overhead)
@@ -54,7 +61,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
             return;
 
         PendingOverheads.Add(overhead);
-        EnsureHook();
+        EnsureRunner();
     }
 
     public static void MarkBuffsPanelDirty(BuffsDebuffsPanel panel)
@@ -63,7 +70,7 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
             return;
 
         PendingPanels.Add(panel);
-        EnsureHook();
+        EnsureRunner();
     }
 
     public static void MarkBuffsPanelDirtyForBuffs(BuffsDebuffsPanel panel)
@@ -72,37 +79,22 @@ public sealed class AilmentUiRebuildCoordinator : MonoBehaviour
             return;
 
         PendingBuffPanels.Add(panel);
-        EnsureHook();
+        EnsureRunner();
     }
 
-    private static void EnsureHook()
+    private static void EnsureRunner()
     {
-        if (_hookSubscribed)
+        if (_runner != null)
             return;
 
-        _hookSubscribed = true;
-        Canvas.willRenderCanvases += OnWillRenderCanvasesFlush;
+        var go = new GameObject(nameof(AilmentUiRebuildCoordinator));
+        _runner = go.AddComponent<AilmentUiRebuildCoordinator>();
     }
 
-    private static void UnsubscribeHook()
-    {
-        if (!_hookSubscribed)
-            return;
-
-        Canvas.willRenderCanvases -= OnWillRenderCanvasesFlush;
-        _hookSubscribed = false;
-    }
-
-    private static void OnWillRenderCanvasesFlush()
+    private static void FlushPending()
     {
         if (PendingOverheads.Count == 0 && PendingPanels.Count == 0 && PendingBuffPanels.Count == 0)
             return;
-
-        int frame = Time.frameCount;
-        if (frame == _lastFlushFrame)
-            return;
-
-        _lastFlushFrame = frame;
 
         Profiler.BeginSample("AilmentUI.RebuildCoalesced");
         try

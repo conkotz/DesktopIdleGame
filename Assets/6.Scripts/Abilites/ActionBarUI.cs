@@ -610,50 +610,59 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (loadoutSlots.Count == 0)
             return 0;
 
-        for (int i = 0; i < loadoutSlots.Count; i++)
-            loadoutSlots[i].ClearAssignment(false);
-
         int assigned = 0;
-        int abilityIndex = 0;
-        for (int slotIndex = 0; slotIndex < loadoutSlots.Count; slotIndex++)
+        suppressLoadoutSlotVisualRefresh = true;
+        try
         {
-            ActionBarSlotUI slot = loadoutSlots[slotIndex];
-            while (abilityIndex < abilitiesInOrder.Count)
+            for (int i = 0; i < loadoutSlots.Count; i++)
+                loadoutSlots[i].ClearAssignment(false);
+
+            int abilityIndex = 0;
+            for (int slotIndex = 0; slotIndex < loadoutSlots.Count; slotIndex++)
             {
-                AbilityDefinition def = abilitiesInOrder[abilityIndex++];
-                if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
-                    continue;
+                ActionBarSlotUI slot = loadoutSlots[slotIndex];
+                while (abilityIndex < abilitiesInOrder.Count)
+                {
+                    AbilityDefinition def = abilitiesInOrder[abilityIndex++];
+                    if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+                        continue;
 
-                SkillDefinition skill = skillDatabase != null ? skillDatabase.Get(def.sourceSkill) : null;
-                if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
-                    continue;
+                    SkillDefinition skill = skillDatabase != null ? skillDatabase.Get(def.sourceSkill) : null;
+                    if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+                        continue;
 
-                ActionBarAssignment assignment = ActionBarAssignment.CreateAbility(
-                    def.abilityId,
-                    SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def),
-                    SkillsAbilityPresentationResolver.ResolveAbilityIcon(def),
-                    SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def) ?? string.Empty);
+                    ActionBarAssignment assignment = ActionBarAssignment.CreateAbility(
+                        def.abilityId,
+                        SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def),
+                        SkillsAbilityPresentationResolver.ResolveAbilityIcon(def),
+                        SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def) ?? string.Empty);
 
-                if (!slot.CanAccept(assignment))
-                    continue;
+                    if (!slot.CanAccept(assignment))
+                        continue;
 
-                slot.Assign(assignment, false);
-                assigned++;
-                break;
+                    slot.Assign(assignment, false);
+                    assigned++;
+                    break;
+                }
+            }
+
+            for (int i = 0; i < slotBindings.Count; i++)
+            {
+                ActionBarSlotUI s = slotBindings[i]?.slot;
+                if (s != null)
+                    RefreshSlotRuntime(s);
             }
         }
-
-        for (int i = 0; i < slotBindings.Count; i++)
+        finally
         {
-            ActionBarSlotUI s = slotBindings[i]?.slot;
-            if (s != null)
-                RefreshSlotRuntime(s);
+            suppressLoadoutSlotVisualRefresh = false;
         }
 
         CaptureSlotsToSavedState();
-        if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
+        if (!ShouldDeferLoadoutSwapSideEffects() && SaveManager.Instance != null)
             SaveManager.Instance.Save();
-        NotifyPlayerStatsCombatPowerRelevantChange();
+        if (!ShouldDeferLoadoutSwapSideEffects())
+            NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();
         return assigned;
     }
@@ -828,7 +837,25 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private List<SavedSlotState> secondarySavedSlots = new();
     [SerializeField] private int activeCombatLoadoutSetIndex = 0; // 0 = set 1, 1 = set 2
     private bool suppressSaveForLoadoutSwap;
+    private bool suppressLoadoutSlotVisualRefresh;
     private bool pendingSavedStateApply;
+
+    internal bool ShouldDeferLoadoutSlotVisualRefresh => suppressLoadoutSlotVisualRefresh;
+
+    internal bool ShouldDeferLoadoutSwapSideEffects()
+    {
+        if (suppressSaveForLoadoutSwap)
+            return true;
+
+        EquipmentManager equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+        return equipment != null && equipment.IsWeaponSetSwapBatchActive;
+    }
+
+    /// <summary>Runs deferred ability-controller refresh after a weapon-set swap batch.</summary>
+    public void CompleteWeaponSetSwapBatch()
+    {
+        NotifyAbilityControllerOfAssignmentChange();
+    }
 
     /// <summary>True while slot restore is still retrying (load-order races after scene load).</summary>
     public bool IsSavedStateApplyPending => pendingSavedStateApply;
@@ -2006,13 +2033,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         ResolveCoreRefs();
         suppressSaveForLoadoutSwap = true;
+        suppressLoadoutSlotVisualRefresh = true;
+        List<ActionBarSlotUI> swappableSlots = null;
         try
         {
-
-            var swappableSlots = slotBindings
-            .Select(b => b?.slot)
-            .Where(s => s != null && IsSwappableCombatLoadoutSlot(s))
-            .ToList();
+            swappableSlots = slotBindings
+                .Select(b => b?.slot)
+                .Where(s => s != null && IsSwappableCombatLoadoutSlot(s))
+                .ToList();
             if (swappableSlots.Count <= 0)
                 return;
 
@@ -2050,12 +2078,21 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
             CaptureSlotsToSavedState();
             activeCombatLoadoutSetIndex = nextSet;
-            RefreshMinionControlBar();
-            NotifyAbilityControllerOfAssignmentChange();
         }
         finally
         {
+            suppressLoadoutSlotVisualRefresh = false;
             suppressSaveForLoadoutSwap = false;
+
+            if (swappableSlots != null)
+            {
+                for (int i = 0; i < swappableSlots.Count; i++)
+                    RefreshSlotRuntime(swappableSlots[i]);
+            }
+
+            RefreshMinionControlBar();
+            if (!ShouldDeferLoadoutSwapSideEffects())
+                NotifyAbilityControllerOfAssignmentChange();
         }
     }
 
@@ -2151,6 +2188,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     {
         if (slot == null)
             return;
+
+        slot.RefreshUI();
 
         ActionBarAssignment action = slot.AssignedAction;
         if (action == null || !action.IsAssigned)

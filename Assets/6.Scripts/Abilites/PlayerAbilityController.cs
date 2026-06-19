@@ -2897,11 +2897,14 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (!_energyInfusionActive || def == null || def.sourceSkill != SkillType.Melee)
             return false;
 
-        if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
-            return def.energyCost > 0f;
+        if (IsEnergyInfusionExcludedChannelingAbility(def))
+            return false;
 
         return def.GetResourceCostType() == AbilityResourceCostType.Energy;
     }
+
+    private static bool IsEnergyInfusionExcludedChannelingAbility(AbilityDefinition def) =>
+        def != null && string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase);
 
     private void RecordLastAbilityResourceSpend(
         AbilityDefinition def,
@@ -3730,7 +3733,6 @@ public partial class PlayerAbilityController : MonoBehaviour
 
             _tripleShotQueued = true;
             _queuedTripleShotUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
-            abilityVfx?.SpawnTripleShotVolleyFlashVfx();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -4266,6 +4268,11 @@ public partial class PlayerAbilityController : MonoBehaviour
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
         float damageMultiplier = GetWhirlwindChannelDamageMultiplier(channelSeconds);
+        if (stats != null)
+        {
+            damageMultiplier *= AbilityCombatPower.GetWhirlwindWeaponSpeedHitDamageMultiplier(
+                Mathf.Max(0.01f, stats.AttacksPerSecond));
+        }
 
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         float ownerX = transform.position.x;
@@ -4517,15 +4524,11 @@ public partial class PlayerAbilityController : MonoBehaviour
 
             if (player != null)
             {
-                player.SetMovementLocked(true);
+                player.SetAbilityChannelLock(true, channelSeconds);
                 player.TriggerAttackAnim();
-                player.ExtendAttackLockUntil(Time.time + channelSeconds);
             }
 
             yield return new WaitForSeconds(channelSeconds);
-
-            if (player != null)
-                player.SetMovementLocked(false);
 
             if (player == null || stats == null || def == null)
                 yield break;
@@ -4542,6 +4545,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
             _finalSeveranceChanneling = false;
             _finalSeveranceRoutine = null;
+            player?.SetAbilityChannelLock(false);
             player?.SetTeleportDamageImmune(false);
         }
     }
@@ -6481,10 +6485,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private float GetWhirlwindChannelHitIntervalSeconds()
     {
-        if (combat != null)
-            return Mathf.Max(0.01f, combat.GetAttackCooldownSeconds());
-
-        return 1f / Mathf.Max(0.01f, stats != null ? stats.AttacksPerSecond : 1f);
+        return AbilityCombatPower.WhirlwindHitIntervalSeconds;
     }
 
     private float GetWhirlwindBaseChannelEnergyPerSecond(AbilityDefinition def)

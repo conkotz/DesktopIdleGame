@@ -331,15 +331,20 @@ public class ActionBarSlotUI : MonoBehaviour,
             assignedItemAmount = 0;
         else if (assignedItemAmount <= 0)
             assignedItemAmount = 1;
-        RefreshUI();
-        ResetRuntimeVisualCache();
-        SetStackText(0);
-        SetCooldownVisual(0f);
-        SetPrimedVisual(false);
-        SetNoStockVisual(false);
-        SetAbilityWeaponCompatibility(true);
-        SetAbilityBuffActiveOverlay(false);
-        SetAbilityBuffTimerDisplay(false, 0f);
+
+        bool deferVisualRefresh = actionBarOwner != null && actionBarOwner.ShouldDeferLoadoutSlotVisualRefresh;
+        if (!deferVisualRefresh)
+        {
+            RefreshUI();
+            ResetRuntimeVisualCache();
+            SetStackText(0);
+            SetCooldownVisual(0f);
+            SetPrimedVisual(false);
+            SetNoStockVisual(false);
+            SetAbilityWeaponCompatibility(true);
+            SetAbilityBuffActiveOverlay(false);
+            SetAbilityBuffTimerDisplay(false, 0f);
+        }
 
         if (isPointerOver)
             ShowTooltip();
@@ -352,16 +357,21 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         assignedAction = null;
         assignedItemAmount = 0;
-        RefreshUI();
-        ResetRuntimeVisualCache();
-        SetStackText(0);
-        SetCooldownVisual(0f);
-        SetPrimedVisual(false);
-        SetNoStockVisual(false);
-        SetAbilityWeaponCompatibility(true);
-        SetAbilityBuffActiveOverlay(false);
-        SetAbilityBuffTimerDisplay(false, 0f);
-        tooltip?.Hide();
+
+        bool deferVisualRefresh = actionBarOwner != null && actionBarOwner.ShouldDeferLoadoutSlotVisualRefresh;
+        if (!deferVisualRefresh)
+        {
+            RefreshUI();
+            ResetRuntimeVisualCache();
+            SetStackText(0);
+            SetCooldownVisual(0f);
+            SetPrimedVisual(false);
+            SetNoStockVisual(false);
+            SetAbilityWeaponCompatibility(true);
+            SetAbilityBuffActiveOverlay(false);
+            SetAbilityBuffTimerDisplay(false, 0f);
+            tooltip?.Hide();
+        }
 
         if (notify)
             onAssignmentChanged?.Invoke(this);

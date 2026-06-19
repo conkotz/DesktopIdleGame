@@ -101,35 +101,43 @@ public sealed class ConditionalAutoBattleSetController : MonoBehaviour
     private IEnumerator CoApplyFullLoadoutSwap(int setIndex, bool swapGear, bool swapLoadout)
     {
         _swapInProgress = true;
-        BindRefs();
-
-        actionBar?.ExitGatheringBarToCombat();
-
-        bool bypassGearCooldown = ConditionalAutoBattleSettingsStore.Enabled &&
-                                  ConditionalAutoBattleSettingsStore.HasActiveConditions();
-
-        bool gearSwapped = false;
-        if (swapGear)
-            gearSwapped = equipment != null &&
-                          equipment.TrySetActiveWeaponSet(setIndex, bypassGearCooldown);
-
-        if (gearSwapped)
-            characterStats?.NotifyWeaponSetSwapped();
-
-        yield return null;
-
-        BindRefs();
-        if (actionBar != null && (gearSwapped || swapLoadout))
+        equipment?.BeginWeaponSetSwapBatch();
+        try
         {
-            int targetSet = equipment != null && equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
-            actionBar.AlignCombatLoadoutToWeaponSet(targetSet);
-            SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(targetSet, actionBar);
+            BindRefs();
+            actionBar?.ExitGatheringBarToCombat();
+
+            bool bypassGearCooldown = ConditionalAutoBattleSettingsStore.Enabled &&
+                                      ConditionalAutoBattleSettingsStore.HasActiveConditions();
+
+            bool gearSwapped = false;
+            if (swapGear)
+                gearSwapped = equipment != null &&
+                              equipment.TrySetActiveWeaponSet(setIndex, bypassGearCooldown);
+
+            yield return null;
+
+            BindRefs();
+            if (actionBar != null && (gearSwapped || swapLoadout))
+            {
+                int targetSet = equipment != null && equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
+                actionBar.AlignCombatLoadoutToWeaponSet(targetSet);
+                yield return null;
+                SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(targetSet, actionBar);
+                yield return null;
+            }
+
+            if (gearSwapped || swapLoadout)
+            {
+                characterStats?.NotifyWeaponSetSwapped();
+                actionBar?.CompleteWeaponSetSwapBatch();
+            }
         }
-
-        if (gearSwapped || swapLoadout)
-            characterStats?.NotifyStatsChanged();
-
-        _swapInProgress = false;
+        finally
+        {
+            equipment?.EndWeaponSetSwapBatch();
+            _swapInProgress = false;
+        }
     }
 
     private void GetActiveSets(out int gearSet, out int loadoutSet)

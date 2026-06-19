@@ -43,20 +43,30 @@ public class WeaponSetSwapInput : MonoBehaviour
     private IEnumerator CoSwapFullLoadout()
     {
         _swapInProgress = true;
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        actionBar?.ExitGatheringBarToCombat();
-        yield return null; // equipment batch notify
+        equipment?.BeginWeaponSetSwapBatch();
+        try
+        {
+            if (!actionBar)
+                actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+            actionBar?.ExitGatheringBarToCombat();
+            yield return null;
 
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        int setIndex = equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
-        actionBar?.SetCombatLoadoutSet(setIndex);
-        yield return null; // action bar loadout swap
+            if (!actionBar)
+                actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+            int setIndex = equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
+            actionBar?.SetCombatLoadoutSet(setIndex);
+            yield return null;
 
-        SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, actionBar);
-        characterStats?.NotifyWeaponSetSwapped();
+            SkillsManager.Instance?.TryApplyLinkedPresetForWeaponSet(setIndex, actionBar);
+            yield return null;
 
-        _swapInProgress = false;
+            characterStats?.NotifyWeaponSetSwapped();
+            actionBar?.CompleteWeaponSetSwapBatch();
+        }
+        finally
+        {
+            equipment?.EndWeaponSetSwapBatch();
+            _swapInProgress = false;
+        }
     }
 }

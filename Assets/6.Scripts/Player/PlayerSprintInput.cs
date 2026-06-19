@@ -211,6 +211,12 @@ public class PlayerSprintInput : MonoBehaviour
         if (!playerController)
             playerController = GetComponent<PlayerController>();
 
+        if (playerController != null && playerController.MovementLocked)
+        {
+            EndDash();
+            return;
+        }
+
         float duration = Mathf.Max(0.01f, sprintDashDurationSeconds);
         float elapsed = duration - (_dashEndTime - Time.time);
         float t = Mathf.Clamp01(elapsed / duration);
@@ -238,6 +244,9 @@ public class PlayerSprintInput : MonoBehaviour
             playerController = GetComponent<PlayerController>();
 
         if (playerController == null || playerController.IsDead)
+            return;
+
+        if (playerController.MovementLocked)
             return;
 
         if (!characterStats)

@@ -8,6 +8,7 @@ using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Inventory))]
+[DefaultExecutionOrder(100)]
 public class PlayerController : MonoBehaviour
 {
     private const string GameplaySceneName = "GamePlay";
@@ -20,6 +21,9 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private bool movementLocked = false; // runtime lock
     public bool MovementLocked => movementLocked;
+
+    private bool _abilityChannelMovementLocked;
+    private float _abilityChannelMovementAnchorX;
 
     [Header("Playable Strip Gate")]
     [SerializeField] private bool restrictClicksToStrip = true;
@@ -135,6 +139,9 @@ public class PlayerController : MonoBehaviour
 
     /// <summary>True while walking to a destination chosen by mouse click (not combat chase).</summary>
     public bool IsClickMoveActive => state == State.MoveToPoint && _moveToPointFromPlayerInput;
+
+    /// <summary>True while executing horizontal MoveToPoint locomotion (combat chase or click-to-move).</summary>
+    public bool IsMoveToPointLocomotionActive => state == State.MoveToPoint;
 
     public float ClickMoveTargetWorldX => moveTargetX;
 
@@ -623,6 +630,31 @@ public class PlayerController : MonoBehaviour
         FlushQueuedGearVitalsRecalc();
     }
 
+    private void LateUpdate()
+    {
+        EnforceAbilityChannelMovementAnchor();
+    }
+
+    private void EnforceAbilityChannelMovementAnchor()
+    {
+        if (!_abilityChannelMovementLocked)
+            return;
+
+        Vector3 pos = transform.position;
+        if (!Mathf.Approximately(pos.x, _abilityChannelMovementAnchorX))
+        {
+            pos.x = _abilityChannelMovementAnchorX;
+            transform.position = pos;
+            SyncPlayerRigidbody2DPosition();
+        }
+
+        if (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup)
+        {
+            _moveToPointFromPlayerInput = false;
+            state = State.Idle;
+        }
+    }
+
     private void TickStateMachine()
     {
         switch (state)
@@ -731,6 +763,7 @@ public class PlayerController : MonoBehaviour
         // Steady locomotion: skip SetAction spam, but still recover walk if hurt/combat kicked the Animator to idle.
         if (isLocomoting &&
             !shouldShowFighting &&
+            !movementLocked &&
             (_action == PlayerAction.Walking ||
              _keyboardManualMoveThisFrame ||
              state == State.MoveToPoint ||
@@ -748,7 +781,7 @@ public class PlayerController : MonoBehaviour
         {
             SetAction(PlayerAction.Fighting);
         }
-        else if (_keyboardManualMoveThisFrame)
+        else if (!movementLocked && _keyboardManualMoveThisFrame)
         {
             SetAction(PlayerAction.Walking);
         }
@@ -1125,6 +1158,13 @@ public class PlayerController : MonoBehaviour
     // Click / Movement
     // -------------------------
 
+    private void ClearKeyboardSteeringState()
+    {
+        _keyboardManualMoveThisFrame = false;
+        _keyboardSteerDir = 0f;
+        _keyboardSteerNotified = false;
+    }
+
     private void PollKeyboardSteeringInput()
     {
         _keyboardManualMoveThisFrame = false;
@@ -1172,6 +1212,9 @@ public class PlayerController : MonoBehaviour
     private void ApplyKeyboardMovementDelta()
     {
         if (IsScriptedHorizontalDashActive)
+            return;
+
+        if (movementLocked)
             return;
 
         if (!_keyboardManualMoveThisFrame || Mathf.Abs(_keyboardSteerDir) < 0.01f)
@@ -1377,6 +1420,9 @@ public class PlayerController : MonoBehaviour
     {
         movementLocked = locked;
 
+        if (locked)
+            ClearKeyboardSteeringState();
+
         if (!locked)
             return;
 
@@ -1399,9 +1445,11 @@ public class PlayerController : MonoBehaviour
     /// <summary>Locks movement and basic attacks for ability channel windows (e.g. Final Severance).</summary>
     public void SetAbilityChannelLock(bool locked, float attackLockSeconds = 2f)
     {
-        SetMovementLocked(locked, preserveGatherStateForUiModal: false);
         if (locked)
         {
+            _abilityChannelMovementAnchorX = transform.position.x;
+            _abilityChannelMovementLocked = true;
+            SetMovementLocked(true, preserveGatherStateForUiModal: false);
             _attackLocked = true;
             _attackUnlockTime = Time.time + Mathf.Max(0.05f, attackLockSeconds);
             TryFaceCombatTargetDuringAttack();
@@ -1409,6 +1457,8 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
+            _abilityChannelMovementLocked = false;
+            SetMovementLocked(false, preserveGatherStateForUiModal: false);
             _attackLocked = false;
             _attackUnlockTime = 0f;
             ClearActionOverride();
@@ -2015,6 +2065,9 @@ public class PlayerController : MonoBehaviour
 
     public void SetHorizontalPositionForScriptedMove(float x, float faceDirectionSign, float laneReferenceWorldX)
     {
+        if (movementLocked)
+            return;
+
         Vector3 pos = transform.position;
         pos.x = ClampWorldXForLaneAt(laneReferenceWorldX, x);
         transform.position = pos;
@@ -2129,7 +2182,7 @@ public class PlayerController : MonoBehaviour
 
     public void MoveToPointX(float x, bool fromPlayerInput = false)
     {
-        if (_isDead) return;
+        if (_isDead || movementLocked) return;
 
         GetClampXMinMax(out float min, out float max);
         float clamped = Mathf.Clamp(x, min, max);
@@ -2182,7 +2235,7 @@ public class PlayerController : MonoBehaviour
 
     public void MoveToPointX_Combat(float x)
     {
-        if (_isDead) return;
+        if (_isDead || movementLocked) return;
 
         GetClampXMinMax(out float min, out float max);
 
@@ -2263,6 +2316,9 @@ public class PlayerController : MonoBehaviour
     private void TickMoveToPoint()
     {
         if (IsScriptedHorizontalDashActive)
+            return;
+
+        if (movementLocked)
             return;
 
         if (_keyboardManualMoveThisFrame)
@@ -4046,6 +4102,9 @@ public class PlayerController : MonoBehaviour
 
     private bool ShouldPresentWalkingLocomotion()
     {
+        if (movementLocked)
+            return false;
+
         return _keyboardManualMoveThisFrame || HasHorizontalLocomotionThisFrame();
     }
 
@@ -4248,6 +4307,9 @@ public class PlayerController : MonoBehaviour
 
     private void MoveToX(float x, float speed)
     {
+        if (movementLocked)
+            return;
+
         Vector3 pos = transform.position;
         pos.x = Mathf.MoveTowards(pos.x, x, speed * Time.deltaTime);
 
@@ -5126,6 +5188,7 @@ public class PlayerController : MonoBehaviour
         _isDead = false;
         clickToMoveEnabled = true;
         movementLocked = false;
+        _abilityChannelMovementLocked = false;
 
         if (animator != null)
             animator.speed = 1f;

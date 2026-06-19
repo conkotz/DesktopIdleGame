@@ -86,9 +86,7 @@ public class StorageUI : MonoBehaviour
         if (grid != null)
             grid.SelectFirstDisplayedTab();
 
-        if (grid != null && grid.IsDisplayPrewarmed)
-            grid.SyncRefreshDisplay();
-        else
+        if (grid == null || grid.HasPendingRefresh || !grid.IsDisplayPrewarmed)
             grid?.RefreshNow();
     }
 
