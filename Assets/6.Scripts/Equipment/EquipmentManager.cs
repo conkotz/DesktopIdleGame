@@ -710,6 +710,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         ClearOffHandInternal(save: true);
     }
 
+    /// <summary>Returns the active off-hand stack to inventory (or drops if full), then clears the slot.</summary>
+    public void ReturnOffHandStackToInventoryOrDrop()
+    {
+        KickOffHandToInventoryOrDrop(save: true);
+    }
+
     /// <summary>
     /// Equip an item from an inventory slot into an equipment slot.
     /// Only the ACTIVE main/off hand can be changed.

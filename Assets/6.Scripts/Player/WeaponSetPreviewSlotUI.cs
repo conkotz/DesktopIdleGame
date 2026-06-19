@@ -70,9 +70,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
 
         TryBind();
         Subscribe();
-
-        if (!_bindingPrewarmed)
-            Refresh();
+        Refresh();
     }
 
     private void OnDisable()
@@ -195,7 +193,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         if (slotType == PreviewSlotType.OffHandInactive && _def.IsCombatSupport && equipment != null)
         {
             int amount = Mathf.Max(1, equipment.GetInactiveOffHandStackAmount());
-            return $"x{amount}";
+            return $"Set 2 · x{amount}";
         }
 
         return "";

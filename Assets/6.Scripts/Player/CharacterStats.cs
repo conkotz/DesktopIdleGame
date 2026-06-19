@@ -2089,8 +2089,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         var support = GetOffHandSupportDef();
         if (!support) return false;
+        if (support.SupportType != mh.RequiredSupportType) return false;
 
-        return support.SupportType == mh.RequiredSupportType;
+        if (support.SupportConsumableOnAttack && equipment != null)
+        {
+            int consume = Mathf.Max(1, support.SupportConsumeAmountPerAttack);
+            return equipment.OffHandStackAmount >= consume;
+        }
+
+        return true;
     }
 
     private ItemDefinition GetActiveOffHandSupportDef()

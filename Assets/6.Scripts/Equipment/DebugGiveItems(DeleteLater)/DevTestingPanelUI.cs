@@ -26,6 +26,7 @@ public class DevTestingPanelUI : MonoBehaviour
     [SerializeField] private Button minusLevelButton;
     [SerializeField] private Button addResourcesButton;
     [SerializeField] private Button addGoldButton;
+    [SerializeField] private Button addCombatItemsButton;
     [SerializeField] private Button devWeaponButton;
     [SerializeField] private Button skipTutorialButton;
     [SerializeField] private Button resetCooldownsButton;
@@ -54,11 +55,14 @@ public class DevTestingPanelUI : MonoBehaviour
     [SerializeField] private ItemDefinition logsDef;
     [SerializeField] private ItemDefinition stoneChunkDef;
     [SerializeField] private ItemDefinition devDestroyerMaceDef;
+    [SerializeField] private ItemDefinition splitwoodArrowDef;
+    [SerializeField] private ItemDefinition hardwoodArrowDef;
 
     [Header("Amounts")]
     [SerializeField] private int grantResourcePackStoneFishLogs = 100;
     [SerializeField] private int grantResourcePackLinenLeather = 50;
     [SerializeField] private int grantGoldAmount = 50000;
+    [SerializeField] private int grantCombatArrowAmount = 500;
 
     private static readonly string[] TutorialSkipQuestOrder =
     {
@@ -79,6 +83,8 @@ public class DevTestingPanelUI : MonoBehaviour
     private const string IdGemSapphire = "gem_sapphire";
     private const string IdFeather = "feather";
     private const string IdDevMace = "dev_destroyer_mace";
+    private const string IdSplitwoodArrow = "splitwood_arrow";
+    private const string IdHardwoodArrow = "hardwood_arrow";
 
     private bool _autoResetCooldownsEnabled;
     private float _nextAutoResetCooldownsTime;
@@ -106,6 +112,7 @@ public class DevTestingPanelUI : MonoBehaviour
         Bind(minusLevelButton, DevTesting_ApplyMinusOneAllSkills);
         Bind(addResourcesButton, DevTesting_ApplyAddResourcePack);
         Bind(addGoldButton, DevTesting_ApplyAddGold);
+        Bind(addCombatItemsButton, DevTesting_ApplyAddCombatItems);
         Bind(devWeaponButton, DevTesting_ApplyDevWeapon);
         Bind(skipTutorialButton, OnSkipTutorialClicked);
         Bind(resetCooldownsButton, OnResetCooldownsToggleClicked);
@@ -320,6 +327,22 @@ public class DevTestingPanelUI : MonoBehaviour
         if (popupSpawner)
             popupSpawner.ShowGoldGained(g);
         Debug.Log($"[DevTestingPanel] +{g} gold.");
+    }
+
+    /// <summary>Same as AddCombatItems — splitwood + hardwood arrows for ranged testing.</summary>
+    public void DevTesting_ApplyAddCombatItems()
+    {
+        Inventory inv = ResolveInventory();
+        if (!inv)
+        {
+            Debug.LogWarning("[DevTestingPanel] No Inventory.");
+            return;
+        }
+
+        int qty = Mathf.Max(1, grantCombatArrowAmount);
+        AddToInventory(inv, splitwoodArrowDef, IdSplitwoodArrow, qty);
+        AddToInventory(inv, hardwoodArrowDef, IdHardwoodArrow, qty);
+        Debug.Log($"[DevTestingPanel] +{qty} splitwood arrows, +{qty} hardwood arrows.");
     }
 
     /// <summary>Same as DevWeapon / + dev mace.</summary>
@@ -602,6 +625,7 @@ public class DevTestingPanelUI : MonoBehaviour
         minusLevelButton ??= FindButtonUnderRow("MinusLevelButton");
         addResourcesButton ??= FindButtonUnderRow("AddResourcesButton");
         addGoldButton ??= FindButtonUnderRow("AddGoldButton");
+        addCombatItemsButton ??= FindButtonUnderRow("AddCombatItems");
         devWeaponButton ??= FindButtonUnderRow("DevWeapon");
         skipTutorialButton ??= FindButtonUnderRow("SkipTutorial");
         resetCooldownsButton ??= FindButtonUnderRow("ResetCooldownsButton");

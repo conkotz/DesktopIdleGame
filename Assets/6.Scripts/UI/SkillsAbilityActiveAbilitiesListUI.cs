@@ -18,6 +18,9 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
     private readonly List<AbilityEntryUI> _rows = new();
     private readonly List<GameObject> _placeholderRoots = new();
+    private SkillType _cachedSkillType;
+    private int _cachedLevel = -1;
+    private int _cachedFingerprint = int.MinValue;
     private GameObject _autoAssignBarRoot;
     private GameObject _minorPassiveContentRoot;
     private GameObject _autoAssignSectionRoot;
@@ -51,13 +54,14 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
     private void Awake() => EnsureReferences();
 
-    public void Refresh(SkillDefinition skill, SkillsManager skillsManager)
+    public void Refresh(SkillDefinition skill, SkillsManager skillsManager, bool selectionOnly = false)
     {
         EnsureReferences();
-        ClearRows();
 
         if (skill == null)
         {
+            InvalidateCache();
+            ClearRows();
             SetPlaceholderVisible(true);
             if (summaryText != null)
                 summaryText.text = string.Empty;
@@ -68,6 +72,26 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
 
         int level = skillsManager != null ? skillsManager.GetLevel(skill.skillType) : 1;
+        int fingerprint = ComputePanelFingerprint(skill, level, skillsManager);
+
+        if (selectionOnly &&
+            skill.skillType == _cachedSkillType &&
+            level == _cachedLevel &&
+            _rows.Count > 0 &&
+            TryUpdateRowsInPlace(skill, level, skillsManager, fingerprint))
+        {
+            return;
+        }
+
+        if (!selectionOnly &&
+            skill.skillType == _cachedSkillType &&
+            level == _cachedLevel &&
+            fingerprint == _cachedFingerprint)
+        {
+            return;
+        }
+
+        ClearRows();
         var abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
         bool hasStarterAttack = CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starterAttack)
             && starterAttack != null
@@ -77,6 +101,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
         if (abilityTierLevels.Count == 0 && !hasStarterAttack)
         {
+            InvalidateCache();
             SetPlaceholderVisible(true);
             if (summaryText != null)
                 summaryText.text = "No abilities yet";
@@ -141,6 +166,197 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         EnsureToolbarAboveAbilityRows();
         ApplyAbilityNameCompactLayout();
         RebuildAbilityListLayout();
+
+        CommitCache(skill, level, fingerprint);
+    }
+
+    private void InvalidateCache()
+    {
+        _cachedSkillType = default;
+        _cachedLevel = -1;
+        _cachedFingerprint = int.MinValue;
+        _cachedStructureFingerprint = int.MinValue;
+    }
+
+    private void CommitCache(SkillDefinition skill, int level, int fingerprint)
+    {
+        _cachedSkillType = skill != null ? skill.skillType : default;
+        _cachedLevel = level;
+        _cachedFingerprint = fingerprint;
+        _cachedStructureFingerprint = ComputeStructureFingerprint(skill, level);
+    }
+
+    private static int ComputePanelFingerprint(SkillDefinition skill, int level, SkillsManager skillsManager)
+    {
+        if (skill == null)
+            return 0;
+
+        unchecked
+        {
+            int h = ((int)skill.skillType * 397) ^ level;
+            List<int> tiers = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
+            for (int i = 0; i < tiers.Count; i++)
+            {
+                int rowLevel = tiers[i];
+                if (level < rowLevel)
+                    continue;
+
+                if (SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel).Count == 0)
+                    continue;
+
+                int pick = skillsManager != null
+                    ? skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1)
+                    : -1;
+                h = (h * 31) ^ (rowLevel * 17 + pick);
+            }
+
+            return h;
+        }
+    }
+
+    private bool TryUpdateRowsInPlace(
+        SkillDefinition skill,
+        int level,
+        SkillsManager skillsManager,
+        int fingerprint)
+    {
+        if (ComputeStructureFingerprint(skill, level) != _cachedStructureFingerprint)
+            return false;
+
+        UpdateSummaryText(skill, level, skillsManager);
+
+        int rowIndex = 0;
+        bool hasStarterAttack = CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starterAttack)
+            && starterAttack != null
+            && level >= Mathf.Max(1, starterAttack.unlockLevel)
+            && (skillsManager == null
+                || CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starterAttack, skillsManager));
+
+        if (hasStarterAttack)
+        {
+            if (rowIndex >= _rows.Count || _rows[rowIndex] == null)
+                return false;
+
+            AbilityEntryUI starterRow = _rows[rowIndex];
+            if (starterRow.IsAvailablePlaceholder)
+                return false;
+
+            starterRow.SetNotSelectedPrompt(SkillTimelineRowSelectionRules.HasPendingAbilityEnhancementChoice(
+                skillsManager, skill, starterAttack));
+            rowIndex++;
+        }
+
+        List<int> abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
+        for (int i = 0; i < abilityTierLevels.Count; i++)
+        {
+            int rowLevel = abilityTierLevels[i];
+            if (level < rowLevel)
+                continue;
+
+            List<AbilityDefinition> siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel);
+            if (siblings == null || siblings.Count == 0)
+                continue;
+
+            if (rowIndex >= _rows.Count || _rows[rowIndex] == null)
+                return false;
+
+            AbilityEntryUI row = _rows[rowIndex];
+            int pick = skillsManager != null ? skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) : -1;
+
+            if (pick < 0)
+            {
+                if (!row.IsAvailablePlaceholder || row.RowLevel != rowLevel)
+                    return false;
+
+                rowIndex++;
+                continue;
+            }
+
+            if (pick >= siblings.Count)
+                return false;
+
+            AbilityDefinition def = siblings[pick];
+            if (def == null)
+                return false;
+
+            if (row.IsAvailablePlaceholder || row.RowLevel != rowLevel)
+                return false;
+
+            if (skillsManager != null
+                && !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+            {
+                return false;
+            }
+
+            if (row.BoundAbility != def)
+            {
+                row.Bind(def, unlocked: true, tooltip: null, _rootCanvas, () => FocusAbilityInTimeline(def));
+                row.SetDoubleClickAssignHandler(HandleDoubleClickAssign);
+            }
+
+            row.SetNotSelectedPrompt(SkillTimelineRowSelectionRules.HasPendingAbilityEnhancementChoice(
+                skillsManager, skill, def));
+            rowIndex++;
+        }
+
+        if (rowIndex != _rows.Count)
+            return false;
+
+        CommitCache(skill, level, fingerprint);
+        return true;
+    }
+
+    private int _cachedStructureFingerprint = int.MinValue;
+
+    private static int ComputeStructureFingerprint(SkillDefinition skill, int level)
+    {
+        if (skill == null)
+            return 0;
+
+        unchecked
+        {
+            int h = ((int)skill.skillType * 397) ^ level;
+            bool hasStarterAttack = CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starterAttack)
+                && starterAttack != null
+                && level >= Mathf.Max(1, starterAttack.unlockLevel);
+            h = (h * 31) ^ (hasStarterAttack ? 1 : 0);
+
+            List<int> tiers = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
+            for (int i = 0; i < tiers.Count; i++)
+            {
+                int rowLevel = tiers[i];
+                if (level < rowLevel)
+                    continue;
+
+                if (SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel).Count == 0)
+                    continue;
+
+                h = (h * 31) ^ rowLevel;
+            }
+
+            return h;
+        }
+    }
+
+    private void UpdateSummaryText(SkillDefinition skill, int level, SkillsManager skillsManager)
+    {
+        var abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
+        bool hasStarterAttack = CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starterAttack)
+            && starterAttack != null
+            && level >= Mathf.Max(1, starterAttack.unlockLevel)
+            && (skillsManager == null
+                || CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starterAttack, skillsManager));
+
+        int unlockedTiersCount = CountUnlockedAbilityTiers(abilityTierLevels, level);
+        int selectedInTreeCount = CountSelectedAbilitiesInTree(skill, level, skillsManager);
+        if (hasStarterAttack)
+        {
+            unlockedTiersCount += 1;
+            selectedInTreeCount += 1;
+        }
+
+        if (summaryText != null)
+            summaryText.text = $"Abilities unlocked: {unlockedTiersCount}\nAbilities selected: {selectedInTreeCount}";
     }
 
     private void SpawnCommittedAbilityRow(
@@ -221,6 +437,8 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
     private void ClearRows()
     {
+        InvalidateCache();
+
         for (int i = _rows.Count - 1; i >= 0; i--)
         {
             if (_rows[i] != null)

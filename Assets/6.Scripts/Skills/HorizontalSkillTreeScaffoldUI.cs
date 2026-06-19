@@ -70,8 +70,56 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     private CanvasGroup _scrollViewportCanvasGroup;
     private readonly List<SkillTimelineNodeUI> _spawnedTimelineNodes = new();
     private readonly HashSet<int> _pendingUnlockGlowLevels = new();
+    private Transform _timelineCacheRoot;
+    private readonly Dictionary<SkillType, TimelineSkillCacheEntry> _timelineCacheBySkill = new();
+    private bool _skipNextConnectorBuild;
+
+    private sealed class TimelineSkillCacheEntry
+    {
+        public SkillDefinition Skill;
+        public int BuiltAtPlayerLevel;
+        public readonly List<ParkedTimelineObject> Parked = new();
+        public readonly List<GameObject> ParkedConnectors = new();
+    }
+
+    private sealed class ParkedTimelineObject
+    {
+        public GameObject Go;
+        public RectTransform Row;
+        public int SiblingIndex;
+    }
 
     public event Action<int> UnlockGlowAcknowledgedByHover;
+
+    public static bool AreAllSkillTimelinesPrewarmed { get; private set; }
+
+    public static void MarkAllSkillTimelinesPrewarmed() => AreAllSkillTimelinesPrewarmed = true;
+
+    public static void ResetSkillTimelinePrewarmState() => AreAllSkillTimelinesPrewarmed = false;
+
+    /// <summary>Clears a cached timeline so the next build reflects fresh tree data (e.g. after Reset Tree).</summary>
+    public void InvalidateTimelineCacheForSkill(SkillType skillType)
+    {
+        if (_timelineCacheBySkill.TryGetValue(skillType, out TimelineSkillCacheEntry entry))
+        {
+            for (int i = 0; i < entry.Parked.Count; i++)
+            {
+                if (entry.Parked[i]?.Go != null)
+                    Destroy(entry.Parked[i].Go);
+            }
+
+            entry.Parked.Clear();
+            DestroyParkedConnectors(entry);
+            _timelineCacheBySkill.Remove(skillType);
+        }
+
+        if (_builtSkill != null && _builtSkill.skillType == skillType)
+        {
+            _builtSkill = null;
+            _builtAtPlayerLevel = -1;
+            ClearSpawnedContent();
+        }
+    }
 
     /// <summary>Inspector skill used by <see cref="BuildFromSelectedSkill"/>.</summary>
     public SkillDefinition SelectedSkill => selectedSkill;
@@ -87,8 +135,16 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         EnsureSkillLevelTextReference();
     }
 
+    private bool _pendingConnectorRefreshWhileInactive;
+
     private void OnEnable()
     {
+        if (_pendingConnectorRefreshWhileInactive)
+        {
+            _pendingConnectorRefreshWhileInactive = false;
+            RunConnectorRefreshImmediate(forceWhileInactive: true);
+        }
+
         if (!generateOnStart || !Application.isPlaying)
             return;
 
@@ -146,6 +202,12 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 return RefreshBuiltTimeline(skill);
             return RefreshProgressIfSameSkill(skill, playerLevel);
         }
+
+        if (skill != null && skill != _builtSkill && HasSpawnedTimelineContent())
+            ParkCurrentTimelineInCache();
+
+        if (skill != null && TryRestoreTimelineFromCache(skill))
+            return true;
 
         if (timelineContent == null || nodePrefab == null)
         {
@@ -212,7 +274,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     }
 
     /// <summary>Refreshes row pick / enhancement chrome without rebuilding the timeline.</summary>
-    public void RefreshTimelineSelectionVisuals() => RefreshRowSelectionVisuals();
+    public void RefreshTimelineSelectionVisuals()
+    {
+        RefreshRowSelectionVisuals();
+        QueueDeferredConnectorRefresh();
+    }
 
     /// <summary>Pulses newly-unlocked nodes for a specific unlock level (clears when hovered).</summary>
     public void HighlightNewUnlocksAtLevel(int unlockLevel)
@@ -306,7 +372,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             _deferredConnectorRefresh = null;
         }
 
-        RunConnectorRefreshImmediate();
+        RunConnectorRefreshImmediate(forceWhileInactive: !isActiveAndEnabled);
         Canvas.ForceUpdateCanvases();
     }
 
@@ -472,6 +538,13 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     private void QueueDeferredConnectorRefresh()
     {
+        if (!isActiveAndEnabled)
+        {
+            _pendingConnectorRefreshWhileInactive = true;
+            RunConnectorRefreshImmediate(forceWhileInactive: true);
+            return;
+        }
+
         if (_deferredConnectorRefresh != null)
             StopCoroutine(_deferredConnectorRefresh);
 
@@ -489,9 +562,12 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RunConnectorRefreshImmediate();
     }
 
-    private void RunConnectorRefreshImmediate()
+    private void RunConnectorRefreshImmediate(bool forceWhileInactive = false)
     {
-        if (!isActiveAndEnabled || timelineContent == null)
+        if (timelineContent == null)
+            return;
+
+        if (!forceWhileInactive && !isActiveAndEnabled)
             return;
 
         if (timelineScaffold == null)
@@ -501,7 +577,16 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (timelineScaffold == null || !HasSpawnedTimelineContent())
             return;
 
-        BuildTimelineConnectors();
+        if (_skipNextConnectorBuild)
+        {
+            _skipNextConnectorBuild = false;
+            RefreshConnectorSelectionHighlights();
+        }
+        else
+        {
+            BuildTimelineConnectors();
+        }
+
         RefreshMinorTickVisibility(_builtSkill);
         BringSpineMinorNodesToFront();
         RefreshRowSelectionVisuals();
@@ -524,6 +609,242 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         ClearRowSpawnedContent(_choiceRow);
         if (dismissDetailsPanel)
             detailsPanel?.ShowEmpty();
+    }
+
+    private void EnsureTimelineCacheRoot()
+    {
+        if (_timelineCacheRoot != null)
+            return;
+
+        var rootGo = new GameObject("TimelineSkillCache", typeof(RectTransform));
+        _timelineCacheRoot = rootGo.transform;
+        _timelineCacheRoot.SetParent(transform, false);
+        _timelineCacheRoot.gameObject.SetActive(false);
+    }
+
+    private TimelineSkillCacheEntry GetOrCreateTimelineCacheEntry(SkillType skillType)
+    {
+        if (!_timelineCacheBySkill.TryGetValue(skillType, out TimelineSkillCacheEntry entry))
+        {
+            entry = new TimelineSkillCacheEntry();
+            _timelineCacheBySkill[skillType] = entry;
+        }
+
+        return entry;
+    }
+
+    private void ParkCurrentTimelineInCache()
+    {
+        if (_builtSkill == null || !HasSpawnedTimelineContent())
+            return;
+
+        EnsureTimelineCacheRoot();
+        TimelineSkillCacheEntry entry = GetOrCreateTimelineCacheEntry(_builtSkill.skillType);
+        entry.Skill = _builtSkill;
+        entry.BuiltAtPlayerLevel = _builtAtPlayerLevel;
+
+        for (int i = entry.Parked.Count - 1; i >= 0; i--)
+        {
+            if (entry.Parked[i]?.Go != null)
+                Destroy(entry.Parked[i].Go);
+        }
+
+        entry.Parked.Clear();
+        ParkRowSpawnedContent(_unlockRow, entry);
+        ParkRowSpawnedContent(_spineRow, entry);
+        ParkRowSpawnedContent(_choiceRow, entry);
+        ParkConnectorLines(entry);
+        UnregisterAllTimelineNodes();
+    }
+
+    private void ParkConnectorLines(TimelineSkillCacheEntry entry)
+    {
+        if (timelineContent == null || entry == null)
+            return;
+
+        if (timelineScaffold == null)
+            timelineScaffold = GetComponent<SkillTimelineScaffoldUI>();
+
+        RectTransform connectors = timelineScaffold != null
+            ? timelineScaffold.GetOrCreatePrefabConnectorsLayer(timelineContent)
+            : null;
+        if (connectors == null)
+            return;
+
+        DestroyParkedConnectors(entry);
+        EnsureTimelineCacheRoot();
+
+        for (int i = connectors.childCount - 1; i >= 0; i--)
+        {
+            Transform child = connectors.GetChild(i);
+            if (child == null)
+                continue;
+
+            entry.ParkedConnectors.Add(child.gameObject);
+            child.SetParent(_timelineCacheRoot, false);
+        }
+    }
+
+    private static void DestroyParkedConnectors(TimelineSkillCacheEntry entry)
+    {
+        if (entry == null)
+            return;
+
+        for (int i = entry.ParkedConnectors.Count - 1; i >= 0; i--)
+        {
+            if (entry.ParkedConnectors[i] != null)
+                Destroy(entry.ParkedConnectors[i]);
+        }
+
+        entry.ParkedConnectors.Clear();
+    }
+
+    private bool RestoreConnectorLines(TimelineSkillCacheEntry entry)
+    {
+        if (timelineContent == null || entry == null || entry.ParkedConnectors.Count == 0)
+            return false;
+
+        if (timelineScaffold == null)
+            timelineScaffold = GetComponent<SkillTimelineScaffoldUI>();
+
+        RectTransform connectors = timelineScaffold != null
+            ? timelineScaffold.GetOrCreatePrefabConnectorsLayer(timelineContent)
+            : null;
+        if (connectors == null)
+            return false;
+
+        SkillTimelineScaffoldUI.ClearConnectorChildren(connectors);
+
+        for (int i = 0; i < entry.ParkedConnectors.Count; i++)
+        {
+            GameObject go = entry.ParkedConnectors[i];
+            if (go == null)
+                continue;
+
+            go.transform.SetParent(connectors, false);
+            go.transform.SetSiblingIndex(i);
+        }
+
+        entry.ParkedConnectors.Clear();
+        return true;
+    }
+
+    private void ParkRowSpawnedContent(RectTransform row, TimelineSkillCacheEntry entry)
+    {
+        if (row == null || entry == null)
+            return;
+
+        for (int i = row.childCount - 1; i >= 0; i--)
+        {
+            Transform child = row.GetChild(i);
+            if (child.GetComponent<SkillTimelineNodeUI>() == null &&
+                child.GetComponent<SkillChoiceGroupUI>() == null)
+                continue;
+
+            entry.Parked.Add(new ParkedTimelineObject
+            {
+                Go = child.gameObject,
+                Row = row,
+                SiblingIndex = child.GetSiblingIndex()
+            });
+            child.SetParent(_timelineCacheRoot, false);
+        }
+    }
+
+    private bool TryRestoreTimelineFromCache(SkillDefinition skill)
+    {
+        if (skill == null)
+            return false;
+
+        if (!_timelineCacheBySkill.TryGetValue(skill.skillType, out TimelineSkillCacheEntry entry) ||
+            entry.Parked.Count == 0)
+        {
+            return false;
+        }
+
+        float? savedScroll = CaptureTimelineScrollPosition();
+        SkillTimelineNodeBinding restoreDetailsBinding = CaptureOpenDetailsBinding();
+        EnsureTimelineReady();
+        CacheRowContainers();
+
+        entry.Parked.Sort((a, b) =>
+        {
+            int rowOrder = a.Row.GetInstanceID().CompareTo(b.Row.GetInstanceID());
+            return rowOrder != 0 ? rowOrder : a.SiblingIndex.CompareTo(b.SiblingIndex);
+        });
+
+        for (int i = 0; i < entry.Parked.Count; i++)
+        {
+            ParkedTimelineObject parked = entry.Parked[i];
+            if (parked?.Go == null || parked.Row == null)
+                continue;
+
+            parked.Go.transform.SetParent(parked.Row, false);
+            parked.Go.transform.SetSiblingIndex(Mathf.Min(parked.SiblingIndex, parked.Row.childCount - 1));
+        }
+
+        _builtSkill = skill;
+        _builtAtPlayerLevel = entry.BuiltAtPlayerLevel;
+        RegisterSpawnedNodesFromRows();
+
+        int playerLevel = ResolvePlayerSkillLevel(skill);
+        if (playerLevel != _builtAtPlayerLevel)
+            RefreshProgressIfSameSkill(skill, playerLevel);
+        else
+            RefreshBuiltTimeline(skill);
+
+        _skipNextConnectorBuild = playerLevel == entry.BuiltAtPlayerLevel && RestoreConnectorLines(entry);
+
+        _scrollRestoreAfterLayout = savedScroll;
+        RestoreTimelineScrollPosition(savedScroll);
+        QueueDeferredConnectorRefresh();
+
+        if (restoreDetailsBinding != null)
+            RestoreOpenDetails(restoreDetailsBinding);
+
+        if (!HasSpawnedTimelineContent())
+        {
+            InvalidateTimelineCacheForSkill(skill.skillType);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RegisterSpawnedNodesFromRows()
+    {
+        UnregisterAllTimelineNodes();
+        RegisterNodesInRow(_unlockRow);
+        RegisterNodesInRow(_spineRow);
+        RegisterNodesInRow(_choiceRow);
+    }
+
+    private void RegisterNodesInRow(RectTransform row)
+    {
+        if (row == null)
+            return;
+
+        for (int i = 0; i < row.childCount; i++)
+        {
+            Transform child = row.GetChild(i);
+            SkillTimelineNodeUI node = child.GetComponent<SkillTimelineNodeUI>();
+            if (node != null)
+            {
+                RegisterTimelineNode(node);
+                continue;
+            }
+
+            SkillChoiceGroupUI group = child.GetComponent<SkillChoiceGroupUI>();
+            if (group == null)
+                continue;
+
+            IReadOnlyList<SkillTimelineNodeUI> nodes = group.SpawnedNodes;
+            if (nodes == null)
+                continue;
+
+            for (int n = 0; n < nodes.Count; n++)
+                RegisterTimelineNode(nodes[n]);
+        }
     }
 
     private void RenderLevelGroup(
@@ -1568,8 +1889,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             TryGetCommittedChoiceSlotIndex(group, out int slotIndex);
             group.SetConnectorSelectionHighlight(slotIndex);
         }
-
-        RefreshSpineChoiceGroupConnectors();
     }
 
     private void RefreshSpineChoiceGroupConnectors()

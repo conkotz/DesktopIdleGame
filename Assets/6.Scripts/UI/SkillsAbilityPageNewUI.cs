@@ -80,6 +80,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private EquipmentManager _cachedEquipment;
     private Coroutine _deferredProgressionRefresh;
     private Coroutine _deferredOpenRefresh;
+    private Coroutine _deferredPickRefresh;
+    private Coroutine _deferredTabRefresh;
+    private Coroutine _deferredActionBarRefresh;
     private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
     private readonly Dictionary<SkillType, HashSet<int>> _pendingTreeGlowLevelsBySkill = new();
 
@@ -133,7 +136,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         QueueDeferredOpenRefresh();
     }
 
-    private void OnDisable()
+    public void StopDeferredUiRefreshCoroutines()
     {
         if (_deferredOpenRefresh != null)
         {
@@ -146,6 +149,29 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             StopCoroutine(_deferredProgressionRefresh);
             _deferredProgressionRefresh = null;
         }
+
+        if (_deferredPickRefresh != null)
+        {
+            StopCoroutine(_deferredPickRefresh);
+            _deferredPickRefresh = null;
+        }
+
+        if (_deferredTabRefresh != null)
+        {
+            StopCoroutine(_deferredTabRefresh);
+            _deferredTabRefresh = null;
+        }
+
+        if (_deferredActionBarRefresh != null)
+        {
+            StopCoroutine(_deferredActionBarRefresh);
+            _deferredActionBarRefresh = null;
+        }
+    }
+
+    private void OnDisable()
+    {
+        StopDeferredUiRefreshCoroutines();
 
         if (_selectedSkill != null)
             SkillsAbilityPageSelectionHub.SaveLastSkillType(_selectedSkill.skillType);
@@ -175,19 +201,20 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         BeginTimelineScrollRestoreSession(_selectedSkill);
         try
         {
-            RefreshView();
-            EnsureHorizontalTimelineReference();
-            horizontalSkillTimeline?.FlushPendingTimelineLayout();
+            RefreshPageLabels();
+            SyncTimelineFromPageSelection();
+            ApplyPendingTreeGlowForSelectedSkill();
+            RefreshSkillsListSelection();
+            RefreshTabSelectionVisuals();
+            QueueDeferredSkillTabRefresh();
         }
         finally
         {
             EndTimelineScrollRestoreSession();
             SetTimelineScrollViewportVisible(true);
         }
-        RefreshTabSelectionVisuals();
-        RefreshSkillsListSelection();
-        ApplyActionBarForSelectedSkill();
 
+        QueueDeferredActionBarForSelectedSkill();
         RefreshAbilityPresetButtonLabels();
 
         if (!_skipSelectionHubNotify)
@@ -389,14 +416,14 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         selectedSkillTitleText = timelineContainer.Find("SkillLevelText")?.GetComponent<TMP_Text>();
     }
 
-    private void RefreshActiveAbilitiesList()
+    private void RefreshActiveAbilitiesList(bool selectionOnly = false)
     {
         EnsureBottomPanelReferences();
         if (activeAbilitiesList == null)
             return;
 
         PreferRuntimeSkillsManager();
-        activeAbilitiesList.Refresh(_selectedSkill, skillsManager);
+        activeAbilitiesList.Refresh(_selectedSkill, skillsManager, selectionOnly);
     }
 
     private void RefreshActiveBonusesPanel()
@@ -596,6 +623,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         EnsureHorizontalTimelineReference();
         horizontalSkillTimeline?.DismissOpenDetails();
+        if (_selectedSkill != null)
+            horizontalSkillTimeline?.InvalidateTimelineCacheForSkill(_selectedSkill.skillType);
 
         SyncTimelineFromPageSelection();
         RefreshActiveAbilitiesList();
@@ -1377,7 +1406,10 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill == null)
             return;
 
-        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (_cachedActionBar == null)
+            _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+
+        ActionBarUI bar = _cachedActionBar;
         if (bar == null)
             return;
 
@@ -1385,6 +1417,25 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             bar.ShowGatheringBarForSkill(_selectedSkill.skillType, GatheringBarDriveKind.SkillsMenuSelection);
         else
             bar.ExitGatheringBarToCombat();
+    }
+
+    private void QueueDeferredActionBarForSelectedSkill()
+    {
+        if (_deferredActionBarRefresh != null)
+            StopCoroutine(_deferredActionBarRefresh);
+
+        _deferredActionBarRefresh = StartCoroutine(CoDeferredActionBarForSelectedSkill());
+    }
+
+    private IEnumerator CoDeferredActionBarForSelectedSkill()
+    {
+        yield return null;
+        _deferredActionBarRefresh = null;
+
+        if (!isActiveAndEnabled || _selectedSkill == null)
+            yield break;
+
+        ApplyActionBarForSelectedSkill();
     }
 
     private void RestoreCategoryModeFromPrefs()
@@ -1535,7 +1586,39 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             skillsListPanel.RefreshLevelsForSkill(type);
     }
 
-    private void HandleSkillAbilityRowPickChanged(SkillType type, int _, int __)
+    private void QueueDeferredSkillTabRefresh()
+    {
+        if (_deferredTabRefresh != null)
+            StopCoroutine(_deferredTabRefresh);
+
+        _deferredTabRefresh = StartCoroutine(CoDeferredSkillTabRefresh());
+    }
+
+    private IEnumerator CoDeferredSkillTabRefresh()
+    {
+        yield return null;
+
+        if (!isActiveAndEnabled || _selectedSkill == null)
+        {
+            _deferredTabRefresh = null;
+            yield break;
+        }
+
+        RefreshActiveAbilitiesList();
+        yield return null;
+
+        if (!isActiveAndEnabled || _selectedSkill == null)
+        {
+            _deferredTabRefresh = null;
+            yield break;
+        }
+
+        RefreshActiveBonusesPanel();
+        RefreshSkillsListLevels();
+        _deferredTabRefresh = null;
+    }
+
+    private void HandleSkillAbilityRowPickChanged(SkillType type, int requiredLevel, int pickIndex)
     {
         if (!isActiveAndEnabled || _selectedSkill == null)
             return;
@@ -1543,20 +1626,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill.skillType != type)
             return;
 
-        float? preservedScroll = horizontalSkillTimeline != null
-            ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
-            : null;
-
-        RefreshActiveAbilitiesList();
-        RefreshActiveBonusesPanel();
-        RefreshTimelineAfterPickOrEnhancementChange();
-
-        if (preservedScroll.HasValue && horizontalSkillTimeline != null)
-            horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
-
-        AutoSaveSelectedPresetForSkill(type);
-        TrySyncEditingPresetToAssignedSet(type);
-        RefreshAbilityPresetButtonLabels();
+        QueueDeferredAbilityPickRefresh(requiredLevel);
     }
 
     private void HandleSkillChoiceSelectionChanged(SkillType type, int _, int __)
@@ -1567,19 +1637,45 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill.skillType != type)
             return;
 
+        QueueDeferredAbilityPickRefresh(changedRowLevel: -1);
+    }
+
+    private void QueueDeferredAbilityPickRefresh(int changedRowLevel = -1)
+    {
+        if (_deferredPickRefresh != null)
+            StopCoroutine(_deferredPickRefresh);
+
+        _deferredPickRefresh = StartCoroutine(CoDeferredAbilityPickRefresh(changedRowLevel));
+    }
+
+    private IEnumerator CoDeferredAbilityPickRefresh(int changedRowLevel)
+    {
         float? preservedScroll = horizontalSkillTimeline != null
             ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
             : null;
 
-        RefreshActiveAbilitiesList();
-        RefreshActiveBonusesPanel();
+        yield return null;
+
+        if (!isActiveAndEnabled || _selectedSkill == null)
+        {
+            _deferredPickRefresh = null;
+            yield break;
+        }
+
         RefreshTimelineAfterPickOrEnhancementChange();
+        RefreshActiveAbilitiesList(selectionOnly: true);
 
         if (preservedScroll.HasValue && horizontalSkillTimeline != null)
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
 
-        AutoSaveSelectedPresetForSkill(type);
-        TrySyncEditingPresetToAssignedSet(type);
+        yield return null;
+        _deferredPickRefresh = null;
+
+        if (!isActiveAndEnabled || _selectedSkill == null)
+            yield break;
+
+        AutoSaveSelectedPresetForSkill(_selectedSkill.skillType);
+        TrySyncEditingPresetToAssignedSet(_selectedSkill.skillType);
         RefreshAbilityPresetButtonLabels();
     }
 
@@ -1601,14 +1697,14 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_cachedEquipment == null)
             _cachedEquipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
 
-        // Gear swap can be blocked by the weapon set cooldown; even if it is blocked, we still switch the bar loadout.
-        _cachedEquipment?.TrySetActiveWeaponSet(weaponSetIndex);
+        if (_cachedEquipment != null &&
+            _cachedEquipment.ActiveWeaponSetIndex != weaponSetIndex)
+        {
+            _cachedEquipment.TrySetActiveWeaponSet(weaponSetIndex);
+        }
 
         if (bar != null)
-        {
             bar.SetCombatLoadoutSet(weaponSetIndex);
-            bar.ApplyCombatLoadoutFromSkillRowPicks(skillType);
-        }
     }
 
     private void AutoSaveSelectedPresetForSkill(SkillType skillType)
@@ -1620,7 +1716,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         skillsManager.SaveCurrentSkillTreeToAbilityPreset(skillType, activeSlot);
-        SaveManager.Instance?.Save();
+        SaveManager.Instance?.RequestSave(SaveManager.SaveRequestKind.Manual);
     }
 
     private bool IsPresetSlotActive(SkillType skillType, int slotIndex)

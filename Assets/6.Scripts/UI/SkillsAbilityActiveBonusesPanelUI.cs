@@ -40,6 +40,8 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     private readonly List<MajorPassiveListEntryUI> _majorRows = new();
     private MajorPassiveListEntryUI _capstoneRow;
     private Canvas _rootCanvas;
+    private SkillType _cachedSkillType;
+    private int _cachedLevel = -1;
 
     public void ConfigureTimeline(HorizontalSkillTreeScaffoldUI timeline)
     {
@@ -49,11 +51,13 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     public void Refresh(SkillDefinition skill, SkillsManager skillsManager)
     {
         EnsureReferences();
-        ClearMajorRows();
-        ClearCapstoneRow();
 
         if (skill == null)
         {
+            _cachedSkillType = default;
+            _cachedLevel = -1;
+            ClearMajorRows();
+            ClearCapstoneRow();
             SetMinorText(null);
             SetMajorEmptyVisible(true);
             SetCapstoneSectionVisible(false);
@@ -61,6 +65,14 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         }
 
         int level = skillsManager != null ? skillsManager.GetLevel(skill.skillType) : 1;
+        if (skill.skillType == _cachedSkillType && level == _cachedLevel && _majorRows.Count + (_capstoneRow != null ? 1 : 0) > 0)
+            return;
+
+        _cachedSkillType = skill.skillType;
+        _cachedLevel = level;
+
+        ClearMajorRows();
+        ClearCapstoneRow();
         SetMinorText(SkillsAbilitiesPageUI.BuildMinorPassivesDisplay(skill, level));
         RefreshCapstoneRow(skill, level);
         RefreshMajorPassives(skill, level, skillsManager);

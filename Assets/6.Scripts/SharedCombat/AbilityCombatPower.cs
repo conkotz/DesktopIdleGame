@@ -24,12 +24,13 @@ public static class AbilityCombatPower
     public const int StaticArrowsFullyChargedChoiceIndex = 1;
     public const float StaticArrowsWeaponDamageMultiplier = 1.2f;
     public const int StaticArrowsAutoAttackCount = 5;
-    public const float StaticArrowsBaseDurationSeconds = 6f;
+    public const float StaticArrowsBaseDurationSeconds = 7f;
     public const float StaticArrowsPhysicalToLightningConversionFraction = 0.5f;
     public const float StaticArrowsFullyChargedConversionFraction = 1f;
     public const float StaticArrowsFullyChargedDamageBonus = 0.10f;
     public const float StaticArrowsCritArcRange = 10f;
     public const float StaticArrowsCritArcDamageFraction = 0.5f;
+    public const string StaticArrowsChainLightningOutgoingDamageSourceLabel = "Static Arrows (Chain Lightning)";
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
     public const int SnipeFasterChargeChoiceIndex = 0;

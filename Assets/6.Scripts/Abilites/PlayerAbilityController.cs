@@ -440,10 +440,20 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (_staticArrowsAppliedThisHit)
         {
+            float preTotal = Mathf.Max(0f, preModifier.Total);
+            float postTotal = Mathf.Max(0f, postModifier.Total);
+            if (postTotal <= 0f)
+                return PlayerCombatController.SwingOutgoingAttribution.AutoAttackOnly;
+
+            float bonus = Mathf.Max(0f, postTotal - preTotal);
+            float bonusFraction = Mathf.Clamp01(bonus / postTotal);
+            if (bonusFraction <= 0f)
+                return PlayerCombatController.SwingOutgoingAttribution.AutoAttackOnly;
+
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(StaticArrowsId),
-                1f);
+                bonusFraction);
         }
 
         if (_crusaderStrikeAttributionBucketPending.HasValue)
@@ -7371,7 +7381,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (combat == null)
             return;
 
-        string label = GetAbilityOutgoingDamageSourceLabel(StaticArrowsId);
+        string label = AbilityCombatPower.StaticArrowsChainLightningOutgoingDamageSourceLabel;
         combat.ApplyStaticArrowsCritArcDamage(chainTarget, arcSplit, wasCrit, label);
     }
 

@@ -19,6 +19,7 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
     {
         IsComplete = false;
         IsRunning = false;
+        HorizontalSkillTreeScaffoldUI.ResetSkillTimelinePrewarmState();
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -78,6 +79,9 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
     public static bool IsLoadPrewarmReady()
     {
         if (!AreHeavyPagesPrewarmed())
+            return false;
+
+        if (!SkillsAbilityTimelinePrewarm.IsComplete)
             return false;
 
         if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
@@ -143,6 +147,9 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
         MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
         if (menu != null && !AreHeavyPagesPrewarmed())
             yield return menu.CoPrewarmHeavyPages();
+
+        if (!SkillsAbilityTimelinePrewarm.IsComplete)
+            yield return SkillsAbilityTimelinePrewarm.CoPrewarmAllSkillTimelines();
 
         if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
         {

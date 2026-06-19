@@ -177,9 +177,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         TryBind();
         TrySubscribe();
-
-        if (!_bindingPrewarmed)
-            RefreshFromState();
+        RefreshFromState();
     }
 
     private void OnDisable()
@@ -715,6 +713,16 @@ public class EquipmentSlotUI : MonoBehaviour,
     {
         if (!_bound) return;
         if (string.IsNullOrWhiteSpace(_itemId)) return;
+
+        if (slotType == EquipmentUISlotType.OffHand &&
+            _def != null &&
+            _def.IsCombatSupport &&
+            equipment != null)
+        {
+            equipment.ReturnOffHandStackToInventoryOrDrop();
+            RefreshFromState();
+            return;
+        }
 
         int amountToReturn = GetEquippedAmountForThisSlot();
 

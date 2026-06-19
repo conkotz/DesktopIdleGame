@@ -549,8 +549,7 @@ public class InventorySlotUI : MonoBehaviour,
                 if (_inventory.RemoveAmountAtSlot(_slotIndex, addAmount) != addAmount)
                     return;
 
-                int newAmount = equipment.OffHandStackAmount + addAmount;
-                equipment.EquipOffHand(slot.itemId, newAmount);
+                equipment.EquipOffHand(slot.itemId, addAmount);
                 return;
             }
 

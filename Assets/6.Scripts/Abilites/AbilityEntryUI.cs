@@ -43,6 +43,10 @@ public class AbilityEntryUI : MonoBehaviour,
     private System.Action<int> _onRightClickRow;
     private int _rowLevel;
 
+    public bool IsAvailablePlaceholder => _isAvailablePlaceholder;
+    public int RowLevel => _rowLevel;
+    public AbilityDefinition BoundAbility => _def;
+
     private Outline _committedListRowOutline;
     private Button _rowButton;
     private float _defaultNameFontSize = -1f;

@@ -925,9 +925,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
             if (_target != null && mainDef != null && mainDef.RequiresOffhandSupport)
             {
+                string supportMessage = ResolveMissingOffhandSupportMessage(mainDef);
                 player.SendMessage(
                     "ShowPopup",
-                    $"Requires {mainDef.RequiredSupportType} in offhand.",
+                    supportMessage,
                     SendMessageOptions.DontRequireReceiver
                 );
             }
@@ -1071,17 +1072,20 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         player.SetActionOverride(PlayerController.PlayerAction.Fighting);
 
         SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
-        SplitDamage preQueuedModifier = rolled;
 
         if (abilityController != null)
         {
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
             abilityController.ApplyActiveDamageConversions(ref rolled);
-            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
         }
 
+        SplitDamage preStaticArrows = rolled;
+
+        if (abilityController != null)
+            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
+
         SwingOutgoingAttribution swingAttribution = abilityController != null
-            ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
+            ? abilityController.BuildSwingOutgoingAttribution(preStaticArrows, rolled)
             : SwingOutgoingAttribution.AutoAttackOnly;
 
         TryPrepareWayOfTheCrusaderExtraFireOnAutoAttack(rolled, swingAttribution);
@@ -1432,6 +1436,42 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(equipment.MainHandItemId)) return null;
 
         return inventory.GetItemDef(equipment.MainHandItemId);
+    }
+
+    private string ResolveMissingOffhandSupportMessage(ItemDefinition mainDef)
+    {
+        if (mainDef == null)
+            return "Requires offhand support.";
+
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inventory = _inventory != null ? _inventory : GetComponent<Inventory>();
+        if (equipment == null || inventory == null)
+            return $"Requires {mainDef.RequiredSupportType} in offhand (active weapon set).";
+
+        ItemDefinition offDef = equipment.GetOffHandDef();
+        if (offDef != null &&
+            offDef.IsCombatSupport &&
+            offDef.SupportType == mainDef.RequiredSupportType &&
+            offDef.SupportConsumableOnAttack &&
+            equipment.OffHandStackAmount < Mathf.Max(1, offDef.SupportConsumeAmountPerAttack))
+        {
+            return $"Out of {mainDef.RequiredSupportType} (active weapon set).";
+        }
+
+        string inactiveOffId = equipment.GetInactiveOffHandItemId();
+        ItemDefinition inactiveOffDef = string.IsNullOrWhiteSpace(inactiveOffId)
+            ? null
+            : inventory.GetItemDef(inactiveOffId);
+        if (inactiveOffDef != null &&
+            inactiveOffDef.IsCombatSupport &&
+            inactiveOffDef.SupportType == mainDef.RequiredSupportType &&
+            equipment.GetInactiveOffHandStackAmount() > 0)
+        {
+            return
+                $"Requires {mainDef.RequiredSupportType} in offhand (active weapon set). Check the other weapon set or equip ammo on the active off-hand slot.";
+        }
+
+        return $"Requires {mainDef.RequiredSupportType} in offhand (active weapon set).";
     }
 
     private bool IsSupportEquippedWithoutCompatibleMainWeapon(out string message)
@@ -1847,17 +1887,20 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
 
         SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
-        SplitDamage preQueuedModifier = rolled;
 
         if (abilityController != null)
         {
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
             abilityController.ApplyActiveDamageConversions(ref rolled);
-            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
         }
 
+        SplitDamage preStaticArrows = rolled;
+
+        if (abilityController != null)
+            abilityController.ApplyStaticArrowsAutoAttackScaling(ref rolled);
+
         SwingOutgoingAttribution swingAttribution = abilityController != null
-            ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
+            ? abilityController.BuildSwingOutgoingAttribution(preStaticArrows, rolled)
             : SwingOutgoingAttribution.AutoAttackOnly;
 
         if (rolled.IsEmpty)

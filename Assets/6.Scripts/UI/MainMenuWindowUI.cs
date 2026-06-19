@@ -891,6 +891,13 @@ public class MainMenuWindowUI : MonoBehaviour
                 page.SetActive(true);
                 yield return null;
 
+                if (page == skillsAbilitiesPage &&
+                    !SkillsAbilityTimelinePrewarm.IsComplete &&
+                    page.TryGetComponent(out SkillsAbilityPageNewUI skillsPageUi))
+                {
+                    yield return SkillsAbilityTimelinePrewarm.CoPrewarmForActivePage(skillsPageUi);
+                }
+
                 yield return MainMenuPagePrewarm.CoPrewarmPageContents(page);
 
                 page.SetActive(false);

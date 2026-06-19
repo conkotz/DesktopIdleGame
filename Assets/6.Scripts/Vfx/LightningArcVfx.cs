@@ -80,6 +80,8 @@ public sealed class LightningArcVfx : MonoBehaviour
         if (prefab != null)
         {
             instance = Instantiate(prefab, Vector3.zero, Quaternion.identity, parent);
+            instance.autoPlayPreviewOnStart = false;
+            instance.showStaticPreviewInEditor = false;
         }
         else
         {
@@ -123,6 +125,7 @@ public sealed class LightningArcVfx : MonoBehaviour
         }
 
         _playedExternally = true;
+        CacheExistingSegmentRenderers();
         EnsureSegmentCount(waypoints.Count - 1);
         ApplySorting(sortingReference);
 
