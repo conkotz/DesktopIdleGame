@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: DatabaseEnemyAvatarCatalog
   m_EditorClassIdentifier: Assembly-CSharp::DatabaseEnemyAvatarCatalog
   avatars:
+  - {fileID: 6856901680134642022, guid: 9cc2f2ebeac9ea64883c67c5b1ef85a8, type: 3}
   - {fileID: -4216416322996058909, guid: 856194da2d106b141800bdcd0328ce22, type: 3}
   - {fileID: -1955488095112409121, guid: 5b745597793774045be0408c14c7f82e, type: 3}
   - {fileID: -5420103237956391102, guid: ea06d2814cfeae144bd3a0a2ec4cfd6d, type: 3}
