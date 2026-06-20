@@ -248,8 +248,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4281874550
+  m_fontColor: {r: 0.4641509, g: 0.21981482, b: 0.21981482, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -266,8 +266,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 4
-  m_fontSizeBase: 4
+  m_fontSize: 4.5
+  m_fontSizeBase: 4.5
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -399,6 +399,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2658333117554675620}
   - component: {fileID: 1282701325059826826}
+  - component: {fileID: 7182736450918273645}
   - component: {fileID: 5812554202437325912}
   - component: {fileID: 5071811257546179618}
   - component: {fileID: 6056956820315627879}
@@ -457,7 +458,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: c2d3e4f5a6b7478990abcdef1234567a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -490,6 +491,24 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &7182736450918273645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7126874587929216248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a4e2f1c9b3d4e5f8071625344556677, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteWindSway
+  windStrength: 0.1
+  windSpeed: 1.2
+  baseAnchorHeight: 0.2
+  phaseOffset: 0
+  windVariation: 0.4
+  randomizeOnAwake: 1
 --- !u!114 &5812554202437325912
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -613,6 +632,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HelperWhitelistInteractTarget
   interactionId: splitwood_tree_node
+--- !u!114 &164971398298787503
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7126874587929216248}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
+  nameLabels:
+  - {fileID: 7958210842296509233}
+  searchInactiveChildren: 1
+  sortingReference: {fileID: 1282701325059826826}
 --- !u!1 &8502486539705939940
 GameObject:
   m_ObjectHideFlags: 0
@@ -644,18 +679,3 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2658333117554675620}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &164971398298787503
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7126874587929216248}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b8e9f0a1c2d3456789012345abcdef02, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::WorldNameLabelResolver
-  nameLabels: []
-  searchInactiveChildren: 1
-  sortingReference: {fileID: 1282701325059826826}

@@ -124,6 +124,33 @@ PrefabInstance:
       propertyPath: m_text
       value: Hardwood Tree
       objectReference: {fileID: 0}
+    - target: {fileID: 1282701325059826826, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: e4f5a6b7c8d9478990abcdef1234567c, type: 2}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windStrength
+      value: 0.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windSpeed
+      value: 1.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: baseAnchorHeight
+      value: 0.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: phaseOffset
+      value: 0.72
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windVariation
+      value: 0.28
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: randomizeOnAwake
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
