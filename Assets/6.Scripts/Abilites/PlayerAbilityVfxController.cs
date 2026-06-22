@@ -77,6 +77,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private float whirlingBladeMinYOffset = -0.8f;
     [Tooltip("Maximum local Y offset from the whirlwind center that blade trails can reach.")]
     [SerializeField] private float whirlingBladeMaxYOffset = 0.75f;
+    [Tooltip("Optional animated prefab for Whirlwind. When assigned, channel VFX uses this instead of procedural blade trails.")]
+    [SerializeField] private GameObject whirlwindPrefab;
+    [SerializeField] private Vector3 whirlwindPrefabCenterOffset = new Vector3(0f, 1.1f, 0f);
+    [SerializeField] private string whirlwindPrefabSortingLayerName = "Characters";
+    [SerializeField] private int whirlwindPrefabSortingOrder = 4;
+    [Tooltip("Whirlwind hit radius at which the prefab uses Whirlwind Prefab Base Scale.")]
+    [SerializeField, Min(0.01f)] private float whirlwindPrefabReferenceRadius = 3.05f;
+    [SerializeField, Min(0.01f)] private float whirlwindPrefabBaseScale = 1f;
+    [Tooltip("Stretches only the whirlwind width (X). Use this to widen the effect without scaling height.")]
+    [SerializeField, Min(0.01f)] private float whirlwindPrefabWidthScale = 1f;
+    [Tooltip("Optional height scale (Y). Leave at 1 unless you need a taller/shorter whirlwind.")]
+    [SerializeField, Min(0.01f)] private float whirlwindPrefabHeightScale = 1f;
 
     [Header("Galeforce Twister (Whirlwind Lv18) VFX")]
     [SerializeField] private Color galeforceTwisterColor = new Color(0.95f, 0.98f, 1f, 0.82f);
@@ -450,6 +462,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private readonly List<GameObject> _activeGaleforceTwisterRoots = new();
 
     private GameObject _whirlwindChannelRoot;
+    private GameObject _whirlwindChannelPrefabInstance;
+    private bool _whirlwindChannelUsesPrefab;
     private Coroutine _whirlwindChannelRoutine;
     private float _whirlwindChannelRadius;
     private Transform _whirlwindChannelCenter;
@@ -576,10 +590,17 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     public void SpawnWhirlwind(float radius)
     {
-        Transform anchor = ResolvePowerSlashAnchor();
         Transform center = player != null ? player.transform : transform;
         if (center == null)
             return;
+
+        if (whirlwindPrefab != null)
+        {
+            SpawnWhirlwindPrefabBurst(center, radius);
+            return;
+        }
+
+        Transform anchor = ResolvePowerSlashAnchor();
         if (anchor == null)
             anchor = center;
 
@@ -616,10 +637,29 @@ public class PlayerAbilityVfxController : MonoBehaviour
     {
         EndWhirlwindChannelVfx();
 
-        Transform anchor = ResolvePowerSlashAnchor();
         Transform center = player != null ? player.transform : transform;
         if (center == null)
             return;
+
+        _whirlwindChannelRadius = radius;
+        _whirlwindChannelCenter = center;
+
+        if (whirlwindPrefab != null)
+        {
+            _whirlwindChannelUsesPrefab = true;
+            _whirlwindChannelPrefabInstance = Instantiate(whirlwindPrefab, center);
+            Transform instanceTransform = _whirlwindChannelPrefabInstance.transform;
+            instanceTransform.SetParent(center, worldPositionStays: false);
+            instanceTransform.localPosition = whirlwindPrefabCenterOffset;
+            instanceTransform.localRotation = Quaternion.identity;
+            ApplyWhirlwindPrefabScale(radius);
+            ApplyWhirlwindPrefabSorting(instanceTransform);
+            return;
+        }
+
+        _whirlwindChannelUsesPrefab = false;
+
+        Transform anchor = ResolvePowerSlashAnchor();
         if (anchor == null)
             anchor = center;
 
@@ -628,8 +668,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
             startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
 
         _whirlwindChannelFacingSignX = startDir.x;
-        _whirlwindChannelRadius = radius;
-        _whirlwindChannelCenter = center;
 
         if (!TryBuildWhirlwindBladeRig(
                 center,
@@ -645,7 +683,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
         _whirlwindChannelRoutine = StartCoroutine(AnimateWhirlwindChannelLoop());
     }
 
-    public void SetWhirlwindChannelRadius(float radius) => _whirlwindChannelRadius = radius;
+    public void SetWhirlwindChannelRadius(float radius)
+    {
+        _whirlwindChannelRadius = radius;
+        if (_whirlwindChannelUsesPrefab)
+            ApplyWhirlwindPrefabScale(radius);
+    }
 
     public void EndWhirlwindChannelVfx()
     {
@@ -664,12 +707,19 @@ public class PlayerAbilityVfxController : MonoBehaviour
             }
         }
 
+        if (_whirlwindChannelPrefabInstance != null)
+        {
+            Destroy(_whirlwindChannelPrefabInstance);
+            _whirlwindChannelPrefabInstance = null;
+        }
+
         if (_whirlwindChannelRoot != null)
         {
             Destroy(_whirlwindChannelRoot);
             _whirlwindChannelRoot = null;
         }
 
+        _whirlwindChannelUsesPrefab = false;
         _whirlwindChannelCenter = null;
         _whirlwindChannelEmitters = null;
         _whirlwindChannelTrails = null;
@@ -677,6 +727,55 @@ public class PlayerAbilityVfxController : MonoBehaviour
         _whirlwindChannelLaneBaseY = null;
         _whirlwindChannelLaneOrbitHeight = null;
         _whirlwindChannelLaneHorizontalScale = null;
+    }
+
+    private void SpawnWhirlwindPrefabBurst(Transform center, float radius)
+    {
+        GameObject instance = Instantiate(whirlwindPrefab, center);
+        Transform instanceTransform = instance.transform;
+        instanceTransform.SetParent(center, worldPositionStays: false);
+        instanceTransform.localPosition = whirlwindPrefabCenterOffset;
+        instanceTransform.localRotation = Quaternion.identity;
+        ApplyWhirlwindPrefabScale(instanceTransform, radius);
+        ApplyWhirlwindPrefabSorting(instanceTransform);
+        Destroy(instance, Mathf.Max(0.1f, whirlingBladeDuration));
+    }
+
+    private void ApplyWhirlwindPrefabScale(float radius) =>
+        ApplyWhirlwindPrefabScale(_whirlwindChannelPrefabInstance != null ? _whirlwindChannelPrefabInstance.transform : null, radius);
+
+    private void ApplyWhirlwindPrefabScale(Transform instanceTransform, float radius)
+    {
+        if (instanceTransform == null)
+            return;
+
+        float uniformScale = whirlwindPrefabBaseScale *
+                             (radius / Mathf.Max(0.01f, whirlwindPrefabReferenceRadius));
+        instanceTransform.localScale = new Vector3(
+            uniformScale * whirlwindPrefabWidthScale,
+            uniformScale * whirlwindPrefabHeightScale,
+            1f);
+    }
+
+    private void ApplyWhirlwindPrefabSorting(Transform instanceTransform)
+    {
+        if (instanceTransform == null)
+            return;
+
+        int layerId = SortingLayer.NameToID(whirlwindPrefabSortingLayerName);
+        if (layerId == 0 && !string.Equals(whirlwindPrefabSortingLayerName, "Default", System.StringComparison.Ordinal))
+            layerId = SortingLayer.NameToID("Characters");
+
+        Renderer[] renderers = instanceTransform.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+                continue;
+
+            renderer.sortingLayerID = layerId;
+            renderer.sortingOrder = whirlwindPrefabSortingOrder;
+        }
     }
 
     private bool TryBuildWhirlwindBladeRig(

@@ -84,6 +84,14 @@ public class PlayerAbilityVfxControllerEditor : Editor
 
     private static readonly string[] WhirlwindFieldNames =
     {
+        "whirlwindPrefab",
+        "whirlwindPrefabCenterOffset",
+        "whirlwindPrefabSortingLayerName",
+        "whirlwindPrefabSortingOrder",
+        "whirlwindPrefabReferenceRadius",
+        "whirlwindPrefabBaseScale",
+        "whirlwindPrefabWidthScale",
+        "whirlwindPrefabHeightScale",
         "whirlingBladeColor",
         "whirlingBladeDuration",
         "whirlingBladeSpinDegrees",

@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Lv1 combat <see cref="SkillUnlockType.Unlock"/> rows grant a shared "Attack" ability per skill (melee / ranged / magic).
-/// Always listed first in the abilities panel; engages the closest enemy in weapon attack range (no ability damage).
+/// Always listed first in the abilities panel; engages the closest living enemy and chases into weapon range (no ability damage).
 /// </summary>
 public static class CombatStarterAttackAbility
 {

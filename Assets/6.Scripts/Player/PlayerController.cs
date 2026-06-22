@@ -820,9 +820,12 @@ public class PlayerController : MonoBehaviour
 
     private string _currentStateName;
 
+    private bool CanDriveAnimator() =>
+        animator != null && animator.isActiveAndEnabled;
+
     private void PlayState(string stateName, bool restart)
     {
-        if (!animator) return;
+        if (!CanDriveAnimator()) return;
         if (string.IsNullOrWhiteSpace(stateName)) return;
 
         // If already in the same state, don’t spam Play() unless restarting
@@ -845,7 +848,7 @@ public class PlayerController : MonoBehaviour
     }
     public void TriggerAttackAnim()
     {
-        if (!animator) return;
+        if (!CanDriveAnimator()) return;
 
         string triggerToUse = GetAttackTriggerName();
         float duration = Mathf.Clamp(GetAttackClipLength(), 0.05f, 2.0f);
@@ -870,7 +873,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void TriggerAttackAnimVisualOnly()
     {
-        if (!animator) return;
+        if (!CanDriveAnimator()) return;
 
         string triggerToUse = GetAttackTriggerName();
 
@@ -889,6 +892,68 @@ public class PlayerController : MonoBehaviour
     }
 
     private Coroutine _visualOnlyAttackRecoverRoutine;
+
+    private bool _whirlwindChannelAttackAnimActive;
+    private Coroutine _whirlwindChannelAttackAnimRoutine;
+
+    /// <summary>Loops the combat attack animation while Whirlwind is channeled.</summary>
+    public void BeginWhirlwindChannelAttackAnimLoop()
+    {
+        EndWhirlwindChannelAttackAnimLoop();
+        if (!CanDriveAnimator())
+            return;
+
+        _whirlwindChannelAttackAnimActive = true;
+        SetActionOverride(PlayerAction.Fighting);
+        _whirlwindChannelAttackAnimRoutine = StartCoroutine(CoWhirlwindChannelAttackAnimLoop());
+    }
+
+    public void EndWhirlwindChannelAttackAnimLoop()
+    {
+        _whirlwindChannelAttackAnimActive = false;
+        if (_whirlwindChannelAttackAnimRoutine != null)
+        {
+            StopCoroutine(_whirlwindChannelAttackAnimRoutine);
+            _whirlwindChannelAttackAnimRoutine = null;
+        }
+
+        if (_hasActionOverride && _actionOverride == PlayerAction.Fighting)
+            ClearActionOverride();
+
+        PlayerAction resume = PlayerAction.Idle;
+        if (state == State.Gather)
+            resume = GetGatherAction();
+        else if (HasPendingLocomotionTarget())
+            resume = PlayerAction.Walking;
+        SetAction(resume, true);
+    }
+
+    private IEnumerator CoWhirlwindChannelAttackAnimLoop()
+    {
+        while (_whirlwindChannelAttackAnimActive)
+        {
+            TriggerWhirlwindChannelAttackSwing();
+            float duration = Mathf.Clamp(GetAttackClipLength(), 0.05f, 2f);
+            yield return new WaitForSeconds(duration);
+        }
+
+        _whirlwindChannelAttackAnimRoutine = null;
+    }
+
+    private void TriggerWhirlwindChannelAttackSwing()
+    {
+        if (!CanDriveAnimator() || !_whirlwindChannelAttackAnimActive)
+            return;
+
+        string triggerToUse = GetAttackTriggerName();
+        TryFaceCombatTargetDuringAttack();
+        SetActionOverride(PlayerAction.Fighting);
+
+        animator.ResetTrigger(attackTriggerName);
+        animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
+        animator.SetTrigger(triggerToUse);
+    }
 
     private IEnumerator RecoverFromVisualOnlyAttack(float seconds)
     {
@@ -933,7 +998,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>Starts or continues the ranged attack clip, then holds it at frame 7 while Snipe is charging.</summary>
     public void BeginSnipeChargeAttackAnim()
     {
-        if (!animator)
+        if (!CanDriveAnimator())
             return;
 
         CancelSnipeChargeAttackAnim();
@@ -960,7 +1025,7 @@ public class PlayerController : MonoBehaviour
 
     private void PlayRangedAttackStateAtNormalizedTime(float normalizedTime)
     {
-        if (!animator || string.IsNullOrWhiteSpace(rangedAttackStateName))
+        if (!CanDriveAnimator() || string.IsNullOrWhiteSpace(rangedAttackStateName))
             return;
 
         animator.Play(rangedAttackStateName, 0, Mathf.Clamp01(normalizedTime));
@@ -1055,7 +1120,7 @@ public class PlayerController : MonoBehaviour
 
     private void TriggerHurtAnim()
     {
-        if (!animator || _isDead)
+        if (!CanDriveAnimator() || _isDead)
             return;
 
         // Let attack clips finish; hurt must not cut them short.
@@ -1074,7 +1139,7 @@ public class PlayerController : MonoBehaviour
     }
     private void TriggerDieAnim()
     {
-        if (!animator) return;
+        if (!CanDriveAnimator()) return;
 
         animator.ResetTrigger(attackTriggerName);
         animator.ResetTrigger(rangedAttackTriggerName);
@@ -4807,7 +4872,7 @@ public class PlayerController : MonoBehaviour
         float wait = GetDieClipLength();
         yield return new WaitForSeconds(Mathf.Max(0.05f, wait));
 
-        if (!_isDead || animator == null)
+        if (!_isDead || !CanDriveAnimator())
             yield break;
 
         // Lock visuals on the end of the death animation so the character cannot blend back to idle.

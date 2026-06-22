@@ -39,7 +39,6 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
     private Action<EquipmentUISlotType, string> _uiSlotCb;
 
     private bool _subscribed;
-    private bool _bindingPrewarmed;
     private string _itemId;
     private ItemDefinition _def;
 
@@ -84,7 +83,6 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         TryBind();
         Subscribe();
         Refresh();
-        _bindingPrewarmed = true;
     }
 
     private void TryBind()

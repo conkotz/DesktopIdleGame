@@ -71,7 +71,6 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     private bool _bound;
     private bool _subscribed;
-    private bool _bindingPrewarmed;
 
     private string _itemId;
     private ItemDefinition _def;
@@ -219,7 +218,6 @@ public class EquipmentSlotUI : MonoBehaviour,
         TryBind();
         TrySubscribe();
         RefreshFromState();
-        _bindingPrewarmed = true;
     }
 
     private void TryBind()

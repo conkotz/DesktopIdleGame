@@ -5724,6 +5724,14 @@ MonoBehaviour:
   whirlingBladeSpawnVerticalJitter: 0.01
   whirlingBladeMinYOffset: -0.8
   whirlingBladeMaxYOffset: 0.75
+  whirlwindPrefab: {fileID: 7641909429894547203, guid: 6edabaee3935fdb4f856c2fee0c18c58, type: 3}
+  whirlwindPrefabCenterOffset: {x: 0, y: 1.3, z: 0}
+  whirlwindPrefabSortingLayerName: Characters
+  whirlwindPrefabSortingOrder: 4
+  whirlwindPrefabReferenceRadius: 4
+  whirlwindPrefabBaseScale: 1
+  whirlwindPrefabWidthScale: 1.35
+  whirlwindPrefabHeightScale: 1
   galeforceTwisterColor: {r: 0.95, g: 0.98, b: 1, a: 0.82}
   galeforceTwisterDuration: 0.22
   galeforceTwisterSpinDegrees: 720
@@ -5918,7 +5926,6 @@ MonoBehaviour:
   tripleShotVolleyFlashOffset: {x: 0, y: 0.55, z: 0}
   lightningArcPrefab: {fileID: 8429156374829103849, guid: e7b2c9345a6d4789bcde0123456789ab, type: 3}
   tornadoPrefab: {fileID: 729469573040607778, guid: f83950bd55dfadf48b5f148510b853f1, type: 3}
-  penetratingShotPrefab: {fileID: 8790821946122484479, guid: f2a283bf7dae65042b029b83094f3343, type: 3}
   staticArrowsTrailLingerSeconds: 0.35
   staticArrowsTrailWidth: 0.06
   staticArrowsTrailStartAlpha: 0.9
@@ -5939,6 +5946,13 @@ MonoBehaviour:
   seekerArrowTrailWidth: 0.1
   seekerArrowTrailStartAlpha: 0.95
   seekerArrowTrailColor: {r: 1, g: 1, b: 1, a: 1}
+  lightningRodSprite: {fileID: 2102038073974554466, guid: 4df046dc9f6d1bb47a03b220ae6e9f56, type: 3}
+  lightningRodTint: {r: 1, g: 1, b: 1, a: 1}
+  lightningRodWorldScale: 1.5
+  lightningRodGroundYOffset: 0
+  lightningRodSortingLayer: Foreground
+  lightningRodSortingOrder: 10
+  penetratingShotPrefab: {fileID: 8790821946122484479, guid: f2a283bf7dae65042b029b83094f3343, type: 3}
   warBannerSprite: {fileID: 4575528367620855910, guid: 0c3dc46a851bd6d4992b9004c635a15c, type: 3}
   warBannerTint: {r: 1, g: 1, b: 1, a: 1}
   warBannerWorldScale: 2
@@ -5952,12 +5966,7 @@ MonoBehaviour:
   warBannerFadeWhenPlayerOverlaps: 1
   warBannerOverlapAlpha: 0.5
   warBannerOverlapScanInterval: 0.1
-  lightningRodSprite: {fileID: 2102038073974554466, guid: 4df046dc9f6d1bb47a03b220ae6e9f56, type: 3}
-  lightningRodTint: {r: 1, g: 1, b: 1, a: 1}
-  lightningRodWorldScale: 1.5
-  lightningRodGroundYOffset: 0
-  lightningRodSortingLayer: Foreground
-  lightningRodSortingOrder: 10
+  lightningRodFadeWhenPlayerOverlaps: 1
   hammerTempestHammerSprite: {fileID: 4687727764133868624, guid: a6c8e023557d16f4c8968c13917dd559, type: 3}
   hammerTempestHammerTint: {r: 1, g: 0.92, b: 0.35, a: 1}
   hammerTempestCenterOffset: {x: 0, y: 0.75, z: 0}
@@ -6179,6 +6188,7 @@ MonoBehaviour:
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
   longbowPrioritizeRecentAttackerSeconds: 2.5
+  longbowMeleeThreatRetargetGap: 3
   idleAutoPickupIntervalSeconds: 30
   retaliationEnabled: 0
   actionBar: {fileID: 0}

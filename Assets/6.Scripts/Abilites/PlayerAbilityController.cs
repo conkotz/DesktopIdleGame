@@ -3019,7 +3019,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         return false;
     }
 
-    /// <summary>Combat starter Attack: engage closest enemy in weapon attack range (no ability damage or cooldown).</summary>
+    /// <summary>Combat starter Attack: engage closest living enemy and chase into weapon range (no ability damage or cooldown).</summary>
     private bool TryUseCombatStarterAttack(AbilityDefinition def, bool showLockedFeedback)
     {
         if (combat == null)
@@ -6101,6 +6101,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
+        player.BeginWhirlwindChannelAttackAnimLoop();
         abilityVfx?.BeginWhirlwindChannelVfx(radius);
 
         if (stats != null && stats.Energy <= 0.0001f)
@@ -6591,6 +6592,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
 
         abilityVfx?.EndWhirlwindChannelVfx();
+        player?.EndWhirlwindChannelAttackAnimLoop();
 
         _whirlwindLastHitTimeByEnemyId.Clear();
         _whirlwindEnemiesInContactThisFrame.Clear();

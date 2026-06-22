@@ -349,28 +349,12 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Manual Attack hotkey: closest in-range by default; Longbow prefers a recent attacker then furthest in-range.
+    /// Manual Attack hotkey: closest living enemy (chase into weapon range). Does not stick to the current target
+    /// when a nearer enemy exists — idle auto-battle uses <see cref="ResolveIdlePickedEnemy"/> instead.
     /// </summary>
     public EnemyBaseController ResolveManualStarterAttackTarget()
     {
-        if (idleCombatEnabled && ShouldIdlePickFurthestEnemyFirst())
-        {
-            if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy &&
-                IsValidCombatTarget(_target))
-                return _target;
-
-            EnemyBaseController meleeThreat = TryPickLongbowMeleeThreatAttacker();
-            if (meleeThreat != null)
-                return meleeThreat;
-
-            EnemyBaseController recentAttacker = TryPickLongbowIdleRecentAttackerInRange();
-            if (recentAttacker != null)
-                return recentAttacker;
-
-            return FindFurthestEnemyInAttackRange();
-        }
-
-        return FindClosestEnemyInAttackRange(preferCurrentTarget: true);
+        return FindClosestLivingEnemy();
     }
 
     /// <summary>Max edge gap for melee abilities that may walk into range before firing (Power Slash, Crusader Strike).</summary>
