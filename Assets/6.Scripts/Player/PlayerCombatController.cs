@@ -2047,7 +2047,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         TryApplyPendingWayOfTheCrusaderExtraFireDamage(targetToHit, wasCrit);
 
         if (totalDealt > 0f && consumeAmmo)
-            TryConsumeOffHandSupportAmmo();
+        {
+            if (stats == null || !stats.TryEnchantedQuiverSaveArrowOnAutoAttack())
+                TryConsumeOffHandSupportAmmo();
+        }
+
+        if (totalDealt > 0f && consumeAmmo && stats != null && stats.CurrentAttackSkill == AttackSkill.Ranged)
+            stats.ConsumeEnchantedQuiverPendingHitDamageBonusIfActive();
 
         if (abilityController != null && totalDealt > 0f &&
             swingAttribution.AttributesEntireSwingToBonusSource)

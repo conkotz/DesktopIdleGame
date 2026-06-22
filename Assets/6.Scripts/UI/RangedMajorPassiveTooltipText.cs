@@ -31,6 +31,12 @@ public static class RangedMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            body = BuildEnchantedQuiverEffectBody(stats, selectedChoice);
+            return true;
+        }
+
         return false;
     }
 
@@ -53,6 +59,12 @@ public static class RangedMajorPassiveTooltipText
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.HuntersMarkMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
             effectText = BuildHuntersMarkEffectBody(stats, selectedChoice);
+            return true;
+        }
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            effectText = BuildEnchantedQuiverEffectBody(stats, selectedChoice);
             return true;
         }
 
@@ -107,6 +119,29 @@ public static class RangedMajorPassiveTooltipText
             return false;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            if (choiceIndex == AbilityCombatPower.EnchantedQuiverEnhancementArrowRecoveryChoiceIndex)
+            {
+                body =
+                    $"{AbilityCombatPower.EnchantedQuiverArrowRecoveryOnKillChance * 100f:0.#}% chance to gain " +
+                    $"{AbilityCombatPower.EnchantedQuiverArrowRecoveryMinAmount}-{AbilityCombatPower.EnchantedQuiverArrowRecoveryMaxAmount} arrows " +
+                    "(of the same type as currently equipped arrows) when killing an enemy.";
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.EnchantedQuiverEnhancementConservationChoiceIndex)
+            {
+                body =
+                    $"Gain a further {AbilityCombatPower.EnchantedQuiverConservationExtraArrowSaveChance * 100f:0.#}% chance on auto attacks to save arrows " +
+                    $"and increase the next ranged auto attack hit to " +
+                    $"{AbilityCombatPower.EnchantedQuiverConservationSavedArrowDamageBonusFraction * 100f:0.#}% bonus damage.";
+                return true;
+            }
+
+            return false;
+        }
+
         return false;
     }
 
@@ -126,6 +161,14 @@ public static class RangedMajorPassiveTooltipText
             flavor =
                 "Enemies hit by auto attacks or other non-minion abilities apply Hunter's Mark for 10 seconds. " +
                 "Marked enemies take increased damage from minions.";
+            return true;
+        }
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor =
+                "Gain a chance to not consume arrows when using ranged auto attacks. " +
+                "When an arrow is saved, increase the damage of your next ranged auto attack hit.";
             return true;
         }
 
@@ -166,6 +209,24 @@ public static class RangedMajorPassiveTooltipText
                 $"Predator's Brood: minions gain +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionCritChanceBonus * 100f:0.#}% crit chance " +
                 $"and +{AbilityCombatPower.HuntersMarkPredatorsBroodMinionAilmentChanceBonus * 100f:0.#}% chance to apply ailments.");
         }
+
+        return sb.ToString();
+    }
+
+    public static string BuildEnchantedQuiverEffectBody(CharacterStats stats, int selectedChoice = -1)
+    {
+        var sb = new StringBuilder();
+        float saveChance = stats != null
+            ? stats.GetEnchantedQuiverArrowSaveChanceFraction()
+            : AbilityCombatPower.EnchantedQuiverBaseArrowSaveChance;
+        float savedHitBonus = stats != null
+            ? stats.GetEnchantedQuiverSavedArrowDamageBonusFraction()
+            : AbilityCombatPower.EnchantedQuiverBaseSavedArrowDamageBonusFraction;
+
+        AppendParagraph(sb,
+            $"{saveChance * 100f:0.#}% chance to not consume arrows on ranged auto attacks.");
+        AppendParagraph(sb,
+            $"When an arrow is saved, your next ranged auto attack hit deals +{savedHitBonus * 100f:0.#}% damage.");
 
         return sb.ToString();
     }

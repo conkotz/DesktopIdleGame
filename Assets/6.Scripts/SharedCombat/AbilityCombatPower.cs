@@ -183,6 +183,30 @@ public static class AbilityCombatPower
     public const int HuntersMarkEnhancementDeepMarkChoiceIndex = 0;
     public const int HuntersMarkEnhancementPredatorsBroodChoiceIndex = 1;
 
+    /// <summary>Ranged Lv20 major passive — Enchanted Quiver.</summary>
+    public const string EnchantedQuiverMajorPassiveSpineNodeId = "Lv20_0";
+    public const int EnchantedQuiverMajorPassiveLevel = 20;
+    public const float EnchantedQuiverBaseArrowSaveChance = 0.25f;
+    public const float EnchantedQuiverConservationExtraArrowSaveChance = 0.05f;
+    public const float EnchantedQuiverBaseSavedArrowDamageBonusFraction = 0.05f;
+    public const float EnchantedQuiverConservationSavedArrowDamageBonusFraction = 0.10f;
+    public const float EnchantedQuiverArrowRecoveryOnKillChance = 0.15f;
+    public const int EnchantedQuiverArrowRecoveryMinAmount = 1;
+    public const int EnchantedQuiverArrowRecoveryMaxAmount = 3;
+    public const int EnchantedQuiverEnhancementArrowRecoveryChoiceIndex = 0;
+    public const int EnchantedQuiverEnhancementConservationChoiceIndex = 1;
+
+    public static float GetEnchantedQuiverArrowSaveChanceFraction(int enhancementPick) =>
+        EnchantedQuiverBaseArrowSaveChance +
+        (enhancementPick == EnchantedQuiverEnhancementConservationChoiceIndex
+            ? EnchantedQuiverConservationExtraArrowSaveChance
+            : 0f);
+
+    public static float GetEnchantedQuiverSavedArrowDamageBonusFraction(int enhancementPick) =>
+        enhancementPick == EnchantedQuiverEnhancementConservationChoiceIndex
+            ? EnchantedQuiverConservationSavedArrowDamageBonusFraction
+            : EnchantedQuiverBaseSavedArrowDamageBonusFraction;
+
     public static float GetSnipeChargeDurationSeconds(int selectedEnhancementChoice) =>
         selectedEnhancementChoice == SnipeFasterChargeChoiceIndex
             ? SnipeEnhancedChargeDurationSeconds

@@ -533,6 +533,37 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 20
+    title: Enchanted Quiver
+    description: Gain a chance to not consume arrows when using auto attacks with ranged.
+      When an arrow is saved, increase the damage of your next range hit by 5%.
+    icon: {fileID: 1200565681425001165, guid: bf301dd8c35646640bd9c28240c06a75, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 23
+      title: Arrow Recovery
+      description: 15% chance to gain 1-3 arrows (of the same type as currently equipped
+        arrows) when killing an enemy.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 23
+      title: Conservation
+      description: Gain a further 5% chance on auto attacks to save arrows and increase
+        the next range hit to 10% bonus damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 21
     title: Deadeye Training III
     description: +3% Ranged Damage

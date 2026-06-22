@@ -3301,6 +3301,101 @@ public class CharacterStats : MonoBehaviour, ISaveable
             : 0f;
     }
 
+    private float _enchantedQuiverPendingHitDamageBonusFraction;
+
+    public bool IsEnchantedQuiverUnlocked() =>
+        skillsManager != null &&
+        skillsManager.GetLevel(SkillType.Ranged) >= AbilityCombatPower.EnchantedQuiverMajorPassiveLevel;
+
+    public bool IsEnchantedQuiverMajorPassiveActive() =>
+        IsEnchantedQuiverUnlocked() && AreRangedMajorPassiveEffectsEnabled();
+
+    public int GetEnchantedQuiverEnhancementPick()
+    {
+        if (!IsEnchantedQuiverMajorPassiveActive())
+            return -1;
+
+        if (skillsManager == null)
+            return -1;
+
+        int pick = skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, -1);
+        if (pick >= 0)
+            return pick;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.EnchantedQuiverMajorPassiveLevel, -1);
+    }
+
+    public float GetEnchantedQuiverArrowSaveChanceFraction() =>
+        IsEnchantedQuiverMajorPassiveActive()
+            ? AbilityCombatPower.GetEnchantedQuiverArrowSaveChanceFraction(GetEnchantedQuiverEnhancementPick())
+            : 0f;
+
+    public float GetEnchantedQuiverSavedArrowDamageBonusFraction() =>
+        IsEnchantedQuiverMajorPassiveActive()
+            ? AbilityCombatPower.GetEnchantedQuiverSavedArrowDamageBonusFraction(GetEnchantedQuiverEnhancementPick())
+            : 0f;
+
+    public float PeekEnchantedQuiverPendingHitDamageBonusFraction() =>
+        IsEnchantedQuiverMajorPassiveActive()
+            ? Mathf.Max(0f, _enchantedQuiverPendingHitDamageBonusFraction)
+            : 0f;
+
+    public bool TryEnchantedQuiverSaveArrowOnAutoAttack()
+    {
+        if (!IsEnchantedQuiverMajorPassiveActive())
+            return false;
+
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+
+        ItemDefinition offDef = equipment != null ? equipment.GetOffHandDef() : null;
+        if (offDef == null || !offDef.SupportConsumableOnAttack)
+            return false;
+
+        if (UnityEngine.Random.value >= GetEnchantedQuiverArrowSaveChanceFraction())
+            return false;
+
+        _enchantedQuiverPendingHitDamageBonusFraction = GetEnchantedQuiverSavedArrowDamageBonusFraction();
+        return true;
+    }
+
+    public void ConsumeEnchantedQuiverPendingHitDamageBonusIfActive()
+    {
+        if (_enchantedQuiverPendingHitDamageBonusFraction <= 0f)
+            return;
+
+        _enchantedQuiverPendingHitDamageBonusFraction = 0f;
+    }
+
+    public void TryProcEnchantedQuiverArrowsOnKill()
+    {
+        if (!IsEnchantedQuiverMajorPassiveActive())
+            return;
+
+        if (GetEnchantedQuiverEnhancementPick() != AbilityCombatPower.EnchantedQuiverEnhancementArrowRecoveryChoiceIndex)
+            return;
+
+        if (UnityEngine.Random.value >= AbilityCombatPower.EnchantedQuiverArrowRecoveryOnKillChance)
+            return;
+
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+        if (equipment == null)
+            return;
+
+        string arrowId = equipment.OffHandItemId;
+        ItemDefinition offDef = equipment.GetOffHandDef();
+        if (string.IsNullOrWhiteSpace(arrowId) || offDef == null || !offDef.SupportConsumableOnAttack)
+            return;
+
+        int amount = UnityEngine.Random.Range(
+            AbilityCombatPower.EnchantedQuiverArrowRecoveryMinAmount,
+            AbilityCombatPower.EnchantedQuiverArrowRecoveryMaxAmount + 1);
+        equipment.EquipOffHand(arrowId, amount);
+    }
+
     public int GetParryEnhancementPick()
     {
         if (!IsParryMajorPassiveActive())
@@ -4369,6 +4464,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (bonuses.damageWithMinionActive > 0f && ownerCombat != null &&
             OwnerHasActiveMinion(ownerCombat))
             bonus += bonuses.damageWithMinionActive;
+
+        bonus += PeekEnchantedQuiverPendingHitDamageBonusFraction();
 
         return Mathf.Max(0f, bonus);
     }

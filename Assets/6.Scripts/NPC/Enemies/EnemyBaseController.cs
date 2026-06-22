@@ -1680,6 +1680,7 @@ public class EnemyBaseController : MonoBehaviour
         QuestProgressManager.Instance?.NotifyEnemyKilledForActiveMap(eid);
 
         PlayerAbilityController.NotifyWarBannerKillFromEnemyDeath();
+        PlayerCombatController.NotifyEnchantedQuiverKillFromEnemyDeath();
 
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance;
         if (wmp != null)
