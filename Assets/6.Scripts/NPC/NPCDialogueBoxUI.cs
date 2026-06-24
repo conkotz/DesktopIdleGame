@@ -258,25 +258,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             SpreadTemplate.gameObject.SetActive(true);
 
         ActiveMultiOfferBoxes.Add(SpreadTemplate);
-        SortActiveMultiOfferBoxesLeftToRight();
-
-        float step = SpreadTemplate.fixedSize.x + SpreadTemplate.questOfferCardSpacing;
-        SpreadTemplate._stripAnchoredSpreadOffset = Vector2.zero;
-
-        int col = 0;
-        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
-        {
-            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
-            if (!b || ReferenceEquals(b, SpreadTemplate))
-                continue;
-            if (b._spawnedAsOfferClone)
-            {
-                col++;
-                b._stripAnchoredSpreadOffset = new Vector2(step * col, 0f);
-            }
-        }
-
-        SortActiveMultiOfferBoxesLeftToRight();
+        AssignActiveMultiOfferSpreadOffsets(SpreadTemplate);
         s_deferredStripMultiOpening = true;
         _activeBox = SpreadTemplate;
         return true;
@@ -659,6 +641,18 @@ public class NPCDialogueBoxUI : MonoBehaviour
             if (s_deferredStripMultiOpening)
             {
                 s_deferredStripMultiOpening = false;
+
+                NPCDialogueBoxUI layoutSource = stripDriver ?? SpreadTemplate;
+                for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+                {
+                    NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                    if (b && b.isActiveAndEnabled)
+                        b.EnsureStripOverlayLayoutReady();
+                }
+
+                if (layoutSource)
+                    AssignActiveMultiOfferSpreadOffsets(layoutSource);
+
                 SyncStripViewportFollowerImmediate();
                 Canvas.ForceUpdateCanvases();
                 for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
@@ -795,6 +789,87 @@ public class NPCDialogueBoxUI : MonoBehaviour
         float s = Mathf.Max(0.01f, worldScale / 0.015f) * overheadBar / hud;
 
         transform.localScale = Vector3.one * s;
+    }
+
+    /// <summary>
+    /// Horizontal gap between multi-offer columns in strip-parent local units (scaled panel width + spacing).
+    /// </summary>
+    private float ResolveQuestOfferSpreadStepPx()
+    {
+        ApplyStripPresentationLocalScale();
+
+        if (_rectTransform == null)
+            _rectTransform = transform as RectTransform;
+        if (_rectTransform == null)
+            return fixedSize.x + questOfferCardSpacing;
+
+        _rectTransform.sizeDelta = fixedSize;
+
+        if (_stripProjectionRectRt != null)
+        {
+            Bounds bounds = CalculateRectBoundsRelative(_stripProjectionRectRt, _rectTransform);
+            if (bounds.size.x > 1f)
+                return bounds.size.x + questOfferCardSpacing;
+        }
+
+        float scaledWidth = _rectTransform.rect.width *
+                            Mathf.Max(0.01f, Mathf.Abs(_rectTransform.localScale.x));
+        return scaledWidth + questOfferCardSpacing;
+    }
+
+    private static bool IsPlainHostVisibleForMultiOfferSpread() =>
+        SpreadTemplate != null &&
+        SpreadTemplate._pinnedPlainHostForQuestSpread &&
+        SpreadTemplate.gameObject.activeSelf &&
+        !SpreadTemplate._plainHostCollapsedLeavingQuestsOpen;
+
+    /// <summary>Rebind strip projection when <see cref="Instantiate"/> left non-serialized refs null on a quest-offer clone.</summary>
+    private void EnsureStripOverlayLayoutReady()
+    {
+        if (_stripWorldFollowActive || (_stripProjectionRectRt != null && _stripFollowAnchor != null))
+            return;
+
+        Transform owner = _interactionOwnerTransform ? _interactionOwnerTransform : SpreadParent;
+        Transform anchor = _stripFollowAnchor ? _stripFollowAnchor : SpreadAnchor;
+        if (!anchor)
+            anchor = owner;
+        if (!owner)
+            return;
+
+        Vector3 offset = _stripFollowAnchor != null || _interactionOwnerTransform != null
+            ? _stripFollowWorldOffset
+            : SpreadBaseOffset;
+
+        ApplyCommonShowTransforms(owner, anchor, offset);
+        BindSingleModeRefsFromHierarchy();
+    }
+
+    private static void AssignActiveMultiOfferSpreadOffsets(NPCDialogueBoxUI layoutSource)
+    {
+        if (!layoutSource || ActiveMultiOfferBoxes.Count == 0)
+            return;
+
+        layoutSource.EnsureStripOverlayLayoutReady();
+        float step = layoutSource.ResolveQuestOfferSpreadStepPx();
+        bool plainHostVisible = IsPlainHostVisibleForMultiOfferSpread();
+
+        SortActiveMultiOfferBoxesLeftToRight();
+
+        int col = 0;
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+            if (!box)
+                continue;
+
+            if (plainHostVisible && ReferenceEquals(box, SpreadTemplate))
+            {
+                box._stripAnchoredSpreadOffset = Vector2.zero;
+                continue;
+            }
+
+            box._stripAnchoredSpreadOffset = new Vector2(step * col++, 0f);
+        }
     }
 
     /// <summary>Clamped viewport (0–1) → screen pixels inside <see cref="Camera.pixelRect"/>.</summary>
@@ -1262,13 +1337,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _plainHostCollapsedLeavingQuestsOpen = false;
         ActiveMultiOfferBoxes.Add(this);
 
-        float spreadStepPx = fixedSize.x + questOfferCardSpacing;
-
         for (int i = 0; i < quests.Count; i++)
         {
             QuestDefinition q = quests[i];
             NPCDialogueBoxUI inst = Instantiate(gameObject).GetComponent<NPCDialogueBoxUI>();
             inst._spawnedAsOfferClone = true;
+            inst.EnsureBuilt();
             ActiveMultiOfferBoxes.Add(inst);
 
             QuestDefinition captured = q;
@@ -1281,12 +1355,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 () => HandleSpreadQuestAccepted(captured),
                 autoCloseSeconds,
                 partOfMultiSpread: true,
-                stripAnchoredSpreadOffset: new Vector2(spreadStepPx * (i + 1), 0f));
+                stripAnchoredSpreadOffset: Vector2.zero);
         }
 
         s_deferredStripMultiOpening = true;
 
-        SortActiveMultiOfferBoxesLeftToRight();
+        AssignActiveMultiOfferSpreadOffsets(this);
         ForceMultiOfferLayoutRefresh();
     }
 
@@ -1333,16 +1407,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _plainHideOnceCallback = null;
         gameObject.SetActive(false);
 
-        float step = fixedSize.x + questOfferCardSpacing;
-        int j = 0;
-        SortActiveMultiOfferBoxesLeftToRight();
-        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
-        {
-            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
-            if (b && b._spawnedAsOfferClone)
-                b._stripAnchoredSpreadOffset = new Vector2(step * j++, 0f);
-        }
-
+        AssignActiveMultiOfferSpreadOffsets(this);
         s_deferredStripMultiOpening = true;
     }
 
@@ -1448,31 +1513,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (!layoutSource)
             return;
 
-        float step = layoutSource.fixedSize.x + layoutSource.questOfferCardSpacing;
-        bool plainHostVisible =
-            SpreadTemplate != null &&
-            SpreadTemplate._pinnedPlainHostForQuestSpread &&
-            SpreadTemplate.gameObject.activeSelf &&
-            !SpreadTemplate._plainHostCollapsedLeavingQuestsOpen;
-
-        SortActiveMultiOfferBoxesLeftToRight();
-
-        int col = 0;
-        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
-        {
-            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
-            if (!box)
-                continue;
-
-            if (plainHostVisible && ReferenceEquals(box, SpreadTemplate))
-            {
-                box._stripAnchoredSpreadOffset = Vector2.zero;
-                continue;
-            }
-
-            box._stripAnchoredSpreadOffset = new Vector2(step * col++, 0f);
-        }
-
+        AssignActiveMultiOfferSpreadOffsets(layoutSource);
         s_deferredStripMultiOpening = true;
     }
 
@@ -1764,14 +1805,15 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (gameObject.activeSelf)
             HideSolo(invokePlainDismissCallback: false);
 
-        float spreadStepPx = fixedSize.x + questOfferCardSpacing;
-
         for (int i = 0; i < quests.Count; i++)
         {
             QuestDefinition q = quests[i];
             NPCDialogueBoxUI inst = i == 0 ? this : Instantiate(gameObject).GetComponent<NPCDialogueBoxUI>();
             if (i > 0)
+            {
                 inst._spawnedAsOfferClone = true;
+                inst.EnsureBuilt();
+            }
 
             ActiveMultiOfferBoxes.Add(inst);
 
@@ -1785,12 +1827,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 () => HandleSpreadQuestAccepted(captured),
                 autoCloseSeconds,
                 partOfMultiSpread: true,
-                stripAnchoredSpreadOffset: new Vector2(spreadStepPx * i, 0f));
+                stripAnchoredSpreadOffset: Vector2.zero);
         }
 
         s_deferredStripMultiOpening = true;
 
-        SortActiveMultiOfferBoxesLeftToRight();
+        AssignActiveMultiOfferSpreadOffsets(this);
         ForceMultiOfferLayoutRefresh();
     }
 
@@ -1890,8 +1932,33 @@ public class NPCDialogueBoxUI : MonoBehaviour
             return;
 
         NPCDialogueBoxUI driver = ResolveMultiOfferStripDriver();
+        NPCDialogueBoxUI layoutSource = driver ?? SpreadTemplate;
+        if (!layoutSource)
+        {
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                if (ActiveMultiOfferBoxes[i] != null)
+                {
+                    layoutSource = ActiveMultiOfferBoxes[i];
+                    break;
+                }
+            }
+        }
+
+        if (!driver)
+            driver = layoutSource;
         if (!driver)
             return;
+
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+            if (box && box.isActiveAndEnabled)
+                box.EnsureStripOverlayLayoutReady();
+        }
+
+        if (layoutSource)
+            AssignActiveMultiOfferSpreadOffsets(layoutSource);
 
         driver.SyncStripViewportFollowerImmediate();
         Canvas.ForceUpdateCanvases();
@@ -1900,7 +1967,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
         {
             NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
-            if (box && box.isActiveAndEnabled && box._stripProjectionRectRt)
+            if (!box || !box.isActiveAndEnabled)
+                continue;
+
+            if (box._stripProjectionRectRt != null)
                 box.RefreshStripOverlayLayoutForFrame();
         }
 
