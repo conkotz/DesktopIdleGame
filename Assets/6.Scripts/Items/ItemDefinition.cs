@@ -827,6 +827,10 @@ public enum EnhancementScrollTargetStat
     EnergyEfficiency,
     FlatGuard,
     ManaRegen,
+    SpellDamage,
+    FireDamagePercent,
+    IceDamagePercent,
+    LightningDamagePercent,
 }
 
 public enum EnhancementScrollModifierKind
@@ -1047,6 +1051,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public CookableStats cookableStats;
 
     public bool IsWeapon => itemKind == ItemKind.Weapon;
+    public bool IsMagicWand =>
+        IsWeapon && weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand;
     public bool IsTool => itemKind == ItemKind.Tool;
     public bool IsArmour => itemKind == ItemKind.Armour;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
@@ -1101,6 +1107,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             randomStatPool = new List<RandomStatPoolEntry>();
         else
             randomStatPool.Clear();
+    }
+
+    internal void CopyRandomStatPoolFrom(ItemDefinition source)
+    {
+        randomStatPool ??= new List<RandomStatPoolEntry>();
+        randomStatPool.Clear();
+        if (source == null || source.randomStatPool == null)
+            return;
+
+        for (int i = 0; i < source.randomStatPool.Count; i++)
+        {
+            RandomStatPoolEntry entry = source.randomStatPool[i];
+            if (entry != null)
+                randomStatPool.Add(entry);
+        }
     }
 
     /// <summary>Mystery affix lines for shop previews before purchase.</summary>
@@ -1554,6 +1575,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             case EnhancementScrollTargetStat.GatherSpeed:
             case EnhancementScrollTargetStat.GatheringGrit:
             case EnhancementScrollTargetStat.StaminaEfficiency:
+            case EnhancementScrollTargetStat.SpellDamage:
+            case EnhancementScrollTargetStat.FireDamagePercent:
+            case EnhancementScrollTargetStat.IceDamagePercent:
+            case EnhancementScrollTargetStat.LightningDamagePercent:
                 return FormatFlatOrPercentStatBonus(
                     value,
                     percent,
@@ -2002,6 +2027,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             case EnhancementScrollTargetStat.ManaRegen:
                 return Mathf.Abs(bonusStats.manaRegen) > eps;
 
+            case EnhancementScrollTargetStat.SpellDamage:
+            case EnhancementScrollTargetStat.FireDamagePercent:
+            case EnhancementScrollTargetStat.IceDamagePercent:
+            case EnhancementScrollTargetStat.LightningDamagePercent:
+                return IsWeapon && weaponStats.attackSkill == AttackSkill.Magic;
+
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 return true;
 
@@ -2225,6 +2256,79 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return BuildTooltipMainStatsText(null);
     }
 
+    private string BuildMagicWandTooltipMainStatsInternal()
+    {
+        float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
+        float critMultBonusPct =
+            (Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) - 1f) * 100f;
+
+        string range = $"{AttackRange:0.##}";
+
+        string dual = (weaponStats.handedness == Handedness.OneHanded && weaponStats.canEquipInOffHand)
+            ? "\nDual Wield: Yes"
+            : "";
+
+        string scaling = BuildWandSpellScalingPercentBonusLines();
+        string extras = BuildBonusLines(
+            includeDefense: false,
+            omitBurnBonuses: true,
+            omitAilmentChanceBonuses: true,
+            omitAilmentMultiplierBonuses: true,
+            omitParryStunChance: true,
+            omitChillShockBonuses: true,
+            omitCritBonuses: true,
+            omitWandSpellScalingPercent: true,
+            omitAttackRangeBonus: true);
+
+        string s = "";
+
+        if (!string.IsNullOrWhiteSpace(scaling))
+            s += scaling + "\n";
+
+        if (weaponStats.minFireDamage > 0 || weaponStats.maxFireDamage > 0)
+            s += $"Fire Damage: {weaponStats.minFireDamage}-{weaponStats.maxFireDamage}\n";
+        if (weaponStats.minIceDamage > 0 || weaponStats.maxIceDamage > 0)
+            s += $"Ice Damage: {weaponStats.minIceDamage}-{weaponStats.maxIceDamage}\n";
+        if (weaponStats.minLightningDamage > 0 || weaponStats.maxLightningDamage > 0)
+            s += $"Lightning Damage: {weaponStats.minLightningDamage}-{weaponStats.maxLightningDamage}\n";
+
+        if (HasSignificantPercentPoints(critChancePct))
+            s += $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n";
+
+        if (HasSignificantPercentPoints(critMultBonusPct))
+            s += $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n";
+
+        string ailments = BuildWeaponAilmentsLine();
+        if (!string.IsNullOrWhiteSpace(ailments))
+            s += ailments + "\n";
+
+        if (BonusMana > 0)
+            s += $"Mana: +{BonusMana}\n";
+
+        string procLines = BuildWeaponProcChanceLines();
+        if (!string.IsNullOrWhiteSpace(procLines))
+            s += procLines + "\n";
+
+        if (!string.IsNullOrWhiteSpace(extras))
+            s += StripDuplicateWeaponProcLines(extras) + "\n";
+
+        if (PhysBlockChance > 0f)
+            s += $"Phys Block: {FormatSignedPercent01(PhysBlockChance)}\n";
+        if (BonusHealth > 0)
+            s += $"Health: +{BonusHealth}\n";
+
+        string misc = BuildMiscTooltipLines();
+        if (!string.IsNullOrWhiteSpace(misc))
+            s += misc + "\n";
+
+        s += $"Range: {range}" + dual;
+
+        if (RequiresOffhandSupport)
+            s += $"\nRequires: {RequiredSupportType}";
+
+        return s.TrimEnd('\n');
+    }
+
     /// <summary>Main stats block with optional bold highlights for bonuses vs a baseline item.</summary>
     public string BuildTooltipMainStatsText(ItemDefinition baselineForHighlights)
     {
@@ -2238,6 +2342,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     {
         if (IsWeapon)
         {
+            if (IsMagicWand)
+                return BuildMagicWandTooltipMainStatsInternal();
+
             float aps = weaponStats.attacksPerSecond > 0f ? weaponStats.attacksPerSecond : 1f;
             aps *= Mathf.Max(0.1f, 1f + bonusStats.attackSpeedPercent);
 
@@ -2259,7 +2366,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 omitAilmentChanceBonuses: true,
                 omitAilmentMultiplierBonuses: true,
                 omitParryStunChance: true,
-                omitChillShockBonuses: true);
+                omitChillShockBonuses: true,
+                omitCritBonuses: true);
 
             string s = "";
 
@@ -2276,7 +2384,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (HasCorruptionWeaponDamage)
                 s += $"Corruption Damage: {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}\n";
 
-            s += $"Speed: {speed}\n";
+            if (weaponStats.attacksPerSecond > 0f)
+                s += $"Speed: {speed}\n";
 
             if (HasSignificantPercentPoints(critChancePct))
                 s += $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n";
@@ -2704,7 +2813,26 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             omitAilmentChanceBonuses: true,
             omitAilmentMultiplierBonuses: true,
             omitParryStunChance: true,
-            omitChillShockBonuses: true);
+            omitChillShockBonuses: true,
+            omitCritBonuses: IsWeapon,
+            omitWandSpellScalingPercent: IsMagicWand,
+            omitAttackRangeBonus: IsMagicWand);
+    }
+
+    internal string BuildWandSpellScalingBonusLinesForHighlight(ItemDefinition baseline)
+    {
+        if (baseline == null)
+            return string.Empty;
+
+        return BuildBonusCompareLines(
+            baseline.bonusStats,
+            includeDefense: false,
+            omitBurnBonuses: true,
+            omitAilmentChanceBonuses: true,
+            omitAilmentMultiplierBonuses: true,
+            omitParryStunChance: true,
+            omitChillShockBonuses: true,
+            spellScalingPercentOnly: true);
     }
 
     internal string BuildMiscLinesForHighlight(ItemDefinition baseline)
@@ -2733,7 +2861,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         bool omitAilmentMultiplierBonuses,
         bool omitParryStunChance = false,
         bool omitChillShockBonuses = false,
-        bool highlightAllLines = false)
+        bool highlightAllLines = false,
+        bool omitCritBonuses = false,
+        bool omitWandSpellScalingPercent = false,
+        bool omitAttackRangeBonus = false,
+        bool spellScalingPercentOnly = false)
     {
         var sb = new System.Text.StringBuilder();
         BonusStats cur = bonusStats;
@@ -2775,6 +2907,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 return;
 
             AppendCompared(baselineLine, currentLine, true, deltaNote);
+        }
+
+        if (spellScalingPercentOnly)
+        {
+            AppendWandSpellScalingPercentCompareLines(baselineStats, cur, AppendCompared, HasFloatDelta, FloatDelta);
+            return sb.ToString().TrimEnd('\n');
         }
 
         if (includeDefense)
@@ -2946,7 +3084,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedNumber(delta));
         }
 
-        if (cur.magicDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && cur.magicDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent);
             AppendCompared(
@@ -2960,7 +3098,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedPercent01(delta));
         }
 
-        if (cur.fireSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && cur.fireSkillDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent);
             AppendCompared(
@@ -2974,7 +3112,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 DeltaPercentFractionNote(delta));
         }
 
-        if (cur.iceSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && cur.iceSkillDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent);
             AppendCompared(
@@ -2988,7 +3126,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 DeltaPercentFractionNote(delta));
         }
 
-        if (cur.lightningSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && cur.lightningSkillDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent);
             AppendCompared(
@@ -3002,7 +3140,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 DeltaPercentFractionNote(delta));
         }
 
-        if (cur.spellDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && cur.spellDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.spellDamagePercent, baselineStats.spellDamagePercent);
             AppendCompared(
@@ -3044,7 +3182,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedNumber(delta));
         }
 
-        if (cur.abilityPower != 0f)
+        if (!omitWandSpellScalingPercent && cur.abilityPower != 0f)
         {
             float delta = FloatDelta(cur.abilityPower, baselineStats.abilityPower);
             AppendCompared(
@@ -3156,7 +3294,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 DeltaPercentFractionNote(delta));
         }
 
-        if (cur.critChanceBonus != 0f)
+        if (!omitCritBonuses && cur.critChanceBonus != 0f)
         {
             float delta = FloatDelta(cur.critChanceBonus, baselineStats.critChanceBonus);
             AppendCompared(
@@ -3170,7 +3308,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedPercent01(delta));
         }
 
-        if (cur.critMultiplierBonus != 0f)
+        if (!omitCritBonuses && cur.critMultiplierBonus != 0f)
         {
             float delta = FloatDelta(cur.critMultiplierBonus, baselineStats.critMultiplierBonus);
             AppendCompared(
@@ -3184,7 +3322,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedPercent01(delta));
         }
 
-        if (cur.attackRangeBonus != 0f)
+        if (!omitAttackRangeBonus && cur.attackRangeBonus != 0f)
         {
             float delta = FloatDelta(cur.attackRangeBonus, baselineStats.attackRangeBonus);
             AppendCompared(
@@ -3339,14 +3477,107 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     internal string BuildMiscTooltipLinesForTooltip() => BuildMiscTooltipLines();
 
+    private string BuildWandSpellScalingPercentBonusLines()
+    {
+        string s = "";
+        if (bonusStats.spellDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent)}\n";
+        if (bonusStats.magicDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent)}\n";
+        if (bonusStats.fireSkillDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent)}\n";
+        if (bonusStats.iceSkillDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}\n";
+        if (bonusStats.lightningSkillDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent)}\n";
+        if (bonusStats.abilityPower != 0f)
+            s += $"Ability Power: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
+        return s.TrimEnd('\n');
+    }
+
+    private void AppendWandSpellScalingPercentCompareLines(
+        BonusStats baselineStats,
+        BonusStats cur,
+        System.Action<string, string, bool, string> appendCompared,
+        System.Func<float, float, bool> hasFloatDelta,
+        System.Func<float, float, float> floatDelta)
+    {
+        if (cur.spellDamagePercent != 0f)
+        {
+            float delta = floatDelta(cur.spellDamagePercent, baselineStats.spellDamagePercent);
+            appendCompared(
+                FormatScalingCoefficientPercentLine(baselineStats.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent),
+                FormatScalingCoefficientPercentLine(cur.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent),
+                hasFloatDelta(cur.spellDamagePercent, baselineStats.spellDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.magicDamagePercent != 0f)
+        {
+            float delta = floatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent);
+            appendCompared(
+                FormatScalingCoefficientPercentLine(baselineStats.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent),
+                FormatScalingCoefficientPercentLine(cur.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent),
+                hasFloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.fireSkillDamagePercent != 0f)
+        {
+            float delta = floatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent);
+            appendCompared(
+                FormatScalingCoefficientPercentLine(baselineStats.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent),
+                FormatScalingCoefficientPercentLine(cur.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent),
+                hasFloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.iceSkillDamagePercent != 0f)
+        {
+            float delta = floatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent);
+            appendCompared(
+                FormatScalingCoefficientPercentLine(baselineStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent),
+                FormatScalingCoefficientPercentLine(cur.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent),
+                hasFloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.lightningSkillDamagePercent != 0f)
+        {
+            float delta = floatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent);
+            appendCompared(
+                FormatScalingCoefficientPercentLine(baselineStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent),
+                FormatScalingCoefficientPercentLine(cur.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent),
+                hasFloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.abilityPower != 0f)
+        {
+            float delta = floatDelta(cur.abilityPower, baselineStats.abilityPower);
+            appendCompared(
+                $"Ability Power: {FormatSignedPercent100(baselineStats.abilityPower)}",
+                $"Ability Power: {FormatSignedPercent100(cur.abilityPower)}",
+                hasFloatDelta(cur.abilityPower, baselineStats.abilityPower),
+                FormatSignedPercent100(delta));
+        }
+    }
+
     private string BuildBonusLines(
         bool includeDefense,
         bool omitBurnBonuses = false,
         bool omitAilmentChanceBonuses = false,
         bool omitAilmentMultiplierBonuses = false,
         bool omitParryStunChance = false,
-        bool omitChillShockBonuses = false)
+        bool omitChillShockBonuses = false,
+        bool omitCritBonuses = false,
+        bool omitWandSpellScalingPercent = false,
+        bool omitAttackRangeBonus = false,
+        bool spellScalingPercentOnly = false)
     {
+        if (spellScalingPercentOnly)
+            return BuildWandSpellScalingPercentBonusLines();
+
         string s = "";
 
         if (includeDefense)
@@ -3372,20 +3603,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.rangedPhysicalDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, OffenseBonusDisplayNames.RangedDamage)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
-        if (bonusStats.magicDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && bonusStats.magicDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.magicDamagePercent, OffenseBonusDisplayNames.MagicDamagePercent)}\n";
-        if (bonusStats.fireSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && bonusStats.fireSkillDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, OffenseBonusDisplayNames.FireDamagePercent)}\n";
-        if (bonusStats.iceSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && bonusStats.iceSkillDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}\n";
-        if (bonusStats.lightningSkillDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && bonusStats.lightningSkillDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent)}\n";
-        if (bonusStats.spellDamagePercent != 0f)
+        if (!omitWandSpellScalingPercent && bonusStats.spellDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent)}\n";
         if (bonusStats.corruptionDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
-        if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
+        if (!omitWandSpellScalingPercent && bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
 
         if (bonusStats.attackSpeedPercent != 0f)
@@ -3400,9 +3631,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"Minion Crit Chance: {FormatSignedPercent01(bonusStats.minionCritChance)}\n";
         if (bonusStats.minionMaxLifePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionMaxLifePercent, ItemStatDisplayNames.MinionMaxHp)}\n";
-        if (bonusStats.critChanceBonus != 0f) s += $"Crit Chance: {FormatSignedPercent01(bonusStats.critChanceBonus)}\n";
-        if (bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
-        if (bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";
+        if (!omitCritBonuses && bonusStats.critChanceBonus != 0f) s += $"Crit Chance: {FormatSignedPercent01(bonusStats.critChanceBonus)}\n";
+        if (!omitCritBonuses && bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
+        if (!omitAttackRangeBonus && bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";
 
         if (!omitAilmentChanceBonuses && bonusStats.bleedChance != 0f)
             s += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
@@ -3950,6 +4181,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.EnergyEfficiency => "Energy Efficiency",
             EnhancementScrollTargetStat.FlatGuard => "Flat Guard",
             EnhancementScrollTargetStat.ManaRegen => "Mana Regen",
+            EnhancementScrollTargetStat.SpellDamage => OffenseBonusDisplayNames.SpellDamagePercent,
+            EnhancementScrollTargetStat.FireDamagePercent => $"{OffenseBonusDisplayNames.FireDamagePercent} %",
+            EnhancementScrollTargetStat.IceDamagePercent => $"{OffenseBonusDisplayNames.IceDamagePercent} %",
+            EnhancementScrollTargetStat.LightningDamagePercent => $"{OffenseBonusDisplayNames.LightningDamagePercent} %",
             _ => stat.ToString()
         };
     }

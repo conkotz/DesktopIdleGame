@@ -25,7 +25,8 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic wand. Damage comes from your chosen Lv1 spell, not the weapon itself.
+  description: A basic wand. Damage comes from your chosen Lv1 spell, not the weapon
+    itself.
   rarity: 1
   value: 150
   equipSlot: 1
@@ -47,7 +48,7 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 0
     maxCorruptionDamage: 0
-    attacksPerSecond: 0.5
+    attacksPerSecond: 0
     critChance: 0.05
     critMultiplier: 1.5
     handedness: 1
@@ -57,7 +58,7 @@ MonoBehaviour:
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
-    magicAilmentApplyChance: 0.5
+    magicAilmentApplyChance: 0.25
     unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 1
@@ -161,14 +162,6 @@ MonoBehaviour:
     evadeChance: 0
   randomStatPool:
   - stat: 22
-    weight: 1
-    minValue: 3
-    maxValue: 10
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 18
     weight: 1
     minValue: 3
     maxValue: 10

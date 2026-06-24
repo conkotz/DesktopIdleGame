@@ -184,9 +184,8 @@ public static class ItemRandomStatRoller
         if (!clone)
             return null;
 
-        var pool = new List<RandomStatPoolEntry>(baseDef.RandomStatPoolEntries);
-        ApplyRolls(clone, pool, baseDef.rarity);
-        clone.ClearRandomStatPool();
+        // Keep the authored pool on the clone; affixes roll when the player identifies the item.
+        clone.CopyRandomStatPoolFrom(baseDef);
         clone.randomStatsPendingIdentification = true;
         return clone;
     }

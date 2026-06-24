@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 40bf976827de79147b880b19bd35a1fe
+guid: 3676b3313adfc364e858ba0ad6ffa832
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3635194895896409061
-    second: ChainLightningIcon_0
+      213: -7309800308692289143
+    second: BasicSpellsIcons_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,23 +100,67 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ChainLightningIcon_0
+      name: FireBallIcon
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1254
-        height: 1254
+        x: 17
+        y: 458
+        width: 400
+        height: 400
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
-      tessellationDetail: -1
+      tessellationDetail: 0
       bones: []
-      spriteID: 5e3f73b6f7ec27230800000000000000
-      internalID: 3635194895896409061
+      spriteID: 96d971ed3b7990244af0d06c6648644e
+      internalID: -317914268
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IceShardIcon
+      rect:
+        serializedVersion: 2
+        x: 430
+        y: 457
+        width: 400
+        height: 400
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a069a362759a9d4199b409d93551b6c
+      internalID: 1411015114
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyBoltIcon
+      rect:
+        serializedVersion: 2
+        x: 834
+        y: 457
+        width: 400
+        height: 400
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cdfcabe2f7f881945813d6fd3edd78ed
+      internalID: -69107095
       vertices: []
       indices: 
       edges: []
@@ -125,7 +169,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: b787c1af41eaa1344a776e7e3f1496ea
     internalID: 0
     vertices: []
     indices: 
@@ -133,9 +177,19 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries: []
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":400.0,"y":400.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      ChainLightningIcon_0: 3635194895896409061
+      BasicSpellsIcons_0: -7309800308692289143
+      BasicSpellsIcons_1: -616762074
+      BasicSpellsIcons_2: -1882645911
+      BasicSpellsIcons_6: -939054216
+      BasicSpellsIcons_7: 1128937354
+      BasicSpellsIcons_8: -1869979958
+      EnergyBoltIcon: -69107095
+      FireBallIcon: -317914268
+      IceShardIcon: 1411015114
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

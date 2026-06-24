@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: basic_weapon_physical_scroll
+  m_Name: intermediate_weapon_spell_damage_scroll
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 8
   maxStack: 5
-  itemId: basic_weapon_physical_scroll
-  displayName: Physical Damage Basic Scroll
+  itemId: intermediate_weapon_spell_damage_scroll
+  displayName: Spell Damage Intermediate Scroll
   displayNameSingular: 
   icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
   heldSprite: {fileID: 0}
@@ -25,11 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: An enhancement scroll that can add physical damage to eligible gear.
-  rarity: 1
+  description: An enhancement scroll that can add spell damage intermediate to eligible magic weapons.
+  rarity: 2
   value: 20
   equipSlot: 0
-  uniquelyEquipped: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -63,7 +62,6 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
-    weaponWeight: 0
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -73,6 +71,7 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
+    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -91,7 +90,6 @@ MonoBehaviour:
     staminaEfficiency: 0
   armourStats:
     equipmentTier: 0
-    armourType: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -101,14 +99,10 @@ MonoBehaviour:
     energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
-    armor: 0
-    staminaEfficiency: 0
-    armorType: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
-    maxHealthPercent: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -120,7 +114,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    meleePhysicalDamagePercent: 0
+    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -128,7 +122,6 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
-    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -155,14 +148,9 @@ MonoBehaviour:
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
     stunChance: 0
-    minThornsDamage: 0
-    maxThornsDamage: 0
-    thornsDamagePercent: 0
-    evadeChance: 0
   randomStatPool: []
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
-  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -174,7 +162,6 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
-      hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
     mapEnhancementTier: 0
@@ -191,20 +178,17 @@ MonoBehaviour:
     foodOverhealInstantHeal: 0
     foodEnableFocused: 0
     foodFocusedDamageBonusFraction: 0
-  enhancementOptionId: physical_basic
+  enhancementOptionId: spell_damage_intermediate
   enhancementScrollStats:
-    successChance: 0
-    targetStat: 0
-    modifierKind: 0
-    modifierValue: 2
+    successChance: 0.5
+    targetStat: 30
+    modifierKind: 1
+    modifierValue: 0.03
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 96
-  mapEnhancementStats:
-    tier: 0
-    modRolls: []
+    allowedGearTypes: 128
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

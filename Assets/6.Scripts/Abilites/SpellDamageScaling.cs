@@ -26,20 +26,6 @@ public static class SpellDamageScaling
         return spellMult * magicMult * elementMult * apMult;
     }
 
-    /// <summary>
-    /// Starter spell auto-attack multiplier: spell %, elemental %, AP — magic % already folded into the attack split.
-    /// </summary>
-    public static float GetStarterSpellAutoAttackMultiplier(CharacterStats stats, MagicAttackType element)
-    {
-        if (stats == null)
-            return 1f;
-
-        float spellMult = 1f + stats.SpellDamageTotalScalingPercentPoints / 100f;
-        float elementMult = GetElementSkillDamageMultiplier(stats, element);
-        float apMult = stats.GetAbilityPowerDamageMultiplier();
-        return spellMult * elementMult * apMult;
-    }
-
     private static float GetElementSkillDamageMultiplier(CharacterStats stats, MagicAttackType element)
     {
         return element switch
@@ -56,12 +42,9 @@ public static class SpellDamageScaling
         float baseMin,
         float baseMax,
         out float minDamage,
-        out float maxDamage,
-        bool forAutoAttack = false)
+        out float maxDamage)
     {
-        float mult = forAutoAttack
-            ? GetStarterSpellAutoAttackMultiplier(stats, element)
-            : GetSpellDamageMultiplierForElement(stats, element);
+        float mult = GetSpellDamageMultiplierForElement(stats, element);
         minDamage = Mathf.Max(0f, baseMin * mult);
         maxDamage = Mathf.Max(minDamage, baseMax * mult);
     }
@@ -77,6 +60,21 @@ public static class SpellDamageScaling
     public static float RollScaledLightningDamage(CharacterStats stats, float baseMin, float baseMax)
     {
         ScaleBaseLightningBounds(stats, baseMin, baseMax, out float min, out float max);
+        return RollFromScaledBounds(min, max);
+    }
+
+    public static float RollScaledElementDamage(
+        CharacterStats stats,
+        MagicAttackType element,
+        float baseMin,
+        float baseMax)
+    {
+        ScaleElementBounds(stats, element, baseMin, baseMax, out float min, out float max);
+        return RollFromScaledBounds(min, max);
+    }
+
+    private static float RollFromScaledBounds(float min, float max)
+    {
         if (max <= min + 0.001f)
             return Mathf.Max(1f, min);
 

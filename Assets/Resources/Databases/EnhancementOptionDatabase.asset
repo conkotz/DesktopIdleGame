@@ -746,6 +746,162 @@ MonoBehaviour:
     failureOutcome: 0
     destroyChanceOnFailure: 0
     linkedScrollItemId: advanced_weapon_burn_multi_scroll
+  - optionId: spell_damage_basic
+    displayName: Spell Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 30
+    modifierKind: 1
+    modifierValue: 0.02
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_spell_damage_scroll
+  - optionId: spell_damage_intermediate
+    displayName: Spell Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 30
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_spell_damage_scroll
+  - optionId: spell_damage_advanced
+    displayName: Spell Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 30
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_spell_damage_scroll
+  - optionId: fire_percent_basic
+    displayName: Fire Damage % Basic
+    track: 0
+    tier: 0
+    targetStat: 31
+    modifierKind: 1
+    modifierValue: 0.02
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_fire_percent_scroll
+  - optionId: fire_percent_intermediate
+    displayName: Fire Damage % Intermediate
+    track: 0
+    tier: 1
+    targetStat: 31
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_fire_percent_scroll
+  - optionId: fire_percent_advanced
+    displayName: Fire Damage % Advanced
+    track: 0
+    tier: 2
+    targetStat: 31
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_fire_percent_scroll
+  - optionId: ice_percent_basic
+    displayName: Ice Damage % Basic
+    track: 0
+    tier: 0
+    targetStat: 32
+    modifierKind: 1
+    modifierValue: 0.02
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_ice_percent_scroll
+  - optionId: ice_percent_intermediate
+    displayName: Ice Damage % Intermediate
+    track: 0
+    tier: 1
+    targetStat: 32
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_ice_percent_scroll
+  - optionId: ice_percent_advanced
+    displayName: Ice Damage % Advanced
+    track: 0
+    tier: 2
+    targetStat: 32
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_ice_percent_scroll
+  - optionId: lightning_percent_basic
+    displayName: Lightning Damage % Basic
+    track: 0
+    tier: 0
+    targetStat: 33
+    modifierKind: 1
+    modifierValue: 0.02
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_lightning_percent_scroll
+  - optionId: lightning_percent_intermediate
+    displayName: Lightning Damage % Intermediate
+    track: 0
+    tier: 1
+    targetStat: 33
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: intermediate_weapon_lightning_percent_scroll
+  - optionId: lightning_percent_advanced
+    displayName: Lightning Damage % Advanced
+    track: 0
+    tier: 2
+    targetStat: 33
+    modifierKind: 1
+    modifierValue: 0.04
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: advanced_weapon_lightning_percent_scroll
   - optionId: gather_speed_basic
     displayName: Gather Speed Basic
     track: 0

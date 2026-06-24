@@ -60,7 +60,10 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
         if (options.Count == 0)
             PopulateDefaultOptions();
         else
+        {
             EnsureSpecialOptionsPresent();
+            EnsureSpellAndElementalPercentOptionsPresent();
+        }
     }
 
 #if UNITY_EDITOR
@@ -102,7 +105,10 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
             return true;
 
         EnhancementOptionEntry critMultiBasic = GetById("crit_multi_basic");
-        return critMultiBasic == null || !critMultiBasic.usesWeaponWeightScaling;
+        if (critMultiBasic == null || !critMultiBasic.usesWeaponWeightScaling)
+            return true;
+
+        return GetById("spell_damage_basic") == null;
     }
 
     private void PopulateDefaultOptions()
@@ -156,6 +162,15 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
         AddWeightScaledPercentTierValues("burn_multi", "Burn Multi", EnhancementScrollTargetStat.BurnMultiplier,
             0.05f, 0.07f, 0.09f, EnhancementScrollGearMask.Weapon, "basic_weapon_burn_multi_scroll");
 
+        AddPercentTierValues("spell_damage", "Spell Damage", EnhancementScrollTargetStat.SpellDamage,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_spell_damage_scroll");
+        AddPercentTierValues("fire_percent", "Fire Damage %", EnhancementScrollTargetStat.FireDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_fire_percent_scroll");
+        AddPercentTierValues("ice_percent", "Ice Damage %", EnhancementScrollTargetStat.IceDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_ice_percent_scroll");
+        AddPercentTierValues("lightning_percent", "Lightning Damage %", EnhancementScrollTargetStat.LightningDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_lightning_percent_scroll");
+
         AddPercentTierValues("gather_speed", "Gather Speed", EnhancementScrollTargetStat.GatherSpeed,
             0.10f, 0.15f, 0.20f, EnhancementScrollGearMask.Tool, "basic_tool_gather_speed_scroll");
         AddPercentTierValues("gathering_grit", "Gathering Grit", EnhancementScrollTargetStat.GatheringGrit,
@@ -181,10 +196,24 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
 
     private void EnsureSpecialOptionsPresent()
     {
-        if (GetById("slot_reduction") != null)
+        if (GetById("slot_reduction") == null)
+            options.Add(CreateSlotReductionOption());
+    }
+
+    private void EnsureSpellAndElementalPercentOptionsPresent()
+    {
+        if (GetById("spell_damage_basic") != null)
             return;
 
-        options.Add(CreateSlotReductionOption());
+        AddPercentTierValues("spell_damage", "Spell Damage", EnhancementScrollTargetStat.SpellDamage,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_spell_damage_scroll");
+        AddPercentTierValues("fire_percent", "Fire Damage %", EnhancementScrollTargetStat.FireDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_fire_percent_scroll");
+        AddPercentTierValues("ice_percent", "Ice Damage %", EnhancementScrollTargetStat.IceDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_ice_percent_scroll");
+        AddPercentTierValues("lightning_percent", "Lightning Damage %", EnhancementScrollTargetStat.LightningDamagePercent,
+            0.02f, 0.03f, 0.04f, EnhancementScrollGearMask.MagicWeapon, "basic_weapon_lightning_percent_scroll");
+        EnhancementOptionResolver.InvalidateCache();
     }
 
     private static EnhancementOptionEntry CreateSlotReductionOption()

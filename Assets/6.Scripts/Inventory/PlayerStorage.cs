@@ -1062,7 +1062,12 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 string id = Inventory.RemapLegacyItemId(d.itemId);
                 if (canValidateDefs && GetItemDef(id) == null)
                 {
-                    Debug.LogWarning($"[PlayerStorage] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing storage slot {i}.");
+                    if (!Inventory.IsObsoleteWandItemId(d.itemId))
+                    {
+                        Debug.LogWarning(
+                            $"[PlayerStorage] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing storage slot {i}.");
+                    }
+
                     continue;
                 }
 

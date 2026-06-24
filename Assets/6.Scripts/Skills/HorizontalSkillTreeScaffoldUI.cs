@@ -30,7 +30,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [Header("Layout")]
     [Tooltip("Horizontal spacing per level when Timeline Scaffold is missing.")]
     [SerializeField] private float pixelsPerLevel = 90f;
-    [SerializeField] private float timelineStartX = 120f;
+    [SerializeField] private float timelineStartX = 220f;
     [Tooltip("TimelineContent Y for SpineRow. Pushed to Timeline Scaffold on each build when assigned.")]
     [SerializeField] private float spineY = 24f;
     [Tooltip("TimelineContent Y for ChoiceRow. Pushed to Timeline Scaffold on each build when assigned.")]
@@ -133,6 +133,32 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         PreferRuntimeSkillsManager();
         EnsureDetailsPanelReference();
         EnsureSkillLevelTextReference();
+        EnsureSkillLevelPanelHoverDim();
+    }
+
+    private static void EnsureSkillLevelPanelHoverDim()
+    {
+        Transform timelineContainer = null;
+        var horizontal = FindFirstObjectByType<HorizontalSkillTreeScaffoldUI>(FindObjectsInactive.Include);
+        if (horizontal != null)
+            timelineContainer = horizontal.transform.Find("TimelineContainer");
+
+        if (timelineContainer == null)
+        {
+            var page = FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include);
+            if (page != null)
+                timelineContainer = page.transform.Find("TimelineContainer");
+        }
+
+        if (timelineContainer == null)
+            return;
+
+        Transform skillLevelPanel = timelineContainer.Find("SkillLevelPanel");
+        if (skillLevelPanel == null)
+            return;
+
+        if (skillLevelPanel.GetComponent<SkillLevelPanelHoverDimUI>() == null)
+            skillLevelPanel.gameObject.AddComponent<SkillLevelPanelHoverDimUI>();
     }
 
     private bool _pendingConnectorRefreshWhileInactive;

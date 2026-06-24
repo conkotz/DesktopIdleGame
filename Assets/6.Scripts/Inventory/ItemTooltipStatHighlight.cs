@@ -73,6 +73,9 @@ public static class ItemTooltipStatHighlight
 
     private static string BuildWeaponMainStats(ItemDefinition current, ItemDefinition baseline)
     {
+        if (current.IsMagicWand)
+            return BuildMagicWandWeaponMainStats(current, baseline);
+
         float aps = current.weaponStats.attacksPerSecond > 0f ? current.weaponStats.attacksPerSecond : 1f;
         aps *= Mathf.Max(0.1f, 1f + current.bonusStats.attackSpeedPercent);
 
@@ -119,7 +122,8 @@ public static class ItemTooltipStatHighlight
             s.Append(FormatIntRangeLine("Corruption Damage", current.weaponStats.minCorruptionDamage, current.weaponStats.maxCorruptionDamage,
                 baseline.weaponStats.minCorruptionDamage, baseline.weaponStats.maxCorruptionDamage)).Append('\n');
 
-        s.Append(FormatFloatLine("Speed", $"{aps:0.##} atk/s", aps, baseAps, $"{baseAps:0.##} atk/s")).Append('\n');
+        if (current.weaponStats.attacksPerSecond > 0f)
+            s.Append(FormatFloatLine("Speed", $"{aps:0.##} atk/s", aps, baseAps, $"{baseAps:0.##} atk/s")).Append('\n');
 
         if (HasSignificantPercentPoints(critChancePct))
             s.Append(FormatPercentLine("Crit Chance", critChancePct, baseCritChancePct, signed: true)).Append('\n');
@@ -161,6 +165,82 @@ public static class ItemTooltipStatHighlight
         string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
             s.Append('\n').Append(misc);
+
+        return s.ToString().TrimEnd('\n');
+    }
+
+    private static string BuildMagicWandWeaponMainStats(ItemDefinition current, ItemDefinition baseline)
+    {
+        float critChancePct = Mathf.Clamp01(current.weaponStats.critChance + current.bonusStats.critChanceBonus) * 100f;
+        float baseCritChancePct = Mathf.Clamp01(baseline.weaponStats.critChance + baseline.bonusStats.critChanceBonus) * 100f;
+
+        float critMultBonusPct =
+            (Mathf.Max(0f, current.weaponStats.critMultiplier + current.bonusStats.critMultiplierBonus) - 1f) * 100f;
+        float baseCritMultBonusPct =
+            (Mathf.Max(0f, baseline.weaponStats.critMultiplier + baseline.bonusStats.critMultiplierBonus) - 1f) * 100f;
+
+        float range = current.AttackRange;
+        float baseRange = baseline.AttackRange;
+
+        string dual = (current.weaponStats.handedness == Handedness.OneHanded && current.weaponStats.canEquipInOffHand)
+            ? "\nDual Wield: Yes"
+            : "";
+
+        var s = new StringBuilder();
+
+        string scaling = current.BuildWandSpellScalingBonusLinesForHighlight(baseline);
+        if (!string.IsNullOrWhiteSpace(scaling))
+            s.Append(scaling).Append('\n');
+
+        if (current.weaponStats.minFireDamage > 0 || current.weaponStats.maxFireDamage > 0)
+            s.Append(FormatIntRangeLine("Fire Damage", current.weaponStats.minFireDamage, current.weaponStats.maxFireDamage,
+                baseline.weaponStats.minFireDamage, baseline.weaponStats.maxFireDamage)).Append('\n');
+
+        if (current.weaponStats.minIceDamage > 0 || current.weaponStats.maxIceDamage > 0)
+            s.Append(FormatIntRangeLine("Ice Damage", current.weaponStats.minIceDamage, current.weaponStats.maxIceDamage,
+                baseline.weaponStats.minIceDamage, baseline.weaponStats.maxIceDamage)).Append('\n');
+
+        if (current.weaponStats.minLightningDamage > 0 || current.weaponStats.maxLightningDamage > 0)
+            s.Append(FormatIntRangeLine("Lightning Damage", current.weaponStats.minLightningDamage, current.weaponStats.maxLightningDamage,
+                baseline.weaponStats.minLightningDamage, baseline.weaponStats.maxLightningDamage)).Append('\n');
+
+        if (HasSignificantPercentPoints(critChancePct))
+            s.Append(FormatPercentLine("Crit Chance", critChancePct, baseCritChancePct, signed: true)).Append('\n');
+
+        if (HasSignificantPercentPoints(critMultBonusPct))
+            s.Append(FormatPercentLine("Crit Multi", critMultBonusPct, baseCritMultBonusPct, signed: true)).Append('\n');
+
+        string matchingAilments = current.BuildWeaponAilmentsLineForTooltip(baseline);
+        if (!string.IsNullOrWhiteSpace(matchingAilments))
+            s.Append(matchingAilments).Append('\n');
+
+        string ailmentBonuses = current.BuildWeaponAilmentBonusLinesForTooltip(baseline);
+        if (!string.IsNullOrWhiteSpace(ailmentBonuses))
+            s.Append(ailmentBonuses).Append('\n');
+
+        if (current.BonusMana > 0)
+            AppendIntStatLine(s, "Mana", current.BonusMana, baseline.BonusMana, prefixPlus: true);
+
+        AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
+        AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
+
+        string extras = current.BuildBonusLinesForHighlight(baseline);
+        if (!string.IsNullOrWhiteSpace(extras))
+            s.Append(ItemDefinition.StripDuplicateWeaponProcLines(extras)).Append('\n');
+
+        AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);
+        AppendWeaponProcLine(s, "Health", current.BonusHealth, baseline.BonusHealth, percent01: false, prefixPlus: true);
+
+        string misc = current.BuildMiscLinesForHighlight(baseline);
+        if (!string.IsNullOrWhiteSpace(misc))
+            s.Append(misc).Append('\n');
+
+        if (s.Length > 0 && s[s.Length - 1] != '\n')
+            s.Append('\n');
+        s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
+
+        if (current.RequiresOffhandSupport)
+            s.Append($"\nRequires: {current.RequiredSupportType}");
 
         return s.ToString().TrimEnd('\n');
     }

@@ -175,6 +175,83 @@ public static class SkillAbilityCommitRules
         return ShouldShowAbilityInRightPanel(skill, ability, sm);
     }
 
+    public static int GetAbilityRowPickIndexForUnlock(SkillDefinition skill, SkillUnlockDefinition unlock)
+    {
+        if (skill == null || unlock?.ability == null)
+            return -1;
+
+        return IndexOfAbilityInSiblingList(
+            GetAbilitySiblingsOnSkillRow(skill, Mathf.Max(1, unlock.requiredLevel)),
+            unlock.ability);
+    }
+
+    public static bool IsAbilityRowUnlock(SkillUnlockDefinition unlock)
+    {
+        if (unlock == null)
+            return false;
+
+        return unlock.unlockType == SkillUnlockType.Ability
+               || unlock.unlockType == SkillUnlockType.CapstonePassive;
+    }
+
+    /// <summary>
+    /// Resolves the stored row pick, including legacy horizontal-timeline slot indices that counted
+    /// non-ability unlocks at the same level.
+    /// </summary>
+    public static int GetCommittedAbilityRowPick(
+        SkillsManager sm,
+        SkillDefinition skill,
+        int requiredLevel,
+        int defaultValue = -1)
+    {
+        if (sm == null || skill == null)
+            return defaultValue;
+
+        int stored = sm.GetSkillAbilityRowPick(skill.skillType, requiredLevel, defaultValue);
+        if (stored < 0)
+            return defaultValue;
+
+        List<AbilityDefinition> siblings = GetAbilitySiblingsOnSkillRow(skill, requiredLevel);
+        if (siblings.Count == 0)
+            return stored;
+
+        if (stored < siblings.Count)
+            return stored;
+
+        return TryRemapLegacyHorizontalSlotToSiblingIndex(skill, requiredLevel, stored, defaultValue);
+    }
+
+    private static int TryRemapLegacyHorizontalSlotToSiblingIndex(
+        SkillDefinition skill,
+        int requiredLevel,
+        int storedSlotAtLevel,
+        int defaultValue)
+    {
+        List<HorizontalSkillTreeUnlockLayout.SortedUnlock> sorted =
+            HorizontalSkillTreeUnlockLayout.BuildSortedUnlocks(skill.unlocks);
+        int level = Mathf.Max(1, requiredLevel);
+
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            HorizontalSkillTreeUnlockLayout.SortedUnlock entry = sorted[i];
+            if (entry.Level != level || entry.SlotAtLevel != storedSlotAtLevel)
+                continue;
+
+            SkillUnlockDefinition unlock = entry.Unlock;
+            if (unlock?.ability == null)
+                continue;
+
+            if (unlock.unlockType != SkillUnlockType.Ability
+                && unlock.unlockType != SkillUnlockType.CapstonePassive)
+                continue;
+
+            int siblingIndex = GetAbilityRowPickIndexForUnlock(skill, unlock);
+            return siblingIndex >= 0 ? siblingIndex : defaultValue;
+        }
+
+        return defaultValue;
+    }
+
     public static int IndexOfAbilityInSiblingList(List<AbilityDefinition> siblings, AbilityDefinition ability)
     {
         if (siblings == null || ability == null)
@@ -274,7 +351,7 @@ public static class SkillAbilityCommitRules
             if (siblings == null || siblings.Count == 0)
                 continue;
 
-            int pick = skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1);
+            int pick = SkillAbilityCommitRules.GetCommittedAbilityRowPick(skillsManager, skill, rowLevel, -1);
             if (pick < 0 || pick >= siblings.Count)
                 continue;
 

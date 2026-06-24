@@ -245,7 +245,11 @@ public class ItemDatabase : ScriptableObject
             if (saved == null || string.IsNullOrWhiteSpace(saved.itemId) || string.IsNullOrWhiteSpace(saved.baseItemId))
                 continue;
 
-            ItemDefinition baseDef = Get(saved.baseItemId);
+            string baseItemId = Inventory.RemapLegacyItemId(saved.baseItemId);
+            if (Inventory.IsObsoleteWandItemId(saved.itemId) || Inventory.IsObsoleteWandItemId(saved.baseItemId))
+                continue;
+
+            ItemDefinition baseDef = Get(baseItemId);
             if (!baseDef)
                 continue;
 
@@ -279,7 +283,10 @@ public class ItemDatabase : ScriptableObject
         if (markerIndex <= 0)
             return null;
 
-        string baseItemId = runtimeItemId.Substring(0, markerIndex);
+        string baseItemId = Inventory.RemapLegacyItemId(runtimeItemId.Substring(0, markerIndex));
+        if (Inventory.IsObsoleteWandItemId(runtimeItemId) || Inventory.IsObsoleteWandItemId(baseItemId))
+            return null;
+
         ItemDefinition baseDef = Get(baseItemId);
         if (!baseDef)
             return null;

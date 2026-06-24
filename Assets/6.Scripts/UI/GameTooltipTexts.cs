@@ -95,13 +95,15 @@ public static class GameTooltipTexts
             case "CritChanceText":
                 title = "Critical chance";
                 description =
-                    "Chance for your hits to critically strike. This also applies to abilities.";
+                    "Chance for your hits to critically strike.\n\n" +
+                    "Applies to basic attacks, abilities, and spells. Ailment damage (Bleed, Poison, Burn ticks) never crits.";
                 return true;
 
             case "CritDMGText":
                 title = "Critical damage";
                 description =
-                    "How much extra damage your critical hits deal. This also applies to abilities.\n\n" +
+                    "How much extra damage your critical hits deal.\n\n" +
+                    "Applies to basic attacks, abilities, and spells. Ailment damage never crits.\n\n" +
                     "Base crit damage is +50%.";
                 return true;
 

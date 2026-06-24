@@ -949,6 +949,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(rangedDamageBonusText);
         Wire(abilityPowerText);
         Wire(cooldownReductionText);
+        WireFixedGuardLine(critChanceText, "CritChanceText");
+        WireFixedGuardLine(critDamageText, "CritDMGText");
         WireFixedGuardLine(minionDamageText, "MinionDamageText");
         WireFixedGuardLine(minionAttackSpeedText, "MinionAttackSpeedText");
         WireFixedGuardLine(minionCritChanceText, "MinionCritChanceText");
@@ -974,6 +976,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
             switch (rowName)
             {
+                case "CritChanceText":
+                    WireFixedGuardLine(tmp, "CritChanceText");
+                    break;
+                case "CritDMGText":
+                case "CritDamageText":
+                    WireFixedGuardLine(tmp, "CritDMGText");
+                    break;
                 case "AbilityPowerText":
                 case "CooldownReductionText":
                 case "PhysicalBonusText":

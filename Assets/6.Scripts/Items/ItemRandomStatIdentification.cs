@@ -74,9 +74,16 @@ public static class ItemRandomStatIdentification
             return 0;
 
         ItemDefinition rolled = db.Get(itemId);
+        if (!rolled)
+            return 0;
+
+        // Deferred rolls: affixes are not on the item until identification.
+        if (rolled.HasRandomStatPool)
+            return ItemRandomStatRoller.GetRollCountForRarity(rolled.rarity, rolled);
+
         string baseId = db.GetBaseItemId(itemId);
         ItemDefinition baseline = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
-        if (!rolled || baseline == null || ReferenceEquals(rolled, baseline))
+        if (baseline == null || ReferenceEquals(rolled, baseline))
             return 0;
 
         int count = 0;
@@ -122,14 +129,22 @@ public static class ItemRandomStatIdentification
         if (!rolled || !rolled.randomStatsPendingIdentification)
             return false;
 
+        string baseId = db.GetBaseItemId(itemId);
+        ItemDefinition baseline = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
+
+        if (rolled.HasRandomStatPool && baseline != null)
+        {
+            var pool = new System.Collections.Generic.List<RandomStatPoolEntry>(rolled.RandomStatPoolEntries);
+            ItemRandomStatRoller.ApplyRolls(rolled, pool, baseline.rarity);
+            rolled.ClearRandomStatPool();
+        }
+
         if (CountHiddenRandomAffixes(db, itemId) <= 0)
         {
             rolled.randomStatsPendingIdentification = false;
             return false;
         }
 
-        string baseId = db.GetBaseItemId(itemId);
-        ItemDefinition baseline = string.IsNullOrWhiteSpace(baseId) ? null : db.Get(baseId);
         string summary = BuildRollSummary(rolled, baseline);
         string itemName = string.IsNullOrWhiteSpace(rolled.displayName) ? rolled.itemId : rolled.displayName;
 

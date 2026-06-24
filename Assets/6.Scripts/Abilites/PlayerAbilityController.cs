@@ -3820,6 +3820,13 @@ public partial class PlayerAbilityController : MonoBehaviour
             LogAbilityUsed(def);
             return true;
         }
+        if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
+        {
+            if (!TryCastMagicStarterSpell(def, showLockedFeedback))
+                return false;
+
+            return true;
+        }
         if (IsLightningRodAbilityId(def.abilityId))
         {
             BeginLightningRodCast(def);

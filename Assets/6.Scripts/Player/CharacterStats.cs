@@ -2088,17 +2088,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         ItemDefinition d;
 
-        d = GetDef(equipment.MainHandItemId); if (d) yield return d;
-        d = GetDef(equipment.OffHandItemId); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.MainHandItemId); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.OffHandItemId); if (d) yield return d;
 
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Helmet)); if (d) yield return d;
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Body)); if (d) yield return d;
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Boots)); if (d) yield return d;
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Trinket)); if (d) yield return d;
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Pendant)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Helmet)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Body)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Boots)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Trinket)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Pendant)); if (d) yield return d;
 
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Ring, 0)); if (d) yield return d;
-        d = GetDef(equipment.GetEquippedItemId(EquipSlot.Ring, 1)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Ring, 0)); if (d) yield return d;
+        d = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Ring, 1)); if (d) yield return d;
     }
 
     /// <summary>
@@ -2177,7 +2177,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (equipment != null && equipment.ForceUnarmed)
             return null;
 
-        var def = GetDef(equipment ? equipment.MainHandItemId : null);
+        var def = GetDefForStatComputation(equipment ? equipment.MainHandItemId : null);
         return (def && def.IsWeapon) ? def : null;
     }
 
@@ -2225,7 +2225,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (main && main.RequiresOffhandSupport)
             return null;
 
-        var def = GetDef(equipment ? equipment.OffHandItemId : null);
+        var def = GetDefForStatComputation(equipment ? equipment.OffHandItemId : null);
         if (!def || !def.IsWeapon) return null;
         if (def.weaponStats.handedness != Handedness.OneHanded) return null;
         return def;
@@ -2233,7 +2233,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private ItemDefinition GetOffHandSupportDef()
     {
-        var def = GetDef(equipment ? equipment.OffHandItemId : null);
+        var def = GetDefForStatComputation(equipment ? equipment.OffHandItemId : null);
         return (def && def.IsCombatSupport) ? def : null;
     }
 
@@ -2421,8 +2421,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             baseMin,
             baseMax,
             out float scaledMin,
-            out float scaledMax,
-            forAutoAttack: true);
+            out float scaledMax);
         magLane += useMaxBounds ? scaledMax : scaledMin;
     }
 
@@ -5002,8 +5001,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 mismatched = true;
         }
 
-        Consider(GetDef(equipment.GetEquippedItemId(EquipSlot.Helmet)));
-        Consider(GetDef(equipment.GetEquippedItemId(EquipSlot.Body)));
+        Consider(GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Helmet)));
+        Consider(GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Body)));
 
         return anyArmour && match.HasValue && !mismatched && match.Value == required;
     }
@@ -5433,6 +5432,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!inventory) return null;
         if (string.IsNullOrWhiteSpace(id)) return null;
         return inventory.GetItemDef(id);
+    }
+
+    /// <summary>
+    /// Uses the base template for unidentified rolled items so hidden affixes do not affect combat stats.
+    /// </summary>
+    private ItemDefinition GetDefForStatComputation(string id)
+    {
+        ItemDefinition def = GetDef(id);
+        if (!def || !def.randomStatsPendingIdentification)
+            return def;
+
+        ItemDatabase db = inventory != null ? inventory.GetItemDatabase() : null;
+        if (!db)
+            return def;
+
+        string baseId = db.GetBaseItemId(id);
+        if (string.IsNullOrWhiteSpace(baseId))
+            return def;
+
+        ItemDefinition baseline = db.Get(baseId);
+        if (!baseline || ReferenceEquals(baseline, def))
+            return def;
+
+        return baseline;
     }
 
     // -------------------------

@@ -76,7 +76,7 @@ public class Inventory : MonoBehaviour, ISaveable
         }
 
         var def = itemDb.Get(itemId);
-        if (!def)
+        if (!def && !IsObsoleteWandItemId(itemId))
             Debug.LogWarning($"[Inventory] ItemDefinition not found for id '{itemId}' in ItemDatabase '{itemDb.name}'.");
 
         return def;
@@ -830,7 +830,12 @@ public class Inventory : MonoBehaviour, ISaveable
                 // If DB is not ready yet (scene init race), preserve raw slot data so items are not lost.
                 if (canValidateDefs && GetItemDef(id) == null)
                 {
-                    Debug.LogWarning($"[Inventory] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing slot {i}.");
+                    if (!IsObsoleteWandItemId(d.itemId))
+                    {
+                        Debug.LogWarning(
+                            $"[Inventory] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing slot {i}.");
+                    }
+
                     continue;
                 }
 
@@ -1004,17 +1009,39 @@ public class Inventory : MonoBehaviour, ISaveable
 
         // normalize first
         id = id.Trim().ToLowerInvariant().Replace(" ", "_");
+        id = RemapObsoleteWandItemId(id);
 
         // legacy -> new
         return id switch
         {
             "log" => "wood_log",
-            // add more as you rename things:
-            // "ore" => "iron_ore",
-            // "vamp ring" => "vamp_ring",
-            // "crit ring" => "crit_ring",
             _ => id
         };
+    }
+
+    /// <summary>Old per-element basic wands were consolidated into <c>basic_wand</c>.</summary>
+    public static bool IsObsoleteWandItemId(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        string normalized = itemId.Trim().ToLowerInvariant().Replace(" ", "_");
+        return normalized.StartsWith("basic_fire_wand", System.StringComparison.Ordinal)
+               || normalized.StartsWith("basic_ice_wand", System.StringComparison.Ordinal)
+               || normalized.StartsWith("basic_lightning_wand", System.StringComparison.Ordinal);
+    }
+
+    private static string RemapObsoleteWandItemId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return id;
+
+        if (id.StartsWith("basic_fire_wand", System.StringComparison.Ordinal)
+            || id.StartsWith("basic_ice_wand", System.StringComparison.Ordinal)
+            || id.StartsWith("basic_lightning_wand", System.StringComparison.Ordinal))
+            return "basic_wand";
+
+        return id;
     }
 
     public void SortByDatabaseOrder()

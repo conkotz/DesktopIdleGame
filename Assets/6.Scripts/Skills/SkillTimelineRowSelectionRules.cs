@@ -67,7 +67,15 @@ public static class SkillTimelineRowSelectionRules
             return;
         }
 
-        skillsManager.SetSkillAbilityRowPick(binding.Skill.skillType, binding.Level, binding.SlotAtLevel);
+        int pickIndex = binding.SlotAtLevel;
+        if (SkillAbilityCommitRules.IsAbilityRowUnlock(binding.Unlock))
+        {
+            int siblingPick = SkillAbilityCommitRules.GetAbilityRowPickIndexForUnlock(binding.Skill, binding.Unlock);
+            if (siblingPick >= 0)
+                pickIndex = siblingPick;
+        }
+
+        skillsManager.SetSkillAbilityRowPick(binding.Skill.skillType, binding.Level, pickIndex);
         ClearEnhancementChoicesForRowSiblings(binding.Skill, binding.Unlock, binding.Level, binding.TimelineNodeType, skillsManager);
     }
 
@@ -119,7 +127,14 @@ public static class SkillTimelineRowSelectionRules
             return selected == choiceIndex;
         }
 
-        int pick = skillsManager.GetSkillAbilityRowPick(binding.Skill.skillType, binding.Level, -1);
+        int pick = SkillAbilityCommitRules.GetCommittedAbilityRowPick(
+            skillsManager, binding.Skill, binding.Level, -1);
+        if (SkillAbilityCommitRules.IsAbilityRowUnlock(binding.Unlock))
+        {
+            int siblingPick = SkillAbilityCommitRules.GetAbilityRowPickIndexForUnlock(binding.Skill, binding.Unlock);
+            return siblingPick >= 0 && pick == siblingPick;
+        }
+
         return pick == binding.SlotAtLevel;
     }
 
@@ -157,12 +172,21 @@ public static class SkillTimelineRowSelectionRules
         SkillTimelineNodeBinding binding,
         IReadOnlyList<SkillTimelineNodeBinding> groupBindings)
     {
-        int pick = skillsManager.GetSkillAbilityRowPick(binding.Skill.skillType, binding.Level, -1);
+        int pick = SkillAbilityCommitRules.GetCommittedAbilityRowPick(
+            skillsManager, binding.Skill, binding.Level, -1);
         if (pick < 0)
             return true;
 
-        if (pick != binding.SlotAtLevel)
+        if (SkillAbilityCommitRules.IsAbilityRowUnlock(binding.Unlock))
+        {
+            int siblingPick = SkillAbilityCommitRules.GetAbilityRowPickIndexForUnlock(binding.Skill, binding.Unlock);
+            if (siblingPick < 0 || pick != siblingPick)
+                return false;
+        }
+        else if (pick != binding.SlotAtLevel)
+        {
             return false;
+        }
 
         return ShouldShowPendingEnhancementChoice(skillsManager, binding);
     }
@@ -173,12 +197,21 @@ public static class SkillTimelineRowSelectionRules
         if (string.IsNullOrWhiteSpace(spineId))
             return false;
 
-        int pick = skillsManager.GetSkillAbilityRowPick(binding.Skill.skillType, binding.Level, -1);
+        int pick = SkillAbilityCommitRules.GetCommittedAbilityRowPick(
+            skillsManager, binding.Skill, binding.Level, -1);
         if (pick < 0)
             return true;
 
-        if (pick != binding.SlotAtLevel)
+        if (SkillAbilityCommitRules.IsAbilityRowUnlock(binding.Unlock))
+        {
+            int siblingPick = SkillAbilityCommitRules.GetAbilityRowPickIndexForUnlock(binding.Skill, binding.Unlock);
+            if (siblingPick < 0 || pick != siblingPick)
+                return false;
+        }
+        else if (pick != binding.SlotAtLevel)
+        {
             return false;
+        }
 
         return ShouldShowPendingEnhancementChoice(skillsManager, binding);
     }

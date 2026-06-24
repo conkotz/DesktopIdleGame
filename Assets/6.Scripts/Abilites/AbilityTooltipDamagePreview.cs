@@ -801,7 +801,14 @@ public static class AbilityTooltipDamagePreview
 
         if (IsChainLightning(def))
         {
-            AppendChainLightningTooltipScaling(scaling, S, stats);
+            AppendSpellElementTooltipScaling(scaling, S, stats, MagicAttackType.Lightning);
+            return scaling.ToString().TrimEnd();
+        }
+
+        if (IsMagicStarterSpell(def))
+        {
+            MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(def.abilityId);
+            AppendSpellElementTooltipScaling(scaling, S, stats, element);
             return scaling.ToString().TrimEnd();
         }
 
@@ -2076,7 +2083,7 @@ public static class AbilityTooltipDamagePreview
         if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
             return;
 
-        SpellDamageScaling.ScaleElementBounds(stats, element, baseMin, baseMax, out float minD, out float maxD, forAutoAttack: true);
+        SpellDamageScaling.ScaleElementBounds(stats, element, baseMin, baseMax, out float minD, out float maxD);
         string elementLabel = element switch
         {
             MagicAttackType.Fire => "fire",
@@ -2097,28 +2104,48 @@ public static class AbilityTooltipDamagePreview
         return body.ToString().TrimEnd();
     }
 
-    private static void AppendChainLightningTooltipScaling(
+    private static void AppendSpellElementTooltipScaling(
         StringBuilder scaling,
         System.Func<string, string> S,
-        CharacterStats stats)
+        CharacterStats stats,
+        MagicAttackType element)
     {
         if (stats == null)
             return;
 
         float spellPct = stats.SpellDamageTotalScalingPercentPoints;
         if (spellPct > 0.05f)
-            scaling.AppendLine(S($"+{spellPct:0.#}% damage from Spell Power"));
+            scaling.AppendLine(S($"+{spellPct:0.#}% damage from {OffenseBonusDisplayNames.SpellDamagePercent}"));
 
         AppendAbilityPowerScalingLine(scaling, S, stats);
 
         float magicPct = stats.SpellMagicDamageScalingPercentPoints;
         if (magicPct > 0.05f)
-            scaling.AppendLine(S($"+{magicPct:0.#}% damage from Magic Damage"));
+            scaling.AppendLine(S($"+{magicPct:0.#}% damage from {OffenseBonusDisplayNames.MagicDamagePercent}"));
 
-        float lightningPct = stats.LightningSkillDamageTotalScalingPercentPoints;
-        if (lightningPct > 0.05f)
-            scaling.AppendLine(S($"+{lightningPct:0.#}% damage from Lightning Damage"));
+        float elementPct = element switch
+        {
+            MagicAttackType.Fire => stats.FireSkillDamageTotalScalingPercentPoints,
+            MagicAttackType.Ice => stats.IceSkillDamageTotalScalingPercentPoints,
+            _ => stats.LightningSkillDamageTotalScalingPercentPoints
+        };
+
+        string elementLabel = element switch
+        {
+            MagicAttackType.Fire => OffenseBonusDisplayNames.FireDamagePercent,
+            MagicAttackType.Ice => OffenseBonusDisplayNames.IceDamagePercent,
+            _ => OffenseBonusDisplayNames.LightningDamagePercent
+        };
+
+        if (elementPct > 0.05f)
+            scaling.AppendLine(S($"+{elementPct:0.#}% damage from {elementLabel}"));
     }
+
+    private static void AppendChainLightningTooltipScaling(
+        StringBuilder scaling,
+        System.Func<string, string> S,
+        CharacterStats stats) =>
+        AppendSpellElementTooltipScaling(scaling, S, stats, MagicAttackType.Lightning);
 
     private static int GetChainLightningBranchChoice(SkillsManager skillsManager)
     {

@@ -513,6 +513,22 @@ public static class EnhancementUpgradeService
                 target.bonusStats.manaRegen = ApplyValue(target.bonusStats.manaRegen, value, percent);
                 break;
 
+            case EnhancementScrollTargetStat.SpellDamage:
+                target.bonusStats.spellDamagePercent = ApplyValue(target.bonusStats.spellDamagePercent, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.FireDamagePercent:
+                target.bonusStats.fireSkillDamagePercent = ApplyValue(target.bonusStats.fireSkillDamagePercent, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.IceDamagePercent:
+                target.bonusStats.iceSkillDamagePercent = ApplyValue(target.bonusStats.iceSkillDamagePercent, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.LightningDamagePercent:
+                target.bonusStats.lightningSkillDamagePercent = ApplyValue(target.bonusStats.lightningSkillDamagePercent, value, percent);
+                break;
+
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 int slotsToReduce = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(value)));
                 target.usedUpgradeSlots = Mathf.Clamp(

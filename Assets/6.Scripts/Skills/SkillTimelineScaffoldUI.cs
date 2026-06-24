@@ -22,7 +22,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
     private const float ContentWidth = 5000f;
     private const float ContentHeight = 300f;
-    private const float PaddingLeft = 120f;
+    private const float PaddingLeft = 220f;
     private const float PaddingRight = 80f;
     /// <summary>Fallback TimelineContent Y when not set in the inspector.</summary>
     private const float DefaultTimelineContentYOffset = 4f;
@@ -440,7 +440,11 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (helper != null)
             helper.SetSiblingIndex(index++);
         if (skillLevelPanel != null)
+        {
             skillLevelPanel.SetSiblingIndex(index++);
+            if (skillLevelPanel.GetComponent<SkillLevelPanelHoverDimUI>() == null)
+                skillLevelPanel.gameObject.AddComponent<SkillLevelPanelHoverDimUI>();
+        }
         if (scrollbar != null)
             scrollbar.SetSiblingIndex(index++);
     }

@@ -37,14 +37,18 @@ public static class MagicStarterSpellRules
         if (skillsManager == null)
             return false;
 
-        int pick = skillsManager.GetSkillAbilityRowPick(SkillType.Magic, StarterSpellUnlockLevel, -1);
+        SkillDatabase db = SkillDatabase.LoadDefault();
+        SkillDefinition magic = db != null ? db.Get(SkillType.Magic) : null;
+        if (magic == null)
+            return false;
+
+        int pick = SkillAbilityCommitRules.GetCommittedAbilityRowPick(
+            skillsManager, magic, StarterSpellUnlockLevel, -1);
         if (pick < 0)
             return false;
 
-        SkillDatabase db = SkillDatabase.LoadDefault();
-        SkillDefinition magic = db != null ? db.Get(SkillType.Magic) : null;
         var siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(magic, StarterSpellUnlockLevel);
-        if (pick < 0 || pick >= siblings.Count)
+        if (pick >= siblings.Count)
             return false;
 
         AbilityDefinition def = siblings[pick];

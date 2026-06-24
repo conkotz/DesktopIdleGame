@@ -57,7 +57,7 @@ MonoBehaviour:
     title: Fire Ball
     description: Hurl a ball of fire at your target. Your wand auto attacks use this
       spell (8-10 fire damage, 2s cooldown, 8 mana).
-    icon: {fileID: -3262339323002954750, guid: fca3b13a40b9d494fa3e5d2cc53a38d9, type: 3}
+    icon: {fileID: -317914268, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -72,9 +72,9 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 1
     title: Ice Shard
-    description: Launch a shard of ice at your target. Your wand auto attacks use this
-      spell (6-12 ice damage, 2s cooldown, 8 mana).
-    icon: {fileID: 3816218223960196299, guid: ead6c78a6346bbe41948084b9eef6277, type: 3}
+    description: Launch a shard of ice at your target. Your wand auto attacks use
+      this spell (6-12 ice damage, 2s cooldown, 8 mana).
+    icon: {fileID: 1411015114, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -89,9 +89,9 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 1
     title: Energy Bolt
-    description: Fire a bolt of energy at your target. Your wand auto attacks use this
-      spell (3-15 lightning damage, 2s cooldown, 8 mana).
-    icon: {fileID: -78299419366577307, guid: ac55960819e174c4d8c050308c3f16a5, type: 3}
+    description: Fire a bolt of energy at your target. Your wand auto attacks use
+      this spell (3-15 lightning damage, 2s cooldown, 8 mana).
+    icon: {fileID: -69107095, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
