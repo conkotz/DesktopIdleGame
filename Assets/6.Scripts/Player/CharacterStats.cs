@@ -3253,7 +3253,67 @@ public class CharacterStats : MonoBehaviour, ISaveable
         && GetSeekerArrowsEnhancementPick() == AbilityCombatPower.SeekerArrowsEnhancementChainChoiceIndex;
 
     public float GetSeekerArrowProcChanceFraction() =>
-        IsSeekerArrowsMajorPassiveActive() ? AbilityCombatPower.SeekerArrowProcChance : 0f;
+        GetSeekerArrowProcChanceFraction(null);
+
+    public float GetSeekerArrowProcChanceFraction(PlayerCombatController ownerCombat)
+    {
+        if (!IsSeekerArrowsMajorPassiveActive())
+            return 0f;
+
+        if (!ownerCombat && _ownerPlayer)
+            ownerCombat = _ownerPlayer.GetComponent<PlayerCombatController>();
+
+        float chance = AbilityCombatPower.SeekerArrowProcChance;
+        if (IsLoneRangerBonusActive(ownerCombat))
+        {
+            int enhancementPick = GetLoneRangerEnhancementPick();
+            chance = AbilityCombatPower.ApplyLoneRangerSeekerProcMultiplier(chance, enhancementPick);
+        }
+
+        return chance;
+    }
+
+    public bool IsLoneRangerUnlocked() =>
+        skillsManager != null &&
+        skillsManager.GetLevel(SkillType.Ranged) >= AbilityCombatPower.LoneRangerMajorPassiveLevel;
+
+    public bool IsLoneRangerMajorPassiveActive() =>
+        IsLoneRangerUnlocked() && AreRangedMajorPassiveEffectsEnabled();
+
+    public int GetLoneRangerEnhancementPick()
+    {
+        if (!IsLoneRangerMajorPassiveActive() || skillsManager == null)
+            return -1;
+
+        int pick = skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.LoneRangerMajorPassiveSpineNodeId, -1);
+        if (pick >= 0)
+            return pick;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Ranged, AbilityCombatPower.LoneRangerMajorPassiveLevel, -1);
+    }
+
+    public int GetLoneRangerMaxAlliesAllowedInArea()
+    {
+        if (!IsLoneRangerMajorPassiveActive())
+            return int.MaxValue;
+
+        return GetLoneRangerEnhancementPick() == AbilityCombatPower.LoneRangerEnhancementRelaxedCompanionChoiceIndex
+            ? 1
+            : 0;
+    }
+
+    public bool IsLoneRangerBonusActive(PlayerCombatController ownerCombat)
+    {
+        if (!IsLoneRangerMajorPassiveActive() || !ownerCombat)
+            return false;
+
+        return LoneRangerAllyPresence.CountAlliesInSameArea(ownerCombat) <= GetLoneRangerMaxAlliesAllowedInArea();
+    }
+
+    public float GetLoneRangerRangedDamageBonusFraction(PlayerCombatController ownerCombat) =>
+        IsLoneRangerBonusActive(ownerCombat) ? AbilityCombatPower.LoneRangerRangedDamageBonusFraction : 0f;
 
     public bool IsHuntersMarkMajorPassiveActive() =>
         GetRangedLevel10MajorPassiveRowPick() == 1 && AreRangedMajorPassiveEffectsEnabled();
@@ -3302,6 +3362,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     private float _enchantedQuiverPendingHitDamageBonusFraction;
+
+    public bool IsAlchemistsBoonUnlocked() =>
+        skillsManager != null &&
+        skillsManager.GetLevel(SkillType.Endurance) >= AbilityCombatPower.AlchemistsBoonMajorPassiveLevel;
+
+    public bool IsAlchemistsBoonMajorPassiveActive() => IsAlchemistsBoonUnlocked();
+
+    public int GetAlchemistsBoonEnhancementPick()
+    {
+        if (!IsAlchemistsBoonMajorPassiveActive() || skillsManager == null)
+            return -1;
+
+        int pick = skillsManager.GetSkillChoiceSelection(
+            SkillType.Endurance, AbilityCombatPower.AlchemistsBoonMajorPassiveSpineNodeId, -1);
+        if (pick >= 0)
+            return pick;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Endurance, AbilityCombatPower.AlchemistsBoonMajorPassiveLevel, -1);
+    }
 
     public bool IsEnchantedQuiverUnlocked() =>
         skillsManager != null &&
@@ -4464,6 +4544,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (bonuses.damageWithMinionActive > 0f && ownerCombat != null &&
             OwnerHasActiveMinion(ownerCombat))
             bonus += bonuses.damageWithMinionActive;
+
+        bonus += GetLoneRangerRangedDamageBonusFraction(ownerCombat);
 
         bonus += PeekEnchantedQuiverPendingHitDamageBonusFraction();
 

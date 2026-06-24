@@ -22,6 +22,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private static readonly Color RangedStyleBonusColor = new Color(0.14f, 0.52f, 0.18f);
     /// <summary>Dimmed ailment block when apply chance is 0% (matches prior elemental inactive styling).</summary>
     private static readonly Color AilmentInactiveGrey = new Color(0.48f, 0.52f, 0.5f);
+    /// <summary>Readable yellow-orange for active energy stats on the tan stats panel background.</summary>
+    private static readonly Color EnergyActiveColor = new Color(0.72f, 0.52f, 0.06f);
 
     [Tooltip("Minimum seconds between stat-line repaints while buffs change in combat. Equipment swaps refresh immediately.")]
     [SerializeField, Min(0.05f)] private float statsRefreshMinInterval = 0.15f;
@@ -432,6 +434,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (manaRegenText) manaRegenText.text = $"Mana Regen: {stats.ManaRegenPerSecond:0.##}/s";
         if (energyEfficiencyText)
             energyEfficiencyText.text = $"Energy Efficiency: {stats.EnergyEfficiencyPercentPoints:0.#}%";
+        ApplyEnergyStatLineColors();
         if (abilityPowerText)
         {
             float ap = stats.AbilityPower;
@@ -1061,6 +1064,39 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             chillStacksLineText.text = $"Chill Stacks: {stats.ChillMaxStacks}";
 
         ApplyAilmentLineColors();
+    }
+
+    private void ApplyEnergyStatLineColors()
+    {
+        if (!stats)
+            return;
+
+        if (!abilityController && player)
+            abilityController = player.GetComponent<PlayerAbilityController>();
+
+        bool energyHighlightActive =
+            stats.EnergyEfficiency > 0.001f
+            || (abilityController != null && abilityController.IsEnergyInfusionActive);
+        Color color = energyHighlightActive ? EnergyActiveColor : AilmentInactiveGrey;
+
+        void Colorize(TMP_Text t)
+        {
+            if (t)
+                t.color = color;
+        }
+
+        Colorize(energyText);
+        Colorize(energyEfficiencyText);
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string rowName = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (rowName.Equals("EnergyText", StringComparison.OrdinalIgnoreCase)
+                || rowName.Equals("EnergyEfficiencyText", StringComparison.OrdinalIgnoreCase))
+            {
+                Colorize(tmp);
+            }
+        }
     }
 
     private void ApplyAilmentLineColors()

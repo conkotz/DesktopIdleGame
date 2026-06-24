@@ -10,6 +10,10 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class SoulforgedWeaponMinion : MonoBehaviour
 {
+    private static readonly List<SoulforgedWeaponMinion> s_activeCompanions = new();
+
+    public static IReadOnlyList<SoulforgedWeaponMinion> ActiveCompanions => s_activeCompanions;
+
     public enum MotionState
     {
         Idle,
@@ -73,6 +77,19 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private float _nextIdleEnemyScanAt;
 
     public EnemyBaseController CurrentTarget => _strikeTarget;
+
+    public bool IsActiveAlly =>
+        _initialized && _ownerStats != null && !_ownerStats.IsDead &&
+        (_neverExpires || Time.time < _expireTime);
+
+    public PlayerCombatController ResolveOwnerCombat()
+    {
+        if (!_ownerStats)
+            return null;
+
+        return _ownerStats.GetComponent<PlayerCombatController>()
+               ?? _ownerStats.GetComponentInParent<PlayerCombatController>();
+    }
 
     /// <summary>Child: local Z rotation only = slash swing; pivot is parent (handle bottom).</summary>
     private Transform _swingPivot;
@@ -184,8 +201,17 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         ApplyVisualScaleUniform();
         ApplyFacingFromPlayerVisuals();
         _initialized = true;
+        RegisterActiveCompanion();
         return true;
     }
+
+    private void RegisterActiveCompanion()
+    {
+        if (!s_activeCompanions.Contains(this))
+            s_activeCompanions.Add(this);
+    }
+
+    private void UnregisterActiveCompanion() => s_activeCompanions.Remove(this);
 
     /// <summary>
     /// Ability pressed again while summon is alive: prefer an in-range enemy not hit in the last
@@ -302,6 +328,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnregisterActiveCompanion();
         _onDespawned?.Invoke(this);
     }
 

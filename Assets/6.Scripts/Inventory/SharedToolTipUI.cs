@@ -916,6 +916,7 @@ public class SharedTooltipUI : MonoBehaviour
         ItemDatabase itemDb = ResolveItemDatabase();
         bool maskPendingIdentification = ItemRandomStatIdentification.HasUnidentifiedRandomAffixes(itemDb, itemIdForHighlights);
         ItemDefinition statsDef = ResolveStatsDefinitionForTooltip(def, itemDb, itemIdForHighlights);
+        ItemDefinition authoredBaseDef = ResolveAuthoredBaseDefinition(def, itemDb, itemIdForHighlights);
         ItemDefinition highlightBaseline = maskPendingIdentification
             ? null
             : ResolveHighlightBaseline(itemIdForHighlights);
@@ -928,7 +929,8 @@ public class SharedTooltipUI : MonoBehaviour
                 maskUnrolledRandomStats,
                 showRandomStatPoolOptions,
                 highlightBaseline,
-                itemIdForHighlights);
+                itemIdForHighlights,
+                authoredBaseDef);
             if (miscStatsText)
             {
                 miscStatsText.text = combined;
@@ -943,7 +945,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
-        string misc = statsDef.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
+        string misc = statsDef.BuildTooltipMiscStatsText(showAdvancedDetails, authoredBaseDef) ?? "";
         string main = highlightBaseline != null
             ? def.BuildTooltipMainStatsText(highlightBaseline)
             : statsDef.BuildTooltipMainStatsText() ?? "";
@@ -1072,7 +1074,8 @@ public class SharedTooltipUI : MonoBehaviour
         bool maskUnrolledRandomStats = false,
         bool showRandomStatPoolOptions = false,
         ItemDefinition highlightBaseline = null,
-        string itemIdForHighlights = null)
+        string itemIdForHighlights = null,
+        ItemDefinition authoredBaseForIntrinsicMeta = null)
     {
         if (!statsDef)
             return "";
@@ -1081,7 +1084,7 @@ public class SharedTooltipUI : MonoBehaviour
         string stats;
         if (highlightBaseline != null && displayDef)
         {
-            string misc = displayDef.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
+            string misc = displayDef.BuildTooltipMiscStatsText(showAdvancedDetails, authoredBaseForIntrinsicMeta) ?? "";
             string main = displayDef.BuildTooltipMainStatsText(highlightBaseline);
             if (string.IsNullOrWhiteSpace(misc))
                 stats = main ?? "";
@@ -1092,7 +1095,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
         else
         {
-            stats = statsDef.BuildTooltipStatsText() ?? "";
+            stats = statsDef.BuildTooltipStatsText(showAdvancedDetails, authoredBaseForIntrinsicMeta) ?? "";
         }
 
         stats = ApplyOffhandSupportRequirementColoring(stats, statsDef);
@@ -1140,6 +1143,26 @@ public class SharedTooltipUI : MonoBehaviour
     {
         Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         return inventory ? inventory.GetItemDatabase() : Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+    }
+
+    private static ItemDefinition ResolveAuthoredBaseDefinition(
+        ItemDefinition def,
+        ItemDatabase db,
+        string itemId)
+    {
+        if (!def || db == null)
+            return null;
+
+        string lookupId = !string.IsNullOrWhiteSpace(itemId) ? itemId : def.itemId;
+        if (string.IsNullOrWhiteSpace(lookupId))
+            return null;
+
+        string baseId = db.GetBaseItemId(lookupId);
+        if (string.IsNullOrWhiteSpace(baseId))
+            return null;
+
+        ItemDefinition baseDef = db.Get(baseId);
+        return baseDef != null && baseDef != def ? baseDef : null;
     }
 
     private static ItemDefinition ResolveStatsDefinitionForTooltip(

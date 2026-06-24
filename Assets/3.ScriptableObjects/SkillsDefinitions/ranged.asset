@@ -318,7 +318,7 @@ MonoBehaviour:
     description: Enemies hit by auto attacks or other non-minion abilities apply
       Hunter's Mark for 10 seconds (refreshed on hit). Marked enemies take 20% increased
       damage from minions.
-    icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -537,7 +537,7 @@ MonoBehaviour:
     title: Enchanted Quiver
     description: Gain a chance to not consume arrows when using auto attacks with ranged.
       When an arrow is saved, increase the damage of your next range hit by 5%.
-    icon: {fileID: 1200565681425001165, guid: bf301dd8c35646640bd9c28240c06a75, type: 3}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -725,6 +725,37 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 30
+    title: Lone Ranger
+    description: If no allies are in the same area as you, gain increased ranged damage
+      and a greatly increased chance to proc seeker arrows.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 33
+      title: Relaxed Companion
+      description: Benefit from the effects of Lone Ranger if there is at max 1 ally
+        in the same area as you.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 33
+      title: Sharpshooter
+      description: +50% additional chance to proc seeker arrows while Lone Ranger is
+        active.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 31
     title: Deadeye Training IV
     description: +3% Ranged Damage

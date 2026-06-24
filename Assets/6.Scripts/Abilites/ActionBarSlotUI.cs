@@ -868,22 +868,27 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (!def)
             return "<color=#FFB347>Consumable</color>";
 
+        CharacterStats stats = ConsumablePassiveModifiers.ResolveLocalPlayerStats();
         List<string> lines = new List<string>(6);
         string type = def.IsFood ? "Food" : def.IsPotion ? "Potion" : "Consumable";
         lines.Add($"<color=#FFB347>Consumable: {type}</color>");
 
-        if (def.HealAmount > 0)
-            lines.Add($"<color=#FFB347>Heal: {def.HealAmount}</color>");
+        int displayHeal = ConsumablePassiveModifiers.GetEffectiveHealAmount(def, stats);
+        if (displayHeal > 0)
+            lines.Add($"<color=#FFB347>Heal: {displayHeal}</color>");
 
         if (def.EnergyAmount > 0)
             lines.Add($"<color=#FFB347>Energy: {def.EnergyAmount}</color>");
 
         if (def.HasGrantedEffect)
-            lines.Add($"<color=#FFB347>Effect: {ConsumableEffectTooltip.Format(def.GrantedEffect)}</color>");
-
-        if (def.HasFoodTimedBuffs)
         {
-            string food = def.GetFoodTimedBuffSummaryText();
+            ConsumableGrantedEffect effect = ConsumablePassiveModifiers.GetEffectiveGrantedEffect(def, stats);
+            lines.Add($"<color=#FFB347>Effect: {ConsumableEffectTooltip.Format(effect)}</color>");
+        }
+
+        if (def.HasFoodTimedBuffs || (def.IsFood && ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats)))
+        {
+            string food = def.GetFoodTimedBuffSummaryText(stats);
             if (!string.IsNullOrWhiteSpace(food))
             {
                 foreach (string part in food.Split('\n'))
@@ -894,8 +899,9 @@ public class ActionBarSlotUI : MonoBehaviour,
             }
         }
 
-        if (def.UseCooldown > 0f)
-            lines.Add($"<color=#FFB347>Cooldown: {def.UseCooldown:0.#}s</color>");
+        float displayCooldown = ConsumablePassiveModifiers.GetEffectiveUseCooldown(def, stats);
+        if (displayCooldown > 0f)
+            lines.Add($"<color=#FFB347>Cooldown: {displayCooldown:0.#}s</color>");
 
         return string.Join("\n", lines);
     }

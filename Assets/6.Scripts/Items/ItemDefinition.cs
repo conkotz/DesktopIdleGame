@@ -70,6 +70,14 @@ public enum ToolType
     FishingRod
 }
 
+/// <summary>Armour weight class shown on armour tooltips (linen = Light, leather = Medium, stone = Heavy).</summary>
+public enum ArmorType
+{
+    Light,
+    Medium,
+    Heavy
+}
+
 public enum AttackSkill
 {
     Melee,
@@ -291,6 +299,9 @@ public struct ArmorStats
     [Header("Equipment Tier")]
     [Tooltip("Shown as Tier 1–5; gate uses Endurance at L1 / L10 / L20 / L30 / L50.")]
     public EquipmentTierRank equipmentTier;
+
+    [Header("Armour Type")]
+    public ArmorType armorType;
 
     [Header("Defence")]
     public int armor;
@@ -2041,22 +2052,22 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public string GetRarityLabel() => rarity.ToString();
 
     /// <summary>Normal: combined tier requirement. Alt-held: upgrade slots (below rarity), tier, type, hands.</summary>
-    public string BuildTooltipMiscStatsText(bool showAdvancedDetails = false)
+    public string BuildTooltipMiscStatsText(bool showAdvancedDetails = false, ItemDefinition authoredBaseForIntrinsicMeta = null)
     {
         if (!showAdvancedDetails)
-            return BuildTooltipMiscStatsNormalText();
+            return BuildTooltipMiscStatsNormalText(authoredBaseForIntrinsicMeta);
 
-        string advanced = BuildTooltipMiscStatsAdvancedText(showAdvancedDetails);
-        return string.IsNullOrWhiteSpace(advanced) ? BuildTooltipMiscStatsNormalText() : advanced;
+        string advanced = BuildTooltipMiscStatsAdvancedText(showAdvancedDetails, authoredBaseForIntrinsicMeta);
+        return string.IsNullOrWhiteSpace(advanced) ? BuildTooltipMiscStatsNormalText(authoredBaseForIntrinsicMeta) : advanced;
     }
 
-    private string BuildTooltipMiscStatsNormalText()
+    private string BuildTooltipMiscStatsNormalText(ItemDefinition authoredBaseForIntrinsicMeta = null)
     {
         if (IsWeapon)
             return BuildWeaponTooltipProfileMetaLines();
 
         if (IsArmor)
-            return FormatTooltipTierRequirementLine();
+            return BuildArmorTooltipProfileMetaLines(authoredBaseForIntrinsicMeta);
 
         if (IsTool)
         {
@@ -2080,6 +2091,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return FormatTooltipMetaLine("Tier", $"{GetEquipmentTierNumberLabel()} (Requires {skill} lv {req})");
     }
 
+    private string BuildArmorTooltipProfileMetaLines(ItemDefinition authoredBaseForIntrinsicMeta = null)
+    {
+        ArmorType armorType = ResolveDisplayArmorType(authoredBaseForIntrinsicMeta);
+        return FormatTooltipTierRequirementLine() + "\n" +
+               FormatTooltipMetaLine("Type", FormatArmorTypeLabel(armorType));
+    }
+
+    private ArmorType ResolveDisplayArmorType(ItemDefinition authoredBaseForIntrinsicMeta)
+    {
+        if (authoredBaseForIntrinsicMeta != null && authoredBaseForIntrinsicMeta.IsArmor)
+            return authoredBaseForIntrinsicMeta.armorStats.armorType;
+
+        return armorStats.armorType;
+    }
+
     private string BuildWeaponTooltipProfileMetaLines()
     {
         string type = weaponStats.attackSkill == AttackSkill.Magic
@@ -2092,7 +2118,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                FormatTooltipMetaLine("Hands", hands);
     }
 
-    private string BuildTooltipMiscStatsAdvancedText(bool includeEnhancementHistory)
+    private string BuildTooltipMiscStatsAdvancedText(bool includeEnhancementHistory, ItemDefinition authoredBaseForIntrinsicMeta = null)
     {
         if (IsWeapon)
         {
@@ -2129,7 +2155,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             var sb = new System.Text.StringBuilder();
             if (HasUpgradeSlots)
                 sb.Append(FormatUpgradeSlotsMetaBlock(includeEnhancementHistory)).Append('\n');
-            sb.Append(FormatTooltipTierRequirementLine());
+            sb.Append(BuildArmorTooltipProfileMetaLines(authoredBaseForIntrinsicMeta));
             return sb.ToString().TrimEnd('\n');
         }
 
@@ -2328,6 +2354,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (IsConsumable)
         {
+            CharacterStats stats = ConsumablePassiveModifiers.ResolveLocalPlayerStats();
             string s = IsFishingBait
                 ? "Consumable: Used for fishing."
                 : $"Consumable: {consumableStats.consumableType}";
@@ -2335,23 +2362,32 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (IsFishingBait)
                 s += $"\nFishing Speed: +{FishingBaitSpeedBonusFraction * 100f:0.#}%";
 
-            if (HealAmount > 0)
-                s += $"\nHeals: {HealAmount}";
+            int displayHeal = ConsumablePassiveModifiers.GetEffectiveHealAmount(this, stats);
+            if (displayHeal > 0)
+                s += $"\nHeals: {displayHeal}";
 
             if (EnergyAmount > 0)
                 s += $"\nEnergy: +{EnergyAmount}";
 
-            if (UseCooldown > 0f)
-                s += $"\nCooldown: {UseCooldown:0.##}s";
+            float displayCooldown = ConsumablePassiveModifiers.GetEffectiveUseCooldown(this, stats);
+            if (displayCooldown > 0f)
+                s += $"\nCooldown: {displayCooldown:0.##}s";
 
             if (HasGrantedEffect)
-                s += $"\nEffect: {ConsumableEffectTooltip.Format(GrantedEffect)}";
+                s += $"\nEffect: {FormatGrantedEffectTooltip(stats)}";
 
             if (HasFoodTimedBuffs)
             {
-                string foodLines = GetFoodTimedBuffSummaryText();
+                string foodLines = GetFoodTimedBuffSummaryText(stats);
                 if (!string.IsNullOrWhiteSpace(foodLines))
                     s += "\n" + foodLines;
+            }
+            else if (IsFood && ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats))
+            {
+                int overhealCap = ConsumablePassiveModifiers.GetEffectiveFoodOverhealCapFlat(this, stats);
+                float overhealDur = ConsumablePassiveModifiers.GetAlchemistsBoonOverhealBuffDurationSeconds(this, stats);
+                if (overhealCap > 0 && overhealDur > 0.001f)
+                    s += $"\nOverheal cap +{overhealCap} above max HP ({overhealDur:0.#}s)";
             }
 
             if (IsOpenable)
@@ -2429,9 +2465,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     }
 
     /// <summary>Full block (misc + main) for legacy callers and copy/paste.</summary>
-    public string BuildTooltipStatsText()
+    public string BuildTooltipStatsText() => BuildTooltipStatsText(false, null);
+
+    public string BuildTooltipStatsText(bool showAdvancedDetails, ItemDefinition authoredBaseForIntrinsicMeta)
     {
-        string misc = BuildTooltipMiscStatsText();
+        string misc = BuildTooltipMiscStatsText(showAdvancedDetails, authoredBaseForIntrinsicMeta);
         string main = BuildTooltipMainStatsText();
         if (string.IsNullOrWhiteSpace(misc))
             return main ?? string.Empty;
@@ -3334,6 +3372,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return handedness == Handedness.TwoHanded ? "Two-Handed" : "One-Handed";
     }
 
+    private static string FormatArmorTypeLabel(ArmorType armorType) =>
+        armorType switch
+        {
+            ArmorType.Light => "Light",
+            ArmorType.Medium => "Medium",
+            ArmorType.Heavy => "Heavy",
+            _ => armorType.ToString()
+        };
+
     private string BuildWeaponAilmentsLine(ItemDefinition baseline = null)
     {
         string block = "";
@@ -3631,28 +3678,37 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"Enemy respawn: -{EnemyRespawnTimeReductionSeconds:0.#}s";
     }
 
-    public string GetFoodTimedBuffSummaryText()
+    public string GetFoodTimedBuffSummaryText(CharacterStats stats = null)
     {
-        if (!HasFoodTimedBuffs)
+        bool passiveFood = IsFood && ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats);
+        if (!HasFoodTimedBuffs && !passiveFood)
             return string.Empty;
 
         ConsumableStats cs = consumableStats;
-        float dur = cs.foodEffectDurationSeconds;
+        float dur = ConsumablePassiveModifiers.GetEffectiveFoodEffectDuration(this, stats);
+        if (dur <= 0.001f)
+            return string.Empty;
+
         string header = $"Food buffs ({dur:0.#}s):";
         System.Text.StringBuilder sb = new System.Text.StringBuilder(160);
         sb.Append(header);
 
-        if (cs.foodEnableRegen && cs.foodRegenTotalHeal > 0)
-            sb.Append($"\n• +{cs.foodRegenTotalHeal} HP over duration (regen)");
+        int regenTotal = ConsumablePassiveModifiers.GetEffectiveFoodRegenTotal(this, stats);
+        if (cs.foodEnableRegen && regenTotal > 0)
+            sb.Append($"\n• +{regenTotal} HP over duration (regen)");
 
         if (cs.foodEnableSwiftness && cs.foodSwiftnessPercentBonus > 0f)
             sb.Append($"\n• +{cs.foodSwiftnessPercentBonus:0.#}% move speed");
 
-        if (cs.foodEnableOverheal && cs.foodOverhealMaxAboveMaxHp > 0)
+        int overhealCap = ConsumablePassiveModifiers.GetEffectiveFoodOverhealCapFlat(this, stats);
+        if ((cs.foodEnableOverheal || passiveFood) && overhealCap > 0)
         {
-            sb.Append($"\n• Overheal cap +{cs.foodOverhealMaxAboveMaxHp} above max HP");
+            sb.Append($"\n• Overheal cap +{overhealCap} above max HP");
             if (cs.foodOverhealInstantHeal > 0)
-                sb.Append($" (+{cs.foodOverhealInstantHeal} on use)");
+            {
+                int instant = ConsumablePassiveModifiers.ScaleFoodHealAmount(cs.foodOverhealInstantHeal, stats);
+                sb.Append($" (+{instant} on use)");
+            }
         }
 
         if (cs.foodEnableFocused)
@@ -3662,6 +3718,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
 
         return sb.ToString();
+    }
+
+    private string FormatGrantedEffectTooltip(CharacterStats stats)
+    {
+        ConsumableGrantedEffect effect = ConsumablePassiveModifiers.GetEffectiveGrantedEffect(this, stats);
+        return ConsumableEffectTooltip.Format(effect);
     }
 
     /// <summary>Pretty per-row "• Item Name (chance%) ×min-max" listing for Openable item tooltips.</summary>
@@ -3930,16 +3992,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (IsConsumable)
         {
+            CharacterStats stats = ConsumablePassiveModifiers.ResolveLocalPlayerStats();
             string s = consumableStats.consumableType.ToString();
 
-            if (HealAmount > 0)
-                s += $" • Heal {HealAmount}";
+            int displayHeal = ConsumablePassiveModifiers.GetEffectiveHealAmount(this, stats);
+            if (displayHeal > 0)
+                s += $" • Heal {displayHeal}";
 
             if (EnergyAmount > 0)
                 s += $" • Energy +{EnergyAmount}";
 
-            if (UseCooldown > 0f)
-                s += $" • {UseCooldown:0.#}s CD";
+            float displayCooldown = ConsumablePassiveModifiers.GetEffectiveUseCooldown(this, stats);
+            if (displayCooldown > 0f)
+                s += $" • {displayCooldown:0.#}s CD";
 
             if (IsOpenable)
                 s += $" • {OpenableLootEntries.Length} possible drop{(OpenableLootEntries.Length == 1 ? "" : "s")}";

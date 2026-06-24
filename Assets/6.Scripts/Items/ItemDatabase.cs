@@ -258,6 +258,7 @@ public class ItemDatabase : ScriptableObject
             clone.enhancementScrollHistory = CopyEnhancementScrollHistory(saved.enhancementScrollHistory);
             clone.weaponStats = saved.weaponStats;
             clone.armorStats = saved.armorStats;
+            RestoreIntrinsicArmorFieldsFromBase(ref clone.armorStats, baseDef);
             clone.bonusStats = saved.bonusStats;
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
@@ -307,5 +308,18 @@ public class ItemDatabase : ScriptableObject
         }
 
         return copy;
+    }
+
+    /// <summary>
+    /// Armour tier/type are intrinsic to the authored item and are not changed by enhancements.
+    /// Re-apply after loading saved <see cref="ArmorStats"/> so legacy saves without <see cref="ArmorStats.armorType"/> stay correct.
+    /// </summary>
+    private static void RestoreIntrinsicArmorFieldsFromBase(ref ArmorStats stats, ItemDefinition baseDef)
+    {
+        if (!baseDef || !baseDef.IsArmor)
+            return;
+
+        stats.equipmentTier = baseDef.armorStats.equipmentTier;
+        stats.armorType = baseDef.armorStats.armorType;
     }
 }

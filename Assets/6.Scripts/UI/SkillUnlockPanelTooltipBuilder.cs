@@ -60,6 +60,14 @@ public static class SkillUnlockPanelTooltipBuilder
             return FinalizeListEntryTooltipBody(ref body, unlock, choiceIndex);
         }
 
+        if (skill.skillType == SkillType.Endurance
+            && !string.IsNullOrEmpty(spineId)
+            && EnduranceMajorPassiveTooltipText.TryBuildSkillTreeBody(spineId, choiceIndex, out string enduranceBody))
+        {
+            body = enduranceBody;
+            return FinalizeListEntryTooltipBody(ref body, unlock, choiceIndex);
+        }
+
         string majorTitle = title.Trim();
         string enhancementTitle = ResolveEnhancementTitle(unlock, choiceIndex);
         if (GatheringPassiveTooltipText.TryBuildSkillTreeMajorPassiveBody(

@@ -9,6 +9,10 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class HawkCompanionMinion : MonoBehaviour
 {
+    private static readonly List<HawkCompanionMinion> s_activeCompanions = new();
+
+    public static IReadOnlyList<HawkCompanionMinion> ActiveCompanions => s_activeCompanions;
+
     public enum MotionState
     {
         Flying,
@@ -56,6 +60,18 @@ public class HawkCompanionMinion : MonoBehaviour
     private const float HoverPauseDurationMaxSeconds = 3f;
 
     public EnemyBaseController CurrentTarget => _strikeTarget;
+
+    public bool IsActiveAlly =>
+        _initialized && _ownerStats != null && !_ownerStats.IsDead && Time.time < _expireTime;
+
+    public PlayerCombatController ResolveOwnerCombat()
+    {
+        if (!_ownerStats)
+            return null;
+
+        return _ownerStats.GetComponent<PlayerCombatController>()
+               ?? _ownerStats.GetComponentInParent<PlayerCombatController>();
+    }
 
     private void OnEnable()
     {
@@ -117,8 +133,17 @@ public class HawkCompanionMinion : MonoBehaviour
         ScheduleNextHoverPause();
         _nextStrikeReadyTime = Time.time + 0.35f;
         _initialized = true;
+        RegisterActiveCompanion();
         return true;
     }
+
+    private void RegisterActiveCompanion()
+    {
+        if (!s_activeCompanions.Contains(this))
+            s_activeCompanions.Add(this);
+    }
+
+    private void UnregisterActiveCompanion() => s_activeCompanions.Remove(this);
 
     public void BindReleasedCallback(Action<HawkCompanionMinion> onDespawned) => _onDespawned = onDespawned;
 
@@ -180,6 +205,7 @@ public class HawkCompanionMinion : MonoBehaviour
         _state = MotionState.Flying;
         _strikeTarget = null;
         BeginPatrol();
+        RegisterActiveCompanion();
     }
 
     private void Update()
@@ -220,6 +246,7 @@ public class HawkCompanionMinion : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnregisterActiveCompanion();
         _onDespawned?.Invoke(this);
     }
 

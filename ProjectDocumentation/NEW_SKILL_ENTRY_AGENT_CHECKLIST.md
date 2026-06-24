@@ -315,7 +315,10 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   Major passive effect copy pattern (RangedMajorPassiveTooltipText.Build*EffectBody):
   - Computed damage line (from stats.MinSplitDamage / MaxSplitDamage × fraction).
   - Proc / mechanical lines (proc chance, chain rules, etc.).
-  - **Committed enhancement line only** (append when selectedChoice >= 0) — not on preview click.
+  - **Enhancement stat merge:** fold numeric enhancement bonuses into the parent stat line when they
+        modify the same stat (e.g. +50% → +100% seeker proc). Separate paragraphs only for new mechanics.
+  - **Committed enhancement line** (append when selectedChoice >= 0) for mechanics that are not a stat
+        bump on an existing line — not on preview click unless previewing that choice card.
   - Use DetailsEffectParagraphGap (`\n\n`) between each logical paragraph — see EFFECT SPACING.
 
   Skill-tree list / hover tooltips: TryBuildSkillTreeBody may combine scaling + effect for compact display;
@@ -731,12 +734,22 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - TryBuildDetailsPanelSections — scalingText + effectText for details panel.
   - Build*ScalingBody → WrapDetailsScalingAccentLine("Deals X% of your weapon damage").
   - Build*EffectBody — damage line, proc line, committed enhancement; use DetailsEffectParagraphGap.
+  - **Enhancement stat merge:** fold committed enhancement bonuses into the parent stat line in EFFECT
+        (e.g. Lone Ranger +50% → +100% seeker proc when Sharpshooter is committed). Do NOT add a second
+        orange paragraph naming the enhancement for the same stat — reserve separate lines for genuinely
+        new mechanics (Echoes chain, Volley burst, Relaxed Companion ally threshold).
+  - **Multiplicative proc bonuses:** when a passive says "+X% proc chance", apply as a relative multiplier
+        on the base proc (25% base × (1 + 1.0) = 50% with +100% bonus), not flat addition (+25 pp).
+        Show final computed chance in a footer line when helpful (e.g. Lone Ranger:
+        `(Seeker arrow proc chance: X%)`).
+  - **Seeker proc line copy:** default proc text is "X% chance to proc on auto attack" only (no "seeker arrow hit" suffix).
+        Echoes chains at most once from the primary seeker arrow; echo / volley arrows do not chain again.
   - TryBuildChoiceTooltipBody — enhancement card / detail text.
   - Wire in SkillTreeNodeTooltipFormatter + SkillUnlockPanelTooltipBuilder + SkillNodeDetailsPanelUI
         ResolveEnhancementDetailEffectText.
 
   Balance notes (Seeker Arrows reference):
-  - Base proc 25% on auto attack and on seeker hit (Echoes chain).
+  - Base proc 25% on auto attack only; Echoes adds chain proc on seeker hit.
   - Echoes expected arrows per proc ≈ 1 / (1 − procChance).
   - Volley: (1 − volleyProc) × 1 + volleyProc × count — tune volleyProc so both enhancements are
         roughly even over long fights (10% × 5 ≈ competitive with geometric Echoes chain at 25%).
@@ -749,6 +762,35 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 
   Reference: seeker_arrows (conceptual), PlayerCombatController.SeekerArrows.cs,
     RangedMajorPassiveTooltipText.cs, AbilityCombatPower.SeekerArrow*.
+
+## K2b) RANGED MAJOR PASSIVE — LONE RANGER (conditional ally proc bonus)
+
+  When to use:
+  - Major passive gated on ally presence in the same play area (minions + companions count as allies).
+  - Multiplicative proc bonus on an existing proc (Seeker Arrows base chance × (1 + bonus)).
+
+  Ally detection (LoneRangerAllyPresence):
+  - Count player-owned minions / companions in the same play area — NO Update polling.
+  - Register active companions on minion Initialize (HawkCompanionMinion, SoulforgedWeaponMinion,
+        MinionCombatTarget) and unregister OnDestroy.
+  - Refresh ally count from combat events when Lone Ranger bonus is evaluated (auto attack proc, tooltip bind).
+
+  Tooltips:
+  - Merge Sharpshooter into the seeker proc stat line (+50% → +100%); no separate Sharpshooter paragraph.
+  - Footer: `(Seeker arrow proc chance: X%)` using GetSeekerArrowProcChanceFraction (live computed value).
+  - Show "Currently active." / "Currently inactive." when the passive is unlocked.
+
+  Constants (AbilityCombatPower):
+  - LoneRangerMajorPassiveSpineNodeId, LoneRangerRangedDamageBonusFraction,
+        GetLoneRangerSeekerProcRelativeBonusFraction, ApplyLoneRangerSeekerProcMultiplier.
+
+  Skill tree (.skill asset):
+  - **icon:** shared major passive sprite (guid d4b4e65185d715544a6aa618c0842b18) — same as Seeker Arrows.
+  - Enhancement Relaxed Companion: ally threshold 0 → 1; Sharpshooter: +50% relative proc (100% total bonus).
+
+  Smoke test:
+  - Hawk Companion (or any minion) in same area → Lone Ranger inactive.
+  - Solo in area → +10% ranged damage; seeker proc 25% → 37.5% (+50%) or 50% (+100% with Sharpshooter).
 ## K3) COOLDOWN HELPERS
 
   ReduceAbilityCooldown(def, reductionFraction) — multiplies remaining CD (Executioner's Claim 50%).

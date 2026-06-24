@@ -118,6 +118,13 @@ public static class SkillTreeNodeTooltipFormatter
                     scalingText = rangedScaling;
                     effectText = rangedEffect;
                 }
+                else if (skill.skillType == SkillType.Endurance
+                         && EnduranceMajorPassiveTooltipText.TryBuildDetailsPanelSections(
+                             spineId, selectedChoice, stats, out string enduranceScaling, out string enduranceEffect))
+                {
+                    scalingText = enduranceScaling;
+                    effectText = enduranceEffect;
+                }
             }
 
             if (visualType != SkillTreeNodeVisualType.CapstonePassive && !string.IsNullOrWhiteSpace(effectText))
@@ -199,6 +206,11 @@ public static class SkillTreeNodeTooltipFormatter
                 && RangedMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string rangedChoiceBody))
             {
                 desc = rangedChoiceBody;
+            }
+            else if (skill.skillType == SkillType.Endurance
+                     && EnduranceMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string enduranceChoiceBody))
+            {
+                desc = enduranceChoiceBody;
             }
             else if (skill.skillType == SkillType.Melee
                 && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceAssetIndex, out string meleeChoiceBody))
@@ -399,6 +411,12 @@ public static class SkillTreeNodeTooltipFormatter
         {
             if (RangedMajorPassiveTooltipText.TryBuildSkillTreeBody(spineId, selectedChoice, out string rangedBody))
                 return rangedBody;
+        }
+
+        if (skill.skillType == SkillType.Endurance && unlock.unlockType == SkillUnlockType.MajorPassive)
+        {
+            if (EnduranceMajorPassiveTooltipText.TryBuildSkillTreeBody(spineId, selectedChoice, out string enduranceBody))
+                return enduranceBody;
         }
 
         if (skill.skillType == SkillType.Melee && unlock.unlockType == SkillUnlockType.CapstonePassive)

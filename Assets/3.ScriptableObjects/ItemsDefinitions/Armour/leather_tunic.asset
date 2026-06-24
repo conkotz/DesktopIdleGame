@@ -91,6 +91,7 @@ MonoBehaviour:
     staminaEfficiency: 0
   armorStats:
     equipmentTier: 0
+    armorType: 1
     armor: 0
     magicResist: 15
     corruptionResist: 10

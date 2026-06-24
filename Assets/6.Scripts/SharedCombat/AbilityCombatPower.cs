@@ -207,6 +207,53 @@ public static class AbilityCombatPower
             ? EnchantedQuiverConservationSavedArrowDamageBonusFraction
             : EnchantedQuiverBaseSavedArrowDamageBonusFraction;
 
+    /// <summary>Endurance Lv20 major passive — Alchemist's Boon.</summary>
+    public const string AlchemistsBoonMajorPassiveSpineNodeId = "Lv20_0";
+    public const int AlchemistsBoonMajorPassiveLevel = 20;
+    public const float AlchemistsBoonConsumableDurationBonusSeconds = 30f;
+    public const float AlchemistsBoonFoodHealBonusFraction = 0.10f;
+    public const float AlchemistsBoonFoodOverhealMaxHpFraction = 0.10f;
+    public const float AlchemistsBoonConsumableCooldownReductionFraction = 0.20f;
+    /// <summary>When food has no configured timed-buff duration, passive overheal uses this base before the +30s bonus.</summary>
+    public const float AlchemistsBoonDefaultFoodBuffDurationSeconds = 30f;
+    public const int AlchemistsBoonEnhancementFoodCooldownChoiceIndex = 0;
+    public const int AlchemistsBoonEnhancementPotionCooldownChoiceIndex = 1;
+
+    public static float GetAlchemistsBoonEffectiveCooldownSeconds(float baseCooldownSeconds, int enhancementPick, bool isFood, bool isPotion)
+    {
+        if (baseCooldownSeconds <= 0f)
+            return baseCooldownSeconds;
+
+        if (isFood && enhancementPick == AlchemistsBoonEnhancementFoodCooldownChoiceIndex)
+            return baseCooldownSeconds * (1f - AlchemistsBoonConsumableCooldownReductionFraction);
+
+        if (isPotion && enhancementPick == AlchemistsBoonEnhancementPotionCooldownChoiceIndex)
+            return baseCooldownSeconds * (1f - AlchemistsBoonConsumableCooldownReductionFraction);
+
+        return baseCooldownSeconds;
+    }
+
+    /// <summary>Ranged Lv30 major passive — Lone Ranger.</summary>
+    public const string LoneRangerMajorPassiveSpineNodeId = "Lv30_0";
+    public const int LoneRangerMajorPassiveLevel = 30;
+    public const float LoneRangerRangedDamageBonusFraction = 0.10f;
+    public const float LoneRangerSeekerProcBonusFraction = 0.50f;
+    public const float LoneRangerSeekerProcEnhancement2BonusFraction = 0.50f;
+    public const int LoneRangerEnhancementRelaxedCompanionChoiceIndex = 0;
+    public const int LoneRangerEnhancementExtraSeekerProcChoiceIndex = 1;
+
+    /// <summary>Relative bonus applied to base seeker proc (0.5 = +50%, 1.0 = +100%).</summary>
+    public static float GetLoneRangerSeekerProcRelativeBonusFraction(int enhancementPick)
+    {
+        float bonus = LoneRangerSeekerProcBonusFraction;
+        if (enhancementPick == LoneRangerEnhancementExtraSeekerProcChoiceIndex)
+            bonus += LoneRangerSeekerProcEnhancement2BonusFraction;
+        return bonus;
+    }
+
+    public static float ApplyLoneRangerSeekerProcMultiplier(float baseProcFraction, int enhancementPick) =>
+        Mathf.Clamp01(baseProcFraction * (1f + GetLoneRangerSeekerProcRelativeBonusFraction(enhancementPick)));
+
     public static float GetSnipeChargeDurationSeconds(int selectedEnhancementChoice) =>
         selectedEnhancementChoice == SnipeFasterChargeChoiceIndex
             ? SnipeEnhancedChargeDurationSeconds

@@ -88,6 +88,12 @@ public static class PlayAreaBounds
         return desiredWorldX;
     }
 
+    /// <summary>Stable key for whether two world X positions share the same enabled play area (empty = main lane).</summary>
+    public static string GetPlayAreaKey(float worldX) =>
+        TryGetEnabledSideAreaContainingWorldX(worldX, out SidePlayArea area)
+            ? area.AreaId
+            : string.Empty;
+
     public static bool TryGetCameraClampXForWorldX(float worldX, float halfViewportWidth, out float minX, out float maxX)
     {
         if (TryGetEnabledSideAreaContainingWorldX(worldX, out SidePlayArea sideArea))

@@ -68,8 +68,9 @@ public class PlayerConsumableController : MonoBehaviour
             }
         }
 
-        if (def.UseCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
-            cooldownEndTimes[cooldownKey] = Time.time + def.UseCooldown;
+        float effectiveCooldown = GetEffectiveUseCooldown(def);
+        if (effectiveCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
+            cooldownEndTimes[cooldownKey] = Time.time + effectiveCooldown;
 
         player.ResetConsumableUnusableActivityLogLatchFor(def);
 
@@ -113,8 +114,9 @@ public class PlayerConsumableController : MonoBehaviour
             return false;
         }
 
-        if (def.UseCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
-            cooldownEndTimes[cooldownKey] = Time.time + def.UseCooldown;
+        float effectiveCooldown = GetEffectiveUseCooldown(def);
+        if (effectiveCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
+            cooldownEndTimes[cooldownKey] = Time.time + effectiveCooldown;
 
         player.ResetConsumableUnusableActivityLogLatchFor(def);
         return true;
@@ -180,32 +182,52 @@ public class PlayerConsumableController : MonoBehaviour
         if (!cooldownEndTimes.TryGetValue(cooldownKey, out float endTime))
             return 0f;
 
+        float effectiveCooldown = GetEffectiveUseCooldown(def);
+        if (effectiveCooldown <= 0f)
+            return 0f;
+
         float remaining = Mathf.Max(0f, endTime - Time.time);
-        return remaining / def.UseCooldown;
+        return remaining / effectiveCooldown;
     }
+
+    private float GetEffectiveUseCooldown(ItemDefinition def)
+    {
+        CharacterStats stats = player != null ? player.GetComponent<CharacterStats>() : null;
+        return ConsumablePassiveModifiers.GetEffectiveUseCooldown(def, stats);
+    }
+
+    private CharacterStats ResolvePlayerStats() =>
+        player != null ? player.GetComponent<CharacterStats>() : null;
 
     public int CountItem(string itemId) => CountItemIncludingInventory(itemId);
 
     private void ApplyConsumable(ItemDefinition def)
     {
-        if (def.HealAmount > 0)
-            player.Heal(def.HealAmount, ResolveHealingSourceLabel(def));
-
-        if (def.EnergyAmount > 0)
-            player.AddEnergy(def.EnergyAmount);
-
+        CharacterStats stats = ResolvePlayerStats();
         PlayerBuffController buffController = GetComponent<PlayerBuffController>();
-        bool batchBuffs = buffController != null && (def.HasGrantedEffect || def.HasFoodTimedBuffs);
+        bool batchBuffs = buffController != null &&
+                          (def.HasGrantedEffect || def.HasFoodTimedBuffs ||
+                           (def.IsFood && ConsumablePassiveModifiers.GetEffectiveFoodOverhealCapFlat(def, stats) > 0));
         if (batchBuffs)
             buffController.BeginBuffBatch();
 
         try
         {
+            if (def.IsFood)
+                ApplyFoodOverhealBuffBeforeHeal(def, stats, buffController);
+
+            int healAmount = ConsumablePassiveModifiers.GetEffectiveHealAmount(def, stats);
+            if (healAmount > 0)
+                player.Heal(healAmount, ResolveHealingSourceLabel(def));
+
+            if (def.EnergyAmount > 0)
+                player.AddEnergy(def.EnergyAmount);
+
             if (def.HasGrantedEffect)
-                ApplyGrantedEffect(def);
+                ApplyGrantedEffect(def, stats);
 
             if (def.HasFoodTimedBuffs)
-                ApplyFoodTimedBuffs(def);
+                ApplyFoodTimedBuffs(def, stats);
         }
         finally
         {
@@ -216,7 +238,39 @@ public class PlayerConsumableController : MonoBehaviour
         player.ShowPopup($"Used {def.displayName}");
     }
 
-    private void ApplyFoodTimedBuffs(ItemDefinition def)
+    private static void ApplyFoodOverhealBuffBeforeHeal(
+        ItemDefinition def,
+        CharacterStats stats,
+        PlayerBuffController buffController)
+    {
+        if (def == null || !def.IsFood || buffController == null)
+            return;
+
+        int overhealCap = ConsumablePassiveModifiers.GetEffectiveFoodOverhealCapFlat(def, stats);
+        if (overhealCap <= 0)
+            return;
+
+        ConsumableStats cs = def.consumableStats;
+        if (!cs.foodEnableOverheal && !ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats))
+            return;
+
+        float duration = ConsumablePassiveModifiers.GetEffectiveFoodEffectDuration(def, stats);
+        if (duration <= 0.001f && ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats))
+            duration = AbilityCombatPower.AlchemistsBoonDefaultFoodBuffDurationSeconds;
+        if (duration <= 0.001f)
+            return;
+
+        var overheal = new ConsumableGrantedEffect
+        {
+            effectType = ConsumableEffectType.FoodOverheal,
+            magnitude = overhealCap,
+            duration = Mathf.Max(0.01f, duration),
+            effectId = def.itemId
+        };
+        buffController.ApplyBuff(overheal);
+    }
+
+    private void ApplyFoodTimedBuffs(ItemDefinition def, CharacterStats stats)
     {
         var buffController = GetComponent<PlayerBuffController>();
         if (!buffController)
@@ -226,27 +280,17 @@ public class PlayerConsumableController : MonoBehaviour
         }
 
         ConsumableStats cs = def.consumableStats;
-        float duration = Mathf.Max(0.01f, cs.foodEffectDurationSeconds);
+        float duration = ConsumablePassiveModifiers.GetEffectiveFoodEffectDuration(def, stats);
+        duration = Mathf.Max(0.01f, duration);
         string itemId = def.itemId;
+        int regenTotal = ConsumablePassiveModifiers.GetEffectiveFoodRegenTotal(def, stats);
 
-        if (cs.foodEnableOverheal && cs.foodOverhealMaxAboveMaxHp > 0)
-        {
-            var overheal = new ConsumableGrantedEffect
-            {
-                effectType = ConsumableEffectType.FoodOverheal,
-                magnitude = cs.foodOverhealMaxAboveMaxHp,
-                duration = duration,
-                effectId = itemId
-            };
-            buffController.ApplyBuff(overheal);
-        }
-
-        if (cs.foodEnableRegen && cs.foodRegenTotalHeal > 0)
+        if (cs.foodEnableRegen && regenTotal > 0)
         {
             var hot = new ConsumableGrantedEffect
             {
                 effectType = ConsumableEffectType.FoodHealOverTime,
-                magnitude = cs.foodRegenTotalHeal,
+                magnitude = regenTotal,
                 duration = duration,
                 effectId = itemId
             };
@@ -279,7 +323,11 @@ public class PlayerConsumableController : MonoBehaviour
         }
 
         if (cs.foodEnableOverheal && cs.foodOverhealInstantHeal > 0)
-            player.Heal(cs.foodOverhealInstantHeal, PlayerCombatController.FoodHealingSourceLabel);
+        {
+            player.Heal(
+                ConsumablePassiveModifiers.ScaleFoodHealAmount(cs.foodOverhealInstantHeal, stats),
+                PlayerCombatController.FoodHealingSourceLabel);
+        }
     }
 
     private static string ResolveHealingSourceLabel(ItemDefinition def)
@@ -293,9 +341,9 @@ public class PlayerConsumableController : MonoBehaviour
         return PlayerCombatController.GenericHealingSourceLabel;
     }
 
-    private void ApplyGrantedEffect(ItemDefinition def)
+    private void ApplyGrantedEffect(ItemDefinition def, CharacterStats stats)
     {
-        var effect = def.GrantedEffect;
+        ConsumableGrantedEffect effect = ConsumablePassiveModifiers.GetEffectiveGrantedEffect(def, stats);
 
         var buffController = GetComponent<PlayerBuffController>();
         if (!buffController)
@@ -304,7 +352,7 @@ public class PlayerConsumableController : MonoBehaviour
             return;
         }
 
-        effect.effectId = def.itemId; // 👈 THIS IS THE KEY FIX
+        effect.effectId = def.itemId;
         buffController.ApplyBuff(effect);
 
         player.ShowPopup(GetEffectPopupText(def.displayName, effect));

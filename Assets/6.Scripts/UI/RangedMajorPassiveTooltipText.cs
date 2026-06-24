@@ -6,6 +6,8 @@ using UnityEngine;
 public static class RangedMajorPassiveTooltipText
 {
     public const string DetailsEffectParagraphGap = "\n\n";
+    private const string PassiveStatusActiveColor = "#CC8A1A";
+    private const string PassiveStatusInactiveColor = "#7A847C";
 
     public static bool TryBuildSkillTreeBody(string parentSpineNodeId, int selectedChoice, out string body) =>
         TryBuildSkillTreeBody(parentSpineNodeId, selectedChoice, AbilityTooltipDamagePreview.FindLocalPlayerStats(), out body);
@@ -37,6 +39,12 @@ public static class RangedMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.LoneRangerMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            body = BuildLoneRangerEffectBody(stats, selectedChoice);
+            return true;
+        }
+
         return false;
     }
 
@@ -65,6 +73,12 @@ public static class RangedMajorPassiveTooltipText
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.EnchantedQuiverMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
             effectText = BuildEnchantedQuiverEffectBody(stats, selectedChoice);
+            return true;
+        }
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.LoneRangerMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            effectText = BuildLoneRangerEffectBody(stats, selectedChoice);
             return true;
         }
 
@@ -142,6 +156,25 @@ public static class RangedMajorPassiveTooltipText
             return false;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.LoneRangerMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            if (choiceIndex == AbilityCombatPower.LoneRangerEnhancementRelaxedCompanionChoiceIndex)
+            {
+                body = "Benefit from Lone Ranger while at most 1 ally is in the same area as you.";
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.LoneRangerEnhancementExtraSeekerProcChoiceIndex)
+            {
+                body =
+                    $"+{AbilityCombatPower.LoneRangerSeekerProcEnhancement2BonusFraction * 100f:0.#}% additional seeker arrow proc chance " +
+                    $"while Lone Ranger is active.";
+                return true;
+            }
+
+            return false;
+        }
+
         return false;
     }
 
@@ -172,6 +205,14 @@ public static class RangedMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.LoneRangerMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor =
+                "If no allies are in the same area as you, gain increased ranged damage " +
+                "and a greatly increased chance to proc seeker arrows.";
+            return true;
+        }
+
         return false;
     }
 
@@ -179,7 +220,7 @@ public static class RangedMajorPassiveTooltipText
     {
         var sb = new StringBuilder();
         AppendParagraph(sb, FormatSeekerArrowDamageLine(stats));
-        AppendParagraph(sb, FormatSeekerArrowProcChanceLine());
+        AppendParagraph(sb, FormatSeekerArrowProcChanceLine(selectedChoice));
         if (TryGetSeekerArrowsCommittedEnhancementEffectLine(selectedChoice, out string enhancementLine))
             AppendParagraph(sb, enhancementLine);
 
@@ -231,6 +272,63 @@ public static class RangedMajorPassiveTooltipText
         return sb.ToString();
     }
 
+    public static string BuildLoneRangerEffectBody(CharacterStats stats, int selectedChoice = -1)
+    {
+        var sb = new StringBuilder();
+        int maxAllies = stats != null
+            ? stats.GetLoneRangerMaxAlliesAllowedInArea()
+            : 0;
+        string allyLine = maxAllies <= 0
+            ? "While no allies are in the same area as you:"
+            : "While at most 1 ally is in the same area as you:";
+
+        int procEnhancementPick = ResolveLoneRangerProcEnhancementPick(stats, selectedChoice);
+        float procBonusPct = AbilityCombatPower.GetLoneRangerSeekerProcRelativeBonusFraction(procEnhancementPick) * 100f;
+
+        AppendParagraph(sb, allyLine);
+        AppendParagraph(sb,
+            $"+{AbilityCombatPower.LoneRangerRangedDamageBonusFraction * 100f:0.#}% ranged damage.");
+        AppendParagraph(sb,
+            $"+{procBonusPct:0.#}% seeker arrow proc chance.");
+
+        PlayerCombatController combat = null;
+        if (stats != null)
+        {
+            combat = stats.GetComponent<PlayerCombatController>();
+            if (!combat)
+                combat = stats.GetComponentInParent<PlayerCombatController>();
+
+            if (stats.IsLoneRangerMajorPassiveActive())
+            {
+                bool active = stats.IsLoneRangerBonusActive(combat);
+                string statusColor = active ? PassiveStatusActiveColor : PassiveStatusInactiveColor;
+                string statusText = active ? "Currently active." : "Currently inactive.";
+                AppendParagraph(sb, $"<color={statusColor}>{statusText}</color>");
+            }
+
+            float procPct = stats.GetSeekerArrowProcChanceFraction(combat) * 100f;
+            AppendParagraph(sb, $"(Seeker arrow proc chance: {procPct:0.#}%)");
+        }
+        else
+        {
+            float baseProcPct = AbilityCombatPower.SeekerArrowProcChance * 100f;
+            AppendParagraph(sb, $"(Seeker arrow proc chance: {baseProcPct:0.#}%)");
+        }
+
+        return sb.ToString();
+    }
+
+    private static int ResolveLoneRangerProcEnhancementPick(CharacterStats stats, int selectedChoice)
+    {
+        if (selectedChoice == AbilityCombatPower.LoneRangerEnhancementExtraSeekerProcChoiceIndex)
+            return selectedChoice;
+
+        if (selectedChoice >= 0)
+            return -1;
+
+        return stats != null ? stats.GetLoneRangerEnhancementPick() : -1;
+    }
+
     private static bool TryGetSeekerArrowsCommittedEnhancementEffectLine(int selectedChoice, out string line)
     {
         line = null;
@@ -266,8 +364,8 @@ public static class RangedMajorPassiveTooltipText
         return $"{Mathf.RoundToInt(scaledTotal)} damage per seeker arrow on hit";
     }
 
-    private static string FormatSeekerArrowProcChanceLine() =>
-        $"{AbilityCombatPower.SeekerArrowProcChance * 100f:0.#}% chance to proc on auto attack or seeker arrow hit";
+    private static string FormatSeekerArrowProcChanceLine(int selectedChoice = -1) =>
+        $"{AbilityCombatPower.SeekerArrowProcChance * 100f:0.#}% chance to proc on auto attack";
 
     private static void AppendParagraph(StringBuilder sb, string line)
     {

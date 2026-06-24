@@ -1540,6 +1540,11 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                     && !string.IsNullOrWhiteSpace(rangedBody))
                     return rangedBody;
 
+                if (skillType == SkillType.Endurance
+                    && EnduranceMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string enduranceBody)
+                    && !string.IsNullOrWhiteSpace(enduranceBody))
+                    return enduranceBody;
+
                 if (skillType == SkillType.Melee
                     && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
                     && !string.IsNullOrWhiteSpace(meleeBody))

@@ -1666,6 +1666,13 @@ public class SkillTreeViewUI : MonoBehaviour
                 return rangedBody;
         }
 
+        if (selectedSkill.skillType == SkillType.Endurance &&
+            row.unlock.unlockType == SkillUnlockType.MajorPassive)
+        {
+            if (EnduranceMajorPassiveTooltipText.TryBuildSkillTreeBody(SpineNodeId(row), selectedChoice, out string enduranceBody))
+                return enduranceBody;
+        }
+
         if (selectedSkill.skillType == SkillType.Woodcutting)
         {
             if (row.level != PlayerController.WoodcuttingMajorPassiveSourceLevel &&

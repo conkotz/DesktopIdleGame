@@ -4,7 +4,7 @@ using UnityEngine;
 
 public partial class PlayerCombatController
 {
-    private readonly Queue<(EnemyBaseController target, int shotCount, bool allowChainOnHit)> _seekerArrowVolleyQueue = new();
+    private readonly Queue<(EnemyBaseController target, int shotCount, bool allowEchoFromPrimary)> _seekerArrowVolleyQueue = new();
     private Coroutine _seekerArrowVolleyRoutine;
 
     public void TryProcSeekerArrowsFromAutoAttack(EnemyBaseController target)
@@ -12,10 +12,13 @@ public partial class PlayerCombatController
         if (!CanUseSeekerArrows() || target == null || target.IsDead)
             return;
 
-        if (UnityEngine.Random.value >= stats.GetSeekerArrowProcChanceFraction())
+        if (UnityEngine.Random.value >= stats.GetSeekerArrowProcChanceFraction(this))
             return;
 
-        EnqueueSeekerArrowVolley(target, RollSeekerArrowVolleyCount(), allowChainOnHit: true);
+        int shotCount = RollSeekerArrowVolleyCount();
+        bool allowEchoFromPrimary =
+            shotCount == 1 && stats.CanSeekerArrowsChainOnHit();
+        EnqueueSeekerArrowVolley(target, shotCount, allowEchoFromPrimary);
     }
 
     private void TryProcSeekerArrowsFromSeekerHit(EnemyBaseController target)
@@ -23,18 +26,18 @@ public partial class PlayerCombatController
         if (!CanUseSeekerArrows() || !stats.CanSeekerArrowsChainOnHit() || target == null || target.IsDead)
             return;
 
-        if (UnityEngine.Random.value >= stats.GetSeekerArrowProcChanceFraction())
+        if (UnityEngine.Random.value >= stats.GetSeekerArrowProcChanceFraction(this))
             return;
 
-        EnqueueSeekerArrowVolley(target, RollSeekerArrowVolleyCount(), allowChainOnHit: true);
+        EnqueueSeekerArrowVolley(target, RollSeekerArrowVolleyCount(), allowEchoFromPrimary: false);
     }
 
-    private void EnqueueSeekerArrowVolley(EnemyBaseController target, int shotCount, bool allowChainOnHit)
+    private void EnqueueSeekerArrowVolley(EnemyBaseController target, int shotCount, bool allowEchoFromPrimary)
     {
         if (target == null || target.IsDead || shotCount <= 0)
             return;
 
-        _seekerArrowVolleyQueue.Enqueue((target, shotCount, allowChainOnHit));
+        _seekerArrowVolleyQueue.Enqueue((target, shotCount, allowEchoFromPrimary));
         if (_seekerArrowVolleyRoutine == null)
             _seekerArrowVolleyRoutine = StartCoroutine(CoProcessSeekerArrowVolleyQueue());
     }
@@ -43,14 +46,14 @@ public partial class PlayerCombatController
     {
         while (_seekerArrowVolleyQueue.Count > 0)
         {
-            (EnemyBaseController target, int shotCount, bool allowChainOnHit) request = _seekerArrowVolleyQueue.Dequeue();
-            yield return CoSeekerArrowVolley(request.target, request.shotCount, request.allowChainOnHit);
+            (EnemyBaseController target, int shotCount, bool allowEchoFromPrimary) request = _seekerArrowVolleyQueue.Dequeue();
+            yield return CoSeekerArrowVolley(request.target, request.shotCount, request.allowEchoFromPrimary);
         }
 
         _seekerArrowVolleyRoutine = null;
     }
 
-    private IEnumerator CoSeekerArrowVolley(EnemyBaseController initialTarget, int shotCount, bool allowChainOnHit)
+    private IEnumerator CoSeekerArrowVolley(EnemyBaseController initialTarget, int shotCount, bool allowEchoFromPrimary)
     {
         if (shotCount > 1)
         {
@@ -67,7 +70,7 @@ public partial class PlayerCombatController
                 if (target == null)
                     break;
 
-                StartCoroutine(CoResolveSeekerArrowHit(target, allowChainOnHit));
+                StartCoroutine(CoResolveSeekerArrowHit(target, allowEchoFromPrimary: false));
             }
 
             yield break;
@@ -77,10 +80,10 @@ public partial class PlayerCombatController
         if (singleTarget == null)
             yield break;
 
-        yield return CoResolveSeekerArrowHit(singleTarget, allowChainOnHit);
+        yield return CoResolveSeekerArrowHit(singleTarget, allowEchoFromPrimary);
     }
 
-    private IEnumerator CoResolveSeekerArrowHit(EnemyBaseController target, bool allowChainOnHit)
+    private IEnumerator CoResolveSeekerArrowHit(EnemyBaseController target, bool allowEchoFromPrimary)
     {
         if (!CanUseSeekerArrows() || target == null || target.IsDead)
             yield break;
@@ -98,7 +101,7 @@ public partial class PlayerCombatController
         if (!ApplySeekerArrowDamage(target, out _))
             yield break;
 
-        if (allowChainOnHit)
+        if (allowEchoFromPrimary)
             TryProcSeekerArrowsFromSeekerHit(target);
     }
 
