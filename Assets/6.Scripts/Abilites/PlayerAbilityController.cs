@@ -1164,8 +1164,18 @@ public partial class PlayerAbilityController : MonoBehaviour
             AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId,
             PlayerCombatController.WayOfTheBerserkerHudBuffId,
             PlayerCombatController.WayOfTheBerserkerLeechHudBuffId,
+            PlayerCombatController.WayOfTheCrusaderHudBuffId,
+            AbilityCombatPower.BloodbathHudBuffId,
+            CharacterStats.PhoenixSoulAshenRebirthImmunityHudBuffId,
             PlayerSprintInput.SprintHudBuffId,
         };
+
+    /// <summary>
+    /// HUD strip rows driven by passives/stats/capstones — not lingering abilities that should end when
+    /// removed from the action bar. Excluded from <see cref="EndActiveLingeringAbilitiesNotOnActionBar"/>.
+    /// </summary>
+    private static bool IsPassiveOrStatHudBuffStripRow(string hudBuffId) =>
+        !string.IsNullOrWhiteSpace(hudBuffId) && HudBuffIdsNotDismissableFromPanel.Contains(hudBuffId);
 
     /// <summary>Right-click dismiss on the buff strip — ends lingering abilities/minions; not combo-phase trackers.</summary>
     public bool TryDismissHudBuffFromPanel(string abilityId)
@@ -1382,6 +1392,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             PlayerBuffController.ActiveBuff buff = hudBuffs[i];
             if (buff.type != ConsumableEffectType.HudAbilityBuff || string.IsNullOrWhiteSpace(buff.id))
+                continue;
+            if (IsPassiveOrStatHudBuffStripRow(buff.id))
                 continue;
             if (ShouldSkipActionBarRemovalForAbility(buff.id))
                 continue;
@@ -7434,14 +7446,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             if (buffController.IsHudAbilityBuffActive(CleavingStrikesId))
                 buffController.ClearHudAbilityBuff(CleavingStrikesId);
-            _lastSyncedCleavingHudStacks = int.MinValue;
-            _lastSyncedCleavingHudEnd = float.NaN;
-            return;
-        }
-
-        if (IsOnCooldown(CleavingStrikesId, out _))
-        {
-            buffController.ClearHudAbilityBuff(CleavingStrikesId);
             _lastSyncedCleavingHudStacks = int.MinValue;
             _lastSyncedCleavingHudEnd = float.NaN;
             return;

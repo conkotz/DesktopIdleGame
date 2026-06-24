@@ -140,6 +140,31 @@ public class PlayerBuffController : MonoBehaviour
         return true;
     }
 
+    /// <summary>Whether a HUD ability row should occupy a slot on the buff strip (mirrors strip clear rules).</summary>
+    public static bool ShouldDisplayHudAbilityBuffInStrip(ActiveBuff buff)
+    {
+        if (buff == null || buff.type != ConsumableEffectType.HudAbilityBuff)
+            return false;
+
+        return !ShouldClearHudAbilityBuffRow(
+            buff.displayStacks,
+            buff.endTime,
+            buff.duration,
+            buff.hudPersistActiveOverlay);
+    }
+
+    /// <summary>Whether an active buff row should be shown on the HUD buff strip.</summary>
+    public static bool ShouldDisplayInBuffStrip(ActiveBuff buff)
+    {
+        if (buff == null || buff.hideFromBuffPanel)
+            return false;
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+            return ShouldDisplayHudAbilityBuffInStrip(buff);
+
+        return !buff.IsExpired;
+    }
+
     public void SetHudAbilityBuff(
         string abilityId,
         int displayStacks,
@@ -164,6 +189,8 @@ public class PlayerBuffController : MonoBehaviour
                 return;
             }
 
+            bool wasVisible = ShouldDisplayHudAbilityBuffInStrip(existing);
+
             bool structuralLayoutChange =
                 existing.hudPersistActiveOverlay != persistActiveOverlay ||
                 !Mathf.Approximately(existing.duration, Mathf.Max(0f, durationSeconds));
@@ -173,7 +200,9 @@ public class PlayerBuffController : MonoBehaviour
             existing.displayStacks = displayStacks;
             existing.hudPersistActiveOverlay = persistActiveOverlay;
 
-            if (structuralLayoutChange)
+            bool nowVisible = ShouldDisplayHudAbilityBuffInStrip(existing);
+
+            if (structuralLayoutChange || wasVisible != nowVisible)
                 NotifyChanged();
             return;
         }

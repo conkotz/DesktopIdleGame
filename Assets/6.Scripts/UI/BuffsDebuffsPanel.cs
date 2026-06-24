@@ -116,16 +116,24 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [SerializeField, Min(0f)] private float buffIconSpacing = 4f;
 
     private bool _panelLayoutConfigured;
+    private bool _layoutRefreshQueued;
 
     private readonly List<GameObject> spawnedDebuffIcons = new();
     private readonly Dictionary<string, GameObject> _debuffIconsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _debuffIconKeyOrder = new();
-    private readonly List<GameObject> spawnedBuffIcons = new();
-    private readonly List<BuffIconUI> spawnedBuffIconUis = new();
-    private readonly List<BuffIconVisualSnapshot> buffIconSnapshots = new();
+    private readonly Dictionary<string, GameObject> _buffIconsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, BuffIconUI> _buffIconUisByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, BuffIconVisualSnapshot> _buffSnapshotsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _buffIconKeyOrder = new();
     private AbilityDatabase _abilityDatabase;
     private float _nextBuffTimerRefreshAt;
+    private int _lastReconciledVisibleBuffCount = -1;
+
+    private struct VisibleBuffRow
+    {
+        public string key;
+        public PlayerBuffController.ActiveBuff buff;
+    }
 
     private struct BuffIconVisualSnapshot
     {
@@ -166,6 +174,25 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     private void Awake()
     {
+        ResolveRuntimeRefs();
+        _abilityDatabase = AbilityDatabase.LoadDefault();
+
+        if (!panelTooltip)
+            panelTooltip = GameObject.Find("HUDToolTipInfoPanel")?.GetComponent<SharedTooltipUI>();
+        if (!panelTooltip)
+            panelTooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+
+        // Default tooltip rects to this panel if not provided.
+        RectTransform selfRect = transform as RectTransform;
+        if (!tooltipMeasureRect && selfRect) tooltipMeasureRect = selfRect;
+        if (!tooltipHeightRect && selfRect) tooltipHeightRect = selfRect;
+
+        ResolveBuffDebuffContainerRefs();
+        EnsurePanelLayoutConfigured();
+    }
+
+    private void ResolveRuntimeRefs()
+    {
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
 
@@ -186,21 +213,29 @@ public class BuffsDebuffsPanel : MonoBehaviour
             abilityController = FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
         if (!inventory)
             inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+    }
 
-        _abilityDatabase = AbilityDatabase.LoadDefault();
+    private void UnsubscribeEvents()
+    {
+        if (ailments != null)
+            ailments.OnAilmentsChanged -= HandleAilmentsChanged;
+        if (buffs != null)
+            buffs.OnBuffsChanged -= HandleBuffsChanged;
+    }
 
-        if (!panelTooltip)
-            panelTooltip = GameObject.Find("HUDToolTipInfoPanel")?.GetComponent<SharedTooltipUI>();
-        if (!panelTooltip)
-            panelTooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+    private void SubscribeEvents()
+    {
+        if (ailments != null)
+            ailments.OnAilmentsChanged += HandleAilmentsChanged;
+        if (buffs != null)
+            buffs.OnBuffsChanged += HandleBuffsChanged;
+    }
 
-        // Default tooltip rects to this panel if not provided.
-        RectTransform selfRect = transform as RectTransform;
-        if (!tooltipMeasureRect && selfRect) tooltipMeasureRect = selfRect;
-        if (!tooltipHeightRect && selfRect) tooltipHeightRect = selfRect;
-
-        ResolveBuffDebuffContainerRefs();
-        EnsurePanelLayoutConfigured();
+    private void Start()
+    {
+        ResolveRuntimeRefs();
+        RefreshBuffs();
+        QueueLayoutRefresh();
     }
 
     /// <summary>
@@ -220,6 +255,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
         {
             panelGroup.childControlWidth = false;
             panelGroup.childControlHeight = false;
+            panelGroup.childForceExpandWidth = false;
+            panelGroup.childForceExpandHeight = false;
         }
 
         _panelLayoutConfigured = true;
@@ -230,13 +267,16 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (!container)
             return;
 
+        // CSF + layout groups on the same object fight over width and make icons clip or flicker.
         if (container.TryGetComponent(out ContentSizeFitter fitter))
-            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.enabled = false;
 
         if (container.TryGetComponent(out HorizontalLayoutGroup group))
         {
             group.childControlWidth = false;
             group.childControlHeight = false;
+            group.childForceExpandWidth = false;
+            group.childForceExpandHeight = false;
             buffIconSpacing = group.spacing;
         }
     }
@@ -263,24 +303,61 @@ public class BuffsDebuffsPanel : MonoBehaviour
         layout.flexibleHeight = 0f;
     }
 
-    private void ApplyStripContainerWidth(Transform container, int iconCount)
+    private float ComputeStripWidth(int iconCount, Transform container)
     {
-        if (container is not RectTransform rect)
-            return;
+        if (iconCount <= 0)
+            return 0f;
 
         float spacing = ResolveStripSpacing(container);
-        float width = iconCount <= 0
-            ? 0f
-            : iconCount * buffIconSize + Mathf.Max(0, iconCount - 1) * spacing;
+        return iconCount * buffIconSize + Mathf.Max(0, iconCount - 1) * spacing;
+    }
+
+    private static void ApplyFixedHorizontalWidth(RectTransform rect, float width)
+    {
         rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+
+        LayoutElement layout = rect.GetComponent<LayoutElement>();
+        if (!layout)
+            layout = rect.gameObject.AddComponent<LayoutElement>();
+
+        layout.minWidth = width;
+        layout.preferredWidth = width;
+        layout.flexibleWidth = 0f;
     }
 
     private void ApplyPanelStripWidths()
     {
         EnsurePanelLayoutConfigured();
-        ApplyStripContainerWidth(buffContainer, spawnedBuffIcons.Count);
-        ApplyStripContainerWidth(debuffContainer, spawnedDebuffIcons.Count);
+
+        float buffWidth = ComputeStripWidth(_buffIconKeyOrder.Count, buffContainer);
+        float debuffWidth = ComputeStripWidth(spawnedDebuffIcons.Count, debuffContainer);
+
+        if (buffContainer is RectTransform buffRect)
+        {
+            ApplyFixedHorizontalWidth(buffRect, buffWidth);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(buffRect);
+        }
+        if (debuffContainer is RectTransform debuffRect)
+        {
+            ApplyFixedHorizontalWidth(debuffRect, debuffWidth);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(debuffRect);
+        }
+
+        if (transform is not RectTransform panelRect)
+            return;
+
+        float panelSpacing = transform.TryGetComponent(out HorizontalLayoutGroup panelGroup)
+            ? panelGroup.spacing
+            : buffIconSpacing;
+        bool hasBuffStrip = _buffIconKeyOrder.Count > 0;
+        bool hasDebuffStrip = spawnedDebuffIcons.Count > 0;
+        int stripCount = (hasBuffStrip ? 1 : 0) + (hasDebuffStrip ? 1 : 0);
+        float panelWidth = buffWidth + debuffWidth + (stripCount > 1 ? panelSpacing : 0f);
+        ApplyFixedHorizontalWidth(panelRect, panelWidth);
+        LayoutRebuilder.ForceRebuildLayoutImmediate(panelRect);
     }
+
+    private void QueueLayoutRefresh() => _layoutRefreshQueued = true;
 
     private void ResolveBuffDebuffContainerRefs()
     {
@@ -302,20 +379,19 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     private void OnEnable()
     {
-        if (ailments != null)
-            ailments.OnAilmentsChanged += HandleAilmentsChanged;
-        if (buffs != null)
-            buffs.OnBuffsChanged += HandleBuffsChanged;
+        ResolveRuntimeRefs();
+        UnsubscribeEvents();
+        SubscribeEvents();
 
+        _panelLayoutConfigured = false;
+        EnsurePanelLayoutConfigured();
         RefreshAll();
+        QueueLayoutRefresh();
     }
 
     private void OnDisable()
     {
-        if (ailments != null)
-            ailments.OnAilmentsChanged -= HandleAilmentsChanged;
-        if (buffs != null)
-            buffs.OnBuffsChanged -= HandleBuffsChanged;
+        UnsubscribeEvents();
     }
 
     private void Update()
@@ -327,8 +403,27 @@ public class BuffsDebuffsPanel : MonoBehaviour
             return;
 
         _nextBuffTimerRefreshAt = Time.time + Mathf.Max(0.05f, buffTimerRefreshInterval);
+
+        int visibleCount = CountVisibleStripBuffs();
+        if (visibleCount != _lastReconciledVisibleBuffCount || _buffIconKeyOrder.Count != visibleCount)
+        {
+            _lastReconciledVisibleBuffCount = visibleCount;
+            RefreshBuffs();
+            QueueLayoutRefresh();
+            return;
+        }
+
         UpdateBuffTimers();
         SyncBuffStackDisplays();
+    }
+
+    private void LateUpdate()
+    {
+        if (!_layoutRefreshQueued)
+            return;
+
+        _layoutRefreshQueued = false;
+        ApplyPanelStripWidths();
     }
 
     private void HandleAilmentsChanged()
@@ -444,7 +539,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
 
         SyncHudDebuffSiblingOrder();
-        ApplyPanelStripWidths();
+        QueueLayoutRefresh();
     }
 
     private static string BuildPlayerBleedBody(int damagePerSecond)
@@ -484,95 +579,119 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     public void RefreshBuffs()
     {
+        ResolveRuntimeRefs();
+        EnsurePanelLayoutConfigured();
+
         if (buffs == null || buffContainer == null || buffIconPrefab == null)
         {
             ClearBuffs();
+            _lastReconciledVisibleBuffCount = 0;
             return;
         }
 
-        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
-        if (activeBuffs == null || activeBuffs.Count == 0 || !HasAnyVisiblePanelBuff(activeBuffs))
+        List<VisibleBuffRow> rows = BuildVisibleBuffRows();
+        _lastReconciledVisibleBuffCount = rows.Count;
+
+        if (rows.Count == 0)
         {
             ClearBuffs();
             return;
         }
 
-        var activeByKey = new Dictionary<string, PlayerBuffController.ActiveBuff>(StringComparer.OrdinalIgnoreCase);
-        for (int i = 0; i < activeBuffs.Count; i++)
-        {
-            PlayerBuffController.ActiveBuff buff = activeBuffs[i];
-            if (buff == null || !ShouldShowBuffOnPanel(buff))
-                continue;
-
-            string key = GetBuffIconKey(buff);
-            if (string.IsNullOrEmpty(key))
-                continue;
-
-            activeByKey[key] = buff;
-        }
-
-        if (activeByKey.Count == 0)
-        {
-            ClearBuffs();
-            return;
-        }
+        var targetKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < rows.Count; i++)
+            targetKeys.Add(rows[i].key);
 
         for (int i = _buffIconKeyOrder.Count - 1; i >= 0; i--)
         {
-            string key = _buffIconKeyOrder[i];
-            if (!activeByKey.ContainsKey(key))
-                RemoveBuffIconAt(i);
+            string existingKey = _buffIconKeyOrder[i];
+            if (!targetKeys.Contains(existingKey))
+                RemoveBuffIconByKey(existingKey);
         }
 
-        foreach (KeyValuePair<string, PlayerBuffController.ActiveBuff> kvp in activeByKey)
+        _buffIconKeyOrder.Clear();
+        for (int i = 0; i < rows.Count; i++)
         {
-            if (!_buffIconKeyOrder.Exists(k => string.Equals(k, kvp.Key, StringComparison.OrdinalIgnoreCase)))
-                _buffIconKeyOrder.Add(kvp.Key);
+            VisibleBuffRow row = rows[i];
+            _buffIconKeyOrder.Add(row.key);
+            ReconcileBuffIconRow(row);
         }
 
-        for (int i = 0; i < _buffIconKeyOrder.Count; i++)
-        {
-            string key = _buffIconKeyOrder[i];
-            if (!activeByKey.TryGetValue(key, out PlayerBuffController.ActiveBuff buff) || buff == null)
-                continue;
-
-            BuffIconVisualSnapshot snapshot;
-            bool canReuse =
-                i < buffIconSnapshots.Count &&
-                buffIconSnapshots[i].key == key &&
-                buff.type == ConsumableEffectType.HudAbilityBuff &&
-                !IsHudBuffTooltipDynamic(buff.id);
-
-            if (canReuse)
-            {
-                BuffIconVisualSnapshot prev = buffIconSnapshots[i];
-                snapshot = prev;
-                snapshot.displayStacks = buff.displayStacks;
-                snapshot.valueLabel = GetBuffValueLabel(buff);
-                snapshot.totalDurationSeconds = buff.duration;
-                snapshot.persistActiveOverlay = buff.hudPersistActiveOverlay;
-            }
-            else
-            {
-                snapshot = BuildBuffIconSnapshot(buff);
-            }
-
-            if (i >= spawnedBuffIcons.Count)
-            {
-                SpawnBuffIcon(snapshot, buff.RemainingSeconds);
-                continue;
-            }
-
-            if (TryApplyLightweightBuffUpdate(i, snapshot, buff.RemainingSeconds))
-                continue;
-
-            if (!BuffIconSnapshotEquals(buffIconSnapshots[i], snapshot))
-                ApplyBuffIconSnapshot(i, snapshot, buff.RemainingSeconds);
-        }
-
+        PruneOrphanedBuffIconEntries();
         SyncBuffIconSiblingOrder();
         ApplyPanelStripWidths();
+        _layoutRefreshQueued = false;
     }
+
+    private void ReconcileBuffIconRow(VisibleBuffRow row)
+    {
+        PlayerBuffController.ActiveBuff buff = row.buff;
+        BuffIconVisualSnapshot snapshot;
+        bool canReuse =
+            _buffSnapshotsByKey.TryGetValue(row.key, out BuffIconVisualSnapshot prev) &&
+            prev.key == row.key &&
+            buff.type == ConsumableEffectType.HudAbilityBuff &&
+            !IsHudBuffTooltipDynamic(buff.id);
+
+        if (canReuse)
+        {
+            snapshot = prev;
+            snapshot.displayStacks = buff.displayStacks;
+            snapshot.valueLabel = GetBuffValueLabel(buff);
+            snapshot.totalDurationSeconds = buff.duration;
+            snapshot.persistActiveOverlay = buff.hudPersistActiveOverlay;
+        }
+        else
+        {
+            snapshot = BuildBuffIconSnapshot(buff);
+        }
+
+        if (!_buffIconsByKey.TryGetValue(row.key, out GameObject icon) || icon == null)
+        {
+            SpawnBuffIconForKey(row.key, snapshot, buff.RemainingSeconds);
+            return;
+        }
+
+        if (!_buffIconUisByKey.TryGetValue(row.key, out BuffIconUI iconUI) || iconUI == null)
+            return;
+
+        if (_buffSnapshotsByKey.TryGetValue(row.key, out BuffIconVisualSnapshot existing) &&
+            existing.key == row.key &&
+            TryApplyLightweightBuffUpdate(row.key, snapshot, buff.RemainingSeconds))
+            return;
+
+        if (!_buffSnapshotsByKey.TryGetValue(row.key, out existing) || !BuffIconSnapshotEquals(existing, snapshot))
+            ApplyBuffIconSnapshot(row.key, snapshot, buff.RemainingSeconds);
+    }
+
+    private List<VisibleBuffRow> BuildVisibleBuffRows()
+    {
+        var rows = new List<VisibleBuffRow>();
+        if (buffs == null)
+            return rows;
+
+        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
+        if (activeBuffs == null || activeBuffs.Count == 0)
+            return rows;
+
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            PlayerBuffController.ActiveBuff buff = activeBuffs[i];
+            if (!PlayerBuffController.ShouldDisplayInBuffStrip(buff))
+                continue;
+
+            string key = GetBuffIconKey(buff);
+            if (string.IsNullOrEmpty(key) || !seenKeys.Add(key))
+                continue;
+
+            rows.Add(new VisibleBuffRow { key = key, buff = buff });
+        }
+
+        return rows;
+    }
+
+    private int CountVisibleStripBuffs() => BuildVisibleBuffRows().Count;
 
     private BuffIconVisualSnapshot BuildBuffIconSnapshot(PlayerBuffController.ActiveBuff buff) =>
         new BuffIconVisualSnapshot
@@ -599,13 +718,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
         Mathf.Approximately(a.totalDurationSeconds, b.totalDurationSeconds) &&
         a.persistActiveOverlay == b.persistActiveOverlay;
 
-    private void ApplyBuffIconSnapshot(int index, BuffIconVisualSnapshot snapshot, float remainingSeconds)
+    private void ApplyBuffIconSnapshot(string key, BuffIconVisualSnapshot snapshot, float remainingSeconds)
     {
-        if (index < 0 || index >= spawnedBuffIconUis.Count)
-            return;
-
-        BuffIconUI iconUI = spawnedBuffIconUis[index];
-        if (iconUI == null)
+        if (!_buffIconUisByKey.TryGetValue(key, out BuffIconUI iconUI) || iconUI == null)
             return;
 
         iconUI.SetData(
@@ -625,26 +740,28 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         WireBuffDismiss(iconUI, snapshot);
 
-        if (spawnedBuffIcons[index] != null)
-            spawnedBuffIcons[index].name = $"HUDBuff_{snapshot.key}";
+        if (_buffIconsByKey.TryGetValue(key, out GameObject icon) && icon != null)
+            icon.name = $"HUDBuff_{snapshot.key}";
 
-        buffIconSnapshots[index] = snapshot;
+        _buffSnapshotsByKey[key] = snapshot;
     }
 
-    private void SpawnBuffIcon(BuffIconVisualSnapshot snapshot, float remainingSeconds)
+    private void SpawnBuffIconForKey(string key, BuffIconVisualSnapshot snapshot, float remainingSeconds)
     {
-        if (snapshot.sprite == null && defaultBuffIcon == null)
+        Sprite iconSprite = snapshot.sprite != null ? snapshot.sprite : defaultBuffIcon;
+        if (iconSprite == null)
             return;
 
         GameObject icon = Instantiate(buffIconPrefab, buffContainer);
         icon.name = $"HUDBuff_{snapshot.key}";
+        icon.SetActive(true);
         EnsureIconLayoutElement(icon, buffIconSize);
 
         BuffIconUI iconUI = icon.GetComponent<BuffIconUI>();
         if (iconUI != null)
         {
             iconUI.SetData(
-                snapshot.sprite != null ? snapshot.sprite : defaultBuffIcon,
+                iconSprite,
                 snapshot.valueLabel,
                 remainingSeconds,
                 snapshot.title,
@@ -661,9 +778,19 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         WireBuffDismiss(iconUI, snapshot);
 
-        spawnedBuffIcons.Add(icon);
-        spawnedBuffIconUis.Add(iconUI);
-        buffIconSnapshots.Add(snapshot);
+        _buffIconsByKey[key] = icon;
+        _buffIconUisByKey[key] = iconUI;
+        _buffSnapshotsByKey[key] = snapshot;
+    }
+
+    private void PruneOrphanedBuffIconEntries()
+    {
+        for (int i = _buffIconKeyOrder.Count - 1; i >= 0; i--)
+        {
+            string key = _buffIconKeyOrder[i];
+            if (!_buffIconsByKey.TryGetValue(key, out GameObject icon) || icon == null)
+                RemoveBuffIconByKey(key);
+        }
     }
 
     private void UpdateBuffTimers()
@@ -675,16 +802,17 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (activeBuffs == null)
             return;
 
-        for (int i = 0; i < _buffIconKeyOrder.Count && i < spawnedBuffIconUis.Count; i++)
+        for (int i = 0; i < _buffIconKeyOrder.Count; i++)
         {
             string key = _buffIconKeyOrder[i];
             PlayerBuffController.ActiveBuff buff = FindActiveBuffByKey(activeBuffs, key);
             if (buff == null || !ShouldShowBuffOnPanel(buff))
                 continue;
 
-            BuffIconUI iconUI = spawnedBuffIconUis[i];
-            if (iconUI != null)
-                iconUI.UpdateTimer(buff.RemainingSeconds);
+            if (!_buffIconUisByKey.TryGetValue(key, out BuffIconUI iconUI) || iconUI == null)
+                continue;
+
+            iconUI.UpdateTimer(buff.RemainingSeconds);
         }
     }
 
@@ -697,65 +825,37 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (activeBuffs == null)
             return;
 
-        for (int i = 0; i < _buffIconKeyOrder.Count && i < spawnedBuffIconUis.Count; i++)
+        for (int i = 0; i < _buffIconKeyOrder.Count; i++)
         {
             string key = _buffIconKeyOrder[i];
             PlayerBuffController.ActiveBuff buff = FindActiveBuffByKey(activeBuffs, key);
             if (buff == null || !ShouldShowBuffOnPanel(buff))
                 continue;
 
-            if (i >= buffIconSnapshots.Count)
+            if (!_buffSnapshotsByKey.TryGetValue(key, out BuffIconVisualSnapshot snapshot))
                 continue;
 
             string valueLabel = GetBuffValueLabel(buff);
-            BuffIconVisualSnapshot snapshot = buffIconSnapshots[i];
             if (snapshot.displayStacks == buff.displayStacks && snapshot.valueLabel == valueLabel)
                 continue;
 
             snapshot.displayStacks = buff.displayStacks;
             snapshot.valueLabel = valueLabel;
-            buffIconSnapshots[i] = snapshot;
+            _buffSnapshotsByKey[key] = snapshot;
 
-            BuffIconUI iconUI = spawnedBuffIconUis[i];
-            if (iconUI != null)
+            if (_buffIconUisByKey.TryGetValue(key, out BuffIconUI iconUI) && iconUI != null)
                 iconUI.UpdateStacksAndValue(buff.displayStacks, buff.displayStacks > 0, valueLabel);
         }
     }
 
-    private static bool ShouldShowBuffOnPanel(PlayerBuffController.ActiveBuff buff)
+    private static bool ShouldShowBuffOnPanel(PlayerBuffController.ActiveBuff buff) =>
+        PlayerBuffController.ShouldDisplayInBuffStrip(buff);
+
+    private bool TryApplyLightweightBuffUpdate(string key, BuffIconVisualSnapshot snapshot, float remainingSeconds)
     {
-        if (buff == null || buff.hideFromBuffPanel)
+        if (!_buffSnapshotsByKey.TryGetValue(key, out BuffIconVisualSnapshot previous))
             return false;
 
-        if (buff.type == ConsumableEffectType.HudAbilityBuff && buff.displayStacks <= 0)
-        {
-            if (buff.hudPersistActiveOverlay)
-                return true;
-            if (buff.duration > 0f && buff.RemainingSeconds > 0f)
-                return true;
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool HasAnyVisiblePanelBuff(IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs)
-    {
-        for (int i = 0; i < activeBuffs.Count; i++)
-        {
-            if (ShouldShowBuffOnPanel(activeBuffs[i]))
-                return true;
-        }
-
-        return false;
-    }
-
-    private bool TryApplyLightweightBuffUpdate(int index, BuffIconVisualSnapshot snapshot, float remainingSeconds)
-    {
-        if (index < 0 || index >= buffIconSnapshots.Count || index >= spawnedBuffIconUis.Count)
-            return false;
-
-        BuffIconVisualSnapshot previous = buffIconSnapshots[index];
         if (!string.Equals(previous.key, snapshot.key, StringComparison.OrdinalIgnoreCase))
             return false;
 
@@ -772,14 +872,13 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (previous.displayStacks == snapshot.displayStacks && previous.valueLabel == snapshot.valueLabel)
             return true;
 
-        BuffIconUI iconUI = spawnedBuffIconUis[index];
-        if (iconUI != null)
+        if (_buffIconUisByKey.TryGetValue(key, out BuffIconUI iconUI) && iconUI != null)
         {
             iconUI.UpdateStacksAndValue(snapshot.displayStacks, snapshot.displayStacks > 0, snapshot.valueLabel);
             iconUI.UpdateTimer(remainingSeconds);
         }
 
-        buffIconSnapshots[index] = snapshot;
+        _buffSnapshotsByKey[key] = snapshot;
         return true;
     }
 
@@ -790,7 +889,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         for (int i = 0; i < activeBuffs.Count; i++)
         {
             PlayerBuffController.ActiveBuff buff = activeBuffs[i];
-            if (buff == null)
+            if (buff == null || !PlayerBuffController.ShouldDisplayInBuffStrip(buff))
                 continue;
             if (string.Equals(GetBuffIconKey(buff), key, StringComparison.OrdinalIgnoreCase))
                 return buff;
@@ -810,7 +909,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (icon != null)
             Destroy(icon);
 
-        ApplyPanelStripWidths();
+        QueueLayoutRefresh();
     }
 
     private void SyncHudDebuffSiblingOrder()
@@ -825,38 +924,33 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
     }
 
-    private void RemoveBuffIconAt(int index)
+    private void RemoveBuffIconByKey(string key)
     {
-        if (index < 0 || index >= _buffIconKeyOrder.Count)
+        if (string.IsNullOrEmpty(key))
             return;
 
-        _buffIconKeyOrder.RemoveAt(index);
+        _buffIconKeyOrder.RemoveAll(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
 
-        if (index < spawnedBuffIcons.Count)
+        if (_buffIconsByKey.TryGetValue(key, out GameObject icon))
         {
-            if (spawnedBuffIcons[index] != null)
-                Destroy(spawnedBuffIcons[index]);
-            spawnedBuffIcons.RemoveAt(index);
+            _buffIconsByKey.Remove(key);
+            if (icon != null)
+                Destroy(icon);
         }
 
-        if (index < spawnedBuffIconUis.Count)
-            spawnedBuffIconUis.RemoveAt(index);
-
-        if (index < buffIconSnapshots.Count)
-            buffIconSnapshots.RemoveAt(index);
-
-        ApplyPanelStripWidths();
+        _buffIconUisByKey.Remove(key);
+        _buffSnapshotsByKey.Remove(key);
     }
 
     private void SyncBuffIconSiblingOrder()
     {
         for (int i = 0; i < _buffIconKeyOrder.Count; i++)
         {
-            if (i >= spawnedBuffIcons.Count)
-                break;
+            string key = _buffIconKeyOrder[i];
+            if (!_buffIconsByKey.TryGetValue(key, out GameObject icon) || icon == null)
+                continue;
 
-            GameObject icon = spawnedBuffIcons[i];
-            if (icon != null && icon.transform.GetSiblingIndex() != i)
+            if (icon.transform.GetSiblingIndex() != i)
                 icon.transform.SetSiblingIndex(i);
         }
     }
@@ -871,21 +965,24 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 Destroy(spawnedDebuffIcons[i]);
         }
         spawnedDebuffIcons.Clear();
-        ApplyPanelStripWidths();
+        QueueLayoutRefresh();
     }
 
     public void ClearBuffs()
     {
         _buffIconKeyOrder.Clear();
-        for (int i = 0; i < spawnedBuffIcons.Count; i++)
+        _lastReconciledVisibleBuffCount = 0;
+
+        foreach (KeyValuePair<string, GameObject> kvp in _buffIconsByKey)
         {
-            if (spawnedBuffIcons[i] != null)
-                Destroy(spawnedBuffIcons[i]);
+            if (kvp.Value != null)
+                Destroy(kvp.Value);
         }
-        spawnedBuffIcons.Clear();
-        spawnedBuffIconUis.Clear();
-        buffIconSnapshots.Clear();
-        ApplyPanelStripWidths();
+
+        _buffIconsByKey.Clear();
+        _buffIconUisByKey.Clear();
+        _buffSnapshotsByKey.Clear();
+        QueueLayoutRefresh();
     }
 
     private void SpawnDebuffIcon(Sprite sprite, string iconName, int stacks, string title, string body)
