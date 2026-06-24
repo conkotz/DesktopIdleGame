@@ -26,6 +26,7 @@ public enum RandomItemStatType
     FireSkillDamagePercent,
     IceSkillDamagePercent,
     LightningSkillDamagePercent,
+    SpellDamagePercent,
     CorruptionDamagePercent,
     CorruptionDamageFlat,
     AbilityPowerPercent,
@@ -256,6 +257,7 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.FireSkillDamagePercent, bonus.fireSkillDamagePercent);
         TryAdd(RandomItemStatType.IceSkillDamagePercent, bonus.iceSkillDamagePercent);
         TryAdd(RandomItemStatType.LightningSkillDamagePercent, bonus.lightningSkillDamagePercent);
+        TryAdd(RandomItemStatType.SpellDamagePercent, bonus.spellDamagePercent);
         TryAdd(RandomItemStatType.CorruptionDamagePercent, bonus.corruptionDamagePercent);
         TryAdd(RandomItemStatType.CorruptionDamageFlat, bonus.corruptionDamage);
         TryAdd(RandomItemStatType.AbilityPowerPercent, bonus.abilityPower);
@@ -632,6 +634,9 @@ public static class ItemRandomStatRoller
                 break;
             case RandomItemStatType.LightningSkillDamagePercent:
                 item.bonusStats.lightningSkillDamagePercent += primary;
+                break;
+            case RandomItemStatType.SpellDamagePercent:
+                item.bonusStats.spellDamagePercent += primary;
                 break;
             case RandomItemStatType.CorruptionDamagePercent:
                 item.bonusStats.corruptionDamagePercent += primary;

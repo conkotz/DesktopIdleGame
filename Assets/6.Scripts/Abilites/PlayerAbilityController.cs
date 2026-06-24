@@ -3288,6 +3288,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsPenetratingShotAbilityId(id))
             return TryFindClosestEnemyInPenetratingShotLane(out target);
 
+        if (IsChainLightningAbilityId(id))
+            return TryFindClosestEnemyInChainLightningCone(out target);
+
         if (string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInGuardiansHammerZone(out target);
 
@@ -3793,6 +3796,25 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsWarBannerAbilityId(def.abilityId))
         {
             BeginWarBannerCast(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (IsChainLightningAbilityId(def.abilityId))
+        {
+            if (!CanHitAnyEnemyWithChainLightning())
+            {
+                if (showLockedFeedback)
+                    player?.ShowPopup("No enemy in front of you.");
+                return false;
+            }
+
+            if (!TryCastChainLightning(def, showLockedFeedback))
+                return false;
+
+            player.TriggerAttackAnim();
+            StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);

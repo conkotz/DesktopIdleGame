@@ -123,6 +123,8 @@ public static class ItemStatDisplayNames
                 return OffenseBonusDisplayNames.IceDamagePercent;
             case RandomItemStatType.LightningSkillDamagePercent:
                 return OffenseBonusDisplayNames.LightningDamagePercent;
+            case RandomItemStatType.SpellDamagePercent:
+                return OffenseBonusDisplayNames.SpellDamagePercent;
             case RandomItemStatType.CorruptionDamagePercent:
                 return OffenseBonusDisplayNames.CorruptionDamagePercent;
             case RandomItemStatType.CorruptionDamageFlat:

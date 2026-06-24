@@ -192,6 +192,7 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.FireDamagePercent, cur.fireSkillDamagePercent, baseline.fireSkillDamagePercent);
         TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.IceDamagePercent, cur.iceSkillDamagePercent, baseline.iceSkillDamagePercent);
         TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.LightningDamagePercent, cur.lightningSkillDamagePercent, baseline.lightningSkillDamagePercent);
+        TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.SpellDamagePercent, cur.spellDamagePercent, baseline.spellDamagePercent);
         TryAppendPercent01Delta(sb, OffenseBonusDisplayNames.CorruptionDamagePercent, cur.corruptionDamagePercent, baseline.corruptionDamagePercent);
         TryAppendFloatDelta(sb, "Corruption Damage", cur.corruptionDamage, baseline.corruptionDamage);
         TryAppendPercentPointsDelta(sb, "Ability Power", cur.abilityPower, baseline.abilityPower);

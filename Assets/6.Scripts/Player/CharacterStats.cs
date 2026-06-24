@@ -2657,6 +2657,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Equipped corruption attack-split % (armour bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
+    /// <summary>Spell-only damage % from gear (wands/staffs). Not applied to basic magic attacks.</summary>
+    public float SpellDamageTotalScalingPercentPoints => GetEquippedSpellDamagePercent() * 100f;
+
+    /// <summary>Magic damage % applied to spells: gear, supports, and active magic boost consumables.</summary>
+    public float SpellMagicDamageScalingPercentPoints =>
+        (GetEquippedMagicDamagePercent() + (buffController ? buffController.MagicDamageBoostPercent : 0f)) * 100f;
+
     /// <summary>Living Inferno — +2% melee per burning enemy nearby (max 10% at 5 enemies).</summary>
     public float PhoenixLivingInfernoMeleeDamageBonusPercentPoints
     {
@@ -5205,6 +5212,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.LightningSkillDamagePercent;
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetEquippedSpellDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.SpellDamagePercent;
         return Mathf.Max(0f, total);
     }
 

@@ -133,6 +133,37 @@ public static class AbilityCombatPower
         minDamage *= apMult;
         maxDamage *= apMult;
     }
+
+    public const string ChainLightningAbilityId = "chain_lightning";
+    public const string ChainLightningEnhancementParentSpineNodeId = "Lv15_0";
+    public const int ChainLightningEnh1ExtraChainChoiceIndex = 0;
+    public const int ChainLightningEnh2ShockChoiceIndex = 1;
+    public const int ChainLightningUnlockLevel = 15;
+    public const float ChainLightningCooldownSeconds = 5f;
+    public const float ChainLightningManaCost = 15f;
+    public const float ChainLightningBaseMinDamage = 2f;
+    public const float ChainLightningBaseMaxDamage = 16f;
+    public const int ChainLightningBaseMaxChainJumps = 3;
+    public const float ChainLightningBaseChainRange = 8f;
+    public const float ChainLightningEnh1ChainRangeBonus = 2f;
+    public const float ChainLightningUnusedChainPrimaryDamageBonusPerJump = 0.25f;
+    public const float ChainLightningEnh2ShockChance = 0.15f;
+    public const float ChainLightningEnh2ShockEffectBonus = 0.03f;
+    public const string ChainLightningOutgoingDamageSourceLabel = "Chain Lightning";
+
+    public static void GetChainLightningDamageBounds(
+        CharacterStats stats,
+        out float minDamage,
+        out float maxDamage)
+    {
+        SpellDamageScaling.ScaleBaseLightningBounds(
+            stats,
+            ChainLightningBaseMinDamage,
+            ChainLightningBaseMaxDamage,
+            out minDamage,
+            out maxDamage);
+    }
+
     public const string SnipeAbilityId = "snipe";
     public const string SnipeEnhancementParentSpineNodeId = "Lv5_1";
     public const int SnipeFasterChargeChoiceIndex = 0;

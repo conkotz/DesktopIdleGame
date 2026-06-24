@@ -1513,6 +1513,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty fireSkillDamagePercent = bonusStats.FindPropertyRelative("fireSkillDamagePercent");
         SerializedProperty iceSkillDamagePercent = bonusStats.FindPropertyRelative("iceSkillDamagePercent");
         SerializedProperty lightningSkillDamagePercent = bonusStats.FindPropertyRelative("lightningSkillDamagePercent");
+        SerializedProperty spellDamagePercent = bonusStats.FindPropertyRelative("spellDamagePercent");
         SerializedProperty corruptionDamage = bonusStats.FindPropertyRelative("corruptionDamage");
         SerializedProperty abilityPower = bonusStats.FindPropertyRelative("abilityPower");
 
@@ -1579,6 +1580,7 @@ public class ItemDefinitionEditor : Editor
         PropertyField(fireSkillDamagePercent, "Fire damage %");
         PropertyField(iceSkillDamagePercent, "Ice damage %");
         PropertyField(lightningSkillDamagePercent, "Lightning damage %");
+        PropertyField(spellDamagePercent, "Spell damage %");
         SerializedProperty corruptionDamagePercent = bonusStats.FindPropertyRelative("corruptionDamagePercent");
         if (corruptionDamagePercent != null)
             PropertyField(corruptionDamagePercent, "Corruption damage %");

@@ -69,3 +69,28 @@ MonoBehaviour:
     magicMinorStatOption: 4
     ability: {fileID: 0}
     choices: []
+  - requiredLevel: 15
+    title: Chain Lightning
+    description: Conjure lightning from your hands towards the closest enemy in front
+      of you and then chains to additional nearby enemies.
+    icon: {fileID: 4023242619808263884, guid: 19cfc432ed907ce4eba4948dd3653b17, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    magicMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 8c2ef1d27f864a649eba4dd9eb6d38fe, type: 2}
+    presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Extended Chain
+      description: Chains +1 additional time and increases chain range by +2.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Shocking Arc
+      description: Gains +15% chance to shock and adds +3% shock effect if applied
+        by this spell.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}

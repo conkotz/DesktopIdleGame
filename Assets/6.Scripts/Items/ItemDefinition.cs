@@ -432,6 +432,9 @@ public struct BonusStats
     [Tooltip("Extra lightning damage on lightning skills and instant magic (0.1 = +10%).")]
     public float lightningSkillDamagePercent;
 
+    [Tooltip("Extra spell damage on spell abilities only — not basic magic attacks (0.1 = +10%).")]
+    public float spellDamagePercent;
+
     [Tooltip("Extra corruption on attack split (0.1 = +10%). Shown as Corruption Damage on gear.")]
     public float corruptionDamagePercent;
 
@@ -547,6 +550,7 @@ public struct BonusStats
                globalPhysicalDamagePercent != 0f || rangedPhysicalDamagePercent != 0f ||
                magicDamage != 0f || magicDamagePercent != 0f ||
                fireSkillDamagePercent != 0f || iceSkillDamagePercent != 0f || lightningSkillDamagePercent != 0f ||
+               spellDamagePercent != 0f ||
                corruptionDamagePercent != 0f ||
                corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
@@ -1722,6 +1726,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float FireSkillDamagePercent => bonusStats.fireSkillDamagePercent;
     public float IceSkillDamagePercent => bonusStats.iceSkillDamagePercent;
     public float LightningSkillDamagePercent => bonusStats.lightningSkillDamagePercent;
+    public float SpellDamagePercent => bonusStats.spellDamagePercent;
 
     public float BleedChance => Mathf.Clamp01(bonusStats.bleedChance);
     public float BleedMultiplier => Mathf.Max(0f, bonusStats.bleedMultiplier);
@@ -3009,6 +3014,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 DeltaPercentFractionNote(delta));
         }
 
+        if (cur.spellDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.spellDamagePercent, baselineStats.spellDamagePercent);
+            AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent),
+
+                FormatScalingCoefficientPercentLine(cur.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent),
+
+                HasFloatDelta(cur.spellDamagePercent, baselineStats.spellDamagePercent),
+
+                DeltaPercentFractionNote(delta));
+        }
+
         if (cur.corruptionDamagePercent != 0f)
         {
             float delta = FloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent);
@@ -3373,6 +3392,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}\n";
         if (bonusStats.lightningSkillDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent)}\n";
+        if (bonusStats.spellDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.spellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent)}\n";
         if (bonusStats.corruptionDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";

@@ -400,6 +400,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsLightningRod(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.LightningRodAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsChainLightning(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.ChainLightningAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsHuntersSwiftness(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HuntersSwiftnessAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -793,6 +796,12 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsChainLightning(def))
+        {
+            AppendChainLightningTooltipScaling(scaling, S, stats);
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsTornado(def))
         {
             AppendTornadoTooltipScaling(scaling, S, stats, skillsManager);
@@ -1084,6 +1093,14 @@ public static class AbilityTooltipDamagePreview
         {
             AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsChainLightning(def))
+        {
+            AppendChainLightningTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1703,11 +1720,16 @@ public static class AbilityTooltipDamagePreview
         if (def == null)
             return string.Empty;
 
+        CharacterStats stats = FindLocalPlayerStats();
+
         if (IsWarBanner(def))
             return BuildWarBannerCompactEffectsBody(def, skillsManager, includeDuration, displayStacks, includeEnhancementEffects);
 
         if (IsLightningRod(def))
             return BuildLightningRodCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
+
+        if (IsChainLightning(def))
+            return BuildChainLightningCompactEffectsBody(def, skillsManager, stats, includeEnhancementEffects);
 
         if (IsHuntersSwiftness(def))
             return BuildHuntersSwiftnessCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
@@ -1715,7 +1737,6 @@ public static class AbilityTooltipDamagePreview
         if (IsTornado(def))
             return BuildTornadoCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
 
-        CharacterStats stats = FindLocalPlayerStats();
         string full = BuildAbilityTooltipStatsSection(
             def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects, enhancementChoiceOverride);
         if (string.IsNullOrWhiteSpace(full))
@@ -2025,6 +2046,101 @@ public static class AbilityTooltipDamagePreview
         AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
         if (includeDuration)
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
+        return body.ToString().TrimEnd();
+    }
+
+    private static void AppendChainLightningTooltipScaling(
+        StringBuilder scaling,
+        System.Func<string, string> S,
+        CharacterStats stats)
+    {
+        if (stats == null)
+            return;
+
+        float spellPct = stats.SpellDamageTotalScalingPercentPoints;
+        if (spellPct > 0.05f)
+            scaling.AppendLine(S($"+{spellPct:0.#}% damage from Spell Power"));
+
+        AppendAbilityPowerScalingLine(scaling, S, stats);
+
+        float magicPct = stats.SpellMagicDamageScalingPercentPoints;
+        if (magicPct > 0.05f)
+            scaling.AppendLine(S($"+{magicPct:0.#}% damage from Magic Damage"));
+
+        float lightningPct = stats.LightningSkillDamageTotalScalingPercentPoints;
+        if (lightningPct > 0.05f)
+            scaling.AppendLine(S($"+{lightningPct:0.#}% damage from Lightning Damage"));
+    }
+
+    private static int GetChainLightningBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Magic,
+            AbilityCombatPower.ChainLightningEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static int GetChainLightningMaxJumpsForTooltip(SkillsManager skillsManager, bool includeEnhancementEffects)
+    {
+        int jumps = AbilityCombatPower.ChainLightningBaseMaxChainJumps;
+        if (includeEnhancementEffects
+            && GetChainLightningBranchChoice(skillsManager) == AbilityCombatPower.ChainLightningEnh1ExtraChainChoiceIndex)
+            jumps++;
+        return jumps;
+    }
+
+    private static float GetChainLightningChainRangeForTooltip(SkillsManager skillsManager, bool includeEnhancementEffects)
+    {
+        float range = AbilityCombatPower.ChainLightningBaseChainRange;
+        if (includeEnhancementEffects
+            && GetChainLightningBranchChoice(skillsManager) == AbilityCombatPower.ChainLightningEnh1ExtraChainChoiceIndex)
+            range += AbilityCombatPower.ChainLightningEnh1ChainRangeBonus;
+        return range;
+    }
+
+    private static void AppendChainLightningTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        bool includeEnhancementEffects)
+    {
+        AbilityCombatPower.GetChainLightningDamageBounds(stats, out float minD, out float maxD);
+        int minShown = Mathf.Max(1, Mathf.RoundToInt(minD));
+        int maxShown = Mathf.Max(minShown, Mathf.RoundToInt(maxD));
+        AppendDetailsEffectParagraph(body,
+            O($"{minShown}–{maxShown} lightning damage on each hit (scales with your spell stats)"));
+
+        int maxJumps = GetChainLightningMaxJumpsForTooltip(skillsManager, includeEnhancementEffects);
+        float chainRange = GetChainLightningChainRangeForTooltip(skillsManager, includeEnhancementEffects);
+        AppendDetailsEffectParagraph(body,
+            O($"Chains up to {maxJumps} times to nearby enemies within {chainRange:0.#} range"));
+        AppendDetailsEffectParagraph(body,
+            O($"Primary target takes +{AbilityCombatPower.ChainLightningUnusedChainPrimaryDamageBonusPerJump * 100f:0.#}% damage per unused chain"));
+
+        if (!includeEnhancementEffects)
+            return;
+
+        int enhance = GetChainLightningBranchChoice(skillsManager);
+        if (enhance == AbilityCombatPower.ChainLightningEnh2ShockChoiceIndex)
+        {
+            AppendDetailsEffectParagraph(body,
+                O($"+{AbilityCombatPower.ChainLightningEnh2ShockChance * 100f:0.#}% chance to shock; shocks from this spell deal +{AbilityCombatPower.ChainLightningEnh2ShockEffectBonus * 100f:0.#}% increased effect"));
+        }
+    }
+
+    private static string BuildChainLightningCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        bool includeEnhancementEffects)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        AppendChainLightningTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
         return body.ToString().TrimEnd();
     }
 

@@ -108,6 +108,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text globalIceBonusText;
     [FormerlySerializedAs("lightningSkillScalingText")]
     [SerializeField] private TMP_Text globalLightningBonusText;
+    [SerializeField] private TMP_Text globalSpellBonusText;
 
     [Header("Style bonuses (melee vs ranged — all basic-attack damage types)")]
     [FormerlySerializedAs("conditionalMeleePhysicalText")]
@@ -576,6 +577,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (globalLightningBonusText)
             globalLightningBonusText.text =
                 $"{OffenseBonusDisplayNames.LightningDamagePercent}: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
+        if (globalSpellBonusText)
+            globalSpellBonusText.text =
+                $"{OffenseBonusDisplayNames.SpellDamagePercent}: {FormatSignedPercentPoints(stats.SpellDamageTotalScalingPercentPoints)}";
 
         if (meleeDamageBonusText)
             meleeDamageBonusText.text =
@@ -940,6 +944,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(globalFireBonusText);
         Wire(globalIceBonusText);
         Wire(globalLightningBonusText);
+        Wire(globalSpellBonusText);
         Wire(meleeDamageBonusText);
         Wire(rangedDamageBonusText);
         Wire(abilityPowerText);

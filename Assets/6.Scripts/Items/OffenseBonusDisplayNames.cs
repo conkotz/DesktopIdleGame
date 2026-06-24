@@ -10,4 +10,5 @@ public static class OffenseBonusDisplayNames
     public const string FireDamagePercent = "Fire Damage";
     public const string IceDamagePercent = "Ice Damage";
     public const string LightningDamagePercent = "Lightning Damage";
+    public const string SpellDamagePercent = "Spell Damage";
 }
