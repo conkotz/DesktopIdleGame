@@ -57,7 +57,7 @@ public static class DatabaseItemCatalog
         {
             DatabaseItemSubtab.Resources => item.itemKind == ItemKind.Resource,
             DatabaseItemSubtab.Equipment => item.itemKind == ItemKind.Weapon ||
-                                              item.itemKind == ItemKind.Armor ||
+                                              item.itemKind == ItemKind.Armour ||
                                               item.itemKind == ItemKind.CombatSupport ||
                                               item.itemKind == ItemKind.Tool ||
                                               item.itemKind == ItemKind.Jewelry,

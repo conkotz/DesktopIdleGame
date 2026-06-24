@@ -582,7 +582,7 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   - On impact: ApplyAbilitySplitDamageToEnemy / shared BuildWhirlwindAbilityScaledSplit + ApplyOnHitEffects.
   - Secondary AoE: loop CombatEnemyRegistry.GetLiveEnemies(), radius check from impactPoint (X distance OK for lane game).
   - Enhancement 0 example: flag if target died during channel → ReduceAbilityCooldown(def, fraction).
-  - Enhancement 1 example: EnemyCombatMitigationModifiers.ApplyArmorMrShred on shockwave victims.
+  - Enhancement 1 example: EnemyCombatMitigationModifiers.ApplyArmourMrShred on shockwave victims.
   - finally: abilityVfx Stop* ; _yourRoutine = null.
 
   Targeting (important for idle combat):
@@ -953,7 +953,7 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   RangedMajorPassiveTooltipText.cs — ranged combat major passives (Seeker Arrows); details SCALING + EFFECT
   MeleeMajorPassiveTooltipText.cs — melee major passives + capstones
   AbilityCombatPower.cs          — stable abilityId string constants + balance numbers
-  EnemyCombatMitigationModifiers.cs — temporary armor/MR shred on enemies (Sundering Impact)
+  EnemyCombatMitigationModifiers.cs — temporary armour/MR shred on enemies (Sundering Impact)
   EnemyShadowStrikeMarks.cs      — ability-specific enemy marks (crit amp / death CD refund)
   EnemyBaseController.cs         — TakeDamage (crit mark mult), Die() (mark death notify), ApplyDirectDotDamage
   PlayerCombatController.cs      — GetPrimaryEngagedEnemy, FindClosestEnemyInAttackRange (targeting)

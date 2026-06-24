@@ -44,7 +44,7 @@ public readonly struct CombatProfileDefenseHints
     public float EffectiveHpVsPhysical { get; }
     public float EffectiveHpVsMagic { get; }
     public float EffectiveHpVsCorruption { get; }
-    public int Armor { get; }
+    public int Armour { get; }
     public int MagicResist { get; }
     public int CorruptionResist { get; }
     public int MaxHP { get; }
@@ -57,7 +57,7 @@ public readonly struct CombatProfileDefenseHints
         float effectiveHpVsPhysical,
         float effectiveHpVsMagic,
         float effectiveHpVsCorruption,
-        int armor,
+        int armour,
         int magicResist,
         int corruptionResist,
         int maxHp,
@@ -67,7 +67,7 @@ public readonly struct CombatProfileDefenseHints
         EffectiveHpVsPhysical = effectiveHpVsPhysical;
         EffectiveHpVsMagic = effectiveHpVsMagic;
         EffectiveHpVsCorruption = effectiveHpVsCorruption;
-        Armor = armor;
+        Armour = armour;
         MagicResist = magicResist;
         CorruptionResist = corruptionResist;
         MaxHP = maxHp;
@@ -266,7 +266,7 @@ public static class CombatProfileThresholds
     /// <summary>Minimum defense CP share before we classify into Armoured / Warded / Tank.</summary>
     public const float DefenseProfileMin = 0.26f;
 
-    public const int ArmouredMinArmor = 10;
+    public const int ArmouredMinArmour = 10;
     public const float ArmouredPhysEhpOverCorruptionMin = 1.12f;
 
     public const int WardedMinMagicResist = 10;
@@ -371,7 +371,7 @@ public static class CombatProfileClassifier
                                  && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
             if (lowMitigation
                 && QualifiesAsHpPoolTank(b, d)
-                && d.Armor < CombatProfileThresholds.ArmouredMinArmor
+                && d.Armour < CombatProfileThresholds.ArmouredMinArmour
                 && d.MagicResist < CombatProfileThresholds.WardedMinMagicResist
                 && d.CorruptionResist < CombatProfileThresholds.ShroudedMinCorruptionResist
                 && !(corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
@@ -383,7 +383,7 @@ public static class CombatProfileClassifier
         if (pD >= CombatProfileThresholds.DefenseProfileMin)
         {
             // 4 Armoured — armour rating / physical mitigation drives durability
-            bool armourDriven = d.Armor >= CombatProfileThresholds.ArmouredMinArmor
+            bool armourDriven = d.Armour >= CombatProfileThresholds.ArmouredMinArmour
                               || physOverCorruption >= CombatProfileThresholds.ArmouredPhysEhpOverCorruptionMin;
             if (armourDriven && physOverCorruption >= magOverCorruption - 0.02f)
                 return CombatProfileLabel.Armoured;
@@ -501,7 +501,7 @@ public static class CombatProfileClassifier
             $"Defense: {b.Defense:0.##} ({pD * 100f:0.#}%)\n" +
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
             $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
-            $"Armor: {d.Armor} | MR: {d.MagicResist} | CorruptionResist: {d.CorruptionResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
+            $"Armour: {d.Armour} | MR: {d.MagicResist} | CorruptionResist: {d.CorruptionResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
             $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagic / eCorr:0.##}\n" +
             $"EHP corr/phys: {eCorr / Mathf.Max(1f, d.EffectiveHpVsPhysical):0.##} | corr/mag: {eCorr / Mathf.Max(1f, d.EffectiveHpVsMagic):0.##}";
     }

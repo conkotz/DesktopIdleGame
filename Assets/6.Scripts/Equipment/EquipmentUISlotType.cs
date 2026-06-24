@@ -8,7 +8,7 @@ public enum EquipmentUISlotType
     MainHand2,
     OffHand2,
 
-    // Armor
+    // Armour
     Helmet,
     Body,
     Boots,

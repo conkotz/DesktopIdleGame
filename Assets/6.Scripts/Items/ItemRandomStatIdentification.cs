@@ -85,8 +85,8 @@ public static class ItemRandomStatIdentification
         if (rolled.IsWeapon)
             CountWeaponStats(ref count, rolled.weaponStats, baseline.weaponStats);
 
-        if (rolled.IsArmor)
-            CountArmorStats(ref count, rolled.armorStats, baseline.armorStats);
+        if (rolled.IsArmour)
+            CountArmourStats(ref count, rolled.armourStats, baseline.armourStats);
 
         if (!Mathf.Approximately(
                 rolled.miscEffects.enemyRespawnTimeReductionSeconds,
@@ -151,8 +151,8 @@ public static class ItemRandomStatIdentification
         if (rolled.IsWeapon)
             CompareWeaponStats(sb, rolled, rolled.weaponStats, baseline.weaponStats);
 
-        if (rolled.IsArmor)
-            CompareArmorStats(sb, rolled.armorStats, baseline.armorStats);
+        if (rolled.IsArmour)
+            CompareArmourStats(sb, rolled.armourStats, baseline.armourStats);
 
         if (!Mathf.Approximately(rolled.miscEffects.enemyRespawnTimeReductionSeconds,
                 baseline.miscEffects.enemyRespawnTimeReductionSeconds))
@@ -173,7 +173,7 @@ public static class ItemRandomStatIdentification
         TryAppendIntDelta(sb, "Health", cur.bonusHealth, baseline.bonusHealth);
         TryAppendIntDelta(sb, "Energy", cur.bonusEnergy, baseline.bonusEnergy);
         TryAppendIntDelta(sb, "Mana", cur.bonusMana, baseline.bonusMana);
-        TryAppendIntDelta(sb, "Armour", cur.armor, baseline.armor);
+        TryAppendIntDelta(sb, "Armour", cur.armour, baseline.armour);
         TryAppendIntDelta(sb, "Magic Res", cur.magicResist, baseline.magicResist);
         TryAppendIntDelta(sb, "Corruption Res", cur.corruptionResist, baseline.corruptionResist);
         TryAppendPercent01Delta(sb, "Phys Block", cur.physBlockChance, baseline.physBlockChance);
@@ -246,9 +246,9 @@ public static class ItemRandomStatIdentification
         TryAppendPercent01Delta(sb, magicAilmentLabel, cur.magicAilmentApplyChance, baseline.magicAilmentApplyChance);
     }
 
-    private static void CompareArmorStats(StringBuilder sb, ArmorStats cur, ArmorStats baseline)
+    private static void CompareArmourStats(StringBuilder sb, ArmourStats cur, ArmourStats baseline)
     {
-        TryAppendIntDelta(sb, "Armour", cur.armor, baseline.armor);
+        TryAppendIntDelta(sb, "Armour", cur.armour, baseline.armour);
         TryAppendIntDelta(sb, "Magic Res", cur.magicResist, baseline.magicResist);
         TryAppendIntDelta(sb, "Corruption Res", cur.corruptionResist, baseline.corruptionResist);
         TryAppendPercent01Delta(sb, "Phys Block", cur.physBlockChance, baseline.physBlockChance);
@@ -264,7 +264,7 @@ public static class ItemRandomStatIdentification
         CountIntDelta(ref count, cur.bonusHealth, baseline.bonusHealth);
         CountIntDelta(ref count, cur.bonusEnergy, baseline.bonusEnergy);
         CountIntDelta(ref count, cur.bonusMana, baseline.bonusMana);
-        CountIntDelta(ref count, cur.armor, baseline.armor);
+        CountIntDelta(ref count, cur.armour, baseline.armour);
         CountIntDelta(ref count, cur.magicResist, baseline.magicResist);
         CountIntDelta(ref count, cur.corruptionResist, baseline.corruptionResist);
         CountFloatDelta(ref count, cur.physBlockChance, baseline.physBlockChance);
@@ -330,9 +330,9 @@ public static class ItemRandomStatIdentification
         CountFloatDelta(ref count, cur.magicAilmentApplyChance, baseline.magicAilmentApplyChance);
     }
 
-    private static void CountArmorStats(ref int count, ArmorStats cur, ArmorStats baseline)
+    private static void CountArmourStats(ref int count, ArmourStats cur, ArmourStats baseline)
     {
-        CountIntDelta(ref count, cur.armor, baseline.armor);
+        CountIntDelta(ref count, cur.armour, baseline.armour);
         CountIntDelta(ref count, cur.magicResist, baseline.magicResist);
         CountIntDelta(ref count, cur.corruptionResist, baseline.corruptionResist);
         CountFloatDelta(ref count, cur.physBlockChance, baseline.physBlockChance);

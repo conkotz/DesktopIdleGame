@@ -62,8 +62,8 @@ public static class ItemTooltipStatHighlight
         if (current.IsWeapon)
             return BuildWeaponMainStats(current, baseline);
 
-        if (current.IsArmor || current.IsJewelry)
-            return BuildArmorJewelryMainStats(current, baseline);
+        if (current.IsArmour || current.IsJewelry)
+            return BuildArmourJewelryMainStats(current, baseline);
 
         if (current.IsTool)
             return BuildToolMainStats(current, baseline);
@@ -165,11 +165,11 @@ public static class ItemTooltipStatHighlight
         return s.ToString().TrimEnd('\n');
     }
 
-    private static string BuildArmorJewelryMainStats(ItemDefinition current, ItemDefinition baseline)
+    private static string BuildArmourJewelryMainStats(ItemDefinition current, ItemDefinition baseline)
     {
         var s = new StringBuilder();
 
-        AppendIntStatLine(s, "Armour", current.ArmorValue, baseline.ArmorValue);
+        AppendIntStatLine(s, "Armour", current.ArmourValue, baseline.ArmourValue);
         AppendIntStatLine(s, "Magic Res", current.MagicResist, baseline.MagicResist);
         AppendIntStatLine(s, "Corruption Res", current.CorruptionResist, baseline.CorruptionResist);
         AppendIntStatLine(s, "Health", current.BonusHealth, baseline.BonusHealth, prefixPlus: true);
@@ -182,11 +182,11 @@ public static class ItemTooltipStatHighlight
         if (current.PhysBlockChance > 0f || baseline.PhysBlockChance > 0f)
             AppendFloatStatLine(s, "Phys Block", current.PhysBlockChance * 100f, baseline.PhysBlockChance * 100f, suffix: "%");
 
-        if (current.ArmorFlatGuard > 0 || baseline.ArmorFlatGuard > 0)
-            AppendIntStatLine(s, "Guard", current.ArmorFlatGuard, baseline.ArmorFlatGuard, prefixPlus: true);
+        if (current.ArmourFlatGuard > 0 || baseline.ArmourFlatGuard > 0)
+            AppendIntStatLine(s, "Guard", current.ArmourFlatGuard, baseline.ArmourFlatGuard, prefixPlus: true);
 
-        if (current.ArmorMaxGuardPercent > 0.00001f || baseline.ArmorMaxGuardPercent > 0.00001f)
-            AppendFloatStatLine(s, "Max Guard", current.ArmorMaxGuardPercent, baseline.ArmorMaxGuardPercent, suffix: "%", signed: true);
+        if (current.ArmourMaxGuardPercent > 0.00001f || baseline.ArmourMaxGuardPercent > 0.00001f)
+            AppendFloatStatLine(s, "Max Guard", current.ArmourMaxGuardPercent, baseline.ArmourMaxGuardPercent, suffix: "%", signed: true);
 
         string extras = current.BuildBonusLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(extras))

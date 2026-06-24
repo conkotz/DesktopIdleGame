@@ -45,6 +45,6 @@ MonoBehaviour:
   baseMaxHealth: 0
   defensiveInheritance:
     inheritOwnerDefenses: 1
-    ownerArmorFraction: 1
+    ownerArmourFraction: 1
     ownerMagicResistFraction: 1
     ownerCorruptionResistFraction: 1

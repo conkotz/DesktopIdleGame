@@ -3148,7 +3148,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             ? DeferredSwingOutgoingDpsLabel
             : ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, swingAttribution);
 
-        float armorRatingMultiplier = stats != null ? stats.GetTacticianOutgoingArmorRatingMultiplier() : 1f;
+        float armourRatingMultiplier = stats != null ? stats.GetTacticianOutgoingArmourRatingMultiplier() : 1f;
 
         if (rolled.physical > 0f)
         {
@@ -3159,7 +3159,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 player.transform,
                 stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
                 dpsBucketOverride: null,
-                armorRatingMultiplier: armorRatingMultiplier,
+                armourRatingMultiplier: armourRatingMultiplier,
                 magicResistRatingMultiplier: 1f,
                 outgoingDpsSourceLabel: sourceLabel);
 
@@ -3175,7 +3175,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 player.transform,
                 stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
                 dpsBucketOverride: null,
-                armorRatingMultiplier: 1f,
+                armourRatingMultiplier: 1f,
                 magicResistRatingMultiplier: 1f,
                 outgoingDpsSourceLabel: sourceLabel);
 

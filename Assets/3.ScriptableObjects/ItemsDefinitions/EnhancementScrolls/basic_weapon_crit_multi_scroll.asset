@@ -88,9 +88,9 @@ MonoBehaviour:
     gatheringGrit: 0
     bonusResourceFindChance: 0
     staminaEfficiency: 0
-  armorStats:
+  armourStats:
     equipmentTier: 0
-    armor: 0
+    armour: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
@@ -103,7 +103,7 @@ MonoBehaviour:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
-    armor: 0
+    armour: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0

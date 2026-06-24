@@ -807,7 +807,7 @@ public class InventoryGridUI : MonoBehaviour
             InventoryViewFilter.All => true,
             InventoryViewFilter.Resources => def.itemKind == ItemKind.Resource,
             InventoryViewFilter.Equips => def.itemKind == ItemKind.Weapon ||
-                                          def.itemKind == ItemKind.Armor ||
+                                          def.itemKind == ItemKind.Armour ||
                                           def.itemKind == ItemKind.CombatSupport ||
                                           def.itemKind == ItemKind.Tool ||
                                           def.itemKind == ItemKind.Jewelry,

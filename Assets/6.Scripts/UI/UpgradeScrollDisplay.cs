@@ -101,7 +101,7 @@ public static class UpgradeScrollDisplay
             EnhancementScrollTargetStat.Health => "health",
             EnhancementScrollTargetStat.Energy => "energy",
             EnhancementScrollTargetStat.Mana => "mana",
-            EnhancementScrollTargetStat.Armor => "armour",
+            EnhancementScrollTargetStat.Armour => "armour",
             EnhancementScrollTargetStat.MagicResist => "magic resist",
             EnhancementScrollTargetStat.CorruptionResist => "corruption resist",
             EnhancementScrollTargetStat.CritChance => "crit chance",

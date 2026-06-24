@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [Serializable]
 public class EnhancementScrollHistoryEntry
@@ -131,11 +132,32 @@ public class SaveData
         public int successfulEnhancements;
         public List<EnhancementScrollHistoryEntry> enhancementScrollHistory = new();
         public WeaponStats weaponStats;
-        public ArmorStats armorStats;
+        [FormerlySerializedAs("armorStats")]
+        public ArmourStats armourStats;
+
+        /// <summary>Legacy JsonUtility key from pre-British-spelling saves. Merged into <see cref="armourStats"/> on load.</summary>
+        [HideInInspector] public ArmourStats armorStats;
+
         public BonusStats bonusStats;
         public CombatSupportStats combatSupportStats;
         public ToolStats toolStats;
         public bool randomStatsPendingIdentification;
+
+        public ArmourStats ResolveArmourStatsForLoad()
+        {
+            ArmourStats resolved = armourStats;
+            resolved.MigrateLegacyJsonFields();
+
+            if (resolved.IsDefensiveDataMissing())
+            {
+                ArmourStats legacy = armorStats;
+                legacy.MigrateLegacyJsonFields();
+                if (!legacy.IsDefensiveDataMissing())
+                    resolved = legacy;
+            }
+
+            return resolved;
+        }
     }
 
     [Header("Equipment")]

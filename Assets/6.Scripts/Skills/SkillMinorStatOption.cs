@@ -9,7 +9,7 @@ public enum SkillMinorStatOption
     GatherBonusItemChancePercent2 = 4,
 
     // Endurance
-    EnduranceArmorFlat2 = 20,
+    EnduranceArmourFlat2 = 20,
     EnduranceMagicResistFlat2 = 21,
     EnduranceHealthFlat5 = 22,
     EnduranceLifeRegenFlat1 = 23,

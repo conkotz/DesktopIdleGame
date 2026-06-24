@@ -95,7 +95,7 @@ public static class UpgradeOptionDisplay
             return "None";
 
         List<string> labels = new(6);
-        if ((mask & EnhancementScrollGearMask.Armor) != 0)
+        if ((mask & EnhancementScrollGearMask.Armour) != 0)
             labels.Add("armour items");
         if ((mask & EnhancementScrollGearMask.Tool) != 0)
             labels.Add("tool items");

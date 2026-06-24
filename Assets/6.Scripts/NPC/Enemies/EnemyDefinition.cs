@@ -103,7 +103,8 @@ public class EnemyDefinition : ScriptableObject
 
     [Header("Defense")]
     [Min(0)]
-    public int armor = 0;
+    [FormerlySerializedAs("armor")]
+    public int armour = 0;
 
     [Min(0)]
     public int magicResist = 0;
@@ -119,7 +120,7 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Fraction of physical damage prevented when block succeeds. Default 70%.")]
     public float physBlockMitigation = AbilityCombatPower.BasePhysBlockMitigation;
 
-    [Header("Guard (same rules as player armor)")]
+    [Header("Guard (same rules as player armour)")]
     [Min(0)]
     [Tooltip("Flat guard pool cap contribution; replenish cap is min(this, Max HP × (1 + Max Guard %))).")]
     public int flatGuard = 0;

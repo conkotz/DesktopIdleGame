@@ -21,7 +21,7 @@ public static class StorageTabFilters
             StorageTabKind.Main => true,
             StorageTabKind.Resources => def.itemKind == ItemKind.Resource,
             StorageTabKind.Equips => def.itemKind == ItemKind.Weapon ||
-                                     def.itemKind == ItemKind.Armor ||
+                                     def.itemKind == ItemKind.Armour ||
                                      def.itemKind == ItemKind.CombatSupport ||
                                      def.itemKind == ItemKind.Tool ||
                                      def.itemKind == ItemKind.Jewelry,

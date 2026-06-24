@@ -1668,7 +1668,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float fishingBaitConservationChance = 0f;
         float fishingAutoCookChance = 0f;
         int fishingTreasureMinorStacks = 0;
-        float enduranceArmor = 0f;
+        float enduranceArmour = 0f;
         float enduranceMagicResist = 0f;
         float enduranceHp = 0f;
         float enduranceHpRegen = 0f;
@@ -1884,7 +1884,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             {
                 switch (unlock.enduranceMinorStatOption)
                 {
-                    case EnduranceMinorNodeStatOption.EnduranceArmorFlat2: enduranceArmor += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceArmourFlat2: enduranceArmour += 2f; break;
                     case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2: enduranceMagicResist += 2f; break;
                     case EnduranceMinorNodeStatOption.EnduranceHealthFlat5: enduranceHp += 5f; break;
                     case EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1: enduranceHpRegen += 1f; break;
@@ -1958,7 +1958,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else if (skill.skillType == SkillType.Endurance)
         {
-            Flat(enduranceArmor, "Armour");
+            Flat(enduranceArmour, "Armour");
             Flat(enduranceMagicResist, "Magic Resist");
             Flat(enduranceHp, "Max HP");
             Flat(enduranceHpRegen, "HP Regen");

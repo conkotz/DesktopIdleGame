@@ -5358,8 +5358,8 @@ public class PlayerController : MonoBehaviour
 
             case DamageType.Physical:
                 {
-                    float armor = characterStats ? characterStats.Armor : 0f;
-                    float dmg = MitigateByRating(rawDamage, armor);
+                    float armour = characterStats ? characterStats.Armour : 0f;
+                    float dmg = MitigateByRating(rawDamage, armour);
 
                     float blockChance = characterStats ? characterStats.PhysBlockChance : 0f;
                     if (blockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(blockChance))

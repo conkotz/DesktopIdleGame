@@ -1,5 +1,5 @@
 /// <summary>
-/// Weapon / armor / tool tier rank. Shown as "Tier 1" … "Tier 5"; item display names carry flavor (e.g. Splitwood).
+/// Weapon / armour / tool tier rank. Shown as "Tier 1" … "Tier 5"; item display names carry flavor (e.g. Splitwood).
 /// Gated by skill level on the matching skill: Tier1 = Lv1, Tier2 = Lv10, Tier3 = Lv20, Tier4 = Lv30, Tier5 = Lv40.
 /// </summary>
 public enum EquipmentTierRank
@@ -12,7 +12,7 @@ public enum EquipmentTierRank
 }
 
 /// <summary>
-/// Tier display strings and level thresholds (same for all weapon / armor / tool families that use <see cref="EquipmentTierRank"/>).
+/// Tier display strings and level thresholds (same for all weapon / armour / tool families that use <see cref="EquipmentTierRank"/>).
 /// </summary>
 public static class EquipmentTierRules
 {

@@ -2,7 +2,7 @@ using UnityEngine;
 
 public static class EnhancementScrollGearRules
 {
-    public static EnhancementScrollGearMask AllArmorSlots =>
+    public static EnhancementScrollGearMask AllArmourSlots =>
         EnhancementScrollGearMask.Helmet |
         EnhancementScrollGearMask.Body |
         EnhancementScrollGearMask.Boots |
@@ -10,8 +10,8 @@ public static class EnhancementScrollGearRules
 
     public static EnhancementScrollGearMask NormalizeMask(EnhancementScrollGearMask mask)
     {
-        if ((mask & EnhancementScrollGearMask.Armor) != 0)
-            mask = (mask & ~EnhancementScrollGearMask.Armor) | AllArmorSlots;
+        if ((mask & EnhancementScrollGearMask.Armour) != 0)
+            mask = (mask & ~EnhancementScrollGearMask.Armour) | AllArmourSlots;
 
         return mask;
     }
@@ -25,8 +25,8 @@ public static class EnhancementScrollGearRules
         return (NormalizeMask(mask) & gearMask) != 0;
     }
 
-    public static bool MaskTargetsArmorSlots(EnhancementScrollGearMask mask) =>
-        (NormalizeMask(mask) & AllArmorSlots) != 0;
+    public static bool MaskTargetsArmourSlots(EnhancementScrollGearMask mask) =>
+        (NormalizeMask(mask) & AllArmourSlots) != 0;
 
     public static EnhancementScrollGearMask GetMaskForGear(ItemDefinition gear)
     {
@@ -47,7 +47,7 @@ public static class EnhancementScrollGearRules
             return weaponMask;
         }
 
-        if (gear.itemKind == ItemKind.Armor)
+        if (gear.itemKind == ItemKind.Armour)
         {
             return gear.equipSlot switch
             {

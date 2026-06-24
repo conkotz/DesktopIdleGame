@@ -45,13 +45,15 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text hpText;
     [SerializeField] private TMP_Text energyText;
     [SerializeField] private TMP_Text manaText;
-    [SerializeField] private TMP_Text armorText;
+    [FormerlySerializedAs("armorText")]
+    [SerializeField] private TMP_Text armourText;
     [SerializeField] private TMP_Text mrText;
     [SerializeField] private TMP_Text corruptionResistText;
     [SerializeField] private TMP_Text blockText;
     [SerializeField] private TMP_Text blockMitigationText;
     [SerializeField] private TMP_Text parryText;
     [SerializeField] private TMP_Text parryMitigationText;
+    [SerializeField] private TMP_Text evadeText;
     [SerializeField] private TMP_Text guardFlatText;
     [SerializeField] private TMP_Text maxGuardPercentText;
 
@@ -76,6 +78,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text cooldownReductionText;
     [SerializeField] private TMP_Text lifeStealText;
     [SerializeField] private TMP_Text stunChanceText;
+    [SerializeField] private TMP_Text thornsDmgText;
+    [SerializeField] private TMP_Text thornsDmgIncText;
 
     [Header("Minions (owner scaling — no DPS yet)")]
     [Tooltip("Optional. Assign TMP in offence tab; wire GameObject names MinionDamageText / MinionAttackSpeedText / MinionCritChanceText / MinionMaxLifeText for hover copy.")]
@@ -406,7 +410,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (hpText) hpText.text = $"Max HP: {stats.MaxHP}";
         if (energyText) energyText.text = $"Energy: {stats.MaxEnergy}";
         if (manaText) manaText.text = $"Mana: {stats.MaxMana}";
-        if (armorText) armorText.text = $"Armour: {stats.Armor} ({stats.PhysicalReductionFromArmorPercent:0.#}% Phys DR)";
+        if (armourText) armourText.text = $"Armour: {stats.Armour} ({stats.PhysicalReductionFromArmourPercent:0.#}% Phys DR)";
         if (mrText) mrText.text = $"Magic Res: {stats.MagicResist} ({stats.MagicReductionFromMrPercent:0.#}% Mag DR)";
         if (corruptionResistText)
             corruptionResistText.text = $"Corr Res: {stats.CorruptionResist} ({stats.CorruptionReductionFromResistPercent:0.#}% Corr DR)";
@@ -417,6 +421,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             parryText.text = $"Parry: {stats.GetParryChancePercent():0.#}%";
         if (parryMitigationText)
             parryMitigationText.text = $"Parry Mitigation: {stats.GetParryMitigationPercent():0.#}%";
+        if (evadeText)
+            evadeText.text = $"Evade: {stats.EvadeChancePercentForStatsPanel:0.#}%";
 
         if (guardFlatText)
             guardFlatText.text = $"Guard (flat): {stats.GearFlatGuardSum}";
@@ -517,6 +523,18 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         {
             float lsPct = Mathf.Clamp01(stats.LifeSteal) * 100f;
             lifeStealText.text = $"Life Steal: {lsPct:0.#}% of damage";
+        }
+
+        if (thornsDmgText)
+        {
+            stats.GetEffectiveThornsDamageRangeForStatsPanel(out int thornsMin, out int thornsMax);
+            thornsDmgText.text = $"Thorns Damage: {thornsMin}-{thornsMax}";
+        }
+
+        if (thornsDmgIncText)
+        {
+            thornsDmgIncText.text =
+                $"Thorns Damage Inc: {FormatSignedPercentFrom01(stats.ThornsDamageIncreaseFractionForStatsPanel)}";
         }
 
         if (stunChanceText)
@@ -806,6 +824,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             else if (!minionMaxLifeText && (key.Equals("MinionMaxLifeText", StringComparison.OrdinalIgnoreCase) ||
                                             key.Equals("ConditionalMinionMaxLifeText", StringComparison.OrdinalIgnoreCase)))
                 minionMaxLifeText = tmp;
+            else if (!thornsDmgText && key.Equals("ThornsDmgText", StringComparison.OrdinalIgnoreCase))
+                thornsDmgText = tmp;
+            else if (!thornsDmgIncText && key.Equals("ThornsDmgIncText", StringComparison.OrdinalIgnoreCase))
+                thornsDmgIncText = tmp;
         }
     }
 
@@ -821,6 +843,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 parryText = tmp;
             else if (!parryMitigationText && key.Equals("ParryMitigationText", StringComparison.OrdinalIgnoreCase))
                 parryMitigationText = tmp;
+            else if (!evadeText && key.Equals("EvadeText", StringComparison.OrdinalIgnoreCase))
+                evadeText = tmp;
         }
     }
 

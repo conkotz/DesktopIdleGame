@@ -1570,14 +1570,14 @@ public class AilmentController : MonoBehaviour
 
     ⚡ SHOCK (TODO - NON-DOT)
     - Effect: increases damage taken
-    - Could reduce armor/resistance
+    - Could reduce armour/resistance
     - Great for burst synergy
 
     ☠️ FUTURE IDEAS
     - Curse: reduces stats
     - Stun: handled on <see cref="EnemyBaseController"/> (action lockout + status popup)
     - Weaken: reduces outgoing damage
-    - Armor break: reduces armor only
+    - Armour break: reduces armour only
 */
 
 // =========================================================
@@ -1594,5 +1594,5 @@ public class AilmentController : MonoBehaviour
 
     SHOCK
     - increased damage taken
-    - could reduce armor / resist
+    - could reduce armour / resist
 */

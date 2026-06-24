@@ -111,6 +111,7 @@ public class ItemDatabase : ScriptableObject
         if (key != null && _runtimeItems.TryGetValue(key, out var runtimeDef))
         {
             runtimeDef.NormalizeEnhancementState();
+            TryRepairRuntimeArmourStats(runtimeDef, key);
             return runtimeDef;
         }
 
@@ -221,7 +222,7 @@ public class ItemDatabase : ScriptableObject
                 successfulEnhancements = def.successfulEnhancements,
                 enhancementScrollHistory = CopyEnhancementScrollHistory(def.enhancementScrollHistory),
                 weaponStats = def.weaponStats,
-                armorStats = def.armorStats,
+                armourStats = def.armourStats,
                 bonusStats = def.bonusStats,
                 combatSupportStats = def.combatSupportStats,
                 toolStats = def.toolStats,
@@ -257,8 +258,9 @@ public class ItemDatabase : ScriptableObject
             clone.successfulEnhancements = Mathf.Max(0, saved.successfulEnhancements);
             clone.enhancementScrollHistory = CopyEnhancementScrollHistory(saved.enhancementScrollHistory);
             clone.weaponStats = saved.weaponStats;
-            clone.armorStats = saved.armorStats;
-            RestoreIntrinsicArmorFieldsFromBase(ref clone.armorStats, baseDef);
+            clone.armourStats = saved.ResolveArmourStatsForLoad();
+            RestoreArmourStatsFromBaseIfMissing(ref clone.armourStats, baseDef);
+            RestoreIntrinsicArmourFieldsFromBase(ref clone.armourStats, baseDef);
             clone.bonusStats = saved.bonusStats;
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
@@ -312,14 +314,44 @@ public class ItemDatabase : ScriptableObject
 
     /// <summary>
     /// Armour tier/type are intrinsic to the authored item and are not changed by enhancements.
-    /// Re-apply after loading saved <see cref="ArmorStats"/> so legacy saves without <see cref="ArmorStats.armorType"/> stay correct.
+    /// Re-apply after loading saved <see cref="ArmourStats"/> so legacy saves without <see cref="ArmourStats.armourType"/> stay correct.
     /// </summary>
-    private static void RestoreIntrinsicArmorFieldsFromBase(ref ArmorStats stats, ItemDefinition baseDef)
+    private static void RestoreIntrinsicArmourFieldsFromBase(ref ArmourStats stats, ItemDefinition baseDef)
     {
-        if (!baseDef || !baseDef.IsArmor)
+        if (!baseDef || !baseDef.IsArmour)
             return;
 
-        stats.equipmentTier = baseDef.armorStats.equipmentTier;
-        stats.armorType = baseDef.armorStats.armorType;
+        stats.equipmentTier = baseDef.armourStats.equipmentTier;
+        stats.armourType = baseDef.armourStats.armourType;
+    }
+
+    private static void RestoreArmourStatsFromBaseIfMissing(ref ArmourStats stats, ItemDefinition baseDef)
+    {
+        if (!baseDef || !baseDef.IsArmour || !stats.IsDefensiveDataMissing())
+            return;
+
+        stats = baseDef.armourStats;
+    }
+
+    private void TryRepairRuntimeArmourStats(ItemDefinition runtimeDef, string runtimeItemId)
+    {
+        if (!runtimeDef || !runtimeDef.IsArmour)
+            return;
+
+        if (!runtimeDef.armourStats.IsDefensiveDataMissing())
+            return;
+
+        string baseKey = _runtimeBaseIds.TryGetValue(Normalize(runtimeItemId), out string mappedBase)
+            ? mappedBase
+            : null;
+        if (string.IsNullOrWhiteSpace(baseKey))
+            return;
+
+        if (!_map.TryGetValue(baseKey, out ItemDefinition baseDef) || !baseDef)
+            return;
+
+        ArmourStats repaired = baseDef.armourStats;
+        RestoreIntrinsicArmourFieldsFromBase(ref repaired, baseDef);
+        runtimeDef.armourStats = repaired;
     }
 }

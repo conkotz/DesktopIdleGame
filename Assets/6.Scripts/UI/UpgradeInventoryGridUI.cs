@@ -336,7 +336,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
         if (def == null || !def.HasUpgradeSlots)
             return false;
 
-        return def.IsWeapon || def.IsArmor || def.IsTool;
+        return def.IsWeapon || def.IsArmour || def.IsTool;
     }
 
     private bool IsUpgradableGearSlot(int slotIndex)

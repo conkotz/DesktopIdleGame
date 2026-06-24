@@ -338,7 +338,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// One batched notify after a weapon-set swap. Skips per-armor UISlot spam; slot UIs repaint from
+    /// One batched notify after a weapon-set swap. Skips per-armour UISlot spam; slot UIs repaint from
     /// <see cref="OnActiveSetChanged"/> and listeners still get main/off-hand changes for vitals/combat power.
     /// </summary>
     private void PublishWeaponSetSwapCompleted()
@@ -389,10 +389,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         return def ? def.SupportType : CombatSupportType.None;
     }
 
-    private bool IsOffHandArmor(string itemId)
+    private bool IsOffHandArmour(string itemId)
     {
         var def = GetDef(itemId);
-        return def && def.itemKind == ItemKind.Armor && def.equipSlot == EquipSlot.OffHand;
+        return def && def.itemKind == ItemKind.Armour && def.equipSlot == EquipSlot.OffHand;
     }
 
     private MainHandWeaponArchetype GetMainHandArchetype(string itemId)
@@ -469,7 +469,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!off)
             return false;
 
-        if (off.itemKind == ItemKind.Armor && off.equipSlot == EquipSlot.OffHand)
+        if (off.itemKind == ItemKind.Armour && off.equipSlot == EquipSlot.OffHand)
             return true;
 
         if (off.IsWeapon &&
@@ -498,7 +498,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         if (string.IsNullOrWhiteSpace(mainHandId))
         {
-            if (offDef.itemKind == ItemKind.Armor && offDef.equipSlot == EquipSlot.OffHand)
+            if (offDef.itemKind == ItemKind.Armour && offDef.equipSlot == EquipSlot.OffHand)
                 return true;
 
             if (offDef.IsWeapon &&
@@ -526,7 +526,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (mainDef.IsTwoHandedWeapon)
             return false;
 
-        if (offDef.itemKind == ItemKind.Armor && offDef.equipSlot == EquipSlot.OffHand)
+        if (offDef.itemKind == ItemKind.Armour && offDef.equipSlot == EquipSlot.OffHand)
             return true;
 
         if (offDef.IsWeapon &&
@@ -666,7 +666,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                     {
                         var offDef = GetDef(currentOff);
                         bool valid =
-                            (offDef && offDef.itemKind == ItemKind.Armor && offDef.equipSlot == EquipSlot.OffHand) ||
+                            (offDef && offDef.itemKind == ItemKind.Armour && offDef.equipSlot == EquipSlot.OffHand) ||
                             (offDef && offDef.IsWeapon && offDef.weaponStats.handedness == Handedness.OneHanded && offDef.weaponStats.canEquipInOffHand);
 
                         if (!valid)
@@ -1243,7 +1243,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         if (slot == EquipSlot.OffHand)
         {
-            if (def.itemKind == ItemKind.Armor && def.equipSlot == EquipSlot.OffHand)
+            if (def.itemKind == ItemKind.Armour && def.equipSlot == EquipSlot.OffHand)
                 return CanOffHandUseCurrentMainHand(itemId, MainHandItemId);
 
             if (def.itemKind == ItemKind.Weapon &&

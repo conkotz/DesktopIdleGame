@@ -211,7 +211,7 @@ public static class MeleeMajorPassiveTooltipText
 
     public static string BuildWayOfTheGladiatorChoiceEffectBody()
     {
-        int armorPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheGladiatorArmorReductionPerBleedTick * 100f);
+        int armourPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheGladiatorArmourReductionPerBleedTick * 100f);
         int resistPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheGladiatorIncomingBleedChanceReduction * 100f);
 
         var sb = new StringBuilder();
@@ -220,7 +220,7 @@ public static class MeleeMajorPassiveTooltipText
         sb.AppendLine(" (second bleed stack on enemies).");
         sb.AppendLine();
         sb.Append("Each bleed damage tick lowers enemy armour by ");
-        sb.Append(armorPct);
+        sb.Append(armourPct);
         sb.AppendLine("% (once per tick).");
         sb.Append("Enemy armour cannot be reduced below 0.");
         sb.AppendLine();
@@ -805,7 +805,7 @@ public static class MeleeMajorPassiveTooltipText
             twoHandActive);
         AppendTacticianColoredLine(
             sb,
-            $"+{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianTwoHandedArmorPenetration, bonusMultiplier)}% armour penetration",
+            $"+{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianTwoHandedArmourPenetration, bonusMultiplier)}% armour penetration",
             twoHandActive);
         AppendTacticianColoredLine(
             sb,

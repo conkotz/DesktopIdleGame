@@ -146,7 +146,7 @@ public static class PassiveUnlocksLineHighlight
     {
         key = opt switch
         {
-            EnduranceMinorNodeStatOption.EnduranceArmorFlat2 => "Armour",
+            EnduranceMinorNodeStatOption.EnduranceArmourFlat2 => "Armour",
             EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2 => "Magic Resist",
             EnduranceMinorNodeStatOption.EnduranceHealthFlat5 => "Max HP",
             EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1 => "HP Regen",

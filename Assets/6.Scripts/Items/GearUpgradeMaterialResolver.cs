@@ -30,7 +30,7 @@ public static class GearUpgradeMaterialResolver
         if (gear.IsTool)
             return GearUpgradeMaterialFamily.Wood;
 
-        if (gear.IsArmor || gear.IsOffhandCombatSupport)
+        if (gear.IsArmour || gear.IsOffhandCombatSupport)
             return GearUpgradeMaterialFamily.Stone;
 
         if (gear.IsWeapon)
@@ -84,7 +84,7 @@ public static class GearUpgradeMaterialResolver
             return ScaleRequirements(BuildWeaponRequirements(tier), scale);
         }
 
-        if (gear.IsArmor || gear.IsOffhandCombatSupport)
+        if (gear.IsArmour || gear.IsOffhandCombatSupport)
             return ScaleRequirements(BuildArmourRequirements(gear, tier), scale);
 
         return Array.Empty<GearUpgradeMaterialRequirement>();

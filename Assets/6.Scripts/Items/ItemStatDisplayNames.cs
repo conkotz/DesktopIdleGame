@@ -73,24 +73,24 @@ public static class ItemStatDisplayNames
         switch (stat)
         {
             case RandomItemStatType.BonusHealth:
-            case RandomItemStatType.ArmorBonusHealth:
+            case RandomItemStatType.ArmourBonusHealth:
                 return Health;
             case RandomItemStatType.BonusEnergy:
-            case RandomItemStatType.ArmorBonusEnergy:
+            case RandomItemStatType.ArmourBonusEnergy:
                 return Energy;
             case RandomItemStatType.BonusMana:
                 return Mana;
-            case RandomItemStatType.BonusArmor:
-            case RandomItemStatType.ArmorFlatArmor:
+            case RandomItemStatType.BonusArmour:
+            case RandomItemStatType.ArmourFlatArmour:
                 return Armour;
             case RandomItemStatType.BonusMagicResist:
-            case RandomItemStatType.ArmorMagicResist:
+            case RandomItemStatType.ArmourMagicResist:
                 return MagicRes;
             case RandomItemStatType.BonusCorruptionResist:
-            case RandomItemStatType.ArmorCorruptionResist:
+            case RandomItemStatType.ArmourCorruptionResist:
                 return CorruptionRes;
             case RandomItemStatType.BonusPhysBlockChance:
-            case RandomItemStatType.ArmorPhysBlockChance:
+            case RandomItemStatType.ArmourPhysBlockChance:
                 return PhysBlock;
             case RandomItemStatType.LifeRegen:
                 return LifeRegen;
@@ -99,7 +99,7 @@ public static class ItemStatDisplayNames
             case RandomItemStatType.ManaRegen:
                 return ManaRegen;
             case RandomItemStatType.EnergyEfficiency:
-            case RandomItemStatType.ArmorEnergyEfficiency:
+            case RandomItemStatType.ArmourEnergyEfficiency:
                 return EnergyEfficiency;
             case RandomItemStatType.LifeSteal:
                 return LifeSteal;
@@ -172,9 +172,9 @@ public static class ItemStatDisplayNames
                 return "Min Corruption Damage";
             case RandomItemStatType.WeaponMaxCorruptionDamage:
                 return "Max Corruption Damage";
-            case RandomItemStatType.ArmorFlatGuard:
+            case RandomItemStatType.ArmourFlatGuard:
                 return Guard;
-            case RandomItemStatType.ArmorMaxGuardPercent:
+            case RandomItemStatType.ArmourMaxGuardPercent:
                 return MaxGuard;
             case RandomItemStatType.BleedChance:
                 return BleedChance;

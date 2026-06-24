@@ -154,7 +154,7 @@ public class EnemyBaseController : MonoBehaviour
     public int HP => stats ? Mathf.RoundToInt(stats.HP) : 0;
     public int MaxHP => stats ? stats.MaxHP : 0;
 
-    public int Armor => stats ? stats.Armor : 0;
+    public int Armour => stats ? stats.Armour : 0;
     public int MagicResist => stats ? stats.MagicResist : 0;
     public float PhysBlockChance => stats ? stats.PhysBlockChance : 0f;
     public float CritChance => stats ? stats.CritChance : 0f;
@@ -372,7 +372,7 @@ public class EnemyBaseController : MonoBehaviour
 
         float h = EnduranceTrialTier.GetHealthMultiplier(tier1Based);
         float d = EnduranceTrialTier.GetDamageMultiplier(tier1Based);
-        float a = EnduranceTrialTier.GetArmorAndResistMultiplier(tier1Based);
+        float a = EnduranceTrialTier.GetArmourAndResistMultiplier(tier1Based);
         stats.ApplyEnduranceTrialDifficultyScaling(h, d, a);
         OnHealthChanged?.Invoke(HP, MaxHP);
     }
@@ -1484,7 +1484,7 @@ public class EnemyBaseController : MonoBehaviour
         Transform attacker,
         AttackSkill? attackSkillSource = null,
         DpsDamageBucket? dpsBucketOverride = null,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f,
         string outgoingDpsSourceLabel = null)
     {
@@ -1525,7 +1525,7 @@ public class EnemyBaseController : MonoBehaviour
             out bool blocked,
             out float hpDamage,
             out _,
-            armorRatingMultiplier,
+            armourRatingMultiplier,
             magicResistRatingMultiplier);
         int finalDamage = Mathf.RoundToInt(applied);
 
@@ -1602,7 +1602,7 @@ public class EnemyBaseController : MonoBehaviour
         StampDamageEngagementFromAttacker(source);
         ResolveIncomingAggroFromAttacker(source);
 
-        // DOT tick amount is already final; do not re-apply armor/MR/corruption resist.
+        // DOT tick amount is already final; do not re-apply armour/MR/corruption resist.
         float applied = stats.TakeDamageFromResolvedDot(finalDamage, out _);
         int dealt = Mathf.RoundToInt(applied);
 

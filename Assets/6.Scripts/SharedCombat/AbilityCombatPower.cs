@@ -425,7 +425,7 @@ public static class AbilityCombatPower
     public const float TacticianOneHandedBurnChance = 0.05f;
     public const float TacticianOneHandedCritChance = 0.05f;
     public const float TacticianTwoHandedBleedMultiplierBonus = 0.05f;
-    public const float TacticianTwoHandedArmorPenetration = 0.05f;
+    public const float TacticianTwoHandedArmourPenetration = 0.05f;
     public const float TacticianTwoHandedStunChance = 0.05f;
     public const float TacticianTwoHandedBlockChance = 0.05f;
     public const float TacticianShieldBlockChanceBonus = 0.05f;
@@ -537,7 +537,7 @@ public static class AbilityCombatPower
     public const float WayOfTheAssassinPoisonDurationBonusSeconds = 2f;
     public const float WayOfTheAssassinCorruptionResistReductionPerPoisonTick = 0.05f;
     public const int WayOfTheGladiatorBleedMaxStacksBonus = 1;
-    public const float WayOfTheGladiatorArmorReductionPerBleedTick = 0.05f;
+    public const float WayOfTheGladiatorArmourReductionPerBleedTick = 0.05f;
     public const float WayOfTheGladiatorIncomingBleedChanceReduction = 0.30f;
     public const int WayOfTheCrusaderMaxHolySeals = 3;
     public const float WayOfTheCrusaderHolySealGainIntervalSeconds = 4f;
@@ -631,7 +631,7 @@ public static class AbilityCombatPower
     public const float ExecutionersDescentShockwaveWeaponMultiplier = 3f;
     public const float ExecutionersDescentShockwaveRadius = 10f;
     public const float ExecutionersDescentClaimCooldownReductionFraction = 0.5f;
-    public const float ExecutionersDescentSunderingArmorMrMultiplier = 0.5f;
+    public const float ExecutionersDescentSunderingArmourMrMultiplier = 0.5f;
     public const float ExecutionersDescentSunderingDebuffSeconds = 5f;
     public const float ExecutionersDescentAxeSpawnHeight = 6f;
     /// <summary>Extra horizontal reach beyond melee weapon edge gap for casting and tracking during descent.</summary>

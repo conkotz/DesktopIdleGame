@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Shared rules for combat resist ratings (armor, MR, corruption resist, etc.).</summary>
+/// <summary>Shared rules for combat resist ratings (armour, MR, corruption resist, etc.).</summary>
 public static class CombatResistRules
 {
     public static int ClampRating(int rating) => Mathf.Max(0, rating);

@@ -23,7 +23,7 @@ MonoBehaviour:
   maxHealth: 50
   maxEnergy: 0
   maxMana: 0
-  armor: 0
+  armour: 0
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0

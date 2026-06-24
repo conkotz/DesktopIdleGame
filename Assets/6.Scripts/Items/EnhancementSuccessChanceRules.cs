@@ -51,8 +51,8 @@ public static class EnhancementSuccessChanceRules
 
         if ((option.allowedGearTypes & EnhancementScrollGearMask.Tool) != 0 &&
             (option.allowedGearTypes & EnhancementScrollGearMask.Weapon) == 0 &&
-            (option.allowedGearTypes & EnhancementScrollGearMask.Armor) == 0 &&
-            !EnhancementScrollGearRules.MaskTargetsArmorSlots(option.allowedGearTypes))
+            (option.allowedGearTypes & EnhancementScrollGearMask.Armour) == 0 &&
+            !EnhancementScrollGearRules.MaskTargetsArmourSlots(option.allowedGearTypes))
         {
             return "Varies by item (70%–30%)";
         }

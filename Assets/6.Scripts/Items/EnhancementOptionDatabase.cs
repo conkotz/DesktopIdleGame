@@ -107,22 +107,22 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
 
     private void PopulateDefaultOptions()
     {
-        AddFlatTierLine("armour", "Armour", EnhancementScrollTargetStat.Armor, 5f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_armour_scroll");
+        AddFlatTierLine("armour", "Armour", EnhancementScrollTargetStat.Armour, 5f,
+            EnhancementScrollGearMask.AllArmourSlots, "basic_armour_scroll");
         AddFlatTierLine("health", "Health", EnhancementScrollTargetStat.Health, 5f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_health_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_health_scroll");
         AddFlatTierLine("magic_resist", "Magic Res", EnhancementScrollTargetStat.MagicResist, 5f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_magic_resist_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_magic_resist_scroll");
         AddFlatTierLine("corruption_resist", "Corruption Res", EnhancementScrollTargetStat.CorruptionResist, 5f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_corruption_resist_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_corruption_resist_scroll");
         AddPercentTierValues("energy_efficiency", "Energy Efficiency", EnhancementScrollTargetStat.EnergyEfficiency,
-            0.005f, 0.007f, 0.01f, EnhancementScrollGearMask.AllArmorSlots, "basic_energy_efficiency_scroll");
+            0.005f, 0.007f, 0.01f, EnhancementScrollGearMask.AllArmourSlots, "basic_energy_efficiency_scroll");
         AddFlatTierLine("flat_guard", "Flat Guard", EnhancementScrollTargetStat.FlatGuard, 5f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_flat_guard_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_flat_guard_scroll");
         AddFlatTierValues("mana", "Mana", EnhancementScrollTargetStat.Mana, 7f, 10f, 13f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_mana_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_mana_scroll");
         AddFlatTierValues("mana_regen", "Mana Regen", EnhancementScrollTargetStat.ManaRegen, 0.5f, 0.7f, 1f,
-            EnhancementScrollGearMask.AllArmorSlots, "basic_mana_regen_scroll");
+            EnhancementScrollGearMask.AllArmourSlots, "basic_mana_regen_scroll");
         AddPercentTierValues("move_speed", "Move Speed", EnhancementScrollTargetStat.MoveSpeed,
             0.04f, 0.06f, 0.08f, EnhancementScrollGearMask.Boots, "basic_movespeed_scroll");
 
@@ -173,7 +173,7 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
             EnhancementScrollTargetStat.CorruptionDamage, 6f, EnhancementScrollGearMask.Weapon,
             "chaos_weapon_corruption_scroll");
         AddChaosGamble("chaos_health_gamble", "Chaos Health Gamble",
-            EnhancementScrollTargetStat.Health, 15f, EnhancementScrollGearMask.AllArmorSlots,
+            EnhancementScrollTargetStat.Health, 15f, EnhancementScrollGearMask.AllArmourSlots,
             "chaos_health_scroll");
 
         EnsureSpecialOptionsPresent();

@@ -136,7 +136,7 @@ public static class InventoryContextMenuBuilder
         if (!def || !def.HasUpgradeSlots)
             return false;
 
-        return def.IsWeapon || def.IsArmor || def.IsTool;
+        return def.IsWeapon || def.IsArmour || def.IsTool;
     }
 
 }

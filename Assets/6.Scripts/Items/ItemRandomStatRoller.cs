@@ -7,7 +7,7 @@ public enum RandomItemStatType
     BonusHealth,
     BonusEnergy,
     BonusMana,
-    BonusArmor,
+    BonusArmour,
     BonusMagicResist,
     BonusCorruptionResist,
     BonusPhysBlockChance,
@@ -62,15 +62,15 @@ public enum RandomItemStatType
     WeaponAttackRange,
     WeaponMagicAilmentApplyChance,
 
-    ArmorFlatArmor,
-    ArmorMagicResist,
-    ArmorCorruptionResist,
-    ArmorPhysBlockChance,
-    ArmorBonusHealth,
-    ArmorBonusEnergy,
-    ArmorEnergyEfficiency,
-    ArmorFlatGuard,
-    ArmorMaxGuardPercent,
+    ArmourFlatArmour,
+    ArmourMagicResist,
+    ArmourCorruptionResist,
+    ArmourPhysBlockChance,
+    ArmourBonusHealth,
+    ArmourBonusEnergy,
+    ArmourEnergyEfficiency,
+    ArmourFlatGuard,
+    ArmourMaxGuardPercent,
 
     WeaponMinFireDamage,
     WeaponMaxFireDamage,
@@ -156,7 +156,7 @@ public static class ItemRandomStatRoller
         if (!def || !def.HasRandomStatPool)
             return false;
 
-        if (!def.IsWeapon && !def.IsArmor && !def.IsJewelry)
+        if (!def.IsWeapon && !def.IsArmour && !def.IsJewelry)
             return false;
 
         if (def.maxStack > 1)
@@ -237,7 +237,7 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.BonusHealth, bonus.bonusHealth);
         TryAdd(RandomItemStatType.BonusEnergy, bonus.bonusEnergy);
         TryAdd(RandomItemStatType.BonusMana, bonus.bonusMana);
-        TryAdd(RandomItemStatType.BonusArmor, bonus.armor);
+        TryAdd(RandomItemStatType.BonusArmour, bonus.armour);
         TryAdd(RandomItemStatType.BonusMagicResist, bonus.magicResist);
         TryAdd(RandomItemStatType.BonusCorruptionResist, bonus.corruptionResist);
         TryAdd(RandomItemStatType.BonusPhysBlockChance, bonus.physBlockChance);
@@ -303,18 +303,18 @@ public static class ItemRandomStatRoller
             TryAdd(RandomItemStatType.WeaponMagicAilmentApplyChance, weapon.magicAilmentApplyChance);
         }
 
-        if (item.IsArmor)
+        if (item.IsArmour)
         {
-            ArmorStats armor = item.armorStats;
-            TryAdd(RandomItemStatType.ArmorFlatArmor, armor.armor);
-            TryAdd(RandomItemStatType.ArmorMagicResist, armor.magicResist);
-            TryAdd(RandomItemStatType.ArmorCorruptionResist, armor.corruptionResist);
-            TryAdd(RandomItemStatType.ArmorPhysBlockChance, armor.physBlockChance);
-            TryAdd(RandomItemStatType.ArmorBonusHealth, armor.bonusHealth);
-            TryAdd(RandomItemStatType.ArmorBonusEnergy, armor.bonusEnergy);
-            TryAdd(RandomItemStatType.ArmorEnergyEfficiency, armor.energyEfficiency);
-            TryAdd(RandomItemStatType.ArmorFlatGuard, armor.flatGuard);
-            TryAdd(RandomItemStatType.ArmorMaxGuardPercent, armor.maxGuardPercent);
+            ArmourStats armour = item.armourStats;
+            TryAdd(RandomItemStatType.ArmourFlatArmour, armour.armour);
+            TryAdd(RandomItemStatType.ArmourMagicResist, armour.magicResist);
+            TryAdd(RandomItemStatType.ArmourCorruptionResist, armour.corruptionResist);
+            TryAdd(RandomItemStatType.ArmourPhysBlockChance, armour.physBlockChance);
+            TryAdd(RandomItemStatType.ArmourBonusHealth, armour.bonusHealth);
+            TryAdd(RandomItemStatType.ArmourBonusEnergy, armour.bonusEnergy);
+            TryAdd(RandomItemStatType.ArmourEnergyEfficiency, armour.energyEfficiency);
+            TryAdd(RandomItemStatType.ArmourFlatGuard, armour.flatGuard);
+            TryAdd(RandomItemStatType.ArmourMaxGuardPercent, armour.maxGuardPercent);
         }
 
         if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
@@ -378,7 +378,7 @@ public static class ItemRandomStatRoller
                     break;
                 }
 
-                if (stat == RandomItemStatType.ArmorFlatGuard)
+                if (stat == RandomItemStatType.ArmourFlatGuard)
                 {
                     min = 5f;
                     max = 10f;
@@ -476,16 +476,16 @@ public static class ItemRandomStatRoller
         stat == RandomItemStatType.WeaponAttacksPerSecond;
 
     private static bool UsesDefenceFlatTemplateRange(RandomItemStatType stat) =>
-        stat == RandomItemStatType.BonusArmor ||
+        stat == RandomItemStatType.BonusArmour ||
         stat == RandomItemStatType.BonusMagicResist ||
         stat == RandomItemStatType.BonusCorruptionResist ||
-        stat == RandomItemStatType.ArmorFlatArmor ||
-        stat == RandomItemStatType.ArmorMagicResist ||
-        stat == RandomItemStatType.ArmorCorruptionResist;
+        stat == RandomItemStatType.ArmourFlatArmour ||
+        stat == RandomItemStatType.ArmourMagicResist ||
+        stat == RandomItemStatType.ArmourCorruptionResist;
 
     private static bool UsesHealthFlatTemplateRange(RandomItemStatType stat) =>
         stat == RandomItemStatType.BonusHealth ||
-        stat == RandomItemStatType.ArmorBonusHealth;
+        stat == RandomItemStatType.ArmourBonusHealth;
 
     private static bool IsEffectivelyZero(float value) => Mathf.Abs(value) < 0.0001f;
 
@@ -496,7 +496,7 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.BonusHealth:
             case RandomItemStatType.BonusEnergy:
             case RandomItemStatType.BonusMana:
-            case RandomItemStatType.BonusArmor:
+            case RandomItemStatType.BonusArmour:
             case RandomItemStatType.BonusMagicResist:
             case RandomItemStatType.BonusCorruptionResist:
             case RandomItemStatType.PhysicalDamageFlat:
@@ -507,12 +507,12 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.WeaponMaxPhysicalDamage:
             case RandomItemStatType.WeaponMinCorruptionDamage:
             case RandomItemStatType.WeaponMaxCorruptionDamage:
-            case RandomItemStatType.ArmorFlatArmor:
-            case RandomItemStatType.ArmorMagicResist:
-            case RandomItemStatType.ArmorCorruptionResist:
-            case RandomItemStatType.ArmorBonusHealth:
-            case RandomItemStatType.ArmorBonusEnergy:
-            case RandomItemStatType.ArmorFlatGuard:
+            case RandomItemStatType.ArmourFlatArmour:
+            case RandomItemStatType.ArmourMagicResist:
+            case RandomItemStatType.ArmourCorruptionResist:
+            case RandomItemStatType.ArmourBonusHealth:
+            case RandomItemStatType.ArmourBonusEnergy:
+            case RandomItemStatType.ArmourFlatGuard:
             case RandomItemStatType.WeaponMinFireDamage:
             case RandomItemStatType.WeaponMaxFireDamage:
             case RandomItemStatType.WeaponMinIceDamage:
@@ -576,8 +576,8 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.BonusMana:
                 AddBonusInt(ref item.bonusStats.bonusMana, primary, kind);
                 break;
-            case RandomItemStatType.BonusArmor:
-                AddBonusInt(ref item.bonusStats.armor, primary, kind);
+            case RandomItemStatType.BonusArmour:
+                AddBonusInt(ref item.bonusStats.armour, primary, kind);
                 break;
             case RandomItemStatType.BonusMagicResist:
                 AddBonusInt(ref item.bonusStats.magicResist, primary, kind);
@@ -755,32 +755,32 @@ public static class ItemRandomStatRoller
                     item.weaponStats.magicAilmentApplyChance + primary);
                 break;
 
-            case RandomItemStatType.ArmorFlatArmor:
-                AddArmorInt(ref item.armorStats.armor, primary, kind);
+            case RandomItemStatType.ArmourFlatArmour:
+                AddArmourInt(ref item.armourStats.armour, primary, kind);
                 break;
-            case RandomItemStatType.ArmorMagicResist:
-                AddArmorInt(ref item.armorStats.magicResist, primary, kind);
+            case RandomItemStatType.ArmourMagicResist:
+                AddArmourInt(ref item.armourStats.magicResist, primary, kind);
                 break;
-            case RandomItemStatType.ArmorCorruptionResist:
-                AddArmorInt(ref item.armorStats.corruptionResist, primary, kind);
+            case RandomItemStatType.ArmourCorruptionResist:
+                AddArmourInt(ref item.armourStats.corruptionResist, primary, kind);
                 break;
-            case RandomItemStatType.ArmorPhysBlockChance:
-                item.armorStats.physBlockChance = Mathf.Clamp01(item.armorStats.physBlockChance + primary);
+            case RandomItemStatType.ArmourPhysBlockChance:
+                item.armourStats.physBlockChance = Mathf.Clamp01(item.armourStats.physBlockChance + primary);
                 break;
-            case RandomItemStatType.ArmorBonusHealth:
-                AddArmorInt(ref item.armorStats.bonusHealth, primary, kind);
+            case RandomItemStatType.ArmourBonusHealth:
+                AddArmourInt(ref item.armourStats.bonusHealth, primary, kind);
                 break;
-            case RandomItemStatType.ArmorBonusEnergy:
-                AddArmorInt(ref item.armorStats.bonusEnergy, primary, kind);
+            case RandomItemStatType.ArmourBonusEnergy:
+                AddArmourInt(ref item.armourStats.bonusEnergy, primary, kind);
                 break;
-            case RandomItemStatType.ArmorEnergyEfficiency:
-                item.armorStats.energyEfficiency = Mathf.Clamp01(item.armorStats.energyEfficiency + primary);
+            case RandomItemStatType.ArmourEnergyEfficiency:
+                item.armourStats.energyEfficiency = Mathf.Clamp01(item.armourStats.energyEfficiency + primary);
                 break;
-            case RandomItemStatType.ArmorFlatGuard:
-                AddArmorInt(ref item.armorStats.flatGuard, primary, kind);
+            case RandomItemStatType.ArmourFlatGuard:
+                AddArmourInt(ref item.armourStats.flatGuard, primary, kind);
                 break;
-            case RandomItemStatType.ArmorMaxGuardPercent:
-                item.armorStats.maxGuardPercent += primary;
+            case RandomItemStatType.ArmourMaxGuardPercent:
+                item.armourStats.maxGuardPercent += primary;
                 break;
 
             case RandomItemStatType.WeaponMinFireDamage:
@@ -861,7 +861,7 @@ public static class ItemRandomStatRoller
         field += Mathf.RoundToInt(kind == RandomStatValueKind.FlatInteger ? value : value);
     }
 
-    private static void AddArmorInt(ref int field, float value, RandomStatValueKind kind)
+    private static void AddArmourInt(ref int field, float value, RandomStatValueKind kind)
     {
         field += Mathf.RoundToInt(kind == RandomStatValueKind.FlatInteger ? value : value);
     }

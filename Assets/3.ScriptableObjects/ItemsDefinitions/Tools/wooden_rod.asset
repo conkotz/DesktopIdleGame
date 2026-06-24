@@ -59,8 +59,8 @@ MonoBehaviour:
     toolType: 3
     gatherPower: 1
     gatherSpeedMultiplier: 1
-  armorStats:
-    armor: 0
+  armourStats:
+    armour: 0
     magicResist: 0
     physBlockChance: 0
     bonusHealth: 0
@@ -68,7 +68,7 @@ MonoBehaviour:
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
-    armor: 0
+    armour: 0
     magicResist: 0
     physBlockChance: 0
     lifeRegen: 0

@@ -13,7 +13,7 @@ public sealed class EnhancementOptionEntry
     public EnhancementTrack track = EnhancementTrack.Standard;
     public EnhancementTier tier = EnhancementTier.Basic;
 
-    public EnhancementScrollTargetStat targetStat = EnhancementScrollTargetStat.Armor;
+    public EnhancementScrollTargetStat targetStat = EnhancementScrollTargetStat.Armour;
     public EnhancementScrollModifierKind modifierKind = EnhancementScrollModifierKind.Flat;
     public float modifierValue = 5f;
 
@@ -23,7 +23,7 @@ public sealed class EnhancementOptionEntry
 
     public EnhancementWeightValues weightValues;
 
-    public EnhancementScrollGearMask allowedGearTypes = EnhancementScrollGearMask.Armor;
+    public EnhancementScrollGearMask allowedGearTypes = EnhancementScrollGearMask.Armour;
 
     [Range(0f, 1f)]
     public float successChance = 0.5f;
@@ -113,7 +113,7 @@ public sealed class EnhancementOptionEntry
         if (gear != null)
             return gear.GetEquipmentTierGateSkill();
 
-        if (EnhancementScrollGearRules.MaskTargetsArmorSlots(allowedGearTypes))
+        if (EnhancementScrollGearRules.MaskTargetsArmourSlots(allowedGearTypes))
             return SkillType.Endurance;
 
         if ((allowedGearTypes & EnhancementScrollGearMask.MagicWeapon) != 0)

@@ -1484,6 +1484,8 @@ public class SaveManager : MonoBehaviour
             data.inventorySlots = new List<SaveData.InventorySlotData>();
         if (data.enhancedItems == null)
             data.enhancedItems = new List<SaveData.EnhancedItemData>();
+        else
+            MigrateLegacyEnhancedItemArmourStats(data.enhancedItems);
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
         if (data.questRewardClaimedIds == null)
@@ -1561,6 +1563,24 @@ public class SaveManager : MonoBehaviour
 
         MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
         MigrateLegacyBattleTranceAbilityIdsIfNeeded(data);
+    }
+
+    /// <summary>
+    /// JsonUtility ignores <see cref="FormerlySerializedAsAttribute"/>; old saves store enhanced armour under <c>armorStats</c>.
+    /// </summary>
+    private static void MigrateLegacyEnhancedItemArmourStats(List<SaveData.EnhancedItemData> enhancedItems)
+    {
+        if (enhancedItems == null)
+            return;
+
+        for (int i = 0; i < enhancedItems.Count; i++)
+        {
+            SaveData.EnhancedItemData entry = enhancedItems[i];
+            if (entry == null)
+                continue;
+
+            entry.armourStats = entry.ResolveArmourStatsForLoad();
+        }
     }
 
     /// <summary>Renamed Battle Trance → War Banner; old saves may still reference <c>battle_trance</c> on the action bar.</summary>

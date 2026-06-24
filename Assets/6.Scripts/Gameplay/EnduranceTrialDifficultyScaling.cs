@@ -1,10 +1,10 @@
 using UnityEngine;
 
 /// <summary>
-/// Serialized per-tier multipliers for endurance trials (enemy health, damage, armor/MR).
+/// Serialized per-tier multipliers for endurance trials (enemy health, damage, armour/MR).
 /// Create via Assets → Create → Desktop Idle Game → Endurance Trial Difficulty Scaling.
 /// Assign on <see cref="EnduranceTrialDifficultyBootstrap"/> or call <see cref="EnduranceTrialTier.SetDifficultyScaling"/>.
-/// Default values match the built-in formula: +50% HP and +25% damage/armor per step above Tier I.
+/// Default values match the built-in formula: +50% HP and +25% damage/armour per step above Tier I.
 /// </summary>
 [CreateAssetMenu(fileName = "EnduranceTrialDifficultyScaling", menuName = "Desktop Idle Game/Endurance Trial Difficulty Scaling")]
 public class EnduranceTrialDifficultyScaling : ScriptableObject
@@ -17,8 +17,8 @@ public class EnduranceTrialDifficultyScaling : ScriptableObject
     [Tooltip("Outgoing damage multiplier vs Tier I.")]
     [SerializeField] private float[] damageMultiplierPerTier = { 1f, 1.25f, 1.5f, 1.75f, 2f };
 
-    [Tooltip("Armor and magic resist multiplier vs Tier I.")]
-    [SerializeField] private float[] armorAndResistMultiplierPerTier = { 1f, 1.25f, 1.5f, 1.75f, 2f };
+    [Tooltip("Armour and magic resist multiplier vs Tier I.")]
+    [SerializeField] private float[] armourAndResistMultiplierPerTier = { 1f, 1.25f, 1.5f, 1.75f, 2f };
 
     public bool TryGetHealthMultiplier(int tier1Based, out float mult) =>
         TryGet(healthMultiplierPerTier, tier1Based, out mult);
@@ -26,8 +26,8 @@ public class EnduranceTrialDifficultyScaling : ScriptableObject
     public bool TryGetDamageMultiplier(int tier1Based, out float mult) =>
         TryGet(damageMultiplierPerTier, tier1Based, out mult);
 
-    public bool TryGetArmorAndResistMultiplier(int tier1Based, out float mult) =>
-        TryGet(armorAndResistMultiplierPerTier, tier1Based, out mult);
+    public bool TryGetArmourAndResistMultiplier(int tier1Based, out float mult) =>
+        TryGet(armourAndResistMultiplierPerTier, tier1Based, out mult);
 
     private static bool TryGet(float[] arr, int tier1Based, out float mult)
     {
@@ -49,8 +49,8 @@ public class EnduranceTrialDifficultyScaling : ScriptableObject
             Debug.LogWarning("[EnduranceTrialDifficultyScaling] healthMultiplierPerTier must have exactly 5 elements.", this);
         if (damageMultiplierPerTier == null || damageMultiplierPerTier.Length != TierCount)
             Debug.LogWarning("[EnduranceTrialDifficultyScaling] damageMultiplierPerTier must have exactly 5 elements.", this);
-        if (armorAndResistMultiplierPerTier == null || armorAndResistMultiplierPerTier.Length != TierCount)
-            Debug.LogWarning("[EnduranceTrialDifficultyScaling] armorAndResistMultiplierPerTier must have exactly 5 elements.", this);
+        if (armourAndResistMultiplierPerTier == null || armourAndResistMultiplierPerTier.Length != TierCount)
+            Debug.LogWarning("[EnduranceTrialDifficultyScaling] armourAndResistMultiplierPerTier must have exactly 5 elements.", this);
     }
 
     [ContextMenu("Reset arrays to default formula (Tier I–V)")]
@@ -58,12 +58,12 @@ public class EnduranceTrialDifficultyScaling : ScriptableObject
     {
         healthMultiplierPerTier = new float[TierCount];
         damageMultiplierPerTier = new float[TierCount];
-        armorAndResistMultiplierPerTier = new float[TierCount];
+        armourAndResistMultiplierPerTier = new float[TierCount];
         for (int i = 0; i < TierCount; i++)
         {
             healthMultiplierPerTier[i] = 1f + 0.5f * i;
             damageMultiplierPerTier[i] = 1f + 0.25f * i;
-            armorAndResistMultiplierPerTier[i] = 1f + 0.25f * i;
+            armourAndResistMultiplierPerTier[i] = 1f + 0.25f * i;
         }
     }
 }

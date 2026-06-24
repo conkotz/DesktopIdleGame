@@ -133,7 +133,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public event Action OnStatsChanged;
 
-    /// <summary>Current guard vs natural cap (armor or enemy definition). UI fill uses natural cap unless current exceeds it.</summary>
+    /// <summary>Current guard vs natural cap (armour or enemy definition). UI fill uses natural cap unless current exceeds it.</summary>
     public event Action<float, float> OnGuardChanged;
 
     private PlayerController _ownerPlayer;
@@ -177,7 +177,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private int baseMaxHP = 100;
     [SerializeField] private int baseMaxEnergy = 100;
     [SerializeField] private int baseMaxMana = 50;
-    [SerializeField] private int baseArmor = 0;
+    [FormerlySerializedAs("baseArmor")]
+    [SerializeField] private int baseArmour = 0;
     [SerializeField] private int baseMagicResist = 0;
     [SerializeField] private int baseCorruptionResist = 0;
     [SerializeField, Range(0f, 1f)] private float basePhysBlockChance = 0f;
@@ -208,6 +209,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     [SerializeField] private float baseAbilityPower = 0f;
     [SerializeField, Range(0f, 1f)] private float baseLifeSteal = 0f;
+    [SerializeField] private float baseMinThornsDamage;
+    [SerializeField] private float baseMaxThornsDamage;
+    [SerializeField] private float baseThornsDamageIncreaseFraction;
+    [SerializeField, Range(0f, 1f)] private float baseEvadeChance;
 
     [Header("Base Ailments")]
     [SerializeField, Range(0f, 1f)] private float baseBleedChance = 0f;
@@ -345,7 +350,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float meleeLifeSteal;
         public float meleeLifeRegen;
         public float meleeEnergyRegen;
-        public float meleeArmor;
+        public float meleeArmour;
         public float meleeMagicResist;
         public float meleeDamageReduction;
         public float damageVsBleeding;
@@ -406,7 +411,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         /// <summary>Chance (0–1) per tick that woodcutting does not increment depletion on the node.</summary>
         public float woodcuttingChanceNotToCountTowardTreeDepletion;
 
-        public float enduranceArmorFlat;
+        public float enduranceArmourFlat;
         public float enduranceMagicResistFlat;
         public float enduranceHealthFlat;
         public float enduranceLifeRegenFlat;
@@ -562,12 +567,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>
     /// Maximum natural guard: min(total flat, Max HP × (1 + total max-guard %)).
-    /// Player: from armor; enemy: from <see cref="EnemyDefinition"/>. Abilities may still push <see cref="Guard"/> above this.
+    /// Player: from armour; enemy: from <see cref="EnemyDefinition"/>. Abilities may still push <see cref="Guard"/> above this.
     /// </summary>
     public float NaturalGuardCap =>
         Mathf.Max(0f, Mathf.Min((float)GetNaturalGuardFlatTotal(), NaturalGuardHpCeilingFromGear));
 
-    /// <summary>Upper bound from vitals only: Max HP × (1 + additive max-guard % from armor or enemy definition).</summary>
+    /// <summary>Upper bound from vitals only: Max HP × (1 + additive max-guard % from armour or enemy definition).</summary>
     public float NaturalGuardHpCeilingFromGear
     {
         get
@@ -577,15 +582,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public int GearFlatGuardSum => GetEquippedArmorFlatGuardSum();
-    public float GearMaxGuardPercentSum => GetEquippedArmorMaxGuardPercentSum();
+    public int GearFlatGuardSum => GetEquippedArmourFlatGuardSum();
+    public float GearMaxGuardPercentSum => GetEquippedArmourMaxGuardPercentSum();
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
-    public int Armor =>
-        baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor) +
-        GetTacticianFlatArmorBonus() +
-        Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceArmorFlat) +
-        (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.ArmorBoost)) : 0);
+    public int Armour =>
+        baseArmour + GetEquippedArmour() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmour) +
+        GetTacticianFlatArmourBonus() +
+        Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceArmourFlat) +
+        (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.ArmourBoost)) : 0);
 
     public int MagicResist =>
         baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist) +
@@ -779,6 +784,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Chance to fully evade incoming hits while Hunter's Swiftness is active (0.08 = 8%).</summary>
     public float HuntersSwiftnessEvadeChance => _huntersSwiftnessEvadeChance;
+
+    /// <summary>Total evade chance for the stats panel (gear, passives, and active Hunter's Swiftness).</summary>
+    public float EvadeChancePercentForStatsPanel => GetEvadeChanceFraction() * 100f;
+
+    /// <summary>Fractional bonus applied to the flat thorns damage range (0.1 = +10%).</summary>
+    public float ThornsDamageIncreaseFractionForStatsPanel =>
+        Mathf.Max(0f, baseThornsDamageIncreaseFraction + GetEquippedThornsDamageIncreaseFraction());
+
+    public void GetEffectiveThornsDamageRangeForStatsPanel(out int minDamage, out int maxDamage)
+    {
+        float rawMin = baseMinThornsDamage + GetEquippedMinThornsDamage();
+        float rawMax = baseMaxThornsDamage + GetEquippedMaxThornsDamage();
+        if (rawMax < rawMin)
+            rawMax = rawMin;
+
+        float multiplier = 1f + ThornsDamageIncreaseFractionForStatsPanel;
+        minDamage = Mathf.Max(0, Mathf.RoundToInt(rawMin * multiplier));
+        maxDamage = Mathf.Max(minDamage, Mathf.RoundToInt(rawMax * multiplier));
+    }
 
     /// <summary>Combat-only multiplier for ability channel movement penalties (0.5 = 50% speed while channeling).</summary>
     public float AbilityChannelMoveSpeedMultiplier
@@ -1075,11 +1099,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float RangedDamageVsFullHp => Mathf.Max(0f, GetActiveRangedMinorBonuses().damageVsFullHp);
     public float RangedLowHpThreshold01 => LowHealthThreshold01;
 
-    public float PhysicalReductionFromArmorPercent
+    public float PhysicalReductionFromArmourPercent
     {
         get
         {
-            float a = Mathf.Max(0f, Armor) * GetConsumableDefenseBoostRatingMultiplier();
+            float a = Mathf.Max(0f, Armour) * GetConsumableDefenseBoostRatingMultiplier();
             float multiplier = 100f / (100f + a);
             return (1f - multiplier) * 100f;
         }
@@ -1781,7 +1805,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, Armor));
+            float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, Armour));
 
             damageTakenMultiplier *= Mathf.Max(0.05f, 1f - PhysBlockChance * PhysBlockMitigationFraction);
 
@@ -1921,7 +1945,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             EffectiveHPVsPhysical,
             EffectiveHPVsMagic,
             EffectiveHPVsCorruption,
-            Armor,
+            Armour,
             MagicResist,
             CorruptionResist,
             MaxHP,
@@ -2563,7 +2587,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
          (buffController ? buffController.MagicDamageBoostPercent : 0f) +
          GetActiveSkillMinorBonusesForCurrentAttack().magicDamagePercent) * 100f;
 
-    /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
+    /// <summary>Equipped corruption attack-split % (armour bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
     /// <summary>Living Inferno — +2% melee per burning enemy nearby (max 10% at 5 enemies).</summary>
@@ -3189,7 +3213,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     break;
                 case SkillType.Endurance:
                     total.enduranceHealthFlat += pastCap * 5f;
-                    total.enduranceArmorFlat += pastCap * 1f;
+                    total.enduranceArmourFlat += pastCap * 1f;
                     break;
                 case SkillType.Woodcutting:
                 case SkillType.Mining:
@@ -3511,6 +3535,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float GetParryChancePercent() => GetParryChanceFraction() * 100f;
 
+    public float GetEvadeChanceFraction() =>
+        Mathf.Clamp01(baseEvadeChance + GetEquippedEvadeChance() + _huntersSwiftnessEvadeChance);
+
     private void ApplyLevel10AilmentAttunementBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
         if (meleeLevel < AbilityCombatPower.ParryMajorPassiveLevel)
@@ -3671,7 +3698,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             equipment = GetComponent<EquipmentManager>();
 
         ItemDefinition off = GetDef(equipment ? equipment.OffHandItemId : null);
-        return off != null && off.IsArmor && off.equipSlot == EquipSlot.OffHand;
+        return off != null && off.IsArmour && off.equipSlot == EquipSlot.OffHand;
     }
 
     public void NotifyWeaponSetSwapped()
@@ -3821,7 +3848,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float GetTacticianPhysBlockMitigationBonus() =>
         IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldBlockMitigationBonus : 0f;
 
-    public int GetTacticianFlatArmorBonus() =>
+    public int GetTacticianFlatArmourBonus() =>
         IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
 
     public int GetTacticianFlatMagicResistBonus() =>
@@ -3831,12 +3858,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
 
     /// <summary>Multiplier applied to enemy armour rating on outgoing physical hits (lower = more penetration).</summary>
-    public float GetTacticianOutgoingArmorRatingMultiplier()
+    public float GetTacticianOutgoingArmourRatingMultiplier()
     {
         if (!IsTacticianTwoHandedBonusesActive())
             return 1f;
 
-        float pen = AbilityCombatPower.TacticianTwoHandedArmorPenetration * GetTacticianBonusMultiplier();
+        float pen = AbilityCombatPower.TacticianTwoHandedArmourPenetration * GetTacticianBonusMultiplier();
         return Mathf.Clamp01(1f - pen);
     }
 
@@ -4143,13 +4170,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         NotifyStatsChanged();
     }
 
-    /// <summary>Reduces this unit's armor rating (enemy debuff). Clamped globally to a minimum of zero.</summary>
-    public void ApplyArmorBleedTickReduction(float reductionFraction01)
+    /// <summary>Reduces this unit's armour rating (enemy debuff). Clamped globally to a minimum of zero.</summary>
+    public void ApplyArmourBleedTickReduction(float reductionFraction01)
     {
         if (reductionFraction01 <= 0f)
             return;
 
-        baseArmor = CombatResistRules.ApplyRatingPercentReduction(baseArmor, reductionFraction01);
+        baseArmour = CombatResistRules.ApplyRatingPercentReduction(baseArmour, reductionFraction01);
         NotifyStatsChanged();
     }
 
@@ -4223,8 +4250,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (victimStats == null)
             return;
 
-        victimStats.ApplyArmorBleedTickReduction(
-            AbilityCombatPower.WayOfTheGladiatorArmorReductionPerBleedTick);
+        victimStats.ApplyArmourBleedTickReduction(
+            AbilityCombatPower.WayOfTheGladiatorArmourReductionPerBleedTick);
     }
 
     /// <summary>Resolves player stats that own a poison application (player or minion owner).</summary>
@@ -4420,7 +4447,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 total.meleeEnergyRegen += 2f;
                 break;
             case MeleeMinorNodeStatOption.DefensiveMeleeBuild:
-                total.meleeArmor += 10f;
+                total.meleeArmour += 10f;
                 total.meleeMagicResist += 10f;
                 total.meleeDamageReduction += 0.02f;
                 break;
@@ -4710,7 +4737,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             case SkillType.Endurance:
                 switch (unlock.enduranceMinorStatOption)
                 {
-                    case EnduranceMinorNodeStatOption.EnduranceArmorFlat2: total.enduranceArmorFlat += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceArmourFlat2: total.enduranceArmourFlat += 2f; break;
                     case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2: total.enduranceMagicResistFlat += 2f; break;
                     case EnduranceMinorNodeStatOption.EnduranceHealthFlat5: total.enduranceHealthFlat += 5f; break;
                     case EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1: total.enduranceLifeRegenFlat += 1f; break;
@@ -4732,21 +4759,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
     // Equipped totals
     // -------------------------
-    private int GetEquippedArmor()
+    private int GetEquippedArmour()
     {
         int total = 0;
         foreach (var def in EnumerateEquippedDefs())
-            total += def.ArmorValue;
+            total += def.ArmourValue;
         return total;
     }
 
-    private int GetEquippedArmorFlatGuardSum()
+    private int GetEquippedArmourFlatGuardSum()
     {
         int total = 0;
         foreach (var def in EnumerateEquippedDefs())
         {
             if (def == null) continue;
-            total += def.ArmorFlatGuard;
+            total += def.ArmourFlatGuard;
         }
 
         return Mathf.Max(0, total);
@@ -4757,16 +4784,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         ResolveOwnerEnemy();
         if (_ownerEnemy)
             return Mathf.Max(0, _enemyDefinitionFlatGuard);
-        return GetEquippedArmorFlatGuardSum();
+        return GetEquippedArmourFlatGuardSum();
     }
 
-    private float GetEquippedArmorMaxGuardPercentSum()
+    private float GetEquippedArmourMaxGuardPercentSum()
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
         {
             if (def == null) continue;
-            total += def.ArmorMaxGuardPercent;
+            total += def.ArmourMaxGuardPercent;
         }
 
         return Mathf.Max(0f, total);
@@ -4777,7 +4804,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         ResolveOwnerEnemy();
         if (_ownerEnemy)
             return Mathf.Max(0f, _enemyDefinitionMaxGuardPercent);
-        return GetEquippedArmorMaxGuardPercentSum();
+        return GetEquippedArmourMaxGuardPercentSum();
     }
 
     private int GetEquippedMagicResist()
@@ -5067,6 +5094,38 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private float GetEquippedEvadeChance()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.EvadeChance;
+        return total;
+    }
+
+    private float GetEquippedMinThornsDamage()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.MinThornsDamage;
+        return total;
+    }
+
+    private float GetEquippedMaxThornsDamage()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.MaxThornsDamage;
+        return total;
+    }
+
+    private float GetEquippedThornsDamageIncreaseFraction()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ThornsDamageIncreaseFraction;
+        return total;
+    }
+
     private float GetEquippedStunChance()
     {
         float total = 0f;
@@ -5262,7 +5321,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         _combatProfileIdentityMaxHp = baseMaxHP;
         baseMaxEnergy = Mathf.Max(0, def.maxEnergy);
         baseMaxMana = Mathf.Max(0, def.maxMana);
-        baseArmor = Mathf.Max(0, def.armor);
+        baseArmour = Mathf.Max(0, def.armour);
         baseMagicResist = Mathf.Max(0, def.magicResist);
         basePhysBlockChance = Mathf.Clamp01(def.physBlockChance);
         basePhysBlockMitigation = Mathf.Clamp01(def.physBlockMitigation);
@@ -5444,7 +5503,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales bases for endurance trial Tier II–V (enemies only).
     /// </summary>
-    public void ApplyEnduranceTrialDifficultyScaling(float healthMult, float outgoingDamageMult, float armorMrMult)
+    public void ApplyEnduranceTrialDifficultyScaling(float healthMult, float outgoingDamageMult, float armourMrMult)
     {
         ResolveOwnerEnemy();
         if (!_ownerEnemy)
@@ -5452,13 +5511,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         healthMult = Mathf.Max(0.01f, healthMult);
         outgoingDamageMult = Mathf.Max(0.01f, outgoingDamageMult);
-        armorMrMult = Mathf.Max(0.01f, armorMrMult);
+        armourMrMult = Mathf.Max(0.01f, armourMrMult);
 
         baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * healthMult));
         _combatProfileIdentityMaxHp = Mathf.Max(1, Mathf.RoundToInt(_combatProfileIdentityMaxHp * healthMult));
-        baseArmor = Mathf.Max(0, Mathf.RoundToInt(baseArmor * armorMrMult));
-        baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armorMrMult));
-        baseCorruptionResist = CombatResistRules.ClampRating(Mathf.RoundToInt(baseCorruptionResist * armorMrMult));
+        baseArmour = Mathf.Max(0, Mathf.RoundToInt(baseArmour * armourMrMult));
+        baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armourMrMult));
+        baseCorruptionResist = CombatResistRules.ClampRating(Mathf.RoundToInt(baseCorruptionResist * armourMrMult));
 
         unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * outgoingDamageMult));
         unarmedMaxPhysicalDamage = Mathf.Max(
@@ -5791,10 +5850,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         DamageType type,
         out bool blocked,
         out float hpDamageDealt,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
-        return TakeDamage(amount, type, out blocked, out hpDamageDealt, out _, armorRatingMultiplier, magicResistRatingMultiplier);
+        return TakeDamage(amount, type, out blocked, out hpDamageDealt, out _, armourRatingMultiplier, magicResistRatingMultiplier);
     }
 
     public float TakeDamage(
@@ -5803,7 +5862,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         out bool blocked,
         out float hpDamageDealt,
         out DpsMitigationBreakdown mitigationReport,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
         return TakeDamage(
@@ -5813,7 +5872,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             out _,
             out hpDamageDealt,
             out mitigationReport,
-            armorRatingMultiplier,
+            armourRatingMultiplier,
             magicResistRatingMultiplier);
     }
 
@@ -5824,7 +5883,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         out bool evaded,
         out float hpDamageDealt,
         out DpsMitigationBreakdown mitigationReport,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
@@ -5839,7 +5898,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             out blocked,
             out evaded,
             out mitigationReport,
-            armorRatingMultiplier,
+            armourRatingMultiplier,
             magicResistRatingMultiplier);
         float totalToVitals = Mathf.Max(0f, mitigated);
         float remainder = totalToVitals;
@@ -5860,7 +5919,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Kills the unit by consuming all guard and HP without armor, resist, or block mitigation.
+    /// Kills the unit by consuming all guard and HP without armour, resist, or block mitigation.
     /// Used by Way of the Slayer execute.
     /// </summary>
     /// <returns>Total vitals removed (guard + HP) for damage popups and combat totals.</returns>
@@ -5894,7 +5953,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>
     /// Applies DoT (or other pre-resolved) damage: amount is already the intended tick total;
-    /// only global melee damage reduction applies (no armor / MR / corruption resist).
+    /// only global melee damage reduction applies (no armour / MR / corruption resist).
     /// </summary>
     /// <returns>Damage that reached guard and/or HP after reductions (same semantics as <see cref="TakeDamage"/> return value).</returns>
     public float TakeDamageFromResolvedDot(float amount, out bool blocked)
@@ -5948,7 +6007,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!owner || !inheritance.inheritOwnerDefenses)
             return;
 
-        baseArmor = Mathf.Max(0, Mathf.RoundToInt(owner.Armor * inheritance.ownerArmorFraction));
+        baseArmour = Mathf.Max(0, Mathf.RoundToInt(owner.Armour * inheritance.ownerArmourFraction));
         baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(owner.MagicResist * inheritance.ownerMagicResistFraction));
         baseCorruptionResist = Mathf.Max(
             0,
@@ -6024,7 +6083,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         out bool blocked,
         out bool evaded,
         out DpsMitigationBreakdown mitigationReport,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
@@ -6036,7 +6095,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float defMult = GetConsumableDefenseBoostRatingMultiplier();
         float consumableDr = GetConsumableFlatDamageReductionFraction();
-        GetExternalMitigationRatingMultipliers(ref armorRatingMultiplier, ref magicResistRatingMultiplier);
+        GetExternalMitigationRatingMultipliers(ref armourRatingMultiplier, ref magicResistRatingMultiplier);
 
         float mitigated;
         switch (type)
@@ -6057,10 +6116,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
             case DamageType.Physical:
                 {
-                    float armorRating = Armor * defMult * Mathf.Max(0f, armorRatingMultiplier);
-                    float afterArmor = MitigateByRating(rawDamage, armorRating);
-                    mitigationReport.Armour = Mathf.Max(0f, rawDamage - afterArmor);
-                    float dmg = afterArmor;
+                    float armourRating = Armour * defMult * Mathf.Max(0f, armourRatingMultiplier);
+                    float afterArmour = MitigateByRating(rawDamage, armourRating);
+                    mitigationReport.Armour = Mathf.Max(0f, rawDamage - afterArmour);
+                    float dmg = afterArmour;
 
                     bool shouldBlock = _forceNextPhysicalBlockSuccess;
                     _forceNextPhysicalBlockSuccess = false;
@@ -6141,7 +6200,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return incomingDamage * (1f - reduction);
     }
 
-    private void GetExternalMitigationRatingMultipliers(ref float armorRatingMultiplier, ref float magicResistRatingMultiplier)
+    private void GetExternalMitigationRatingMultipliers(ref float armourRatingMultiplier, ref float magicResistRatingMultiplier)
     {
         ResolveOwnerEnemy();
         if (!_ownerEnemy)
@@ -6151,7 +6210,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!mods)
             return;
 
-        armorRatingMultiplier *= mods.ArmorRatingMultiplier;
+        armourRatingMultiplier *= mods.ArmourRatingMultiplier;
         magicResistRatingMultiplier *= mods.MagicResistRatingMultiplier;
     }
 

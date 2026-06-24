@@ -48,7 +48,7 @@ public class SharedTooltipUI : MonoBehaviour
     [FormerlySerializedAs("statsText")]
     [SerializeField] private TMP_Text miscStatsText;
 
-    [Header("Main stats (damage, gather rates, armor, support bonuses…)")]
+    [Header("Main stats (damage, gather rates, armour, support bonuses…)")]
     [SerializeField] private TMP_Text mainStatsText;
 
     [Header("Rarity UI")]
@@ -254,7 +254,7 @@ public class SharedTooltipUI : MonoBehaviour
         bool isEquip = def.equipSlot != EquipSlot.None;
         bool showMaxStackSize =
             def.itemKind != ItemKind.Weapon &&
-            def.itemKind != ItemKind.Armor &&
+            def.itemKind != ItemKind.Armour &&
             def.itemKind != ItemKind.CombatSupport &&
             def.itemKind != ItemKind.Jewelry;
 

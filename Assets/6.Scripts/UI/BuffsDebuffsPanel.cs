@@ -968,7 +968,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.EnergyRegen =>
                 $"{buff.magnitude:0.#}/s",
 
-            ConsumableEffectType.ArmorBoost =>
+            ConsumableEffectType.ArmourBoost =>
                 $"+{buff.magnitude:0}",
 
             ConsumableEffectType.MagicResistBoost =>
@@ -1057,7 +1057,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.FoodMoveSpeed => "Swiftness",
             ConsumableEffectType.AbilityDamageBoost => "Ability Power Boost",
             ConsumableEffectType.DefenseBoost => "Defence Boost",
-            ConsumableEffectType.ArmorBoost => "Armour Boost",
+            ConsumableEffectType.ArmourBoost => "Armour Boost",
             ConsumableEffectType.MagicResistBoost => "Magic Resist Boost",
             ConsumableEffectType.DamageReduction => "Damage Reduction",
             ConsumableEffectType.PoisonImmunity => "Poison Immunity",
@@ -1154,7 +1154,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.DefenseBoost =>
                 $"+{pct:0.#}% defence",
 
-            ConsumableEffectType.ArmorBoost =>
+            ConsumableEffectType.ArmourBoost =>
                 $"+{buff.magnitude:0} armour",
 
             ConsumableEffectType.MagicResistBoost =>

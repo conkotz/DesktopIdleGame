@@ -73,7 +73,7 @@ public static class DatabaseEnemyStatsTooltipText
         if (enemy.lifeRegenPerSecond > 0f)
             sb.Append("HP regen: ").Append(FormatNumber(enemy.lifeRegenPerSecond)).AppendLine("/s");
 
-        sb.Append("Armour: ").AppendLine(Mathf.Max(0, enemy.armor).ToString());
+        sb.Append("Armour: ").AppendLine(Mathf.Max(0, enemy.armour).ToString());
 
         if (enemy.physBlockChance > 0f)
             sb.Append("Block: ").Append(FormatPercent01(enemy.physBlockChance)).AppendLine();

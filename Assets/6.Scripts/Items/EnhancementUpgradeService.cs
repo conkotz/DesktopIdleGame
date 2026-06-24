@@ -387,15 +387,15 @@ public static class EnhancementUpgradeService
                 break;
 
             case EnhancementScrollTargetStat.Health:
-                if (target.IsArmor)
-                    target.armorStats.bonusHealth = ApplyIntValue(target.armorStats.bonusHealth, value, percent);
+                if (target.IsArmour)
+                    target.armourStats.bonusHealth = ApplyIntValue(target.armourStats.bonusHealth, value, percent);
                 else
                     target.bonusStats.bonusHealth = ApplyIntValue(target.bonusStats.bonusHealth, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.Energy:
-                if (target.IsArmor)
-                    target.armorStats.bonusEnergy = ApplyIntValue(target.armorStats.bonusEnergy, value, percent);
+                if (target.IsArmour)
+                    target.armourStats.bonusEnergy = ApplyIntValue(target.armourStats.bonusEnergy, value, percent);
                 else
                     target.bonusStats.bonusEnergy = ApplyIntValue(target.bonusStats.bonusEnergy, value, percent);
                 break;
@@ -404,23 +404,23 @@ public static class EnhancementUpgradeService
                 target.bonusStats.bonusMana = ApplyIntValue(target.bonusStats.bonusMana, value, percent);
                 break;
 
-            case EnhancementScrollTargetStat.Armor:
-                if (target.IsArmor)
-                    target.armorStats.armor = ApplyIntValue(target.armorStats.armor, value, percent);
+            case EnhancementScrollTargetStat.Armour:
+                if (target.IsArmour)
+                    target.armourStats.armour = ApplyIntValue(target.armourStats.armour, value, percent);
                 else
-                    target.bonusStats.armor = ApplyIntValue(target.bonusStats.armor, value, percent);
+                    target.bonusStats.armour = ApplyIntValue(target.bonusStats.armour, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.MagicResist:
-                if (target.IsArmor)
-                    target.armorStats.magicResist = ApplyIntValue(target.armorStats.magicResist, value, percent);
+                if (target.IsArmour)
+                    target.armourStats.magicResist = ApplyIntValue(target.armourStats.magicResist, value, percent);
                 else
                     target.bonusStats.magicResist = ApplyIntValue(target.bonusStats.magicResist, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.CorruptionResist:
-                if (target.IsArmor)
-                    target.armorStats.corruptionResist = ApplyIntValue(target.armorStats.corruptionResist, value, percent);
+                if (target.IsArmour)
+                    target.armourStats.corruptionResist = ApplyIntValue(target.armourStats.corruptionResist, value, percent);
                 else
                     target.bonusStats.corruptionResist = ApplyIntValue(target.bonusStats.corruptionResist, value, percent);
                 break;
@@ -496,17 +496,17 @@ public static class EnhancementUpgradeService
                 break;
 
             case EnhancementScrollTargetStat.EnergyEfficiency:
-                if (target.IsArmor)
-                    target.armorStats.energyEfficiency = Mathf.Clamp01(
-                        ApplyValue(target.armorStats.energyEfficiency, value, percent));
+                if (target.IsArmour)
+                    target.armourStats.energyEfficiency = Mathf.Clamp01(
+                        ApplyValue(target.armourStats.energyEfficiency, value, percent));
                 else
                     target.bonusStats.energyEfficiency = Mathf.Clamp01(
                         ApplyValue(target.bonusStats.energyEfficiency, value, percent));
                 break;
 
             case EnhancementScrollTargetStat.FlatGuard:
-                if (target.IsArmor)
-                    target.armorStats.flatGuard = ApplyIntValue(target.armorStats.flatGuard, value, percent);
+                if (target.IsArmour)
+                    target.armourStats.flatGuard = ApplyIntValue(target.armourStats.flatGuard, value, percent);
                 break;
 
             case EnhancementScrollTargetStat.ManaRegen:

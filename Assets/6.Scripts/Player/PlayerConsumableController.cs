@@ -375,7 +375,7 @@ public class PlayerConsumableController : MonoBehaviour
             ConsumableEffectType.AttackSpeed => $"{itemName}: Attack Speed Up{durationText}",
             ConsumableEffectType.MoveSpeed => $"{itemName}: Move Speed Up{durationText}",
             ConsumableEffectType.DefenseBoost => $"{itemName}: Defence Up{durationText}",
-            ConsumableEffectType.ArmorBoost => $"{itemName}: Armour Up{durationText}",
+            ConsumableEffectType.ArmourBoost => $"{itemName}: Armour Up{durationText}",
             ConsumableEffectType.MagicResistBoost => $"{itemName}: Magic Resist Up{durationText}",
             ConsumableEffectType.DamageReduction => $"{itemName}: Damage Reduction{durationText}",
             ConsumableEffectType.EnergyRegen => $"{itemName}: Energy Regen Up{durationText}",

@@ -5214,13 +5214,13 @@ public partial class PlayerAbilityController : MonoBehaviour
                                   IsEnemyWithinExecutionersDescentCastRange(trackedTarget);
         if (primaryTargetAlive)
         {
-            float armorMult = sunderingImpact ? 0f : 1f;
+            float armourMult = sunderingImpact ? 0f : 1f;
             float mrMult = sunderingImpact ? 0f : 1f;
             ApplyExecutionersDescentHit(
                 trackedTarget,
                 def,
                 def.GetWeaponHitScalingMultiplier(),
-                armorMult,
+                armourMult,
                 mrMult);
 
             if (trackedTarget.IsDead)
@@ -5256,7 +5256,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         EnemyBaseController target,
         AbilityDefinition def,
         float weaponDamageMultiplier,
-        float armorRatingMultiplier,
+        float armourRatingMultiplier,
         float magicResistRatingMultiplier)
     {
         if (!target || target.IsDead || stats == null || def == null)
@@ -5281,7 +5281,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             rolled,
             wasCrit,
             frac,
-            armorRatingMultiplier: armorRatingMultiplier,
+            armourRatingMultiplier: armourRatingMultiplier,
             magicResistRatingMultiplier: magicResistRatingMultiplier);
         ApplyOnHitEffects(target, dealt);
         if (player != null && dealt.Total > 0f)
@@ -5317,7 +5317,7 @@ public partial class PlayerAbilityController : MonoBehaviour
                 enemy,
                 def,
                 shockwaveWeaponMultiplier,
-                armorRatingMultiplier: 1f,
+                armourRatingMultiplier: 1f,
                 magicResistRatingMultiplier: 1f);
 
             if (sunderingImpact)
@@ -5334,8 +5334,8 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (!mods)
             mods = enemy.gameObject.AddComponent<EnemyCombatMitigationModifiers>();
 
-        mods.ApplyArmorMrShred(
-            AbilityCombatPower.ExecutionersDescentSunderingArmorMrMultiplier,
+        mods.ApplyArmourMrShred(
+            AbilityCombatPower.ExecutionersDescentSunderingArmourMrMultiplier,
             AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds);
     }
 
@@ -6690,7 +6690,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         SplitDamage hit,
         bool wasCrit,
         float meleeMagicLightningFraction = -1f,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f,
         string outgoingDamageSourceLabel = null)
     {
@@ -6699,7 +6699,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return result;
 
         if (stats != null)
-            armorRatingMultiplier *= stats.GetTacticianOutgoingArmorRatingMultiplier();
+            armourRatingMultiplier *= stats.GetTacticianOutgoingArmourRatingMultiplier();
 
         if (meleeMagicLightningFraction < 0f)
             meleeMagicLightningFraction = stats != null ? stats.GetMeleeMagicLightningFraction() : 0f;
@@ -6727,7 +6727,7 @@ public partial class PlayerAbilityController : MonoBehaviour
                 transform,
                 stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
                 dpsBucketOverride: null,
-                armorRatingMultiplier,
+                armourRatingMultiplier,
                 magicResistRatingMultiplier,
                 outgoingDpsSourceLabel: sourceLabel));
         }
@@ -6741,7 +6741,7 @@ public partial class PlayerAbilityController : MonoBehaviour
                 transform,
                 stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
                 dpsBucketOverride: null,
-                armorRatingMultiplier,
+                armourRatingMultiplier,
                 magicResistRatingMultiplier,
                 outgoingDpsSourceLabel: sourceLabel));
 
@@ -6801,7 +6801,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         SplitDamage hit,
         bool wasCrit,
         float meleeMagicLightningFraction = -1f,
-        float armorRatingMultiplier = 1f,
+        float armourRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f,
         string outgoingDamageSourceLabelOverride = null)
     {
@@ -6821,7 +6821,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             hit,
             wasCrit,
             meleeMagicLightningFraction,
-            armorRatingMultiplier,
+            armourRatingMultiplier,
             magicResistRatingMultiplier,
             outgoingDamageSourceLabelOverride
             ?? (def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null));

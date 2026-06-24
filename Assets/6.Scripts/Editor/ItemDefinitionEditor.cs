@@ -24,7 +24,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty weaponStats;
     private SerializedProperty combatSupportStats;
     private SerializedProperty toolStats;
-    private SerializedProperty armorStats;
+    private SerializedProperty armourStats;
     private SerializedProperty consumableStats;
     private SerializedProperty enhancementScrollStats;
     private SerializedProperty mapEnhancementStats;
@@ -67,7 +67,7 @@ public class ItemDefinitionEditor : Editor
         weaponStats = serializedObject.FindProperty("weaponStats");
         combatSupportStats = serializedObject.FindProperty("combatSupportStats");
         toolStats = serializedObject.FindProperty("toolStats");
-        armorStats = serializedObject.FindProperty("armorStats");
+        armourStats = serializedObject.FindProperty("armourStats");
         consumableStats = serializedObject.FindProperty("consumableStats");
         enhancementScrollStats = serializedObject.FindProperty("enhancementScrollStats");
         mapEnhancementStats = serializedObject.FindProperty("mapEnhancementStats");
@@ -133,7 +133,7 @@ public class ItemDefinitionEditor : Editor
 
         bool hasUpgradeSlots =
             kind == ItemKind.Weapon ||
-            kind == ItemKind.Armor ||
+            kind == ItemKind.Armour ||
             kind == ItemKind.Tool;
 
         if (hasUpgradeSlots && usedUpgradeSlots != null)
@@ -194,12 +194,12 @@ public class ItemDefinitionEditor : Editor
         bool isOffHandSupportVisualItem =
             (slot == EquipSlot.OffHand && kind == ItemKind.CombatSupport);
 
-        bool isArmorVisualItem =
-            kind == ItemKind.Armor &&
+        bool isArmourVisualItem =
+            kind == ItemKind.Armour &&
             (slot == EquipSlot.Helmet || slot == EquipSlot.Body || slot == EquipSlot.Boots);
 
         bool showEquippedVisual =
-            isMainHandVisualItem || isOffHandSupportVisualItem || isArmorVisualItem;
+            isMainHandVisualItem || isOffHandSupportVisualItem || isArmourVisualItem;
 
         if (showEquippedVisual)
         {
@@ -299,10 +299,10 @@ public class ItemDefinitionEditor : Editor
             DrawBonusBlockIfPresent("Bonus Stats (optional)", show: true);
             DrawMiscEffectsBlockIfPresent(show: true);
         }
-        else if (kind == ItemKind.Armor)
+        else if (kind == ItemKind.Armour)
         {
             DrawModuleHeader("Armour Stats");
-            EditorGUILayout.PropertyField(armorStats, includeChildren: true);
+            EditorGUILayout.PropertyField(armourStats, includeChildren: true);
             DrawBonusBlockIfPresent("Bonus Stats (Armour Extras)", show: true);
             DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
@@ -1387,7 +1387,7 @@ public class ItemDefinitionEditor : Editor
             msg = "Combat Support items should use Equip Slot: OffHand.";
         else if (kind == ItemKind.Tool)
             msg = "Tools should use Equip Slot: MainHand. (Toolbelt is UI-managed, not an EquipSlot.)";
-        else if (kind == ItemKind.Armor)
+        else if (kind == ItemKind.Armour)
             msg = "Armour should use Equip Slot: Head / Body / Feet.";
         else if (kind == ItemKind.Jewelry)
             msg = "Jewelry should use Equip Slot: Ring / Neck / Trinket.\nRings can be equipped into Ring1 or Ring2 in UI.";
@@ -1406,11 +1406,11 @@ public class ItemDefinitionEditor : Editor
         bool isWeapon = kind == ItemKind.Weapon;
         bool isCombatSupport = kind == ItemKind.CombatSupport;
         bool isTool = kind == ItemKind.Tool;
-        bool isArmor = kind == ItemKind.Armor;
+        bool isArmour = kind == ItemKind.Armour;
         bool isJewelry = kind == ItemKind.Jewelry;
         bool isConsumable = kind == ItemKind.Consumable;
 
-        if (!isWeapon && !isCombatSupport && !isTool && !isArmor && !isJewelry && !isConsumable)
+        if (!isWeapon && !isCombatSupport && !isTool && !isArmour && !isJewelry && !isConsumable)
         {
             if (slot != EquipSlot.None)
             {
@@ -1450,7 +1450,7 @@ public class ItemDefinitionEditor : Editor
             return;
         }
 
-        if (isArmor)
+        if (isArmour)
         {
             if (slot != EquipSlot.Helmet && slot != EquipSlot.Body && slot != EquipSlot.Boots && slot != EquipSlot.OffHand)
             {
@@ -1491,7 +1491,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty bonusEnergy = bonusStats.FindPropertyRelative("bonusEnergy");
         SerializedProperty bonusMana = bonusStats.FindPropertyRelative("bonusMana");
 
-        SerializedProperty armor = bonusStats.FindPropertyRelative("armor");
+        SerializedProperty armour = bonusStats.FindPropertyRelative("armour");
         SerializedProperty magicResist = bonusStats.FindPropertyRelative("magicResist");
         SerializedProperty corruptionResistBonus = bonusStats.FindPropertyRelative("corruptionResist");
         SerializedProperty physBlockChance = bonusStats.FindPropertyRelative("physBlockChance");
@@ -1548,7 +1548,7 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Defence", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(armor);
+        EditorGUILayout.PropertyField(armour);
         EditorGUILayout.PropertyField(magicResist);
         if (corruptionResistBonus != null)
             EditorGUILayout.PropertyField(corruptionResistBonus, new GUIContent("Corruption Resist"));
@@ -1560,7 +1560,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(energyRegen);
         EditorGUILayout.PropertyField(manaRegen);
         ItemKind kind = (ItemKind)itemKind.enumValueIndex;
-        if (kind == ItemKind.Armor || kind == ItemKind.Jewelry)
+        if (kind == ItemKind.Armour || kind == ItemKind.Jewelry)
             EditorGUILayout.PropertyField(energyEfficiency, new GUIContent("Energy Efficiency"));
         EditorGUILayout.PropertyField(lifeSteal);
 

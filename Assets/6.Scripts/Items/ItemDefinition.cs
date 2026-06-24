@@ -19,7 +19,7 @@ public enum EquipSlot
     MainHand,
     OffHand,
 
-    // Armor
+    // Armour
     [InspectorName("Head")]
     Helmet,
     Body,
@@ -38,7 +38,7 @@ public enum ItemKind
     Resource,
     Weapon,
     Tool,
-    Armor,
+    Armour,
     Jewelry,
     Consumable,
     Quest,
@@ -71,7 +71,7 @@ public enum ToolType
 }
 
 /// <summary>Armour weight class shown on armour tooltips (linen = Light, leather = Medium, stone = Heavy).</summary>
-public enum ArmorType
+public enum ArmourType
 {
     Light,
     Medium,
@@ -294,17 +294,19 @@ public struct ToolStats
 }
 
 [System.Serializable]
-public struct ArmorStats
+public struct ArmourStats
 {
     [Header("Equipment Tier")]
     [Tooltip("Shown as Tier 1–5; gate uses Endurance at L1 / L10 / L20 / L30 / L50.")]
     public EquipmentTierRank equipmentTier;
 
     [Header("Armour Type")]
-    public ArmorType armorType;
+    [FormerlySerializedAs("armorType")]
+    public ArmourType armourType;
 
     [Header("Defence")]
-    public int armor;
+    [FormerlySerializedAs("armor")]
+    public int armour;
     public int magicResist;
     public int corruptionResist;
 
@@ -327,6 +329,34 @@ public struct ArmorStats
 
     [Tooltip("Extra maximum guard as a fraction of Max HP (0.1 = +10% cap, i.e. 110% of Max HP before flat bonuses).")]
     public float maxGuardPercent;
+
+    // Legacy JsonUtility keys from pre-British-spelling saves (armor/staminaEfficiency/armorType).
+    [HideInInspector] public int armor;
+    [HideInInspector] public float staminaEfficiency;
+    [HideInInspector] public int armorType;
+
+    public void MigrateLegacyJsonFields()
+    {
+        if (armour == 0 && armor != 0)
+            armour = armor;
+
+        if (energyEfficiency <= 0f && staminaEfficiency > 0f)
+            energyEfficiency = staminaEfficiency;
+
+        if (armorType != 0 && (int)armourType == 0)
+            armourType = (ArmourType)armorType;
+    }
+
+    public bool IsDefensiveDataMissing() =>
+        armour == 0
+        && magicResist == 0
+        && corruptionResist == 0
+        && physBlockChance <= 0f
+        && bonusHealth == 0
+        && bonusEnergy == 0
+        && energyEfficiency <= 0f
+        && flatGuard == 0
+        && maxGuardPercent <= 0f;
 }
 
 /// <summary>
@@ -341,7 +371,8 @@ public struct BonusStats
     public int bonusMana;
 
     [Header("Defence")]
-    public int armor;
+    [FormerlySerializedAs("armor")]
+    public int armour;
     public int magicResist;
     public int corruptionResist;
     [Range(0f, 1f)] public float physBlockChance;
@@ -486,11 +517,26 @@ public struct BonusStats
     [Tooltip("0.10 = 10% chance to stun on weapon hit.")]
     public float stunChance;
 
+    [Header("Thorns")]
+    [Tooltip("Flat thorns damage returned to attackers (min roll).")]
+    public float minThornsDamage;
+
+    [Tooltip("Flat thorns damage returned to attackers (max roll).")]
+    public float maxThornsDamage;
+
+    [Tooltip("Increases thorns flat damage range (0.1 = +10%).")]
+    public float thornsDamagePercent;
+
+    [Header("Evade")]
+    [Range(0f, 1f)]
+    [Tooltip("0.08 = 8% chance to fully evade qualifying incoming hits.")]
+    public float evadeChance;
+
     public bool HasAny()
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
                bonusMana != 0 ||
-               armor != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
+               armour != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
                lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || energyEfficiency > 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
                physicalDamage != 0f || meleePhysicalDamagePercent != 0f ||
@@ -515,7 +561,9 @@ public struct BonusStats
                chillSlowPerStackBonus != 0f ||
                shockDamageTakenMultiplierBonus != 0f ||
                parryChance > 0f ||
-               stunChance > 0f;
+               stunChance > 0f ||
+               minThornsDamage > 0f || maxThornsDamage > 0f || thornsDamagePercent > 0f ||
+               evadeChance > 0f;
     }
 }
 
@@ -614,7 +662,7 @@ public enum ConsumableEffectType
 
     // Defense
     DefenseBoost,
-    ArmorBoost,
+    ArmourBoost,
     MagicResistBoost,
     DamageReduction,
 
@@ -744,7 +792,7 @@ public enum EnhancementScrollTargetStat
     Health,
     Energy,
     Mana,
-    Armor,
+    Armour,
     MagicResist,
     CorruptionResist,
     CritChance,
@@ -790,7 +838,7 @@ public enum EnhancementScrollGearMask
     [InspectorName("Any Weapon")]
     Weapon = 1 << 0,
     [Tooltip("Legacy alias for Head, Body, and Feet combined.")]
-    Armor = 1 << 1,
+    Armour = 1 << 1,
     Jewelry = 1 << 2,
     CombatSupport = 1 << 3,
     Tool = 1 << 4,
@@ -809,8 +857,8 @@ public enum EnhancementScrollGearMask
     Boots = 1 << 10,
     [InspectorName("Offhand")]
     OffHand = 1 << 11,
-    AllArmorSlots = Helmet | Body | Boots | OffHand,
-    AllGear = Weapon | AllArmorSlots | Tool
+    AllArmourSlots = Helmet | Body | Boots | OffHand,
+    AllGear = Weapon | AllArmourSlots | Tool
 }
 
 [System.Serializable]
@@ -948,8 +996,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Tool Stats (Only if ItemKind = Tool)")]
     public ToolStats toolStats;
 
-    [Header("Armour Stats (Only if ItemKind = Armor)")]
-    public ArmorStats armorStats;
+    [Header("Armour Stats (Only if ItemKind = Armour)")]
+    [FormerlySerializedAs("armorStats")]
+    public ArmourStats armourStats;
 
     [Header("Bonus Stats (Equippables: Armour/Jewelry/Weapons optional)")]
     public BonusStats bonusStats;
@@ -988,7 +1037,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool IsWeapon => itemKind == ItemKind.Weapon;
     public bool IsTool => itemKind == ItemKind.Tool;
-    public bool IsArmor => itemKind == ItemKind.Armor;
+    public bool IsArmour => itemKind == ItemKind.Armour;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
     public bool IsMapEnhancementItemKind => itemKind == ItemKind.MapEnhancement;
@@ -1024,7 +1073,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         return enhancementScrollStats;
     }
-    public bool IsEquippable => IsWeapon || IsTool || IsArmor || IsJewelry || IsCombatSupport;
+    public bool IsEquippable => IsWeapon || IsTool || IsArmour || IsJewelry || IsCombatSupport;
 
     public IReadOnlyList<RandomStatPoolEntry> RandomStatPoolEntries => randomStatPool;
 
@@ -1092,7 +1141,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         ItemRandomStatRoller.ComparePoolEntriesForDisplay(a, b, this);
 
     public bool UsesEquipmentTierGating =>
-        IsWeapon || IsArmor || (IsTool && toolStats.toolType != ToolType.None);
+        IsWeapon || IsArmour || (IsTool && toolStats.toolType != ToolType.None);
 
     public SkillType GetEquipmentTierGateSkill()
     {
@@ -1118,7 +1167,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             };
         }
 
-        if (IsArmor)
+        if (IsArmour)
             return SkillType.Endurance;
 
         return SkillType.Melee;
@@ -1127,7 +1176,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public EquipmentTierRank GetEquipmentTierRank()
     {
         if (IsWeapon) return weaponStats.equipmentTier;
-        if (IsArmor) return armorStats.equipmentTier;
+        if (IsArmour) return armourStats.equipmentTier;
         if (IsTool) return toolStats.equipmentTier;
         return EquipmentTierRank.Tier1;
     }
@@ -1330,13 +1379,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         };
     }
 
-    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool || IsOffhandCombatSupport;
+    public bool HasUpgradeSlots => IsWeapon || IsArmour || IsTool || IsOffhandCombatSupport;
 
     public int MaxUpgradeSlots
     {
         get
         {
-            if (IsWeapon || IsArmor || IsOffhandCombatSupport)
+            if (IsWeapon || IsArmour || IsOffhandCombatSupport)
                 return 5 + (int)GetEquipmentTierRank();
             if (IsTool)
                 return 3;
@@ -1513,7 +1562,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             case EnhancementScrollTargetStat.Health:
             case EnhancementScrollTargetStat.Energy:
             case EnhancementScrollTargetStat.Mana:
-            case EnhancementScrollTargetStat.Armor:
+            case EnhancementScrollTargetStat.Armour:
             case EnhancementScrollTargetStat.MagicResist:
             case EnhancementScrollTargetStat.CorruptionResist:
                 return FormatFlatOrPercentStatBonus(
@@ -1597,27 +1646,27 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return int.TryParse(suffix, out _) ? trimmed.Substring(0, marker) : trimmed;
     }
 
-    public int ArmorValue => (IsArmor ? armorStats.armor : 0) + bonusStats.armor;
-    public int MagicResist => (IsArmor ? armorStats.magicResist : 0) + bonusStats.magicResist;
-    public int CorruptionResist => (IsArmor ? armorStats.corruptionResist : 0) + bonusStats.corruptionResist;
+    public int ArmourValue => (IsArmour ? armourStats.armour : 0) + bonusStats.armour;
+    public int MagicResist => (IsArmour ? armourStats.magicResist : 0) + bonusStats.magicResist;
+    public int CorruptionResist => (IsArmour ? armourStats.corruptionResist : 0) + bonusStats.corruptionResist;
 
     public float PhysBlockChance
     {
         get
         {
-            float baseBlock = IsArmor ? Mathf.Clamp01(armorStats.physBlockChance) : 0f;
+            float baseBlock = IsArmour ? Mathf.Clamp01(armourStats.physBlockChance) : 0f;
             return Mathf.Clamp01(baseBlock + bonusStats.physBlockChance);
         }
     }
 
-    public int BonusHealth => (IsArmor ? armorStats.bonusHealth : 0) + bonusStats.bonusHealth;
-    public int BonusEnergy => (IsArmor ? armorStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
+    public int BonusHealth => (IsArmour ? armourStats.bonusHealth : 0) + bonusStats.bonusHealth;
+    public int BonusEnergy => (IsArmour ? armourStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
 
-    /// <summary>Armor-only flat contribution to natural guard cap.</summary>
-    public int ArmorFlatGuard => IsArmor ? Mathf.Max(0, armorStats.flatGuard) : 0;
+    /// <summary>Armour-only flat contribution to natural guard cap.</summary>
+    public int ArmourFlatGuard => IsArmour ? Mathf.Max(0, armourStats.flatGuard) : 0;
 
-    /// <summary>Armor-only additive fraction: natural cap includes MaxHP * (1 + sum of these).</summary>
-    public float ArmorMaxGuardPercent => IsArmor ? Mathf.Max(0f, armorStats.maxGuardPercent) : 0f;
+    /// <summary>Armour-only additive fraction: natural cap includes MaxHP * (1 + sum of these).</summary>
+    public float ArmourMaxGuardPercent => IsArmour ? Mathf.Max(0f, armourStats.maxGuardPercent) : 0f;
     public int BonusMana => bonusStats.bonusMana;
 
     public float LifeRegen => bonusStats.lifeRegen;
@@ -1627,12 +1676,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     {
         get
         {
-            if (!IsArmor && !IsJewelry)
+            if (!IsArmour && !IsJewelry)
                 return 0f;
 
             float total = 0f;
-            if (IsArmor)
-                total += Mathf.Max(0f, armorStats.energyEfficiency);
+            if (IsArmour)
+                total += Mathf.Max(0f, armourStats.energyEfficiency);
             total += Mathf.Max(0f, bonusStats.energyEfficiency);
             return total;
         }
@@ -1647,7 +1696,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public float MeleePhysicalDamagePercent => bonusStats.meleePhysicalDamagePercent;
 
-    /// <summary>Armor/weapon bonus + combat support: stacks into the global physical multiplier.</summary>
+    /// <summary>Armour/weapon bonus + combat support: stacks into the global physical multiplier.</summary>
     public float GlobalPhysicalDamagePercent =>
         bonusStats.globalPhysicalDamagePercent +
         (IsCombatSupport ? combatSupportStats.globalPhysicalDamagePercent : 0f);
@@ -1657,7 +1706,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         bonusStats.rangedPhysicalDamagePercent +
         (IsCombatSupport ? combatSupportStats.rangedPhysicalDamagePercent : 0f);
 
-    /// <summary>Corruption attack-split % from armor/accessory bonus (not flat corruption damage).</summary>
+    /// <summary>Corruption attack-split % from armour/accessory bonus (not flat corruption damage).</summary>
     public float EquipmentCorruptionDamagePercent => bonusStats.corruptionDamagePercent;
 
     public float MagicDamagePercent => bonusStats.magicDamagePercent;
@@ -1679,6 +1728,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float ShockDamageTakenMultiplierBonus => bonusStats.shockDamageTakenMultiplierBonus;
     public float ParryChance => Mathf.Clamp01(bonusStats.parryChance);
     public float StunChance => Mathf.Clamp01(bonusStats.stunChance);
+    public float MinThornsDamage => Mathf.Max(0f, bonusStats.minThornsDamage);
+    public float MaxThornsDamage => Mathf.Max(0f, bonusStats.maxThornsDamage);
+    public float ThornsDamageIncreaseFraction => Mathf.Max(0f, bonusStats.thornsDamagePercent);
+    public float EvadeChance => Mathf.Clamp01(bonusStats.evadeChance);
 
     public bool IsConsumable => itemKind == ItemKind.Consumable;
 
@@ -1874,8 +1927,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             case EnhancementScrollTargetStat.Mana:
                 return BonusMana != 0;
 
-            case EnhancementScrollTargetStat.Armor:
-                return ArmorValue != 0;
+            case EnhancementScrollTargetStat.Armour:
+                return ArmourValue != 0;
 
             case EnhancementScrollTargetStat.MagicResist:
                 return MagicResist != 0;
@@ -1941,7 +1994,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 return CombatEnergyEfficiency > eps;
 
             case EnhancementScrollTargetStat.FlatGuard:
-                return ArmorFlatGuard > 0;
+                return ArmourFlatGuard > 0;
 
             case EnhancementScrollTargetStat.ManaRegen:
                 return Mathf.Abs(bonusStats.manaRegen) > eps;
@@ -2066,8 +2119,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsWeapon)
             return BuildWeaponTooltipProfileMetaLines();
 
-        if (IsArmor)
-            return BuildArmorTooltipProfileMetaLines(authoredBaseForIntrinsicMeta);
+        if (IsArmour)
+            return BuildArmourTooltipProfileMetaLines(authoredBaseForIntrinsicMeta);
 
         if (IsTool)
         {
@@ -2083,7 +2136,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     private string FormatTooltipTierRequirementLine()
     {
-        if (!UsesEquipmentTierGating && !IsArmor)
+        if (!UsesEquipmentTierGating && !IsArmour)
             return string.Empty;
 
         string skill = GetEquipmentTierGateSkill().ToString().ToLowerInvariant();
@@ -2091,19 +2144,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return FormatTooltipMetaLine("Tier", $"{GetEquipmentTierNumberLabel()} (Requires {skill} lv {req})");
     }
 
-    private string BuildArmorTooltipProfileMetaLines(ItemDefinition authoredBaseForIntrinsicMeta = null)
+    private string BuildArmourTooltipProfileMetaLines(ItemDefinition authoredBaseForIntrinsicMeta = null)
     {
-        ArmorType armorType = ResolveDisplayArmorType(authoredBaseForIntrinsicMeta);
+        ArmourType armourType = ResolveDisplayArmourType(authoredBaseForIntrinsicMeta);
         return FormatTooltipTierRequirementLine() + "\n" +
-               FormatTooltipMetaLine("Type", FormatArmorTypeLabel(armorType));
+               FormatTooltipMetaLine("Type", FormatArmourTypeLabel(armourType));
     }
 
-    private ArmorType ResolveDisplayArmorType(ItemDefinition authoredBaseForIntrinsicMeta)
+    private ArmourType ResolveDisplayArmourType(ItemDefinition authoredBaseForIntrinsicMeta)
     {
-        if (authoredBaseForIntrinsicMeta != null && authoredBaseForIntrinsicMeta.IsArmor)
-            return authoredBaseForIntrinsicMeta.armorStats.armorType;
+        if (authoredBaseForIntrinsicMeta != null && authoredBaseForIntrinsicMeta.IsArmour)
+            return authoredBaseForIntrinsicMeta.armourStats.armourType;
 
-        return armorStats.armorType;
+        return armourStats.armourType;
     }
 
     private string BuildWeaponTooltipProfileMetaLines()
@@ -2150,12 +2203,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return sb.ToString().TrimEnd('\n');
         }
 
-        if (IsArmor)
+        if (IsArmour)
         {
             var sb = new System.Text.StringBuilder();
             if (HasUpgradeSlots)
                 sb.Append(FormatUpgradeSlotsMetaBlock(includeEnhancementHistory)).Append('\n');
-            sb.Append(BuildArmorTooltipProfileMetaLines(authoredBaseForIntrinsicMeta));
+            sb.Append(BuildArmourTooltipProfileMetaLines(authoredBaseForIntrinsicMeta));
             return sb.ToString().TrimEnd('\n');
         }
 
@@ -2319,11 +2372,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return s;
         }
 
-        if (IsArmor || IsJewelry)
+        if (IsArmour || IsJewelry)
         {
             string s = "";
 
-            if (ArmorValue != 0) s += $"Armour: {ArmorValue}\n";
+            if (ArmourValue != 0) s += $"Armour: {ArmourValue}\n";
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
             if (CorruptionResist != 0) s += $"Corruption Res: {CorruptionResist}\n";
             if (BonusHealth != 0) s += $"Health: +{BonusHealth}\n";
@@ -2332,8 +2385,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (CombatEnergyEfficiency > 0.0001f)
                 s += $"Energy Efficiency: +{CombatEnergyEfficiency * 100f:0.#}%\n";
             if (PhysBlockChance > 0f) s += $"Phys Block: {PhysBlockChance * 100f:0.#}%\n";
-            if (ArmorFlatGuard > 0) s += $"Guard: +{ArmorFlatGuard}\n";
-            if (ArmorMaxGuardPercent > 0.00001f) s += $"Max Guard: {FormatSignedPercent01(ArmorMaxGuardPercent)}\n";
+            if (ArmourFlatGuard > 0) s += $"Guard: +{ArmourFlatGuard}\n";
+            if (ArmourMaxGuardPercent > 0.00001f) s += $"Max Guard: {FormatSignedPercent01(ArmourMaxGuardPercent)}\n";
 
             string extras = BuildBonusLines(includeDefense: false);
 
@@ -2725,13 +2778,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (includeDefense)
         {
-            if (cur.armor != 0)
+            if (cur.armour != 0)
             {
-                int delta = IntDelta(cur.armor, baselineStats.armor);
+                int delta = IntDelta(cur.armour, baselineStats.armour);
                 AppendCompared(
-                    $"Armour: {FormatSignedInt(baselineStats.armor)}",
-                    $"Armour: {FormatSignedInt(cur.armor)}",
-                    HasIntDelta(cur.armor, baselineStats.armor),
+                    $"Armour: {FormatSignedInt(baselineStats.armour)}",
+                    $"Armour: {FormatSignedInt(cur.armour)}",
+                    HasIntDelta(cur.armour, baselineStats.armour),
                     FormatSignedInt(delta));
             }
 
@@ -3283,7 +3336,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (includeDefense)
         {
-            if (bonusStats.armor != 0) s += $"Armour: {FormatSignedInt(bonusStats.armor)}\n";
+            if (bonusStats.armour != 0) s += $"Armour: {FormatSignedInt(bonusStats.armour)}\n";
             if (bonusStats.magicResist != 0) s += $"Magic Res: {FormatSignedInt(bonusStats.magicResist)}\n";
             if (bonusStats.corruptionResist != 0) s += $"Corruption Res: {FormatSignedInt(bonusStats.corruptionResist)}\n";
             if (bonusStats.physBlockChance != 0f) s += $"Phys Block: {FormatSignedPercent01(bonusStats.physBlockChance)}\n";
@@ -3372,13 +3425,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return handedness == Handedness.TwoHanded ? "Two-Handed" : "One-Handed";
     }
 
-    private static string FormatArmorTypeLabel(ArmorType armorType) =>
-        armorType switch
+    private static string FormatArmourTypeLabel(ArmourType armourType) =>
+        armourType switch
         {
-            ArmorType.Light => "Light",
-            ArmorType.Medium => "Medium",
-            ArmorType.Heavy => "Heavy",
-            _ => armorType.ToString()
+            ArmourType.Light => "Light",
+            ArmourType.Medium => "Medium",
+            ArmourType.Heavy => "Heavy",
+            _ => armourType.ToString()
         };
 
     private string BuildWeaponAilmentsLine(ItemDefinition baseline = null)
@@ -3857,7 +3910,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.Health => "Health",
             EnhancementScrollTargetStat.Energy => "Energy",
             EnhancementScrollTargetStat.Mana => "Mana",
-            EnhancementScrollTargetStat.Armor => "Armour",
+            EnhancementScrollTargetStat.Armour => "Armour",
             EnhancementScrollTargetStat.MagicResist => "Magic Res",
             EnhancementScrollTargetStat.CorruptionResist => "Corruption Res",
             EnhancementScrollTargetStat.CritChance => "Crit Chance",
@@ -3974,18 +4027,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsTool)
             return $"Tool • Speed {GatherSpeedMultiplier:0.##}x • Grit {GatheringGrit * 100f:0.#}% • Bonus +{BonusResourceFindChance * 100f:0.#}%";
 
-        if (IsArmor || IsJewelry)
+        if (IsArmour || IsJewelry)
         {
             string s = "";
 
-            if (ArmorValue != 0) s += $"Armour {ArmorValue} • ";
+            if (ArmourValue != 0) s += $"Armour {ArmourValue} • ";
             if (MagicResist != 0) s += $"MRes {MagicResist} • ";
             if (CorruptionResist != 0) s += $"CRes {CorruptionResist} • ";
             if (BonusHealth != 0) s += $"HP +{BonusHealth} • ";
             if (BonusEnergy != 0) s += $"Energy +{BonusEnergy} • ";
             if (BonusMana != 0) s += $"Mana +{BonusMana} • ";
-            if (ArmorFlatGuard > 0) s += $"Guard +{ArmorFlatGuard} • ";
-            if (ArmorMaxGuardPercent > 0.00001f) s += $"Max Guard {FormatSignedPercent01(ArmorMaxGuardPercent)} • ";
+            if (ArmourFlatGuard > 0) s += $"Guard +{ArmourFlatGuard} • ";
+            if (ArmourMaxGuardPercent > 0.00001f) s += $"Max Guard {FormatSignedPercent01(ArmourMaxGuardPercent)} • ";
 
             return s.TrimEnd(' ', '•');
         }
