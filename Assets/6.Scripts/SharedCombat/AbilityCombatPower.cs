@@ -135,6 +135,10 @@ public static class AbilityCombatPower
     }
 
     public const string ChainLightningAbilityId = "chain_lightning";
+    public const string FireBallAbilityId = "fire_ball";
+    public const string IceShardAbilityId = "ice_shard";
+    public const string EnergyBoltAbilityId = "energy_bolt";
+    public const int MagicStarterSpellUnlockLevel = 1;
     public const string ChainLightningEnhancementParentSpineNodeId = "Lv15_0";
     public const int ChainLightningEnh1ExtraChainChoiceIndex = 0;
     public const int ChainLightningEnh2ShockChoiceIndex = 1;

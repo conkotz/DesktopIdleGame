@@ -23295,6 +23295,7 @@ MonoBehaviour:
   globalFireBonusText: {fileID: 208404718}
   globalIceBonusText: {fileID: 1972778337}
   globalLightningBonusText: {fileID: 14424387}
+  globalSpellBonusText: {fileID: 0}
   meleeDamageBonusText: {fileID: 1647763550}
   rangedDamageBonusText: {fileID: 1747026420}
   bleedSectionTitleText: {fileID: 1493027192}

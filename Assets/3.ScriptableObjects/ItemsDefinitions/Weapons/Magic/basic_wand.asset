@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: basic_fire_wand
+  m_Name: basic_wand
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 1
   maxStack: 1
-  itemId: basic_fire_wand
-  displayName: Basic Fire Wand
+  itemId: basic_wand
+  displayName: Basic Wand
   displayNameSingular: 
   icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
@@ -25,10 +25,11 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic fire wand
+  description: A basic wand. Damage comes from your chosen Lv1 spell, not the weapon itself.
   rarity: 1
   value: 150
   equipSlot: 1
+  uniquelyEquipped: 0
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -36,8 +37,8 @@ MonoBehaviour:
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
-    minFireDamage: 8
-    maxFireDamage: 10
+    minFireDamage: 0
+    maxFireDamage: 0
     minIceDamage: 0
     maxIceDamage: 0
     minLightningDamage: 0
@@ -54,8 +55,8 @@ MonoBehaviour:
     attackSkill: 2
     mainHandArchetype: 4
     rangedBowType: 0
-    magicAttackType: 1
-    manaCostPerAttack: 8
+    magicAttackType: 0
+    manaCostPerAttack: 0
     magicAilmentApplyChance: 0.5
     unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
@@ -72,7 +73,6 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -91,6 +91,7 @@ MonoBehaviour:
     staminaEfficiency: 0
   armourStats:
     equipmentTier: 0
+    armourType: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -100,10 +101,14 @@ MonoBehaviour:
     energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
+    armor: 0
+    staminaEfficiency: 0
+    armorType: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
+    maxHealthPercent: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -115,7 +120,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0
+    meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -123,6 +128,7 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
+    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -149,36 +155,72 @@ MonoBehaviour:
     shockDamageTakenMultiplierBonus: 0
     parryChance: 0
     stunChance: 0
+    minThornsDamage: 0
+    maxThornsDamage: 0
+    thornsDamagePercent: 0
+    evadeChance: 0
   randomStatPool:
-  - stat: 65
+  - stat: 22
     weight: 1
-    minValue: 1
-    maxValue: 2
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 66
-    weight: 1
-    minValue: 1
-    maxValue: 2
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 40
-    weight: 1
-    minValue: 5
+    minValue: 3
     maxValue: 10
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 41
+  - stat: 18
     weight: 1
-    minValue: 5
+    minValue: 3
     maxValue: 10
     valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 19
+    weight: 1
+    minValue: 3
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 20
+    weight: 1
+    minValue: 3
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 21
+    weight: 1
+    minValue: 3
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 32
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 33
+    weight: 1
+    minValue: 5
+    maxValue: 12
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 2
+    weight: 1
+    minValue: 10
+    maxValue: 25
+    valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
@@ -196,6 +238,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+      hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
     mapEnhancementTier: 0
@@ -223,6 +266,9 @@ MonoBehaviour:
     destroyChanceOnFailure: 0
     cursed: 0
     allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 0
+    modRolls: []
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

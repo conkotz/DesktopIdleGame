@@ -1542,9 +1542,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
 
         float manaCost = 0f;
-        var weapon = GetMainWeaponDefForPopup();
-        if (weapon != null)
-            manaCost = weapon.ManaCostPerAttack;
+        SkillsManager sm = SkillsManager.Instance;
+        if (MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
+            manaCost = MagicStarterSpellRules.GetManaCostForAbilityId(spellId);
+        else
+        {
+            var weapon = GetMainWeaponDefForPopup();
+            if (weapon != null)
+                manaCost = weapon.ManaCostPerAttack;
+        }
 
         if (manaCost <= 0f)
             return true;

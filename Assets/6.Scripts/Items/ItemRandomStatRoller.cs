@@ -141,15 +141,21 @@ public class RandomStatPoolEntry
 /// </summary>
 public static class ItemRandomStatRoller
 {
-    public static int GetRollCountForRarity(ItemRarity rarity)
+    public static int GetRollCountForRarity(ItemRarity rarity, ItemDefinition item = null)
     {
-        switch (rarity)
+        int rollCount = rarity switch
         {
-            case ItemRarity.Rare: return 2;
-            case ItemRarity.Epic: return 3;
-            case ItemRarity.Legendary: return 4;
-            default: return 1;
-        }
+            ItemRarity.Rare => 2,
+            ItemRarity.Epic => 3,
+            ItemRarity.Legendary => 4,
+            _ => 1
+        };
+
+        // Wands now rely more on identified affixes, so they roll 2 extra random stats.
+        if (item != null && item.IsWeapon && item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand)
+            rollCount += 2;
+
+        return rollCount;
     }
 
     public static bool ShouldRollOnAcquire(ItemDefinition def, ItemDatabase db)
@@ -190,7 +196,7 @@ public static class ItemRandomStatRoller
         if (!item || pool == null || pool.Count == 0)
             return;
 
-        int rollCount = GetRollCountForRarity(rarity);
+        int rollCount = GetRollCountForRarity(rarity, item);
         var available = new List<RandomStatPoolEntry>();
         for (int i = 0; i < pool.Count; i++)
         {
@@ -322,8 +328,42 @@ public static class ItemRandomStatRoller
         if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
             TryAdd(RandomItemStatType.EnemyRespawnTimeReductionSeconds, item.miscEffects.enemyRespawnTimeReductionSeconds);
 
+        if (item.IsWeapon && item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand)
+            AppendMissingWandSpellScalingPoolEntries(results);
+
         results.Sort((a, b) => ComparePoolEntriesForDisplay(a, b, item));
         return results;
+    }
+
+    /// <summary>Default spell-scaling affixes for wand random pools (used by editor template generation).</summary>
+    private static void AppendMissingWandSpellScalingPoolEntries(List<RandomStatPoolEntry> results)
+    {
+        void Ensure(RandomItemStatType stat, float min, float max, RandomStatValueKind kind)
+        {
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (results[i] != null && results[i].stat == stat)
+                    return;
+            }
+
+            results.Add(new RandomStatPoolEntry
+            {
+                stat = stat,
+                weight = 1f,
+                valueKind = kind,
+                minValue = min,
+                maxValue = max,
+            });
+        }
+
+        Ensure(RandomItemStatType.SpellDamagePercent, 3f, 10f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.MagicDamagePercent, 3f, 10f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.FireSkillDamagePercent, 3f, 10f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.IceSkillDamagePercent, 3f, 10f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.LightningSkillDamagePercent, 3f, 10f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.CritChanceBonus, 2f, 5f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.CritMultiplierBonus, 5f, 12f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.BonusMana, 10f, 25f, RandomStatValueKind.FlatInteger);
     }
 
     public static int ComparePoolEntriesForDisplay(

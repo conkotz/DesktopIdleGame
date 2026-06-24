@@ -24,7 +24,7 @@ MonoBehaviour:
     styles easy."
   activationTrigger: 3
   requiredMapNodeId: tutorial_3
-  inventoryTriggerItemId: basic_ice_wand
+  inventoryTriggerItemId: basic_wand
   inventoryTriggerItemCount: 1
   worldDropTriggerItem: {fileID: 0}
   worldDropTriggerItemId: 

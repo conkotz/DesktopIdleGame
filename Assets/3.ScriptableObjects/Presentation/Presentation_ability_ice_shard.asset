@@ -10,13 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
-  m_Name: Presentation_ability_chain_lightning
+  m_Name: Presentation_ability_ice_shard
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
-  notes: Presentation for chain_lightning
-  displayNameOverride: Chain Lightning
-  icon: {fileID: 3635194895896409061, guid: 40bf976827de79147b880b19bd35a1fe, type: 3}
-  shortDescription: Conjure lightning toward the closest enemy in front of you, then
-    chain to nearby foes.
+  notes: Lv1 starter spell — ice wand auto attack
+  displayNameOverride: Ice Shard
+  icon: {fileID: 3816218223960196299, guid: ead6c78a6346bbe41948084b9eef6277, type: 3}
+  shortDescription: Launch a shard of ice at your target. Your wand auto attacks use this spell.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

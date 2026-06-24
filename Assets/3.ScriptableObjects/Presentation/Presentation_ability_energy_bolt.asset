@@ -10,13 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
-  m_Name: Presentation_ability_chain_lightning
+  m_Name: Presentation_ability_energy_bolt
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
-  notes: Presentation for chain_lightning
-  displayNameOverride: Chain Lightning
-  icon: {fileID: 3635194895896409061, guid: 40bf976827de79147b880b19bd35a1fe, type: 3}
-  shortDescription: Conjure lightning toward the closest enemy in front of you, then
-    chain to nearby foes.
+  notes: Lv1 starter spell — lightning wand auto attack
+  displayNameOverride: Energy Bolt
+  icon: {fileID: -78299419366577307, guid: ac55960819e174c4d8c050308c3f16a5, type: 3}
+  shortDescription: Fire a bolt of energy at your target. Your wand auto attacks use this spell.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

@@ -24,8 +24,8 @@ MonoBehaviour:
   objectiveId: 
   specialObjectiveListText: Kill Ivan??
   rewardGold: 0
-  rewardItem: {fileID: 11400000, guid: a197f0b628ce61444915b2b725bf4471, type: 2}
-  rewardItemId: basic_ice_wand
+  rewardItem: {fileID: 11400000, guid: f73b4ccc106f41989a16f450e56a9458, type: 2}
+  rewardItemId: basic_wand
   rewardItemQuantity: 1
   additionalItemRewards:
   - item: {fileID: 11400000, guid: a9b9fbd1af4462542b24e62b53a6bff5, type: 2}

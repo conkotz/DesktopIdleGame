@@ -403,6 +403,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsChainLightning(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.ChainLightningAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsMagicStarterSpell(AbilityDefinition def) =>
+        def != null && MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId);
+
     private static bool IsHuntersSwiftness(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.HuntersSwiftnessAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -1106,6 +1109,14 @@ public static class AbilityTooltipDamagePreview
             return body.ToString().TrimEnd();
         }
 
+        if (IsMagicStarterSpell(def))
+        {
+            AppendMagicStarterSpellTooltipEffects(body, O, def, stats);
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
         if (IsHuntersSwiftness(def))
         {
             AppendHuntersSwiftnessTooltipEffects(body, O, skillsManager, includeEnhancementEffects);
@@ -1731,6 +1742,9 @@ public static class AbilityTooltipDamagePreview
         if (IsChainLightning(def))
             return BuildChainLightningCompactEffectsBody(def, skillsManager, stats, includeEnhancementEffects);
 
+        if (IsMagicStarterSpell(def))
+            return BuildMagicStarterSpellCompactEffectsBody(def, stats);
+
         if (IsHuntersSwiftness(def))
             return BuildHuntersSwiftnessCompactEffectsBody(def, skillsManager, includeDuration, includeEnhancementEffects);
 
@@ -2046,6 +2060,40 @@ public static class AbilityTooltipDamagePreview
         AppendLightningRodTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
         if (includeDuration)
             AppendDetailsEffectParagraph(body, O($"Duration: {AbilityCombatPower.LightningRodBaseDurationSeconds:0.#}s"));
+        return body.ToString().TrimEnd();
+    }
+
+    private static void AppendMagicStarterSpellTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats)
+    {
+        if (def == null || stats == null)
+            return;
+
+        MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(def.abilityId);
+        if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
+            return;
+
+        SpellDamageScaling.ScaleElementBounds(stats, element, baseMin, baseMax, out float minD, out float maxD, forAutoAttack: true);
+        string elementLabel = element switch
+        {
+            MagicAttackType.Fire => "fire",
+            MagicAttackType.Ice => "ice",
+            _ => "lightning"
+        };
+        int minShown = Mathf.Max(1, Mathf.RoundToInt(minD));
+        int maxShown = Mathf.Max(minShown, Mathf.RoundToInt(maxD));
+        AppendDetailsEffectParagraph(body, O($"{minShown}–{maxShown} {elementLabel} damage per auto attack"));
+        AppendDetailsEffectParagraph(body, O("Used by your wand auto attacks while this spell is selected"));
+    }
+
+    private static string BuildMagicStarterSpellCompactEffectsBody(AbilityDefinition def, CharacterStats stats)
+    {
+        var body = new StringBuilder();
+        System.Func<string, string> O = s => s;
+        AppendMagicStarterSpellTooltipEffects(body, O, def, stats);
         return body.ToString().TrimEnd();
     }
 

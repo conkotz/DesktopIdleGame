@@ -37,19 +37,7 @@ MonoBehaviour:
       amount: 2000
       itemId: 
     defaultQuantity: 1
-  - itemId: basic_lightning_wand
-    costs:
-    - type: 0
-      amount: 3000
-      itemId: 
-    defaultQuantity: 1
-  - itemId: basic_fire_wand
-    costs:
-    - type: 0
-      amount: 3000
-      itemId: 
-    defaultQuantity: 1
-  - itemId: basic_ice_wand
+  - itemId: basic_wand
     costs:
     - type: 0
       amount: 3000

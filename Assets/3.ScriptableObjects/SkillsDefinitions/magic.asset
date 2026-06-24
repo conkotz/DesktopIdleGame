@@ -15,6 +15,7 @@ MonoBehaviour:
   skillType: 5
   displayName: Magic
   description: Fight enemies using magic combat
+  presentation: {fileID: 0}
   icon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
   themeColor: {r: 0.13147244, g: 0.122855045, b: 0.5471698, a: 1}
   category: 1
@@ -27,7 +28,14 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 42c611e25e004933ad3da9218ea9929f, type: 2}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 1
     title: Arcane Minor I
@@ -36,8 +44,65 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
     magicMinorStatOption: 1
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Fire Ball
+    description: Hurl a ball of fire at your target. Your wand auto attacks use this
+      spell (8-10 fire damage, 2s cooldown, 8 mana).
+    icon: {fileID: -3262339323002954750, guid: fca3b13a40b9d494fa3e5d2cc53a38d9, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: c4f54f58ef4b47928f009228926bc522, type: 2}
+    presentation: {fileID: 11400000, guid: 97a52048aa814570976ed277a43e59fe, type: 2}
+    choices: []
+  - requiredLevel: 1
+    title: Ice Shard
+    description: Launch a shard of ice at your target. Your wand auto attacks use this
+      spell (6-12 ice damage, 2s cooldown, 8 mana).
+    icon: {fileID: 3816218223960196299, guid: ead6c78a6346bbe41948084b9eef6277, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: fe6756bbc661438c9e8dd8a7baf998ec, type: 2}
+    presentation: {fileID: 11400000, guid: 5e0c89c88d8f45b08fa81ffcef319ab2, type: 2}
+    choices: []
+  - requiredLevel: 1
+    title: Energy Bolt
+    description: Fire a bolt of energy at your target. Your wand auto attacks use this
+      spell (3-15 lightning damage, 2s cooldown, 8 mana).
+    icon: {fileID: -78299419366577307, guid: ac55960819e174c4d8c050308c3f16a5, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: e16711448fbc4e8c95d39d3a577a647f, type: 2}
+    presentation: {fileID: 11400000, guid: 56b8f3643b09433f9b62ea5137b98e42, type: 2}
     choices: []
   - requiredLevel: 2
     title: Arcane Minor II
@@ -46,8 +111,14 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
     magicMinorStatOption: 2
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 3
     title: Arcane Minor III
@@ -56,8 +127,14 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
     magicMinorStatOption: 3
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 4
     title: Arcane Minor IV
@@ -66,18 +143,29 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
     magicMinorStatOption: 4
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 15
     title: Chain Lightning
     description: Conjure lightning from your hands towards the closest enemy in front
       of you and then chains to additional nearby enemies.
-    icon: {fileID: 4023242619808263884, guid: 19cfc432ed907ce4eba4948dd3653b17, type: 3}
+    icon: {fileID: 3635194895896409061, guid: 40bf976827de79147b880b19bd35a1fe, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
     magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 8c2ef1d27f864a649eba4dd9eb6d38fe, type: 2}
     presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
     choices:

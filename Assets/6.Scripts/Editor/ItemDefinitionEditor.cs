@@ -369,7 +369,6 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
         SerializedProperty mainHandArchetype = weaponStats.FindPropertyRelative("mainHandArchetype");
         SerializedProperty rangedBowType = weaponStats.FindPropertyRelative("rangedBowType");
-        SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
         SerializedProperty magicAilmentApplyChance = weaponStats.FindPropertyRelative("magicAilmentApplyChance");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
@@ -449,10 +448,8 @@ public class ItemDefinitionEditor : Editor
         }
 
         if (attackSkill != null &&
-            (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Magic &&
-            magicAttackType != null)
+            (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Magic)
         {
-            EditorGUILayout.PropertyField(magicAttackType, new GUIContent("Magic Type"));
             if (manaCostPerAttack != null)
                 EditorGUILayout.PropertyField(manaCostPerAttack, new GUIContent("Mana Cost Per Attack"));
             if (magicAilmentApplyChance != null)
@@ -1665,7 +1662,7 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.HelpBox(
             "Optional affixes rolled when this item enters the player's inventory.\n" +
-            "Common/Uncommon = 1 roll, Rare = 2, Epic = 3, Legendary = 4.\n" +
+            "Common/Uncommon = 1 roll, Rare = 2, Epic = 3, Legendary = 4 (wands gain +2 extra rolls).\n" +
             "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until purchased.\n" +
             "Value Kind: Flat Integer (health/damage), Flat Float (regen/range), " +
             "Percent Points (enter 5 for +5% crit/stun/etc.; weapon APS rolls add flat APS — 2 = +0.02 APS on a 0.6 weapon → 0.62). " +

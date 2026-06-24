@@ -181,8 +181,8 @@ public struct WeaponStats
     [Tooltip("Only when Attack Skill is Ranged. Swiftbow: default. Longbow: auto-battle targets the furthest enemy first.")]
     public RangedBowType rangedBowType;
 
-    [Header("Magic Type")]
-    [Tooltip("Only used when Attack Skill is Magic.")]
+    [Header("Magic Type (Legacy)")]
+    [Tooltip("Legacy field kept for backward compatibility. Player magic element now comes from the selected starter spell.")]
     public MagicAttackType magicAttackType;
 
     [Header("Resource Cost")]
@@ -1017,7 +1017,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Additional Random Stat Pool")]
     [Tooltip(
         "Optional affixes rolled when this item enters the player's inventory. " +
-        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4). " +
+        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4; wands gain +2 extra rolls). " +
         "Leave empty to keep static stats only.")]
     [SerializeField]
     [HideInInspector]
@@ -1109,7 +1109,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!HasRandomStatPool)
             return "";
 
-        int count = ItemRandomStatRoller.GetRollCountForRarity(rarity);
+        int count = ItemRandomStatRoller.GetRollCountForRarity(rarity, this);
         var lines = new System.Text.StringBuilder();
         for (int i = 0; i < count; i++)
         {
@@ -1288,7 +1288,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     /// <summary>Burn stack chance from this fire magic weapon: same as <see cref="WeaponStats.magicAilmentApplyChance"/>.</summary>
     public float ResolveWeaponBurnApplyChance()
     {
-        if (!IsWeapon || weaponStats.magicAttackType != MagicAttackType.Fire)
+        if (!IsWeapon || weaponStats.attackSkill != AttackSkill.Magic)
             return 0f;
         return Mathf.Clamp01(weaponStats.magicAilmentApplyChance);
     }
@@ -1296,29 +1296,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     /// <summary>Total burn apply chance shown on this weapon (bonus + fire magic ailment chance).</summary>
     internal float ResolveTooltipBurnChance()
     {
-        float chance = bonusStats.burnChance;
-        if (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic && weaponStats.magicAttackType == MagicAttackType.Fire)
-            chance += MagicAilmentApplyChance;
-        return Mathf.Clamp01(chance);
+        return Mathf.Clamp01(bonusStats.burnChance);
     }
 
     /// <summary>Total chill apply chance shown on this weapon (bonus + ice magic ailment chance).</summary>
     internal float ResolveTooltipChillChance()
     {
-        float chance = bonusStats.chillChance;
-        if (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic && weaponStats.magicAttackType == MagicAttackType.Ice)
-            chance += MagicAilmentApplyChance;
-        return Mathf.Clamp01(chance);
+        return Mathf.Clamp01(bonusStats.chillChance);
     }
 
     /// <summary>Total shock apply chance shown on this weapon (bonus + lightning magic ailment chance).</summary>
     internal float ResolveTooltipShockChance()
     {
-        float chance = bonusStats.shockChance;
-        if (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic &&
-            weaponStats.magicAttackType == MagicAttackType.Lightning)
-            chance += MagicAilmentApplyChance;
-        return Mathf.Clamp01(chance);
+        return Mathf.Clamp01(bonusStats.shockChance);
     }
 
     private bool ShouldShowTooltipBurnChanceLine() =>
@@ -2174,9 +2164,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     private string BuildWeaponTooltipProfileMetaLines()
     {
-        string type = weaponStats.attackSkill == AttackSkill.Magic
-            ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
-            : weaponStats.attackSkill.ToString();
+        string type = weaponStats.attackSkill.ToString();
         string hands = FormatHandednessLabel(weaponStats.handedness);
 
         return FormatTooltipTierRequirementLine() + "\n" +

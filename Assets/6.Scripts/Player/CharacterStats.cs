@@ -2393,11 +2393,37 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private MagicAttackType GetCurrentMagicAttackType()
     {
-        var mh = GetMainHandWeaponDef();
-        if (mh && mh.IsWeapon && mh.weaponStats.attackSkill == AttackSkill.Magic)
-            return mh.weaponStats.magicAttackType;
+        PreferRuntimeSkillsManager();
+        SkillsManager sm = SkillsManager.Instance != null ? SkillsManager.Instance : skillsManager;
+        if (MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
+            return MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(spellId);
 
         return baseMagicAttackType;
+    }
+
+    private void TryAddMagicStarterSpellDamageToLane(ref float magLane, bool useMaxBounds)
+    {
+        if (GetCurrentAttackSkill() != AttackSkill.Magic)
+            return;
+
+        PreferRuntimeSkillsManager();
+        SkillsManager sm = SkillsManager.Instance != null ? SkillsManager.Instance : skillsManager;
+        if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
+            return;
+
+        if (!MagicStarterSpellRules.TryGetBaseDamageBounds(spellId, out float baseMin, out float baseMax))
+            return;
+
+        MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(spellId);
+        SpellDamageScaling.ScaleElementBounds(
+            this,
+            element,
+            baseMin,
+            baseMax,
+            out float scaledMin,
+            out float scaledMax,
+            forAutoAttack: true);
+        magLane += useMaxBounds ? scaledMax : scaledMin;
     }
 
     private float GetEquippedMagicAilmentApplyChance()
@@ -2657,7 +2683,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Equipped corruption attack-split % (armour bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
-    /// <summary>Spell-only damage % from gear (wands/staffs). Not applied to basic magic attacks.</summary>
+    /// <summary>Spell-only damage % from gear (wands/staffs). Applied to Lv1 starter spells and other spells.</summary>
     public float SpellDamageTotalScalingPercentPoints => GetEquippedSpellDamagePercent() * 100f;
 
     /// <summary>Magic damage % applied to spells: gear, supports, and active magic boost consumables.</summary>
@@ -2842,6 +2868,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMin *= magicDamageMult;
         corruptionMin *= corruptionDamageMult;
 
+        TryAddMagicStarterSpellDamageToLane(ref magMin, useMaxBounds: false);
+
         return ApplyFoodFocusedMultiplier(new SplitDamage(
             Mathf.Max(0f, physMin),
             Mathf.Max(0f, magMin),
@@ -2916,6 +2944,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMax *= magicDamageMult;
         corruptionMax *= corruptionDamageMult;
 
+        TryAddMagicStarterSpellDamageToLane(ref magMax, useMaxBounds: true);
+
         return ApplyFoodFocusedMultiplier(new SplitDamage(
             Mathf.Max(0f, physMax),
             Mathf.Max(0f, magMax),
@@ -2981,6 +3011,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 return 0f;
 
             float mhAps = Mathf.Max(0f, GetWeaponAps(mh));
+            PreferRuntimeSkillsManager();
+            SkillsManager sm = SkillsManager.Instance != null ? SkillsManager.Instance : skillsManager;
+            if (mh.weaponStats.attackSkill == AttackSkill.Magic
+                && MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out _))
+            {
+                mhAps = MagicStarterSpellRules.StarterSpellAttacksPerSecond;
+            }
 
             var oh = GetOffHandWeaponDef();
             if (!oh)

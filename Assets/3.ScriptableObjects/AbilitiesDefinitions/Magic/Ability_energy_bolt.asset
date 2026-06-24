@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_chain_lightning
+  m_Name: Ability_energy_bolt
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: chain_lightning
-  displayName: Chain Lightning
+  abilityId: energy_bolt
+  displayName: Energy Bolt
   tag: 1
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
-  cooldown: 4
+  presentation: {fileID: 11400000, guid: 56b8f3643b09433f9b62ea5137b98e42, type: 2}
+  cooldown: 2
   energyCost: 0
-  manaCost: 15
+  manaCost: 8
   healthCost: 0
   weaponDamageMultiplier: 0
   allDamageMultiplier: 1
@@ -30,7 +30,7 @@ MonoBehaviour:
   bleedDamageMultiplier: 0
   requiredWeaponType: 3
   sourceSkill: 5
-  unlockLevel: 15
-  requireRangeCheckToActivate: 1
-  setsTargetOnHit: 1
+  unlockLevel: 1
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 0
   minionSpawnDefinition: {fileID: 0}
