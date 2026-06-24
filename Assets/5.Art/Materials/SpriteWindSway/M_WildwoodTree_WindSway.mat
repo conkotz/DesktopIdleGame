@@ -34,14 +34,14 @@ Material:
     m_Ints: []
     m_Floats:
     - PixelSnap: 0
-    - _BaseAnchorHeight: 0.18
+    - _BaseAnchorHeight: 0.15
     - _EnableExternalAlpha: 0
-    - _PhaseOffset: 2.1
+    - _PhaseOffset: 1.2
     - _SpriteBottomY: -2.75
     - _SpriteCenterX: 0
     - _SpriteHeight: 5.5
-    - _WindSpeed: 1.1
-    - _WindStrength: 0.065
+    - _WindSpeed: 0.3
+    - _WindStrength: 0.13
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Flip: {r: 1, g: 1, b: 1, a: 1}

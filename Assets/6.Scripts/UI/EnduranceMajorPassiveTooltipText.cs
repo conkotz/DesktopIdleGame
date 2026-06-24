@@ -17,6 +17,12 @@ public static class EnduranceMajorPassiveTooltipText
         out string body)
     {
         body = null;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.ThornsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            body = BuildThornsEffectBody(stats, selectedChoice);
+            return true;
+        }
+
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.AlchemistsBoonMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
             body = BuildAlchemistsBoonEffectBody(stats, selectedChoice);
@@ -36,6 +42,16 @@ public static class EnduranceMajorPassiveTooltipText
         scalingText = null;
         effectText = null;
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.ThornsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            int scalingFlat = stats != null ? stats.GetEnduranceThornsMajorPassiveScalingFlat() : 0;
+            scalingText =
+                $"+{AbilityCombatPower.ThornsFlatPerFiveEnduranceLevelsPostTen} flat thorns damage per 5 Endurance levels after Lv 10 " +
+                $"(currently +{scalingFlat} from your Endurance level).";
+            effectText = BuildThornsEffectBody(stats, selectedChoice);
+            return true;
+        }
+
         if (!string.Equals(parentSpineNodeId, AbilityCombatPower.AlchemistsBoonMajorPassiveSpineNodeId, StringComparison.Ordinal))
             return false;
 
@@ -46,6 +62,25 @@ public static class EnduranceMajorPassiveTooltipText
     public static bool TryBuildChoiceTooltipBody(string parentSpineNodeId, int choiceIndex, out string body)
     {
         body = null;
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.ThornsMajorPassiveSpineNodeId, StringComparison.Ordinal))
+        {
+            if (choiceIndex == AbilityCombatPower.ThornsEnhancementDamagePercentChoiceIndex)
+            {
+                body =
+                    $"+{AbilityCombatPower.ThornsEnhancementDamagePercentBonus * 100f:0.#}% Thorns Damage.";
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.ThornsEnhancementDoubleProcChoiceIndex)
+            {
+                body =
+                    $"{AbilityCombatPower.ThornsEnhancementDoubleProcChance * 100f:0.#}% chance for thorns to trigger a second time when you are hit.";
+                return true;
+            }
+
+            return false;
+        }
+
         if (!string.Equals(parentSpineNodeId, AbilityCombatPower.AlchemistsBoonMajorPassiveSpineNodeId, StringComparison.Ordinal))
             return false;
 
@@ -85,6 +120,32 @@ public static class EnduranceMajorPassiveTooltipText
         {
             AppendParagraph(sb,
                 $"Quick Brew: potion cooldown reduced by {AbilityCombatPower.AlchemistsBoonConsumableCooldownReductionFraction * 100f:0.#}%.");
+        }
+
+        return sb.ToString();
+    }
+
+    public static string BuildThornsEffectBody(CharacterStats stats, int selectedChoice = -1)
+    {
+        int scalingFlat = stats != null ? stats.GetEnduranceThornsMajorPassiveScalingFlat() : 0;
+        int minDamage = AbilityCombatPower.ThornsBaseMinPhysicalDamage + scalingFlat;
+        int maxDamage = AbilityCombatPower.ThornsBaseMaxPhysicalDamage + scalingFlat;
+
+        var sb = new StringBuilder();
+        AppendParagraph(sb,
+            "When you take damage from an enemy within 4 range, deal physical thorns damage back to the attacker.");
+        AppendParagraph(sb,
+            $"Deals {minDamage}-{maxDamage} physical thorns damage (before Thorns Damage Inc %).");
+
+        if (selectedChoice == AbilityCombatPower.ThornsEnhancementDamagePercentChoiceIndex)
+        {
+            AppendParagraph(sb,
+                $"Spiked Plate: +{AbilityCombatPower.ThornsEnhancementDamagePercentBonus * 100f:0.#}% Thorns Damage.");
+        }
+        else if (selectedChoice == AbilityCombatPower.ThornsEnhancementDoubleProcChoiceIndex)
+        {
+            AppendParagraph(sb,
+                $"Rebound Sting: {AbilityCombatPower.ThornsEnhancementDoubleProcChance * 100f:0.#}% chance for thorns to trigger twice on a single hit taken.");
         }
 
         return sb.ToString();

@@ -107,6 +107,8 @@ public class ResourceNode : MonoBehaviour
     private readonly List<Image> _timerFillImages = new();
 
     private readonly List<GameObject> _runtimeDepletionOverlays = new();
+    private SpriteWindSway[] _cachedWindSways;
+    private static Material _depletionOverlayMaterial;
 
     private void Awake()
     {
@@ -367,6 +369,7 @@ public class ResourceNode : MonoBehaviour
         }
 
         SetRuntimeDepletionOverlaysActive(true);
+        SetTreeWindSwayActive(false);
         RefreshDepletionTimerDisplay();
     }
 
@@ -389,7 +392,30 @@ public class ResourceNode : MonoBehaviour
         }
 
         SetRuntimeDepletionOverlaysActive(false);
+        SetTreeWindSwayActive(true);
         RefreshDepletionTimerDisplay();
+    }
+
+    private void EnsureWindSwaysCached()
+    {
+        if (_cachedWindSways != null)
+            return;
+
+        _cachedWindSways = GetComponentsInChildren<SpriteWindSway>(true);
+    }
+
+    private void SetTreeWindSwayActive(bool active)
+    {
+        EnsureWindSwaysCached();
+        if (_cachedWindSways == null)
+            return;
+
+        for (int i = 0; i < _cachedWindSways.Length; i++)
+        {
+            SpriteWindSway sway = _cachedWindSways[i];
+            if (sway)
+                sway.SetSwayEnabled(active);
+        }
     }
 
     private void BuildRuntimeDepletionSpriteOverlays()
@@ -423,10 +449,24 @@ public class ResourceNode : MonoBehaviour
             ov.sortingLayerID = src.sortingLayerID;
             ov.sortingOrder = src.sortingOrder + depletionSpriteOverlaySortDelta;
             ov.maskInteraction = src.maskInteraction;
-            ov.sharedMaterial = src.sharedMaterial;
+            Material overlayMaterial = GetDepletionOverlayMaterial();
+            ov.sharedMaterial = overlayMaterial != null ? overlayMaterial : src.sharedMaterial;
 
             _runtimeDepletionOverlays.Add(go);
         }
+    }
+
+    private static Material GetDepletionOverlayMaterial()
+    {
+        if (_depletionOverlayMaterial != null)
+            return _depletionOverlayMaterial;
+
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader == null)
+            return null;
+
+        _depletionOverlayMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        return _depletionOverlayMaterial;
     }
 
     private void CollectOverlaySourceRenderers(List<SpriteRenderer> outList)

@@ -260,8 +260,16 @@ public static class GameTooltipTexts
             case "HpText":
                 title = "Health";
                 description =
-                    "Your total health pool.\n\n" +
+                    "Your total health pool after flat bonuses and percentage increases.\n\n" +
                     "When this reaches 0, you are defeated. Higher health improves survivability against all damage types.";
+                return true;
+
+            case "Hp%Text":
+            case "HpPercentText":
+                title = "Max HP %";
+                description =
+                    "Increases max health by a percentage of your flat max HP (base, gear flat health, and endurance flat health).\n\n" +
+                    "Example: +2% with 100 flat max HP adds 2 HP; with 1,000 flat max HP it adds 20 HP.";
                 return true;
 
             case "EnergyText":
@@ -297,8 +305,32 @@ public static class GameTooltipTexts
             case "MaxGuardText":
                 title = "Max Guard";
                 description =
-                    "Max guard basine is equal to your max hp.\n\n" +
-                    "Gaining max guard increasing the guard you can obtain above your max hp.";
+                    "Max guard baseline is equal to your max HP.\n\n" +
+                    "Gaining max guard increases the guard you can obtain above your max HP.\n\n" +
+                    "Sources include armour max guard % and Endurance Bulwark passives.";
+                return true;
+
+            case "ThornsDmgText":
+                title = "Thorns Damage";
+                description =
+                    "Flat physical damage dealt back to attackers when they hit you.\n\n" +
+                    "Thorns only triggers when the attacker is within 4 range.\n\n" +
+                    "Comes from gear, the Endurance Thorns major passive, and other sources. The rolled range is then multiplied by your Thorns Damage Inc %.";
+                return true;
+
+            case "ThornsDmgIncText":
+                title = "Thorns Damage Inc";
+                description =
+                    "Percent bonus applied to your thorns damage range.\n\n" +
+                    "Stacks from gear, Endurance Reflective Plate passives, and the Thorns major passive enhancement.";
+                return true;
+
+            case "EvadeText":
+                title = "Evade";
+                description =
+                    "Chance to fully avoid a non-magic attack.\n\n" +
+                    "Stacks from gear, Hunter's Swiftness, and other passives. " +
+                    AbilityCombatPower.HuntersSwiftnessEvadeTooltipNote;
                 return true;
 
             case "MrText":
@@ -312,14 +344,17 @@ public static class GameTooltipTexts
                 title = "Block Chance";
                 description =
                     "Chance to partially block incoming physical hits.\n\n" +
-                    "When block succeeds, damage is reduced by your Block Mitigation % instead of being negated entirely.";
+                    "When block succeeds, damage is reduced by your Block Mitigation % instead of being negated entirely.\n\n" +
+                    "Sources include gear, Tactician passives (shield), and Endurance Shield Training I while a shield is equipped.";
                 return true;
 
             case "BlockMitigationText":
                 title = "Block Mitigation";
                 description =
                     "Percent of physical damage prevented when a block succeeds.\n\n" +
-                    "Base mitigation is 70%. Talents and gear can raise it (e.g. Tactician Secondary Specialist with a shield).";
+                    "Base mitigation is 70%. Additional sources include:\n" +
+                    "• Tactician Secondary Specialist (shield): +10%\n" +
+                    "• Endurance Shield Training II (shield equipped): +5%";
                 return true;
 
             case "ParryText":

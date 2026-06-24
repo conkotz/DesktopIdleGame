@@ -207,6 +207,19 @@ public static class AbilityCombatPower
             ? EnchantedQuiverConservationSavedArrowDamageBonusFraction
             : EnchantedQuiverBaseSavedArrowDamageBonusFraction;
 
+    /// <summary>Endurance Lv10 major passive — Thorns.</summary>
+    public const string ThornsMajorPassiveSpineNodeId = "Lv10_0";
+    public const int ThornsMajorPassiveLevel = 10;
+    public const float ThornsMeleeRange = 4f;
+    public const int ThornsBaseMinPhysicalDamage = 2;
+    public const int ThornsBaseMaxPhysicalDamage = 4;
+    public const int ThornsFlatPerFiveEnduranceLevelsPostTen = 1;
+    public const float ThornsEnhancementDamagePercentBonus = 0.10f;
+    public const float ThornsEnhancementDoubleProcChance = 0.10f;
+    public const int ThornsEnhancementDamagePercentChoiceIndex = 0;
+    public const int ThornsEnhancementDoubleProcChoiceIndex = 1;
+    public const string ThornsOutgoingSourceLabel = "Thorns";
+
     /// <summary>Endurance Lv20 major passive — Alchemist's Boon.</summary>
     public const string AlchemistsBoonMajorPassiveSpineNodeId = "Lv20_0";
     public const int AlchemistsBoonMajorPassiveLevel = 20;

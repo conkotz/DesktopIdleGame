@@ -503,12 +503,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a4e2f1c9b3d4e5f8071625344556677, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpriteWindSway
-  windStrength: 0.1
-  windSpeed: 1.2
-  baseAnchorHeight: 0.2
+  windStrength: 0.15
+  windSpeed: 0.32
+  baseAnchorHeight: 0.15
   phaseOffset: 0
-  windVariation: 0.4
-  randomizeOnAwake: 1
 --- !u!114 &5812554202437325912
 MonoBehaviour:
   m_ObjectHideFlags: 0

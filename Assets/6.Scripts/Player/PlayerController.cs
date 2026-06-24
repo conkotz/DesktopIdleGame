@@ -4671,6 +4671,9 @@ public class PlayerController : MonoBehaviour
         if (combat != null && attacker != null && hpDamage > 0.001f)
             combat.TryRetaliateFromAttacker(attacker);
 
+        if (combat != null && attacker != null && !evaded && finalDamage > 0.001f)
+            combat.TryProcessThornsOnIncomingEnemyHit(attacker, finalDamage);
+
         if (blocked || evaded)
             wasCrit = false;
 
@@ -5353,13 +5356,13 @@ public class PlayerController : MonoBehaviour
             case DamageType.Corruption:
                 {
                     float cr = characterStats ? characterStats.CorruptionResist : 0f;
-                    return MitigateByRating(rawDamage, cr);
+                    return CombatResistRules.ApplyRatingMitigation(rawDamage, cr);
                 }
 
             case DamageType.Physical:
                 {
                     float armour = characterStats ? characterStats.Armour : 0f;
-                    float dmg = MitigateByRating(rawDamage, armour);
+                    float dmg = CombatResistRules.ApplyRatingMitigation(rawDamage, armour);
 
                     float blockChance = characterStats ? characterStats.PhysBlockChance : 0f;
                     if (blockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(blockChance))
@@ -5375,21 +5378,12 @@ public class PlayerController : MonoBehaviour
             case DamageType.Magic:
                 {
                     float mr = characterStats ? characterStats.MagicResist : 0f;
-                    return MitigateByRating(rawDamage, mr);
+                    return CombatResistRules.ApplyRatingMitigation(rawDamage, mr);
                 }
 
             default:
                 return rawDamage;
         }
-    }
-
-    private static float MitigateByRating(float damage, float rating)
-    {
-        rating = CombatResistRules.ClampRating(rating);
-
-        // 100/(100+rating) diminishing returns
-        float multiplier = 100f / (100f + rating);
-        return damage * multiplier;
     }
 
     private void AwardEnduranceXpFromIncomingDamage(float preMitigatedDamage, Transform attacker = null)

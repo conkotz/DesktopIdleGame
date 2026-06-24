@@ -1670,8 +1670,28 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         int fishingTreasureMinorStacks = 0;
         float enduranceArmour = 0f;
         float enduranceMagicResist = 0f;
+        float enduranceCorruptionResist = 0f;
         float enduranceHp = 0f;
         float enduranceHpRegen = 0f;
+        float enduranceEnergyEfficiency = 0f;
+        float enduranceMaxHpPercent = 0f;
+        float enduranceThornsDamage = 0f;
+        float enduranceMaxGuardPercent = 0f;
+        float enduranceGuardGain = 0f;
+        float enduranceHeavyArmourMasteryArmour = 0f;
+        float enduranceBastionDrWhileGuard = 0f;
+        float enduranceLightArmourMasteryMana = 0f;
+        float enduranceParryChance = 0f;
+        float enduranceParryMitigation = 0f;
+        float enduranceShieldBlockChance = 0f;
+        float enduranceShieldBlockMitigation = 0f;
+        float enduranceMediumArmourMasteryMr = 0f;
+        float enduranceMediumArmourMasteryCr = 0f;
+        float enduranceMediumArmourMasteryMoveSpeed = 0f;
+        float enduranceSurvivorDrBelowHalfHp = 0f;
+        float enduranceHeavyArmourMasteryMaxHpPercent = 0f;
+        float enduranceLightArmourMasteryMr = 0f;
+        float enduranceLightArmourMasteryManaRegen = 0f;
         float rangedAttackSpeed = 0f;
         float rangedCritChance = 0f;
         float rangedMoveSpeed = 0f;
@@ -1884,10 +1904,31 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             {
                 switch (unlock.enduranceMinorStatOption)
                 {
-                    case EnduranceMinorNodeStatOption.EnduranceArmourFlat2: enduranceArmour += 2f; break;
-                    case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2: enduranceMagicResist += 2f; break;
-                    case EnduranceMinorNodeStatOption.EnduranceHealthFlat5: enduranceHp += 5f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceHealthFlat10: enduranceHp += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceArmourFlat10: enduranceArmour += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceEnergyEfficiencyPercent2: enduranceEnergyEfficiency += 0.02f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMaxHealthPercent2: enduranceMaxHpPercent += 0.02f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceThornsDamagePercent5: enduranceThornsDamage += 0.05f; break;
                     case EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1: enduranceHpRegen += 1f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat10: enduranceMagicResist += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceCorruptionResistFlat10: enduranceCorruptionResist += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMaxGuardPercent5: enduranceMaxGuardPercent += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryArmourFlat10: enduranceHeavyArmourMasteryArmour += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceBastionDrPercent5WhileGuardActive: enduranceBastionDrWhileGuard += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaFlat20: enduranceLightArmourMasteryMana += 20f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceParryChancePercent2_5: enduranceParryChance += 0.025f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceGuardGainPercent5: enduranceGuardGain += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceShieldBlockChancePercent5: enduranceShieldBlockChance += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceShieldBlockMitigationPercent5: enduranceShieldBlockMitigation += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMagicResistFlat5: enduranceMediumArmourMasteryMr += 5f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceParryMitigationPercent5: enduranceParryMitigation += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryCorruptionResistFlat5: enduranceMediumArmourMasteryCr += 5f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMoveSpeedPercent10: enduranceMediumArmourMasteryMoveSpeed += 0.10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceSurvivorDrPercent5BelowHalfHp: enduranceSurvivorDrBelowHalfHp += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryMaxHealthPercent5: enduranceHeavyArmourMasteryMaxHpPercent += 0.05f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryMagicResistFlat10: enduranceLightArmourMasteryMr += 10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMaxGuardPercent10: enduranceMaxGuardPercent += 0.10f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaRegenFlat3: enduranceLightArmourMasteryManaRegen += 3f; break;
                 }
             }
             else if (skill.skillType == SkillType.Magic)
@@ -1958,10 +1999,38 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else if (skill.skillType == SkillType.Endurance)
         {
+            Flat(enduranceHp, "Max HP");
+            Pct(enduranceMaxHpPercent, "Max HP");
             Flat(enduranceArmour, "Armour");
             Flat(enduranceMagicResist, "Magic Resist");
-            Flat(enduranceHp, "Max HP");
+            Flat(enduranceCorruptionResist, "Corruption Resist");
+            Pct(enduranceEnergyEfficiency, "Energy Efficiency");
             Flat(enduranceHpRegen, "HP Regen");
+            Pct(enduranceThornsDamage, "Thorns Damage");
+            Pct(enduranceMaxGuardPercent, "Max Guard");
+            Pct(enduranceGuardGain, "Increased Guard");
+            Pct(enduranceBastionDrWhileGuard, "Damage Reduction while Guard is Active");
+            Pct(enduranceShieldBlockChance, "Block Chance while a Shield is Equipped");
+            Pct(enduranceShieldBlockMitigation, "Block Mitigation while a Shield is Equipped");
+            Pct(enduranceParryChance, "Parry Chance");
+            Pct(enduranceParryMitigation, "Parry Mitigation");
+            Pct(enduranceSurvivorDrBelowHalfHp, "Damage Reduction while below 50% HP");
+            if (enduranceHeavyArmourMasteryArmour > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryArmour) + " Armour while wearing only Heavy Armour");
+            if (enduranceHeavyArmourMasteryMaxHpPercent > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryMaxHpPercent * 100f) + "% Max HP while wearing only Heavy Armour");
+            if (enduranceMediumArmourMasteryMr > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMr) + " Magic Resist while wearing only Medium Armour");
+            if (enduranceMediumArmourMasteryCr > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryCr) + " Corruption Resist while wearing only Medium Armour");
+            if (enduranceMediumArmourMasteryMoveSpeed > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMoveSpeed * 100f) + "% Move Speed while wearing only Medium Armour");
+            if (enduranceLightArmourMasteryMana > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMana) + " Mana while wearing only Light Armour");
+            if (enduranceLightArmourMasteryMr > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMr) + " Magic Resist while wearing only Light Armour");
+            if (enduranceLightArmourMasteryManaRegen > 0f)
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryManaRegen) + " Mana Regeneration while wearing only Light Armour");
         }
         else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
         {

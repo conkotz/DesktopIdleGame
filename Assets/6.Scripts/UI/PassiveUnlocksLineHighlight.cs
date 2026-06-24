@@ -146,10 +146,31 @@ public static class PassiveUnlocksLineHighlight
     {
         key = opt switch
         {
-            EnduranceMinorNodeStatOption.EnduranceArmourFlat2 => "Armour",
-            EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2 => "Magic Resist",
-            EnduranceMinorNodeStatOption.EnduranceHealthFlat5 => "Max HP",
+            EnduranceMinorNodeStatOption.EnduranceHealthFlat10 => "Max HP",
+            EnduranceMinorNodeStatOption.EnduranceMaxHealthPercent2
+                or EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryMaxHealthPercent5 => "Max HP",
+            EnduranceMinorNodeStatOption.EnduranceArmourFlat10
+                or EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryArmourFlat10 => "Armour",
+            EnduranceMinorNodeStatOption.EnduranceMagicResistFlat10
+                or EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMagicResistFlat5
+                or EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryMagicResistFlat10 => "Magic Resist",
+            EnduranceMinorNodeStatOption.EnduranceCorruptionResistFlat10
+                or EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryCorruptionResistFlat5 => "Corruption Resist",
+            EnduranceMinorNodeStatOption.EnduranceEnergyEfficiencyPercent2 => "Energy Efficiency",
             EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1 => "HP Regen",
+            EnduranceMinorNodeStatOption.EnduranceThornsDamagePercent5 => "Thorns Damage",
+            EnduranceMinorNodeStatOption.EnduranceMaxGuardPercent5
+                or EnduranceMinorNodeStatOption.EnduranceMaxGuardPercent10 => "Max Guard",
+            EnduranceMinorNodeStatOption.EnduranceGuardGainPercent5 => "Increased Guard",
+            EnduranceMinorNodeStatOption.EnduranceBastionDrPercent5WhileGuardActive => "Damage Reduction while Guard is Active",
+            EnduranceMinorNodeStatOption.EnduranceShieldBlockChancePercent5 => "Block Chance while a Shield is Equipped",
+            EnduranceMinorNodeStatOption.EnduranceShieldBlockMitigationPercent5 => "Block Mitigation while a Shield is Equipped",
+            EnduranceMinorNodeStatOption.EnduranceParryChancePercent2_5 => "Parry Chance",
+            EnduranceMinorNodeStatOption.EnduranceParryMitigationPercent5 => "Parry Mitigation",
+            EnduranceMinorNodeStatOption.EnduranceSurvivorDrPercent5BelowHalfHp => "Damage Reduction while below 50% HP",
+            EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMoveSpeedPercent10 => "Move Speed while wearing only Medium Armour",
+            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaFlat20 => "Mana while wearing only Light Armour",
+            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaRegenFlat3 => "Mana Regeneration while wearing only Light Armour",
             _ => null
         };
         return key != null;

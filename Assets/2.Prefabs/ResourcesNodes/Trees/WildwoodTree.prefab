@@ -118,26 +118,19 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: d3e4f5a6b7c8478990abcdef1234567b, type: 2}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: windStrength
-      value: 0.065
+      value: 0.13
       objectReference: {fileID: 0}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: windSpeed
-      value: 1.1
+      value: 0.3
       objectReference: {fileID: 0}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: baseAnchorHeight
-      value: 0.18
+      value: 0.15
       objectReference: {fileID: 0}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: phaseOffset
-      value: 0.35
-      objectReference: {fileID: 0}
-    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: windVariation
-      value: 0.68
-    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: randomizeOnAwake
-      value: 1
+      value: 1.2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

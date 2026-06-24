@@ -370,6 +370,9 @@ public struct BonusStats
     public int bonusEnergy;
     public int bonusMana;
 
+    [Tooltip("Increases max HP (0.02 = +2% of your flat max HP before this bonus).")]
+    public float maxHealthPercent;
+
     [Header("Defence")]
     [FormerlySerializedAs("armor")]
     public int armour;
@@ -536,6 +539,7 @@ public struct BonusStats
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
                bonusMana != 0 ||
+               maxHealthPercent > 0f ||
                armour != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
                lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || energyEfficiency > 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
@@ -1661,6 +1665,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public int BonusHealth => (IsArmour ? armourStats.bonusHealth : 0) + bonusStats.bonusHealth;
     public int BonusEnergy => (IsArmour ? armourStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
+    public float MaxHealthPercent => Mathf.Max(0f, bonusStats.maxHealthPercent);
 
     /// <summary>Armour-only flat contribution to natural guard cap.</summary>
     public int ArmourFlatGuard => IsArmour ? Mathf.Max(0, armourStats.flatGuard) : 0;
@@ -3345,6 +3350,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.lifeRegen != 0f) s += $"Life Regen: {FormatSignedNumber(bonusStats.lifeRegen)}/s\n";
         if (bonusStats.energyRegen != 0f) s += $"Energy Regen: {FormatSignedNumber(bonusStats.energyRegen)}/s\n";
         if (bonusStats.manaRegen != 0f) s += $"Mana Regen: {FormatSignedNumber(bonusStats.manaRegen)}/s\n";
+        if (bonusStats.maxHealthPercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.maxHealthPercent, "Max HP")}\n";
         if (bonusStats.moveSpeedPercent != 0f)
             s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";

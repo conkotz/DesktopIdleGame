@@ -43,6 +43,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     // -------------------------
     [Header("Defensive Text")]
     [SerializeField] private TMP_Text hpText;
+    [SerializeField] private TMP_Text hpPercentText;
     [SerializeField] private TMP_Text energyText;
     [SerializeField] private TMP_Text manaText;
     [FormerlySerializedAs("armorText")]
@@ -313,12 +314,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         _statTooltipsWired = true;
         EnsureGuardStatTextRefs();
+        EnsureHpPercentTextRef();
         EnsureParryStatTextRefs();
         EnsureStunChanceTextRef();
         EnsureOffenceStatTextRefs();
         EnsureOffenceBonusLineTooltips();
         BindAilmentLineTooltips();
         EnsureParryStatTooltips();
+        EnsureDefensiveStatLineTooltips();
         EnsureToolStatLineTooltips();
     }
 
@@ -408,6 +411,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // Defensive
         // -------------------------
         if (hpText) hpText.text = $"Max HP: {stats.MaxHP}";
+        if (hpPercentText)
+            hpPercentText.text = $"HP: {FormatSignedPercentFrom01(stats.MaxHealthIncreaseFraction)}";
         if (energyText) energyText.text = $"Energy: {stats.MaxEnergy}";
         if (manaText) manaText.text = $"Mana: {stats.MaxMana}";
         if (armourText) armourText.text = $"Armour: {stats.Armour} ({stats.PhysicalReductionFromArmourPercent:0.#}% Phys DR)";
@@ -428,7 +433,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             guardFlatText.text = $"Guard (flat): {stats.GearFlatGuardSum}";
         if (maxGuardPercentText)
         {
-            float pctPts = stats.GearMaxGuardPercentSum * 100f;
+            float pctPts = stats.TotalMaxGuardPercentPointsForStatsPanel;
             maxGuardPercentText.text =
                 $"Max Guard: +{pctPts:0.#}% (Guard ceiling {stats.NaturalGuardHpCeilingFromGear:0.#})";
         }
@@ -769,6 +774,23 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     /// <summary>
     /// Binds defence guard lines when inspector refs were not saved (e.g. older scenes) or names differ.
     /// </summary>
+    private void EnsureHpPercentTextRef()
+    {
+        if (hpPercentText)
+            return;
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string key = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (key.Equals("Hp%Text", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("HpPercentText", StringComparison.OrdinalIgnoreCase))
+            {
+                hpPercentText = tmp;
+                return;
+            }
+        }
+    }
+
     private void EnsureGuardStatTextRefs()
     {
         if (guardFlatText && maxGuardPercentText)
@@ -1312,5 +1334,59 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         Wire(parryText, "ParryText");
         Wire(parryMitigationText, "ParryMitigationText");
+    }
+
+    private void EnsureDefensiveStatLineTooltips()
+    {
+        SharedTooltipUI tip = ResolveAilmentSharedTooltip();
+        if (!tip)
+            return;
+
+        void Wire(TMP_Text tmp, string key)
+        {
+            if (!tmp)
+                return;
+            if (!GameTooltipTexts.TryGetForUiElement(key, out string title, out string desc))
+                return;
+
+            tmp.raycastTarget = true;
+            EquipmentAilmentLineTooltip ailmentOnly = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (ailmentOnly)
+                Destroy(ailmentOnly);
+
+            UIHoverTooltip hover = tmp.GetComponent<UIHoverTooltip>();
+            if (!hover)
+                hover = tmp.gameObject.AddComponent<UIHoverTooltip>();
+            hover.ConfigureForEquipmentStatsFixedCopy(tip, title, desc);
+        }
+
+        Wire(blockText, "BlockText");
+        Wire(blockMitigationText, "BlockMitigationText");
+        Wire(evadeText, "EvadeText");
+        Wire(thornsDmgText, "ThornsDmgText");
+        Wire(thornsDmgIncText, "ThornsDmgIncText");
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string rowName = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            switch (rowName)
+            {
+                case "BlockText":
+                    Wire(tmp, "BlockText");
+                    break;
+                case "BlockMitigationText":
+                    Wire(tmp, "BlockMitigationText");
+                    break;
+                case "EvadeText":
+                    Wire(tmp, "EvadeText");
+                    break;
+                case "ThornsDmgText":
+                    Wire(tmp, "ThornsDmgText");
+                    break;
+                case "ThornsDmgIncText":
+                    Wire(tmp, "ThornsDmgIncText");
+                    break;
+            }
+        }
     }
 }

@@ -21,26 +21,26 @@ public static class SpriteWindSwayMaterialRepair
         new TreeMaterialSettings
         {
             FileName = "M_SplitwoodTree_WindSway.mat",
-            WindStrength = 0.1f,
-            WindSpeed = 1.2f,
-            BaseAnchorHeight = 0.2f,
+            WindStrength = 0.15f,
+            WindSpeed = 0.32f,
+            BaseAnchorHeight = 0.15f,
             PhaseOffset = 0f
         },
         new TreeMaterialSettings
         {
             FileName = "M_WildwoodTree_WindSway.mat",
-            WindStrength = 0.065f,
-            WindSpeed = 1.1f,
-            BaseAnchorHeight = 0.18f,
-            PhaseOffset = 2.1f
+            WindStrength = 0.13f,
+            WindSpeed = 0.3f,
+            BaseAnchorHeight = 0.15f,
+            PhaseOffset = 1.2f
         },
         new TreeMaterialSettings
         {
             FileName = "M_HardwoodTree_WindSway.mat",
-            WindStrength = 0.08f,
-            WindSpeed = 2.1f,
+            WindStrength = 0.14f,
+            WindSpeed = 0.24f,
             BaseAnchorHeight = 0.22f,
-            PhaseOffset = 4.7f
+            PhaseOffset = 2.4f
         }
     };
 

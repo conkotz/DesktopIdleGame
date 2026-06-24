@@ -1976,6 +1976,54 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return dx <= radius && dy <= radius;
     }
 
+    /// <summary>Endurance Lv10 Thorns — return physical damage when hit by a nearby enemy.</summary>
+    public void TryProcessThornsOnIncomingEnemyHit(Transform attackerTransform, float damageTaken)
+    {
+        if (attackerTransform == null || stats == null || damageTaken <= 0.001f)
+            return;
+        if (!stats.IsThornsMajorPassiveActive())
+            return;
+
+        EnemyBaseController attacker = attackerTransform.GetComponentInParent<EnemyBaseController>();
+        if (attacker == null || attacker.IsDead || !attacker.gameObject.activeInHierarchy)
+            return;
+        if (!IsAttackerWithinThornsRange(attacker))
+            return;
+
+        int procCount = 1;
+        if (stats.CanThornsDoubleProcOnHit()
+            && UnityEngine.Random.value < AbilityCombatPower.ThornsEnhancementDoubleProcChance)
+        {
+            procCount = 2;
+        }
+
+        for (int i = 0; i < procCount; i++)
+            ApplyThornsProcToEnemy(attacker);
+    }
+
+    private void ApplyThornsProcToEnemy(EnemyBaseController attacker)
+    {
+        int damage = stats.RollThornsProcPhysicalDamage();
+        if (damage <= 0)
+            return;
+
+        SplitDamage hit = new SplitDamage { physical = damage };
+        var swingAttribution = new SwingOutgoingAttribution(AbilityCombatPower.ThornsOutgoingSourceLabel, null, 0f);
+        ApplySplitDamageToTarget(attacker, hit, false, AbilityCombatPower.ThornsOutgoingSourceLabel, swingAttribution);
+    }
+
+    private bool IsAttackerWithinThornsRange(EnemyBaseController enemy)
+    {
+        if (enemy == null || player == null)
+            return false;
+
+        Vector3 origin = player.transform.position;
+        float radius = AbilityCombatPower.ThornsMeleeRange;
+        float dx = Mathf.Abs(enemy.transform.position.x - origin.x);
+        float dy = Mathf.Abs(enemy.transform.position.y - origin.y);
+        return dx <= radius && dy <= radius;
+    }
+
     private void SpawnParrySlashVfx(EnemyBaseController attacker)
     {
         if (attacker == null || player == null)

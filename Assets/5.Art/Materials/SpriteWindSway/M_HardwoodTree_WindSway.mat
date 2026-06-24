@@ -36,9 +36,13 @@ Material:
     - PixelSnap: 0
     - _BaseAnchorHeight: 0.22
     - _EnableExternalAlpha: 0
-    - _PhaseOffset: 4.7
-    - _WindSpeed: 2.1
-    - _WindStrength: 0.08
+    - _PhaseOffset: 2.4
+    - _SpriteBottomY: -2.75
+    - _SpriteCenterX: 0
+    - _SpriteHeight: 5.5
+    - _SwayWave: 0
+    - _WindSpeed: 0.24
+    - _WindStrength: 0.14
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _Flip: {r: 1, g: 1, b: 1, a: 1}
