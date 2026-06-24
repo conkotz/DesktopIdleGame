@@ -344,7 +344,7 @@ public static class MeleeMajorPassiveTooltipText
         "Select an enhancement below to evolve your capstone passive.";
     public const string WayOfTheBerserkerTitle = "Way of the Berserker";
     public const string WayOfTheBerserkerLeechTitle = "Berserker's Thirst";
-    public const string MeleeCapstoneWeaponRequirementLine = "Required: Melee weapon";
+    public const string MeleeCapstoneWeaponRequirementLine = CombatPassiveWeaponRequirementText.MeleeRequirementLine;
     public const string MeleeCapstoneMatchingWeaponsRequirementLine = "Required: Weapons must match";
     public const string WayOfTheCrusaderTitle = "Way of the Crusader";
     public const string WayOfTheAssassinTitle = "Way of the Assassin";

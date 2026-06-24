@@ -2016,21 +2016,21 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Pct(enduranceParryMitigation, "Parry Mitigation");
             Pct(enduranceSurvivorDrBelowHalfHp, "Damage Reduction while below 50% HP");
             if (enduranceHeavyArmourMasteryArmour > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryArmour) + " Armour while wearing only Heavy Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryArmour) + " Armour " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Heavy));
             if (enduranceHeavyArmourMasteryMaxHpPercent > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryMaxHpPercent * 100f) + "% Max HP while wearing only Heavy Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceHeavyArmourMasteryMaxHpPercent * 100f) + "% Max HP " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Heavy));
             if (enduranceMediumArmourMasteryMr > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMr) + " Magic Resist while wearing only Medium Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMr) + " Magic Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium));
             if (enduranceMediumArmourMasteryCr > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryCr) + " Corruption Resist while wearing only Medium Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryCr) + " Corruption Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium));
             if (enduranceMediumArmourMasteryMoveSpeed > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMoveSpeed * 100f) + "% Move Speed while wearing only Medium Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceMediumArmourMasteryMoveSpeed * 100f) + "% Move Speed " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium));
             if (enduranceLightArmourMasteryMana > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMana) + " Mana while wearing only Light Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMana) + " Mana " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light));
             if (enduranceLightArmourMasteryMr > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMr) + " Magic Resist while wearing only Light Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryMr) + " Magic Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light));
             if (enduranceLightArmourMasteryManaRegen > 0f)
-                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryManaRegen) + " Mana Regeneration while wearing only Light Armour");
+                Line("• +" + Mathf.RoundToInt(enduranceLightArmourMasteryManaRegen) + " Mana Regeneration " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light));
         }
         else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
         {

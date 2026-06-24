@@ -1344,15 +1344,21 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         SkillUnlockDefinition unlock = null,
         int displayedCapstoneChoiceIndex = -1)
     {
-        string requirements = ability != null
-            ? AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(ability, stats, accentWhenOk: true)
-            : unlock != null && unlock.unlockType == SkillUnlockType.CapstonePassive
-                ? MeleeMajorPassiveTooltipText.BuildMeleeCapstoneRequirementsRichText(stats, displayedCapstoneChoiceIndex)
-                : unlock != null
-                  && unlock.unlockType == SkillUnlockType.MajorPassive
-                  && _currentBinding?.Skill?.skillType == SkillType.Melee
-                    ? MeleeMajorPassiveTooltipText.BuildMeleeMajorPassiveRequirementsRichText(stats)
-                    : string.Empty;
+        string requirements;
+        if (ability != null)
+        {
+            requirements = AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(ability, stats, accentWhenOk: true);
+        }
+        else if (!CombatPassiveWeaponRequirementText.TryBuildUnlockRequirementsRichText(
+                     _currentBinding?.Skill,
+                     unlock,
+                     stats,
+                     displayedCapstoneChoiceIndex,
+                     accentWhenOk: true,
+                     out requirements))
+        {
+            requirements = string.Empty;
+        }
 
         bool hasRequirements = !string.IsNullOrWhiteSpace(requirements);
         if (requirementsSectionRoot != null)

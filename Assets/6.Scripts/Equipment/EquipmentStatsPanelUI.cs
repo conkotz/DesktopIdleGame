@@ -944,7 +944,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(globalFireBonusText);
         Wire(globalIceBonusText);
         Wire(globalLightningBonusText);
-        Wire(globalSpellBonusText);
+        WireFixedGuardLine(globalSpellBonusText, "GlobalSpellBonusText");
         Wire(meleeDamageBonusText);
         Wire(rangedDamageBonusText);
         Wire(abilityPowerText);
@@ -984,22 +984,42 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                     WireFixedGuardLine(tmp, "CritDMGText");
                     break;
                 case "AbilityPowerText":
+                    WireFixedGuardLine(tmp, "AbilityPowerText");
+                    break;
                 case "CooldownReductionText":
+                    WireFixedGuardLine(tmp, "CooldownReductionText");
+                    break;
                 case "PhysicalBonusText":
                 case "GlobalPhysicalBonusText":
+                    WireFixedGuardLine(tmp, "PhysicalBonusText");
+                    break;
                 case "MagBonusText":
                 case "GlobalMagBonusText":
+                    WireFixedGuardLine(tmp, "MagBonusText");
+                    break;
                 case "CorruptionBonusText":
                 case "GlobalCorruptionBonusText":
+                    WireFixedGuardLine(tmp, "CorruptionBonusText");
+                    break;
                 case "FireBonusText":
+                    WireFixedGuardLine(tmp, "FireBonusText");
+                    break;
                 case "IceBonusText":
+                    WireFixedGuardLine(tmp, "IceBonusText");
+                    break;
                 case "LightningBonusText":
+                    WireFixedGuardLine(tmp, "LightningBonusText");
+                    break;
                 case "MeleePhysBonusText":
                 case "MeleeDamageBonusText":
                 case "ConditionalMeleePhysBonusText":
+                    WireFixedGuardLine(tmp, "MeleeDamageBonusText");
+                    break;
                 case "RangedPhysBonusText":
                 case "RangedDamageBonusText":
                 case "ConditionalRangedPhysBonusText":
+                    WireFixedGuardLine(tmp, "RangedDamageBonusText");
+                    break;
                 case "MinionDamageText":
                 case "ConditionalMinionDmgText":
                     WireFixedGuardLine(tmp, "MinionDamageText");

@@ -206,7 +206,16 @@ public static class GameTooltipTexts
 
             case "LightningBonusText":
                 title = OffenseBonusDisplayNames.LightningDamagePercent;
-                description = "Bonus lightning damage on hits and skills that use lightning.";
+                description =
+                    "Bonus lightning damage on hits and skills that use lightning.\n\n" +
+                    "Ranged skill-tree lightning bonuses only apply while a bow is equipped.";
+                return true;
+
+            case "GlobalSpellBonusText":
+                title = OffenseBonusDisplayNames.SpellDamagePercent;
+                description =
+                    "Percentage bonus to spell damage only (starter spells, slotted spells).\n\n" +
+                    "Does not affect basic wand attacks or non-spell abilities.";
                 return true;
 
             case "MeleePhysBonusText":

@@ -2367,16 +2367,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
-    /// <summary>Skill-tree minors that grant minion stats (melee + ranged tracks).</summary>
+    /// <summary>Skill-tree minors that grant minion stats (ranged track while a bow is equipped).</summary>
     private MeleeMinorNodeBonuses GetOwnerMinionBonusesFromSkills()
     {
         if (!_ownerPlayer)
             return default;
 
-        MeleeMinorNodeBonuses melee = GetUnlockedMeleeMinorBonuses();
-        RangedMinorNodeBonuses ranged = GetUnlockedRangedMinorBonuses();
-        melee.minionDamagePercent += ranged.minionDamagePercent;
-        melee.minionMaxLifePercent += ranged.minionMaxLifePercent;
+        MeleeMinorNodeBonuses melee = default;
+        if (GetCurrentAttackSkill() == AttackSkill.Ranged)
+        {
+            RangedMinorNodeBonuses ranged = GetActiveRangedMinorBonuses();
+            melee.minionDamagePercent += ranged.minionDamagePercent;
+            melee.minionMaxLifePercent += ranged.minionMaxLifePercent;
+        }
+
         return melee;
     }
 
@@ -2710,27 +2714,33 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float GetMeleeStyleDamageBonusPercentPoints()
     {
-        var m = GetCurrentAttackSkill() == AttackSkill.Melee
-            ? GetActiveMeleeMinorBonuses()
-            : GetUnlockedMeleeMinorBonuses();
+        if (GetCurrentAttackSkill() != AttackSkill.Melee)
+            return 0f;
+
+        MeleeMinorNodeBonuses m = GetActiveMeleeMinorBonuses();
         float pts = m.meleeDamagePercent * 100f;
-        if (GetCurrentAttackSkill() == AttackSkill.Melee)
-            pts += GetEquippedMeleePhysicalDamagePercent() * 100f;
-        if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
+        pts += GetEquippedMeleePhysicalDamagePercent() * 100f;
+        if (_combatMeleeDamageMultiplier > 1.001f)
             pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
         pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;
-        if (GetCurrentAttackSkill() == AttackSkill.Melee)
-            pts += GetWayOfTheBerserkerMeleeDamageBonusFraction() * 100f;
+        pts += GetWayOfTheBerserkerMeleeDamageBonusFraction() * 100f;
         return pts;
     }
 
     /// <summary>
     /// Ranged gear + ranged skill-tree % applied to all basic-attack damage (physical, magic, corruption) with a ranged weapon.
     /// </summary>
-    public float RangedTotalDamageBonusPercentPoints =>
-        (GetEquippedRangedPhysicalDamagePercent() +
-         GetUnlockedRangedMinorBonuses().rangedDamagePercent +
-         GetUnlockedSkillMinorBonuses(SkillType.Ranged).rangedDamagePercent) * 100f;
+    public float RangedTotalDamageBonusPercentPoints
+    {
+        get
+        {
+            if (GetCurrentAttackSkill() != AttackSkill.Ranged)
+                return 0f;
+
+            RangedMinorNodeBonuses ranged = GetActiveRangedMinorBonuses();
+            return (GetEquippedRangedPhysicalDamagePercent() + ranged.rangedDamagePercent) * 100f;
+        }
+    }
 
     /// <inheritdoc cref="RangedTotalDamageBonusPercentPoints"/>
     public float RangedPhysicalDamageBonusPercentPoints => RangedTotalDamageBonusPercentPoints;
@@ -4694,7 +4704,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = GetEquippedLightningSkillDamagePercent();
         if (_ownerPlayer)
-            total += GetUnlockedRangedMinorBonuses().lightningSkillDamagePercent;
+            total += GetActiveRangedMinorBonuses().lightningSkillDamagePercent;
         return Mathf.Max(0f, total);
     }
 
@@ -4977,73 +4987,59 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SkillMinorNodeBonuses GetEnduranceMinorBonuses() =>
         _ownerPlayer ? GetUnlockedSkillMinorBonuses(SkillType.Endurance) : default;
 
-    private bool IsWearingOnlyArmourType(ArmourType required)
+    private bool HasMatchingArmourTypeInHeadAndBodySlots(ArmourType required)
     {
         if (!equipment)
             equipment = GetComponent<EquipmentManager>();
         if (!equipment)
             return false;
 
-        ArmourType? match = null;
-        bool anyArmour = false;
-        bool mismatched = false;
+        ItemDefinition helmet = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Helmet));
+        ItemDefinition body = GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Body));
+        if (!helmet || !helmet.IsArmour || !body || !body.IsArmour)
+            return false;
 
-        void Consider(ItemDefinition def)
-        {
-            if (!def || !def.IsArmour)
-                return;
-
-            anyArmour = true;
-            ArmourType wornType = def.armourStats.armourType;
-            if (!match.HasValue)
-                match = wornType;
-            else if (match.Value != wornType)
-                mismatched = true;
-        }
-
-        Consider(GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Helmet)));
-        Consider(GetDefForStatComputation(equipment.GetEquippedItemId(EquipSlot.Body)));
-
-        return anyArmour && match.HasValue && !mismatched && match.Value == required;
+        return helmet.armourStats.armourType == required
+               && body.armourStats.armourType == required;
     }
 
     private int GetEnduranceHeavyArmourMasteryArmourBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Heavy)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Heavy)
             ? Mathf.RoundToInt(GetEnduranceMinorBonuses().enduranceHeavyArmourMasteryArmourFlat)
             : 0;
 
     private float GetEnduranceHeavyArmourMasteryMaxHealthPercentBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Heavy)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Heavy)
             ? GetEnduranceMinorBonuses().enduranceHeavyArmourMasteryMaxHealthPercent
             : 0f;
 
     private int GetEnduranceLightArmourMasteryManaBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Light)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Light)
             ? Mathf.RoundToInt(GetEnduranceMinorBonuses().enduranceLightArmourMasteryManaFlat)
             : 0;
 
     private int GetEnduranceLightArmourMasteryMagicResistBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Light)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Light)
             ? Mathf.RoundToInt(GetEnduranceMinorBonuses().enduranceLightArmourMasteryMagicResistFlat)
             : 0;
 
     private float GetEnduranceLightArmourMasteryManaRegenBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Light)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Light)
             ? GetEnduranceMinorBonuses().enduranceLightArmourMasteryManaRegenFlat
             : 0f;
 
     private int GetEnduranceMediumArmourMasteryMagicResistBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Medium)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Medium)
             ? Mathf.RoundToInt(GetEnduranceMinorBonuses().enduranceMediumArmourMasteryMagicResistFlat)
             : 0;
 
     private int GetEnduranceMediumArmourMasteryCorruptionResistBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Medium)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Medium)
             ? Mathf.RoundToInt(GetEnduranceMinorBonuses().enduranceMediumArmourMasteryCorruptionResistFlat)
             : 0;
 
     private float GetEnduranceMediumArmourMasteryMoveSpeedBonus() =>
-        IsWearingOnlyArmourType(ArmourType.Medium)
+        HasMatchingArmourTypeInHeadAndBodySlots(ArmourType.Medium)
             ? GetEnduranceMinorBonuses().enduranceMediumArmourMasteryMoveSpeedPercent
             : 0f;
 

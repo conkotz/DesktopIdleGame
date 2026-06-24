@@ -277,7 +277,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 18
     title: Heavy Armour Mastery I
-    description: +10 Armour while wearing only Heavy Armour
+    description: +10 Armour while wearing Heavy armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -370,7 +370,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 23
     title: Light Armour Mastery I
-    description: +20 Mana while wearing only Light Armour
+    description: +20 Mana while wearing Light armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -498,7 +498,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 33
     title: Medium Armour Mastery I
-    description: +5 Magic Resist while wearing only Medium Armour
+    description: +5 Magic Resist while wearing Medium armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -530,7 +530,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 36
     title: Medium Armour Mastery II
-    description: +5 Corruption Resist while wearing only Medium Armour
+    description: +5 Corruption Resist while wearing Medium armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -546,7 +546,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 37
     title: Medium Armour Mastery III
-    description: +10% Move Speed while wearing only Medium Armour
+    description: +10% Move Speed while wearing Medium armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -578,7 +578,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 39
     title: Heavy Armour Mastery II
-    description: +5% Max HP while wearing only Heavy Armour
+    description: +5% Max HP while wearing Heavy armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -626,7 +626,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 43
     title: Light Armour Mastery II
-    description: +10 Magic Resist while wearing only Light Armour
+    description: +10 Magic Resist while wearing Light armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -706,7 +706,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 49
     title: Light Armour Mastery III
-    description: +3 Mana Regeneration while wearing only Light Armour
+    description: +3 Mana Regeneration while wearing Light armour in head and body slots
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0

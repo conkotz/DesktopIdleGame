@@ -147,15 +147,26 @@ public static class PassiveUnlocksLineHighlight
         key = opt switch
         {
             EnduranceMinorNodeStatOption.EnduranceHealthFlat10 => "Max HP",
-            EnduranceMinorNodeStatOption.EnduranceMaxHealthPercent2
-                or EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryMaxHealthPercent5 => "Max HP",
-            EnduranceMinorNodeStatOption.EnduranceArmourFlat10
-                or EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryArmourFlat10 => "Armour",
-            EnduranceMinorNodeStatOption.EnduranceMagicResistFlat10
-                or EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMagicResistFlat5
-                or EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryMagicResistFlat10 => "Magic Resist",
-            EnduranceMinorNodeStatOption.EnduranceCorruptionResistFlat10
-                or EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryCorruptionResistFlat5 => "Corruption Resist",
+            EnduranceMinorNodeStatOption.EnduranceMaxHealthPercent2 => "Max HP",
+            EnduranceMinorNodeStatOption.EnduranceArmourFlat10 => "Armour",
+            EnduranceMinorNodeStatOption.EnduranceMagicResistFlat10 => "Magic Resist",
+            EnduranceMinorNodeStatOption.EnduranceCorruptionResistFlat10 => "Corruption Resist",
+            EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryArmourFlat10 =>
+                "Armour " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Heavy),
+            EnduranceMinorNodeStatOption.EnduranceHeavyArmourMasteryMaxHealthPercent5 =>
+                "Max HP " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Heavy),
+            EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMagicResistFlat5 =>
+                "Magic Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium),
+            EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryCorruptionResistFlat5 =>
+                "Corruption Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium),
+            EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMoveSpeedPercent10 =>
+                "Move Speed " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Medium),
+            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaFlat20 =>
+                "Mana " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light),
+            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryMagicResistFlat10 =>
+                "Magic Resist " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light),
+            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaRegenFlat3 =>
+                "Mana Regeneration " + EnduranceArmourMasteryText.FormatHeadAndBodySlotsSuffix(ArmourType.Light),
             EnduranceMinorNodeStatOption.EnduranceEnergyEfficiencyPercent2 => "Energy Efficiency",
             EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1 => "HP Regen",
             EnduranceMinorNodeStatOption.EnduranceThornsDamagePercent5 => "Thorns Damage",
@@ -168,9 +179,6 @@ public static class PassiveUnlocksLineHighlight
             EnduranceMinorNodeStatOption.EnduranceParryChancePercent2_5 => "Parry Chance",
             EnduranceMinorNodeStatOption.EnduranceParryMitigationPercent5 => "Parry Mitigation",
             EnduranceMinorNodeStatOption.EnduranceSurvivorDrPercent5BelowHalfHp => "Damage Reduction while below 50% HP",
-            EnduranceMinorNodeStatOption.EnduranceMediumArmourMasteryMoveSpeedPercent10 => "Move Speed while wearing only Medium Armour",
-            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaFlat20 => "Mana while wearing only Light Armour",
-            EnduranceMinorNodeStatOption.EnduranceLightArmourMasteryManaRegenFlat3 => "Mana Regeneration while wearing only Light Armour",
             _ => null
         };
         return key != null;

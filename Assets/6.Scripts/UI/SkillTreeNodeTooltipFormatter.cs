@@ -25,6 +25,8 @@ public static class SkillTreeNodeTooltipFormatter
         public string EnhancementsTitle;
         public string EnhancementsList;
         public string RequirementsText;
+        /// <summary>Weapon equip requirements for combat passives (rich text).</summary>
+        public string WeaponRequirementsRichText;
         public Sprite Icon;
         public bool HasContent;
     }
@@ -63,6 +65,8 @@ public static class SkillTreeNodeTooltipFormatter
             sb.Append(sb.Length > 0 ? " " : string.Empty).Append(content.StatusRichText);
         if (!string.IsNullOrWhiteSpace(content.RequirementsText))
             sb.Append('\n').Append(content.RequirementsText);
+        if (!string.IsNullOrWhiteSpace(content.WeaponRequirementsRichText))
+            sb.Append('\n').Append(content.WeaponRequirementsRichText);
         if (!string.IsNullOrWhiteSpace(content.Description))
             sb.Append("\n\n").Append(content.Description);
         if (!string.IsNullOrWhiteSpace(content.EffectText))
@@ -101,6 +105,7 @@ public static class SkillTreeNodeTooltipFormatter
                                            || visualType == SkillTreeNodeVisualType.CapstonePassive;
         string effectText = null;
         string scalingText = null;
+        CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
         if (useMajorPassivePresentation)
         {
             effectText = desc;
@@ -110,7 +115,6 @@ public static class SkillTreeNodeTooltipFormatter
                 int selectedChoice = skillsManager != null && !string.IsNullOrEmpty(spineId)
                     ? skillsManager.GetSkillChoiceSelection(skill.skillType, spineId, -1)
                     : -1;
-                CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
                 if (skill.skillType == SkillType.Ranged
                     && RangedMajorPassiveTooltipText.TryBuildDetailsPanelSections(
                         spineId, selectedChoice, stats, out string rangedScaling, out string rangedEffect))
@@ -152,6 +156,8 @@ public static class SkillTreeNodeTooltipFormatter
                 ? TypeLabel(SkillTreeNodeVisualType.MajorPassive)
                 : TypeLabel(visualType);
 
+        string weaponRequirements = BuildWeaponRequirementsRichText(skill, unlock, null, stats);
+
         content = new DetailsContent
         {
             Title = unlockTitle,
@@ -162,6 +168,7 @@ public static class SkillTreeNodeTooltipFormatter
             EffectText = effectText,
             ScalingText = scalingText,
             RequirementsText = BuildRequirementsText(level, isUnlocked, binding.DisplayState, unlock.unlockType),
+            WeaponRequirementsRichText = weaponRequirements,
             Icon = ResolveIcon(unlock, skill, binding.Choice),
             HasContent = true
         };
@@ -242,6 +249,10 @@ public static class SkillTreeNodeTooltipFormatter
             desc = ApplyMajorPassiveValueLineMarkup(skill, desc);
         }
 
+        CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+        AbilityDefinition resolvedAbility = parentUnlock?.ability;
+        string weaponRequirements = BuildWeaponRequirementsRichText(skill, parentUnlock, resolvedAbility, stats);
+
         content = new DetailsContent
         {
             Title = unlockTitle,
@@ -254,6 +265,7 @@ public static class SkillTreeNodeTooltipFormatter
                 isUnlocked,
                 binding.DisplayState,
                 parentUnlock != null ? parentUnlock.unlockType : null),
+            WeaponRequirementsRichText = weaponRequirements,
             Icon = ResolveIcon(parentUnlock, skill, choice),
             HasContent = true
         };
@@ -494,6 +506,28 @@ public static class SkillTreeNodeTooltipFormatter
 
         return trimmed.Contains("\n+", StringComparison.Ordinal)
                || trimmed.Contains("\nGain ", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildWeaponRequirementsRichText(
+        SkillDefinition skill,
+        SkillUnlockDefinition unlock,
+        AbilityDefinition resolvedAbility,
+        CharacterStats stats)
+    {
+        if (skill == null)
+            return null;
+
+        if (resolvedAbility != null)
+        {
+            string abilityReq = AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(
+                resolvedAbility, stats, accentWhenOk: false);
+            return string.IsNullOrWhiteSpace(abilityReq) ? null : abilityReq;
+        }
+
+        return CombatPassiveWeaponRequirementText.TryBuildUnlockRequirementsRichText(
+            skill, unlock, stats, displayedCapstoneChoiceIndex: -1, accentWhenOk: false, out string passiveReq)
+            ? passiveReq
+            : null;
     }
 
     private static string BuildRequirementsText(
