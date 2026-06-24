@@ -160,7 +160,7 @@ public static class RangedMajorPassiveTooltipText
         {
             if (choiceIndex == AbilityCombatPower.LoneRangerEnhancementRelaxedCompanionChoiceIndex)
             {
-                body = "Benefit from Lone Ranger while at most 1 ally is in the same area as you.";
+                body = "Benefit from Lone Ranger while 1 or fewer allies are present on the same map as you.";
                 return true;
             }
 
@@ -275,12 +275,13 @@ public static class RangedMajorPassiveTooltipText
     public static string BuildLoneRangerEffectBody(CharacterStats stats, int selectedChoice = -1)
     {
         var sb = new StringBuilder();
-        int maxAllies = stats != null
-            ? stats.GetLoneRangerMaxAlliesAllowedInArea()
-            : 0;
-        string allyLine = maxAllies <= 0
-            ? "While no allies are in the same area as you:"
-            : "While at most 1 ally is in the same area as you:";
+        bool loyalCompanionActive = selectedChoice == AbilityCombatPower.LoneRangerEnhancementRelaxedCompanionChoiceIndex
+            || (selectedChoice < 0
+                && stats != null
+                && stats.GetLoneRangerEnhancementPick() == AbilityCombatPower.LoneRangerEnhancementRelaxedCompanionChoiceIndex);
+        string allyLine = loyalCompanionActive
+            ? "While 1 or fewer allies are present on the same map as you:"
+            : "While there are no allies in the same area as you:";
 
         int procEnhancementPick = ResolveLoneRangerProcEnhancementPick(stats, selectedChoice);
         float procBonusPct = AbilityCombatPower.GetLoneRangerSeekerProcRelativeBonusFraction(procEnhancementPick) * 100f;

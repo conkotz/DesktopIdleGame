@@ -311,7 +311,7 @@ MonoBehaviour:
     title: Alchemist's Boon
     description: Increase the duration and effectiveness of potions and food you consume.
       Food can now overheal 10% of your maximum HP.
-    icon: {fileID: -5470404764099228983, guid: 27feba00b0fb62d49a14265bc9b37808, type: 3}
+    icon: {fileID: 2403332761242691292, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

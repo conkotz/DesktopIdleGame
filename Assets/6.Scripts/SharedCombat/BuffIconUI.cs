@@ -136,6 +136,27 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         RefreshHoveredTooltip();
     }
 
+    public void UpdateStacksAndValue(int stacks, bool showStacks, string valueLabel)
+    {
+        if (stackText != null)
+        {
+            bool shouldShowStacks = showStacks && stacks > 1;
+            stackText.gameObject.SetActive(shouldShowStacks);
+
+            if (shouldShowStacks)
+                stackText.text = stacks.ToString();
+        }
+
+        if (valueText != null)
+        {
+            bool showValue = !string.IsNullOrWhiteSpace(valueLabel);
+            valueText.gameObject.SetActive(showValue);
+
+            if (showValue)
+                valueText.text = valueLabel;
+        }
+    }
+
     private void RefreshActiveOverlay()
     {
         if (activeOverlay == null)

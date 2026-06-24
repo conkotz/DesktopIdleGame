@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
@@ -45,9 +46,9 @@ public static class EnduranceMajorPassiveTooltipText
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.ThornsMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
             int scalingFlat = stats != null ? stats.GetEnduranceThornsMajorPassiveScalingFlat() : 0;
-            scalingText =
+            scalingText = AbilityTooltipDamagePreview.WrapDetailsScalingAccentLine(
                 $"+{AbilityCombatPower.ThornsFlatPerFiveEnduranceLevelsPostTen} flat thorns damage per 5 Endurance levels after Lv 10 " +
-                $"(currently +{scalingFlat} from your Endurance level).";
+                $"(currently +{scalingFlat} from your Endurance level).");
             effectText = BuildThornsEffectBody(stats, selectedChoice);
             return true;
         }
@@ -122,7 +123,35 @@ public static class EnduranceMajorPassiveTooltipText
                 $"Quick Brew: potion cooldown reduced by {AbilityCombatPower.AlchemistsBoonConsumableCooldownReductionFraction * 100f:0.#}%.");
         }
 
+        AppendActiveAlchemistsBoonOverhealStatus(sb, stats);
+
         return sb.ToString();
+    }
+
+    private static void AppendActiveAlchemistsBoonOverhealStatus(StringBuilder sb, CharacterStats stats)
+    {
+        if (stats == null)
+            return;
+
+        PlayerBuffController buffController = stats.GetComponent<PlayerBuffController>();
+        if (!buffController)
+            return;
+
+        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffController.ActiveBuffs;
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            PlayerBuffController.ActiveBuff buff = activeBuffs[i];
+            if (buff == null
+                || buff.type != ConsumableEffectType.FoodOverheal
+                || buff.IsExpired
+                || !buff.hideFromBuffPanel)
+                continue;
+
+            int remainingSeconds = Mathf.CeilToInt(buff.RemainingSeconds);
+            AppendParagraph(sb,
+                $"Overheal active: +{buff.magnitude:0} max HP above normal ({remainingSeconds}s remaining).");
+            return;
+        }
     }
 
     public static string BuildThornsEffectBody(CharacterStats stats, int selectedChoice = -1)
@@ -135,7 +164,7 @@ public static class EnduranceMajorPassiveTooltipText
         AppendParagraph(sb,
             "When you take damage from an enemy within 4 range, deal physical thorns damage back to the attacker.");
         AppendParagraph(sb,
-            $"Deals {minDamage}-{maxDamage} physical thorns damage (before Thorns Damage Inc %).");
+            $"Adds +{minDamage}-{maxDamage} physical thorns damage");
 
         if (selectedChoice == AbilityCombatPower.ThornsEnhancementDamagePercentChoiceIndex)
         {

@@ -1470,6 +1470,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             return;
 
         ApplyEffectBodyTextStyle(label);
+        if (hasContent && richText.IndexOf("<color=", StringComparison.OrdinalIgnoreCase) < 0)
+            label.color = fallbackColor;
         label.text = hasContent ? richText : string.Empty;
     }
 

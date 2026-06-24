@@ -21,6 +21,9 @@ public class PlayerBuffController : MonoBehaviour
         /// <summary>Indefinite HUD ability buff (e.g. Soulforged Weapon until dismissed): no radial overlay or action-bar timer.</summary>
         public bool hudPersistActiveOverlay;
 
+        /// <summary>When true, buff totals and mechanics still run but the buff strip omits this row.</summary>
+        public bool hideFromBuffPanel;
+
         public float RemainingSeconds => Mathf.Max(0f, endTime - Time.time);
         public bool IsExpired => Time.time >= endTime;
     }
@@ -78,7 +81,8 @@ public class PlayerBuffController : MonoBehaviour
             magnitude = effect.magnitude,
             endTime = endTime,
             duration = effect.duration, // ✅ ADD THIS
-            displayStacks = 0
+            displayStacks = 0,
+            hideFromBuffPanel = effect.hideFromBuffPanel
         });
 
         FlushBuffBatchIfNeeded();
@@ -160,8 +164,7 @@ public class PlayerBuffController : MonoBehaviour
                 return;
             }
 
-            bool layoutChanged =
-                existing.displayStacks != displayStacks ||
+            bool structuralLayoutChange =
                 existing.hudPersistActiveOverlay != persistActiveOverlay ||
                 !Mathf.Approximately(existing.duration, Mathf.Max(0f, durationSeconds));
 
@@ -170,7 +173,7 @@ public class PlayerBuffController : MonoBehaviour
             existing.displayStacks = displayStacks;
             existing.hudPersistActiveOverlay = persistActiveOverlay;
 
-            if (layoutChanged)
+            if (structuralLayoutChange)
                 NotifyChanged();
             return;
         }

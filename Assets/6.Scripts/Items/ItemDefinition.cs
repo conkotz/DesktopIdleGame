@@ -697,6 +697,9 @@ public struct ConsumableGrantedEffect
     public float magnitude;
     public float duration;
     public string effectId; // optional future hook if you move to ScriptableObject buffs later
+
+    /// <summary>When true, the buff still applies mechanically but is omitted from the HUD buff strip.</summary>
+    public bool hideFromBuffPanel;
 }
 
 [System.Serializable]

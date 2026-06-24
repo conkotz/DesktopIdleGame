@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Self-contained controller for the buffs/debuffs panel that lives outside HUD_Left.
@@ -109,6 +110,13 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("How often (seconds) the buff icon timers tick down on the HUD. Display only — does not affect actual buff expiry.")]
     [SerializeField, Min(0.05f)] private float buffTimerRefreshInterval = 0.2f;
 
+    [Header("Layout")]
+    [Tooltip("Matches BuffIconUI prefab width. Used to size strip containers without ContentSizeFitter feedback loops.")]
+    [SerializeField, Min(1f)] private float buffIconSize = 60f;
+    [SerializeField, Min(0f)] private float buffIconSpacing = 4f;
+
+    private bool _panelLayoutConfigured;
+
     private readonly List<GameObject> spawnedDebuffIcons = new();
     private readonly Dictionary<string, GameObject> _debuffIconsByKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _debuffIconKeyOrder = new();
@@ -192,6 +200,86 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (!tooltipHeightRect && selfRect) tooltipHeightRect = selfRect;
 
         ResolveBuffDebuffContainerRefs();
+        EnsurePanelLayoutConfigured();
+    }
+
+    /// <summary>
+    /// BuffContainer/DebuffContainer use HorizontalLayoutGroup + ContentSizeFitter (horizontal preferred).
+    /// The parent BuffDebuffPanel layout group was controlling child width, which fights CSF and makes
+    /// icons flicker or clip when a new timed buff (e.g. Hammer Tempest) is added.
+    /// </summary>
+    private void EnsurePanelLayoutConfigured()
+    {
+        if (_panelLayoutConfigured)
+            return;
+
+        ConfigureIconStripContainer(buffContainer);
+        ConfigureIconStripContainer(debuffContainer);
+
+        if (transform.TryGetComponent(out HorizontalLayoutGroup panelGroup))
+        {
+            panelGroup.childControlWidth = false;
+            panelGroup.childControlHeight = false;
+        }
+
+        _panelLayoutConfigured = true;
+    }
+
+    private void ConfigureIconStripContainer(Transform container)
+    {
+        if (!container)
+            return;
+
+        if (container.TryGetComponent(out ContentSizeFitter fitter))
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        if (container.TryGetComponent(out HorizontalLayoutGroup group))
+        {
+            group.childControlWidth = false;
+            group.childControlHeight = false;
+            buffIconSpacing = group.spacing;
+        }
+    }
+
+    private float ResolveStripSpacing(Transform container) =>
+        container && container.TryGetComponent(out HorizontalLayoutGroup group)
+            ? group.spacing
+            : buffIconSpacing;
+
+    private static void EnsureIconLayoutElement(GameObject icon, float iconSize)
+    {
+        if (!icon)
+            return;
+
+        LayoutElement layout = icon.GetComponent<LayoutElement>();
+        if (!layout)
+            layout = icon.AddComponent<LayoutElement>();
+
+        layout.minWidth = iconSize;
+        layout.preferredWidth = iconSize;
+        layout.minHeight = iconSize;
+        layout.preferredHeight = iconSize;
+        layout.flexibleWidth = 0f;
+        layout.flexibleHeight = 0f;
+    }
+
+    private void ApplyStripContainerWidth(Transform container, int iconCount)
+    {
+        if (container is not RectTransform rect)
+            return;
+
+        float spacing = ResolveStripSpacing(container);
+        float width = iconCount <= 0
+            ? 0f
+            : iconCount * buffIconSize + Mathf.Max(0, iconCount - 1) * spacing;
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+    }
+
+    private void ApplyPanelStripWidths()
+    {
+        EnsurePanelLayoutConfigured();
+        ApplyStripContainerWidth(buffContainer, spawnedBuffIcons.Count);
+        ApplyStripContainerWidth(debuffContainer, spawnedDebuffIcons.Count);
     }
 
     private void ResolveBuffDebuffContainerRefs()
@@ -240,6 +328,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         _nextBuffTimerRefreshAt = Time.time + Mathf.Max(0.05f, buffTimerRefreshInterval);
         UpdateBuffTimers();
+        SyncBuffStackDisplays();
     }
 
     private void HandleAilmentsChanged()
@@ -355,6 +444,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
 
         SyncHudDebuffSiblingOrder();
+        ApplyPanelStripWidths();
     }
 
     private static string BuildPlayerBleedBody(int damagePerSecond)
@@ -401,7 +491,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
 
         IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
-        if (activeBuffs == null || activeBuffs.Count == 0)
+        if (activeBuffs == null || activeBuffs.Count == 0 || !HasAnyVisiblePanelBuff(activeBuffs))
         {
             ClearBuffs();
             return;
@@ -411,7 +501,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         for (int i = 0; i < activeBuffs.Count; i++)
         {
             PlayerBuffController.ActiveBuff buff = activeBuffs[i];
-            if (buff == null)
+            if (buff == null || !ShouldShowBuffOnPanel(buff))
                 continue;
 
             string key = GetBuffIconKey(buff);
@@ -419,6 +509,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 continue;
 
             activeByKey[key] = buff;
+        }
+
+        if (activeByKey.Count == 0)
+        {
+            ClearBuffs();
+            return;
         }
 
         for (int i = _buffIconKeyOrder.Count - 1; i >= 0; i--)
@@ -467,11 +563,15 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 continue;
             }
 
+            if (TryApplyLightweightBuffUpdate(i, snapshot, buff.RemainingSeconds))
+                continue;
+
             if (!BuffIconSnapshotEquals(buffIconSnapshots[i], snapshot))
                 ApplyBuffIconSnapshot(i, snapshot, buff.RemainingSeconds);
         }
 
         SyncBuffIconSiblingOrder();
+        ApplyPanelStripWidths();
     }
 
     private BuffIconVisualSnapshot BuildBuffIconSnapshot(PlayerBuffController.ActiveBuff buff) =>
@@ -538,6 +638,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         GameObject icon = Instantiate(buffIconPrefab, buffContainer);
         icon.name = $"HUDBuff_{snapshot.key}";
+        EnsureIconLayoutElement(icon, buffIconSize);
 
         BuffIconUI iconUI = icon.GetComponent<BuffIconUI>();
         if (iconUI != null)
@@ -578,13 +679,108 @@ public class BuffsDebuffsPanel : MonoBehaviour
         {
             string key = _buffIconKeyOrder[i];
             PlayerBuffController.ActiveBuff buff = FindActiveBuffByKey(activeBuffs, key);
-            if (buff == null)
+            if (buff == null || !ShouldShowBuffOnPanel(buff))
                 continue;
 
             BuffIconUI iconUI = spawnedBuffIconUis[i];
             if (iconUI != null)
                 iconUI.UpdateTimer(buff.RemainingSeconds);
         }
+    }
+
+    private void SyncBuffStackDisplays()
+    {
+        if (buffs == null)
+            return;
+
+        IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
+        if (activeBuffs == null)
+            return;
+
+        for (int i = 0; i < _buffIconKeyOrder.Count && i < spawnedBuffIconUis.Count; i++)
+        {
+            string key = _buffIconKeyOrder[i];
+            PlayerBuffController.ActiveBuff buff = FindActiveBuffByKey(activeBuffs, key);
+            if (buff == null || !ShouldShowBuffOnPanel(buff))
+                continue;
+
+            if (i >= buffIconSnapshots.Count)
+                continue;
+
+            string valueLabel = GetBuffValueLabel(buff);
+            BuffIconVisualSnapshot snapshot = buffIconSnapshots[i];
+            if (snapshot.displayStacks == buff.displayStacks && snapshot.valueLabel == valueLabel)
+                continue;
+
+            snapshot.displayStacks = buff.displayStacks;
+            snapshot.valueLabel = valueLabel;
+            buffIconSnapshots[i] = snapshot;
+
+            BuffIconUI iconUI = spawnedBuffIconUis[i];
+            if (iconUI != null)
+                iconUI.UpdateStacksAndValue(buff.displayStacks, buff.displayStacks > 0, valueLabel);
+        }
+    }
+
+    private static bool ShouldShowBuffOnPanel(PlayerBuffController.ActiveBuff buff)
+    {
+        if (buff == null || buff.hideFromBuffPanel)
+            return false;
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff && buff.displayStacks <= 0)
+        {
+            if (buff.hudPersistActiveOverlay)
+                return true;
+            if (buff.duration > 0f && buff.RemainingSeconds > 0f)
+                return true;
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool HasAnyVisiblePanelBuff(IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs)
+    {
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            if (ShouldShowBuffOnPanel(activeBuffs[i]))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool TryApplyLightweightBuffUpdate(int index, BuffIconVisualSnapshot snapshot, float remainingSeconds)
+    {
+        if (index < 0 || index >= buffIconSnapshots.Count || index >= spawnedBuffIconUis.Count)
+            return false;
+
+        BuffIconVisualSnapshot previous = buffIconSnapshots[index];
+        if (!string.Equals(previous.key, snapshot.key, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        bool visualCoreUnchanged =
+            previous.title == snapshot.title &&
+            previous.body == snapshot.body &&
+            previous.sprite == snapshot.sprite &&
+            Mathf.Approximately(previous.totalDurationSeconds, snapshot.totalDurationSeconds) &&
+            previous.persistActiveOverlay == snapshot.persistActiveOverlay;
+
+        if (!visualCoreUnchanged)
+            return false;
+
+        if (previous.displayStacks == snapshot.displayStacks && previous.valueLabel == snapshot.valueLabel)
+            return true;
+
+        BuffIconUI iconUI = spawnedBuffIconUis[index];
+        if (iconUI != null)
+        {
+            iconUI.UpdateStacksAndValue(snapshot.displayStacks, snapshot.displayStacks > 0, snapshot.valueLabel);
+            iconUI.UpdateTimer(remainingSeconds);
+        }
+
+        buffIconSnapshots[index] = snapshot;
+        return true;
     }
 
     private static PlayerBuffController.ActiveBuff FindActiveBuffByKey(
@@ -613,6 +809,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
         spawnedDebuffIcons.Remove(icon);
         if (icon != null)
             Destroy(icon);
+
+        ApplyPanelStripWidths();
     }
 
     private void SyncHudDebuffSiblingOrder()
@@ -622,7 +820,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (!_debuffIconsByKey.TryGetValue(_debuffIconKeyOrder[i], out GameObject icon) || icon == null)
                 continue;
 
-            icon.transform.SetSiblingIndex(i);
+            if (icon.transform.GetSiblingIndex() != i)
+                icon.transform.SetSiblingIndex(i);
         }
     }
 
@@ -645,6 +844,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         if (index < buffIconSnapshots.Count)
             buffIconSnapshots.RemoveAt(index);
+
+        ApplyPanelStripWidths();
     }
 
     private void SyncBuffIconSiblingOrder()
@@ -655,7 +856,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 break;
 
             GameObject icon = spawnedBuffIcons[i];
-            if (icon != null)
+            if (icon != null && icon.transform.GetSiblingIndex() != i)
                 icon.transform.SetSiblingIndex(i);
         }
     }
@@ -670,6 +871,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 Destroy(spawnedDebuffIcons[i]);
         }
         spawnedDebuffIcons.Clear();
+        ApplyPanelStripWidths();
     }
 
     public void ClearBuffs()
@@ -683,6 +885,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         spawnedBuffIcons.Clear();
         spawnedBuffIconUis.Clear();
         buffIconSnapshots.Clear();
+        ApplyPanelStripWidths();
     }
 
     private void SpawnDebuffIcon(Sprite sprite, string iconName, int stacks, string title, string body)
@@ -691,6 +894,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
         GameObject icon = Instantiate(debuffIconPrefab, debuffContainer);
         icon.name = $"HUDDebuff_{iconName}";
+        EnsureIconLayoutElement(icon, buffIconSize);
 
         DebuffIconUI iconUI = icon.GetComponent<DebuffIconUI>();
         if (iconUI != null)

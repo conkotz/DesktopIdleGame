@@ -743,9 +743,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 33
-      title: Relaxed Companion
-      description: Benefit from the effects of Lone Ranger if there is at max 1 ally
-        in the same area as you.
+      title: Loyal Companion
+      description: Benefit from the effects of Lone Ranger while 1 or fewer allies
+        are present on the same map as you.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

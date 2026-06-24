@@ -265,7 +265,8 @@ public class PlayerConsumableController : MonoBehaviour
             effectType = ConsumableEffectType.FoodOverheal,
             magnitude = overhealCap,
             duration = Mathf.Max(0.01f, duration),
-            effectId = def.itemId
+            effectId = def.itemId,
+            hideFromBuffPanel = !cs.foodEnableOverheal && ConsumablePassiveModifiers.IsAlchemistsBoonActive(stats)
         };
         buffController.ApplyBuff(overheal);
     }
