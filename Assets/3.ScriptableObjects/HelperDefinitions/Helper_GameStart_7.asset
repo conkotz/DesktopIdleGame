@@ -14,14 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
   helperId: magic_helper
   title: Magic Combat
-  bodyText: "You have gained your first magic weapon. Some weapons require a secondary
-    support item to be equipped in order to use them. For magic weapons you will
-    need either a focus or runes and for ranged weapon, they will require arrows.
-    \n\nMaigc attacks will consume mana to cast but they will also provide elemental
-    ailments based on their type and chance. This ice weapon adds chill upon hitting
-    enemies which causes them to move slower per stack. \n\nHitting 'Tab' and equipping
-    the magic weapon on your secondary gear set. This makes switching between two
-    styles easy."
+  bodyText: "You have gained your first magic weapon. Wands can be used freely to
+    cast any spell but if you want to increase your damage, it might be worth using
+    runes and a staff. \n\nMagic spells will consume mana to cast instead of energy
+    for abilities. Depending on your chance to apply ailments, using a certain elemental
+    type spell can apply ailments to the enemy either burn, shock or chill.\n\nTry
+    hitting 'Tab' and equipping the magic weapon on your secondary gear set. This
+    makes switching between two styles easy."
   activationTrigger: 3
   requiredMapNodeId: tutorial_3
   inventoryTriggerItemId: basic_wand
@@ -36,9 +35,10 @@ MonoBehaviour:
   priority: 7
   showCloseButton: 1
   darkenScreenAndLockGameplay: 0
-  dismissModes: 8
+  dismissModes: 4
   whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_Character
+  - UIButton_SkillsAbilities
   highlightWhitelistTargetsDuringHelper: 1
   highlightInventorySlotsForItem: {fileID: 0}

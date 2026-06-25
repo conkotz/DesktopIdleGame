@@ -29,6 +29,7 @@ public static class ItemStatDisplayNames
     public const string MagicRes = "Magic Res";
     public const string CorruptionRes = "Corruption Res";
     public const string PhysBlock = "Phys Block";
+    public const string BlockMitigation = "Block Mitigation";
     public const string LifeRegen = "Life Regen";
     public const string EnergyRegen = "Energy Regen";
     public const string ManaRegen = "Mana Regen";
@@ -94,6 +95,8 @@ public static class ItemStatDisplayNames
             case RandomItemStatType.BonusPhysBlockChance:
             case RandomItemStatType.ArmourPhysBlockChance:
                 return PhysBlock;
+            case RandomItemStatType.ArmourPhysBlockMitigation:
+                return BlockMitigation;
             case RandomItemStatType.LifeRegen:
                 return LifeRegen;
             case RandomItemStatType.EnergyRegen:

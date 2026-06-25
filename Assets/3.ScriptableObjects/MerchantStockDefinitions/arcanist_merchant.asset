@@ -58,7 +58,7 @@ MonoBehaviour:
   - itemId: basic_fire_rune
     costs:
     - type: 0
-      amount: 10
+      amount: 1
       itemId: 
     - type: 1
       amount: 1
@@ -67,7 +67,7 @@ MonoBehaviour:
   - itemId: basic_lightning_rune
     costs:
     - type: 0
-      amount: 10
+      amount: 1
       itemId: 
     - type: 1
       amount: 1
@@ -76,7 +76,7 @@ MonoBehaviour:
   - itemId: basic_ice_rune
     costs:
     - type: 0
-      amount: 10
+      amount: 1
       itemId: 
     - type: 1
       amount: 1
@@ -85,7 +85,7 @@ MonoBehaviour:
   - itemId: basic_elemental_rune
     costs:
     - type: 0
-      amount: 20
+      amount: 3
       itemId: 
     - type: 1
       amount: 1

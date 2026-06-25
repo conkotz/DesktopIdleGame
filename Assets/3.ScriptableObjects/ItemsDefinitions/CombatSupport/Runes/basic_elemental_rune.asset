@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A charged rune that empowers all spells when equipped with a staff.
     Works with any spell rune requirement.
-  rarity: 1
+  rarity: 0
   value: 40
   equipSlot: 2
   uniquelyEquipped: 0

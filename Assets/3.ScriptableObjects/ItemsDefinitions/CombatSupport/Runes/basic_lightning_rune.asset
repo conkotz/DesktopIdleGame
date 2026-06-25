@@ -81,8 +81,8 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
-    lightningDamagePercent: 0.03
-    spellDamagePercent: 0
+    lightningDamagePercent: 0.1
+    spellDamagePercent: 0.05
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0

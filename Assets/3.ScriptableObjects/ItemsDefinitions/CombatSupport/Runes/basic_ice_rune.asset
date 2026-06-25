@@ -77,11 +77,11 @@ MonoBehaviour:
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
     fireDamagePercent: 0
-    iceDamagePercent: 0.03
+    iceDamagePercent: 0.1
     coldDamagePercent: 0
     corruptionDamagePercent: 0
     lightningDamagePercent: 0
-    spellDamagePercent: 0
+    spellDamagePercent: 0.05
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 2

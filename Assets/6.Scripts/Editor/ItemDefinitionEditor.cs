@@ -1696,9 +1696,12 @@ public class ItemDefinitionEditor : Editor
         DrawModuleHeader("Additional Random Stat Pool");
 
         EditorGUILayout.HelpBox(
-            "Optional affixes rolled when this item enters the player's inventory.\n" +
-            "Common/Uncommon = 1 roll, Rare = 2, Epic = 3, Legendary = 4 (wands gain +2 extra rolls).\n" +
-            "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until purchased.\n" +
+            "Weapons (except wands/staffs) and armour use structured templates from weapon weight or armour type + item rarity.\n" +
+            "Light armour: magic res, health, mana, mana regen, magic damage %. Medium: health, resists, move speed, ranged damage %.\n" +
+            "Heavy: health, armour, resists, flat guard, melee damage %. Shields: phys block + block mitigation %.\n" +
+            "Armour templates use energy efficiency only (no flat energy). Common/Uncommon, Rare, Epic, Legendary scale up.\n" +
+            "Wands/staffs keep their spell-scaling template. Jewelry/tools still derive from non-zero stats.\n" +
+            "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until identified.\n" +
             "Value Kind: Flat Integer (health/damage), Flat Float (regen/range), " +
             "Percent Points (enter 5 for +5% crit/stun/etc.; weapon APS rolls add flat APS — 2 = +0.02 APS on a 0.6 weapon → 0.62). " +
             "Ability power stores points as-is. Legacy Fraction APS entries still multiply.",
@@ -1810,7 +1813,7 @@ public class ItemDefinitionEditor : Editor
         {
             EditorUtility.DisplayDialog(
                 "Generate template stats",
-                "No non-zero stats found on this item to turn into pool entries.",
+                "No template entries for this item type. Weapons, armour, wands, and staffs always get a structured pool.",
                 "OK");
             return;
         }

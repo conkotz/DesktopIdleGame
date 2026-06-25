@@ -17,7 +17,7 @@ MonoBehaviour:
   tag: 5
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
-  cooldown: 4
+  cooldown: 2
   energyCost: 0
   manaCost: 15
   healthCost: 0
@@ -33,6 +33,6 @@ MonoBehaviour:
   unlockLevel: 15
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
-  minionSpawnDefinition: {fileID: 0}
   supportRunesConsumedPerCast: 3
   requiredChargedRuneElement: 3
+  minionSpawnDefinition: {fileID: 0}

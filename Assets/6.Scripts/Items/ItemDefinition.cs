@@ -343,6 +343,10 @@ public struct ArmourStats
     [Range(0f, 1f)]
     public float physBlockChance;
 
+    [Range(0f, 1f)]
+    [Tooltip("Additive block mitigation while this armour is equipped (0.05 = +5% mitigation).")]
+    public float physBlockMitigation;
+
     [Header("Vitals")]
     public int bonusHealth;
     public int bonusEnergy;
@@ -1054,9 +1058,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     [Header("Additional Random Stat Pool")]
     [Tooltip(
-        "Optional affixes rolled when this item enters the player's inventory. " +
-        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4; wands and staffs gain +2 extra rolls). " +
-        "Leave empty to keep static stats only.")]
+        "Optional affixes rolled when this item is identified. " +
+        "Weapons always roll 4 affix lines; armour/jewelry follow rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4). " +
+        "Affix strength comes from each pool entry's min/max. The same affix type can roll up to 2 times. Leave empty to keep static stats only.")]
     [SerializeField]
     [HideInInspector]
     private List<RandomStatPoolEntry> randomStatPool = new();
@@ -1757,6 +1761,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
     }
 
+    public float ArmourPhysBlockMitigation =>
+        IsArmour ? Mathf.Clamp01(armourStats.physBlockMitigation) : 0f;
+
     public int BonusHealth => (IsArmour ? armourStats.bonusHealth : 0) + bonusStats.bonusHealth;
     public int BonusEnergy => (IsArmour ? armourStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
     public float MaxHealthPercent => Mathf.Max(0f, bonusStats.maxHealthPercent);
@@ -1988,10 +1995,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     }
 
     /// <summary>
-    /// Whether this item already contributes the stat type that an enhancement scroll would modify
-    /// (e.g. Physical Damage scroll requires physical weapon range or flat bonus physical on the item).
+    /// Whether this item already has, or can roll from its additional stat pool, the stat type
+    /// that an enhancement scroll would modify.
     /// </summary>
     public bool HasBaseStatForEnhancementScroll(EnhancementScrollTargetStat stat)
+    {
+        if (HasPresentStatOnItemForEnhancementScroll(stat))
+            return true;
+
+        return stat != EnhancementScrollTargetStat.UpgradeSlotReduction
+               && ItemRandomStatRoller.PoolCanSupplyEnhancementScrollStat(RandomStatPoolEntries, stat);
+    }
+
+    private bool HasPresentStatOnItemForEnhancementScroll(EnhancementScrollTargetStat stat)
     {
         const float eps = 1e-4f;
 
@@ -2392,6 +2408,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (PhysBlockChance > 0f)
             s += $"Phys Block: {FormatSignedPercent01(PhysBlockChance)}\n";
+        if (ArmourPhysBlockMitigation > 0f)
+            s += $"Block Mitigation: {FormatSignedPercent01(ArmourPhysBlockMitigation)}\n";
         if (BonusHealth > 0)
             s += $"Health: +{BonusHealth}\n";
 

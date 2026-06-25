@@ -657,7 +657,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float PhysBlockChancePercent => PhysBlockChance * 100f;
 
     public float PhysBlockMitigationFraction => Mathf.Clamp01(
-        basePhysBlockMitigation + GetTacticianPhysBlockMitigationBonus() + GetEnduranceShieldBlockMitigationBonus());
+        basePhysBlockMitigation + GetEquippedPhysBlockMitigationBonus() + GetTacticianPhysBlockMitigationBonus() +
+        GetEnduranceShieldBlockMitigationBonus());
     public float PhysBlockMitigationPercent => PhysBlockMitigationFraction * 100f;
     private bool _forceNextPhysicalBlockSuccess;
 
@@ -5291,6 +5292,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.PhysBlockChance;
+        return total;
+    }
+
+    private float GetEquippedPhysBlockMitigationBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ArmourPhysBlockMitigation;
         return total;
     }
 

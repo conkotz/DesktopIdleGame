@@ -67,6 +67,7 @@ public enum RandomItemStatType
     ArmourMagicResist,
     ArmourCorruptionResist,
     ArmourPhysBlockChance,
+    ArmourPhysBlockMitigation,
     ArmourBonusHealth,
     ArmourBonusEnergy,
     ArmourEnergyEfficiency,
@@ -144,23 +145,181 @@ public class RandomStatPoolEntry
 /// </summary>
 public static class ItemRandomStatRoller
 {
+    /// <summary>Every weapon rolls this many identified affix lines; roll strength comes from pool min/max.</summary>
+    public const int WeaponIdentifiedAffixRollCount = 4;
+
+    /// <summary>Same random affix type can be rolled at most this many times per identification.</summary>
+    public const int MaxIdentifiedRollsPerStatType = 2;
+
     public static int GetRollCountForRarity(ItemRarity rarity, ItemDefinition item = null)
     {
-        int rollCount = rarity switch
+        if (item != null && item.IsWeapon)
+            return WeaponIdentifiedAffixRollCount;
+
+        return rarity switch
         {
             ItemRarity.Rare => 2,
             ItemRarity.Epic => 3,
             ItemRarity.Legendary => 4,
             _ => 1
         };
+    }
 
-        // Wands and staffs rely on identified affixes — +2 extra rolls (Common=3 … Legendary=6).
-        if (item != null && item.IsWeapon &&
-            (item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand ||
-             item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff))
-            rollCount += 2;
+    /// <summary>
+    /// True when <paramref name="pool"/> can roll an affix that the given enhancement scroll targets.
+    /// </summary>
+    public static bool PoolCanSupplyEnhancementScrollStat(
+        IReadOnlyList<RandomStatPoolEntry> pool,
+        EnhancementScrollTargetStat stat)
+    {
+        if (pool == null || pool.Count == 0 || stat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+            return false;
 
-        return rollCount;
+        for (int i = 0; i < pool.Count; i++)
+        {
+            RandomStatPoolEntry entry = pool[i];
+            if (entry == null || !entry.IsValid)
+                continue;
+
+            if (RandomStatTypeMatchesEnhancementScroll(entry.stat, stat))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool RandomStatTypeMatchesEnhancementScroll(
+        RandomItemStatType poolStat,
+        EnhancementScrollTargetStat scrollStat)
+    {
+        switch (scrollStat)
+        {
+            case EnhancementScrollTargetStat.PhysicalDamage:
+                return poolStat == RandomItemStatType.PhysicalDamageFlat
+                       || poolStat == RandomItemStatType.WeaponMinPhysicalDamage
+                       || poolStat == RandomItemStatType.WeaponMaxPhysicalDamage
+                       || poolStat == RandomItemStatType.MeleePhysicalDamagePercent
+                       || poolStat == RandomItemStatType.GlobalPhysicalDamagePercent
+                       || poolStat == RandomItemStatType.RangedPhysicalDamagePercent;
+
+            case EnhancementScrollTargetStat.MagicDamage:
+                return poolStat == RandomItemStatType.MagicDamageFlat
+                       || poolStat == RandomItemStatType.MagicDamagePercent;
+
+            case EnhancementScrollTargetStat.FireDamage:
+                return poolStat == RandomItemStatType.WeaponMinFireDamage
+                       || poolStat == RandomItemStatType.WeaponMaxFireDamage;
+
+            case EnhancementScrollTargetStat.IceDamage:
+                return poolStat == RandomItemStatType.WeaponMinIceDamage
+                       || poolStat == RandomItemStatType.WeaponMaxIceDamage;
+
+            case EnhancementScrollTargetStat.LightningDamage:
+                return poolStat == RandomItemStatType.WeaponMinLightningDamage
+                       || poolStat == RandomItemStatType.WeaponMaxLightningDamage;
+
+            case EnhancementScrollTargetStat.CorruptionDamage:
+                return poolStat == RandomItemStatType.CorruptionDamageFlat
+                       || poolStat == RandomItemStatType.CorruptionDamagePercent
+                       || poolStat == RandomItemStatType.WeaponMinCorruptionDamage
+                       || poolStat == RandomItemStatType.WeaponMaxCorruptionDamage
+                       || poolStat == RandomItemStatType.WeaponCorruptionDamageRange;
+
+            case EnhancementScrollTargetStat.Health:
+                return poolStat == RandomItemStatType.BonusHealth
+                       || poolStat == RandomItemStatType.ArmourBonusHealth;
+
+            case EnhancementScrollTargetStat.Energy:
+                return poolStat == RandomItemStatType.BonusEnergy
+                       || poolStat == RandomItemStatType.ArmourBonusEnergy;
+
+            case EnhancementScrollTargetStat.Mana:
+                return poolStat == RandomItemStatType.BonusMana;
+
+            case EnhancementScrollTargetStat.Armour:
+                return poolStat == RandomItemStatType.BonusArmour
+                       || poolStat == RandomItemStatType.ArmourFlatArmour;
+
+            case EnhancementScrollTargetStat.MagicResist:
+                return poolStat == RandomItemStatType.BonusMagicResist
+                       || poolStat == RandomItemStatType.ArmourMagicResist;
+
+            case EnhancementScrollTargetStat.CorruptionResist:
+                return poolStat == RandomItemStatType.BonusCorruptionResist
+                       || poolStat == RandomItemStatType.ArmourCorruptionResist;
+
+            case EnhancementScrollTargetStat.CritChance:
+                return poolStat == RandomItemStatType.CritChanceBonus
+                       || poolStat == RandomItemStatType.WeaponCritChance
+                       || poolStat == RandomItemStatType.MinionCritChance;
+
+            case EnhancementScrollTargetStat.CritMultiplier:
+                return poolStat == RandomItemStatType.CritMultiplierBonus
+                       || poolStat == RandomItemStatType.WeaponCritMultiplier;
+
+            case EnhancementScrollTargetStat.AttackSpeed:
+                return poolStat == RandomItemStatType.AttackSpeedPercent
+                       || poolStat == RandomItemStatType.WeaponAttacksPerSecond
+                       || poolStat == RandomItemStatType.MinionAttackSpeedPercent;
+
+            case EnhancementScrollTargetStat.LifeSteal:
+                return poolStat == RandomItemStatType.LifeSteal;
+
+            case EnhancementScrollTargetStat.MoveSpeed:
+                return poolStat == RandomItemStatType.MoveSpeedPercent;
+
+            case EnhancementScrollTargetStat.PoisonChance:
+                return poolStat == RandomItemStatType.PoisonChance;
+
+            case EnhancementScrollTargetStat.PoisonMultiplier:
+                return poolStat == RandomItemStatType.PoisonMultiplier
+                       || poolStat == RandomItemStatType.PoisonDurationBonus
+                       || poolStat == RandomItemStatType.PoisonMaxStacksBonus;
+
+            case EnhancementScrollTargetStat.BurnChance:
+                return poolStat == RandomItemStatType.BurnChance
+                       || poolStat == RandomItemStatType.AllElementalAilmentChance
+                       || poolStat == RandomItemStatType.WeaponMagicAilmentApplyChance;
+
+            case EnhancementScrollTargetStat.ChillChance:
+                return poolStat == RandomItemStatType.ChillChance
+                       || poolStat == RandomItemStatType.AllElementalAilmentChance
+                       || poolStat == RandomItemStatType.WeaponMagicAilmentApplyChance;
+
+            case EnhancementScrollTargetStat.ShockChance:
+                return poolStat == RandomItemStatType.ShockChance
+                       || poolStat == RandomItemStatType.AllElementalAilmentChance
+                       || poolStat == RandomItemStatType.WeaponMagicAilmentApplyChance;
+
+            case EnhancementScrollTargetStat.BurnMultiplier:
+                return poolStat == RandomItemStatType.BurnMultiplier;
+
+            case EnhancementScrollTargetStat.EnergyEfficiency:
+                return poolStat == RandomItemStatType.EnergyEfficiency
+                       || poolStat == RandomItemStatType.ArmourEnergyEfficiency;
+
+            case EnhancementScrollTargetStat.FlatGuard:
+                return poolStat == RandomItemStatType.ArmourFlatGuard
+                       || poolStat == RandomItemStatType.ArmourMaxGuardPercent;
+
+            case EnhancementScrollTargetStat.ManaRegen:
+                return poolStat == RandomItemStatType.ManaRegen;
+
+            case EnhancementScrollTargetStat.SpellDamage:
+                return poolStat == RandomItemStatType.SpellDamagePercent;
+
+            case EnhancementScrollTargetStat.FireDamagePercent:
+                return poolStat == RandomItemStatType.FireSkillDamagePercent;
+
+            case EnhancementScrollTargetStat.IceDamagePercent:
+                return poolStat == RandomItemStatType.IceSkillDamagePercent;
+
+            case EnhancementScrollTargetStat.LightningDamagePercent:
+                return poolStat == RandomItemStatType.LightningSkillDamagePercent;
+
+            default:
+                return false;
+        }
     }
 
     public static bool ShouldRollOnAcquire(ItemDefinition def, ItemDatabase db)
@@ -209,24 +368,393 @@ public static class ItemRandomStatRoller
                 available.Add(entry);
         }
 
-        for (int r = 0; r < rollCount && available.Count > 0; r++)
+        var rollsPerStat = new Dictionary<RandomItemStatType, int>();
+        var pickableIndices = new List<int>();
+
+        for (int r = 0; r < rollCount; r++)
         {
-            int pickIndex = PickWeightedIndex(available);
+            pickableIndices.Clear();
+            for (int i = 0; i < available.Count; i++)
+            {
+                RandomItemStatType stat = available[i].stat;
+                rollsPerStat.TryGetValue(stat, out int timesRolled);
+                if (timesRolled < MaxIdentifiedRollsPerStatType)
+                    pickableIndices.Add(i);
+            }
+
+            if (pickableIndices.Count == 0)
+                break;
+
+            int pickIndex = PickWeightedIndex(available, pickableIndices);
+            if (pickIndex < 0)
+                break;
+
             RandomStatPoolEntry picked = available[pickIndex];
-            available.RemoveAt(pickIndex);
             ApplyEntry(item, picked);
+
+            rollsPerStat.TryGetValue(picked.stat, out int rolled);
+            rollsPerStat[picked.stat] = rolled + 1;
         }
     }
 
-    /// <summary>
-    /// Builds pool entries from non-zero stats on <paramref name="item"/> (weight 1, small min/max, default value kind per stat).
-    /// </summary>
-    public static List<RandomStatPoolEntry> BuildTemplatePoolEntries(ItemDefinition item)
+    private enum TemplateRarityBand
     {
-        var results = new List<RandomStatPoolEntry>();
-        if (!item)
-            return results;
+        CommonUncommon,
+        Rare,
+        Epic,
+        Legendary
+    }
 
+    private readonly struct PoolValueBand
+    {
+        public readonly float Min;
+        public readonly float Max;
+
+        public PoolValueBand(float min, float max)
+        {
+            Min = min;
+            Max = max;
+        }
+    }
+
+    private readonly struct CombatWeaponPoolTemplate
+    {
+        public readonly PoolValueBand Damage;
+        public readonly PoolValueBand Speed;
+        public readonly PoolValueBand CritChance;
+        public readonly PoolValueBand CritMulti;
+        public readonly PoolValueBand AilmentChance;
+        public readonly PoolValueBand AilmentMulti;
+        public readonly PoolValueBand Range;
+
+        public CombatWeaponPoolTemplate(
+            PoolValueBand damage,
+            PoolValueBand speed,
+            PoolValueBand critChance,
+            PoolValueBand critMulti,
+            PoolValueBand ailmentChance,
+            PoolValueBand ailmentMulti,
+            PoolValueBand range)
+        {
+            Damage = damage;
+            Speed = speed;
+            CritChance = critChance;
+            CritMulti = critMulti;
+            AilmentChance = ailmentChance;
+            AilmentMulti = ailmentMulti;
+            Range = range;
+        }
+    }
+
+    private readonly struct ArmourTypePoolBands
+    {
+        public readonly PoolValueBand Health;
+        public readonly PoolValueBand MagicResist;
+        public readonly PoolValueBand CorruptionResist;
+        public readonly PoolValueBand Armour;
+        public readonly PoolValueBand Mana;
+        public readonly PoolValueBand ManaRegen;
+        public readonly PoolValueBand MagicDamagePercent;
+        public readonly PoolValueBand MoveSpeedPercent;
+        public readonly PoolValueBand RangedDamagePercent;
+        public readonly PoolValueBand MeleeDamagePercent;
+        public readonly PoolValueBand FlatGuard;
+        public readonly PoolValueBand EnergyEfficiency;
+        public readonly PoolValueBand PhysBlockChance;
+        public readonly PoolValueBand PhysBlockMitigation;
+
+        public ArmourTypePoolBands(
+            PoolValueBand health,
+            PoolValueBand magicResist,
+            PoolValueBand corruptionResist,
+            PoolValueBand armour,
+            PoolValueBand mana,
+            PoolValueBand manaRegen,
+            PoolValueBand magicDamagePercent,
+            PoolValueBand moveSpeedPercent,
+            PoolValueBand rangedDamagePercent,
+            PoolValueBand meleeDamagePercent,
+            PoolValueBand flatGuard,
+            PoolValueBand energyEfficiency,
+            PoolValueBand physBlockChance,
+            PoolValueBand physBlockMitigation)
+        {
+            Health = health;
+            MagicResist = magicResist;
+            CorruptionResist = corruptionResist;
+            Armour = armour;
+            Mana = mana;
+            ManaRegen = manaRegen;
+            MagicDamagePercent = magicDamagePercent;
+            MoveSpeedPercent = moveSpeedPercent;
+            RangedDamagePercent = rangedDamagePercent;
+            MeleeDamagePercent = meleeDamagePercent;
+            FlatGuard = flatGuard;
+            EnergyEfficiency = energyEfficiency;
+            PhysBlockChance = physBlockChance;
+            PhysBlockMitigation = physBlockMitigation;
+        }
+
+        private static PoolValueBand None => new(0f, 0f);
+
+        public static ArmourTypePoolBands Light(TemplateRarityBand band) => band switch
+        {
+            TemplateRarityBand.Rare => new ArmourTypePoolBands(
+                new(10f, 15f), new(5f, 8f), None, None, new(6f, 10f), new(0.4f, 0.6f), new(2f, 4f),
+                None, None, None, None, new(2f, 4f), None, None),
+            TemplateRarityBand.Epic => new ArmourTypePoolBands(
+                new(12f, 18f), new(6f, 10f), None, None, new(8f, 12f), new(0.5f, 0.8f), new(3f, 6f),
+                None, None, None, None, new(2f, 5f), None, None),
+            TemplateRarityBand.Legendary => new ArmourTypePoolBands(
+                new(16f, 24f), new(8f, 14f), None, None, new(10f, 16f), new(0.7f, 1f), new(4f, 8f),
+                None, None, None, None, new(3f, 6f), None, None),
+            _ => new ArmourTypePoolBands(
+                new(8f, 12f), new(4f, 6f), None, None, new(5f, 8f), new(0.3f, 0.5f), new(1f, 3f),
+                None, None, None, None, new(1f, 3f), None, None)
+        };
+
+        public static ArmourTypePoolBands Medium(TemplateRarityBand band) => band switch
+        {
+            TemplateRarityBand.Rare => new ArmourTypePoolBands(
+                new(12f, 22f), new(5f, 9f), new(4f, 7f), None, None, None, None,
+                new(2f, 4f), new(2f, 4f), None, None, new(2f, 4f), None, None),
+            TemplateRarityBand.Epic => new ArmourTypePoolBands(
+                new(15f, 28f), new(6f, 11f), new(5f, 9f), None, None, None, None,
+                new(2f, 5f), new(3f, 5f), None, None, new(2f, 5f), None, None),
+            TemplateRarityBand.Legendary => new ArmourTypePoolBands(
+                new(20f, 35f), new(8f, 14f), new(6f, 12f), None, None, None, None,
+                new(3f, 6f), new(4f, 7f), None, None, new(3f, 6f), None, None),
+            _ => new ArmourTypePoolBands(
+                new(10f, 18f), new(4f, 7f), new(3f, 5f), None, None, None, None,
+                new(1f, 3f), new(1f, 3f), None, None, new(1f, 3f), None, None)
+        };
+
+        public static ArmourTypePoolBands Heavy(TemplateRarityBand band) => band switch
+        {
+            TemplateRarityBand.Rare => new ArmourTypePoolBands(
+                new(15f, 25f), new(5f, 9f), new(4f, 7f), new(7f, 14f), None, None, None,
+                None, None, new(2f, 4f), new(8f, 14f), new(2f, 4f), None, None),
+            TemplateRarityBand.Epic => new ArmourTypePoolBands(
+                new(18f, 30f), new(6f, 11f), new(5f, 9f), new(9f, 18f), None, None, None,
+                None, None, new(3f, 5f), new(10f, 18f), new(2f, 5f), None, None),
+            TemplateRarityBand.Legendary => new ArmourTypePoolBands(
+                new(22f, 38f), new(8f, 14f), new(6f, 12f), new(12f, 24f), None, None, None,
+                None, None, new(4f, 7f), new(14f, 24f), new(3f, 6f), None, None),
+            _ => new ArmourTypePoolBands(
+                new(12f, 20f), new(4f, 7f), new(3f, 5f), new(5f, 10f), None, None, None,
+                None, None, new(1f, 3f), new(6f, 10f), new(1f, 3f), None, None)
+        };
+
+        public static ArmourTypePoolBands Shield(TemplateRarityBand band) => band switch
+        {
+            TemplateRarityBand.Rare => new ArmourTypePoolBands(
+                None, None, None, None, None, None, None, None, None, None, None, new(2f, 4f),
+                new(7f, 12f), new(3f, 6f)),
+            TemplateRarityBand.Epic => new ArmourTypePoolBands(
+                None, None, None, None, None, None, None, None, None, None, None, new(2f, 5f),
+                new(9f, 15f), new(4f, 8f)),
+            TemplateRarityBand.Legendary => new ArmourTypePoolBands(
+                None, None, None, None, None, None, None, None, None, None, None, new(3f, 6f),
+                new(12f, 18f), new(5f, 10f)),
+            _ => new ArmourTypePoolBands(
+                None, None, None, None, None, None, None, None, None, None, None, new(1f, 3f),
+                new(5f, 10f), new(2f, 5f))
+        };
+    }
+
+    private static bool IsShieldArmour(ItemDefinition item) =>
+        item != null && item.IsArmour && item.equipSlot == EquipSlot.OffHand;
+
+    private static ArmourType GetArmourTemplateType(ItemDefinition item)
+    {
+        if (item == null)
+            return ArmourType.Medium;
+
+        return item.armourStats.armourType switch
+        {
+            ArmourType.Light => ArmourType.Light,
+            ArmourType.Heavy => ArmourType.Heavy,
+            _ => ArmourType.Medium
+        };
+    }
+
+    private static ArmourTypePoolBands GetArmourTypePoolBands(ItemDefinition item, TemplateRarityBand band)
+    {
+        if (IsShieldArmour(item))
+            return ArmourTypePoolBands.Shield(band);
+
+        return GetArmourTemplateType(item) switch
+        {
+            ArmourType.Light => ArmourTypePoolBands.Light(band),
+            ArmourType.Heavy => ArmourTypePoolBands.Heavy(band),
+            _ => ArmourTypePoolBands.Medium(band)
+        };
+    }
+
+    private static TemplateRarityBand GetTemplateRarityBand(ItemRarity rarity) =>
+        rarity switch
+        {
+            ItemRarity.Rare => TemplateRarityBand.Rare,
+            ItemRarity.Epic => TemplateRarityBand.Epic,
+            ItemRarity.Legendary => TemplateRarityBand.Legendary,
+            _ => TemplateRarityBand.CommonUncommon
+        };
+
+    private static bool IsSpellScalingMagicWeapon(ItemDefinition item) =>
+        item != null
+        && item.IsWeapon
+        && (item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand
+            || item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff);
+
+    private static CombatWeaponPoolTemplate GetCombatWeaponPoolTemplate(
+        WeaponWeight weight,
+        TemplateRarityBand band)
+    {
+        return (weight, band) switch
+        {
+            (WeaponWeight.Light, TemplateRarityBand.CommonUncommon) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(1f, 2f), new PoolValueBand(4f, 6f), new PoolValueBand(2f, 5f), new PoolValueBand(4f, 9f),
+                new PoolValueBand(2f, 4f), new PoolValueBand(4f, 9f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Medium, TemplateRarityBand.CommonUncommon) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(2f, 4f), new PoolValueBand(3f, 5f), new PoolValueBand(3f, 7f), new PoolValueBand(6f, 11f),
+                new PoolValueBand(2f, 6f), new PoolValueBand(6f, 11f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Heavy, TemplateRarityBand.CommonUncommon) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(3f, 6f), new PoolValueBand(2f, 4f), new PoolValueBand(4f, 8f), new PoolValueBand(7f, 12f),
+                new PoolValueBand(3f, 7f), new PoolValueBand(7f, 13f), new PoolValueBand(0.5f, 1f)),
+
+            (WeaponWeight.Light, TemplateRarityBand.Rare) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(2f, 3f), new PoolValueBand(5f, 8f), new PoolValueBand(3f, 6f), new PoolValueBand(6f, 12f),
+                new PoolValueBand(3f, 6f), new PoolValueBand(6f, 12f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Medium, TemplateRarityBand.Rare) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(3f, 5f), new PoolValueBand(4f, 6f), new PoolValueBand(4f, 8f), new PoolValueBand(7f, 13f),
+                new PoolValueBand(3f, 7f), new PoolValueBand(7f, 13f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Heavy, TemplateRarityBand.Rare) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(4f, 8f), new PoolValueBand(3f, 5f), new PoolValueBand(5f, 10f), new PoolValueBand(8f, 15f),
+                new PoolValueBand(4f, 8f), new PoolValueBand(8f, 15f), new PoolValueBand(0.5f, 1f)),
+
+            (WeaponWeight.Light, TemplateRarityBand.Epic) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(2f, 4f), new PoolValueBand(6f, 9f), new PoolValueBand(4f, 8f), new PoolValueBand(7f, 15f),
+                new PoolValueBand(4f, 7f), new PoolValueBand(7f, 15f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Medium, TemplateRarityBand.Epic) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(4f, 6f), new PoolValueBand(5f, 8f), new PoolValueBand(5f, 9f), new PoolValueBand(8f, 16f),
+                new PoolValueBand(4f, 8f), new PoolValueBand(8f, 16f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Heavy, TemplateRarityBand.Epic) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(5f, 9f), new PoolValueBand(4f, 6f), new PoolValueBand(6f, 11f), new PoolValueBand(9f, 18f),
+                new PoolValueBand(5f, 9f), new PoolValueBand(9f, 18f), new PoolValueBand(0.5f, 1f)),
+
+            (WeaponWeight.Light, TemplateRarityBand.Legendary) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(3f, 5f), new PoolValueBand(7f, 11f), new PoolValueBand(5f, 10f), new PoolValueBand(9f, 18f),
+                new PoolValueBand(5f, 10f), new PoolValueBand(9f, 18f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Medium, TemplateRarityBand.Legendary) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(5f, 8f), new PoolValueBand(6f, 10f), new PoolValueBand(6f, 11f), new PoolValueBand(10f, 20f),
+                new PoolValueBand(5f, 10f), new PoolValueBand(10f, 20f), new PoolValueBand(0.5f, 1f)),
+            (WeaponWeight.Heavy, TemplateRarityBand.Legendary) => new CombatWeaponPoolTemplate(
+                new PoolValueBand(6f, 12f), new PoolValueBand(5f, 8f), new PoolValueBand(7f, 13f), new PoolValueBand(11f, 22f),
+                new PoolValueBand(6f, 11f), new PoolValueBand(11f, 22f), new PoolValueBand(0.5f, 1f)),
+
+            _ => GetCombatWeaponPoolTemplate(WeaponWeight.Medium, TemplateRarityBand.CommonUncommon)
+        };
+    }
+
+
+    private static void AddTemplatePoolEntry(
+        List<RandomStatPoolEntry> results,
+        RandomItemStatType stat,
+        PoolValueBand band,
+        RandomStatValueKind kind,
+        float weight = 1f)
+    {
+        if (band.Max <= 0f)
+            return;
+
+        results.Add(new RandomStatPoolEntry
+        {
+            stat = stat,
+            weight = weight,
+            valueKind = kind,
+            minValue = band.Min,
+            maxValue = band.Max,
+        });
+    }
+
+    private static void AppendCombatWeaponTemplatePool(ItemDefinition item, List<RandomStatPoolEntry> results)
+    {
+        WeaponWeight weight = WeaponWeightRules.GetEffectiveWeight(item);
+        if (weight == WeaponWeight.NotApplicable)
+            weight = WeaponWeight.Medium;
+
+        CombatWeaponPoolTemplate template = GetCombatWeaponPoolTemplate(weight, GetTemplateRarityBand(item.rarity));
+        WeaponStats weapon = item.weaponStats;
+
+        if (weapon.minPhysicalDamage > 0 || weapon.maxPhysicalDamage > 0)
+        {
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMinPhysicalDamage, template.Damage, RandomStatValueKind.FlatInteger);
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMaxPhysicalDamage, template.Damage, RandomStatValueKind.FlatInteger);
+        }
+
+        if (weapon.minFireDamage > 0 || weapon.maxFireDamage > 0)
+        {
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMinFireDamage, template.Damage, RandomStatValueKind.FlatInteger);
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMaxFireDamage, template.Damage, RandomStatValueKind.FlatInteger);
+        }
+
+        if (weapon.minIceDamage > 0 || weapon.maxIceDamage > 0)
+        {
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMinIceDamage, template.Damage, RandomStatValueKind.FlatInteger);
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMaxIceDamage, template.Damage, RandomStatValueKind.FlatInteger);
+        }
+
+        if (weapon.minLightningDamage > 0 || weapon.maxLightningDamage > 0)
+        {
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMinLightningDamage, template.Damage, RandomStatValueKind.FlatInteger);
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMaxLightningDamage, template.Damage, RandomStatValueKind.FlatInteger);
+        }
+
+        if (weapon.minCorruptionDamage > 0 || weapon.maxCorruptionDamage > 0)
+        {
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMinCorruptionDamage, template.Damage, RandomStatValueKind.FlatInteger);
+            AddTemplatePoolEntry(results, RandomItemStatType.WeaponMaxCorruptionDamage, template.Damage, RandomStatValueKind.FlatInteger);
+        }
+
+        AddTemplatePoolEntry(results, RandomItemStatType.WeaponAttacksPerSecond, template.Speed, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.WeaponCritChance, template.CritChance, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.WeaponCritMultiplier, template.CritMulti, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.WeaponAttackRange, template.Range, RandomStatValueKind.FlatFloat);
+
+        AddTemplatePoolEntry(results, RandomItemStatType.PoisonChance, template.AilmentChance, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.PoisonMultiplier, template.AilmentMulti, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.BleedChance, template.AilmentChance, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.BleedMultiplier, template.AilmentMulti, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.BurnChance, template.AilmentChance, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.BurnMultiplier, template.AilmentMulti, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.ChillChance, template.AilmentChance, RandomStatValueKind.PercentPoints, weight: 0.75f);
+        AddTemplatePoolEntry(results, RandomItemStatType.ChillMultiplier, template.AilmentMulti, RandomStatValueKind.PercentPoints, weight: 0.75f);
+        AddTemplatePoolEntry(results, RandomItemStatType.ShockChance, template.AilmentChance, RandomStatValueKind.PercentPoints, weight: 0.5f);
+        AddTemplatePoolEntry(results, RandomItemStatType.ShockMultiplier, template.AilmentMulti, RandomStatValueKind.PercentPoints, weight: 0.5f);
+    }
+
+    private static void AppendArmourTemplatePool(ItemDefinition item, List<RandomStatPoolEntry> results)
+    {
+        ArmourTypePoolBands bands = GetArmourTypePoolBands(item, GetTemplateRarityBand(item.rarity));
+
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourBonusHealth, bands.Health, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourMagicResist, bands.MagicResist, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourCorruptionResist, bands.CorruptionResist, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourFlatArmour, bands.Armour, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.BonusMana, bands.Mana, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.ManaRegen, bands.ManaRegen, RandomStatValueKind.FlatFloat);
+        AddTemplatePoolEntry(results, RandomItemStatType.MagicDamagePercent, bands.MagicDamagePercent, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.MoveSpeedPercent, bands.MoveSpeedPercent, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.RangedPhysicalDamagePercent, bands.RangedDamagePercent, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.MeleePhysicalDamagePercent, bands.MeleeDamagePercent, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourFlatGuard, bands.FlatGuard, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourEnergyEfficiency, bands.EnergyEfficiency, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourPhysBlockChance, bands.PhysBlockChance, RandomStatValueKind.PercentPoints);
+        AddTemplatePoolEntry(results, RandomItemStatType.ArmourPhysBlockMitigation, bands.PhysBlockMitigation, RandomStatValueKind.PercentPoints);
+    }
+
+    private static void AppendLegacyDerivedTemplatePoolEntries(ItemDefinition item, List<RandomStatPoolEntry> results)
+    {
         void TryAdd(RandomItemStatType stat, float value)
         {
             if (IsEffectivelyZero(value))
@@ -296,47 +824,34 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.ParryChance, bonus.parryChance);
         TryAdd(RandomItemStatType.StunChance, bonus.stunChance);
 
-        if (item.IsWeapon)
-        {
-            WeaponStats weapon = item.weaponStats;
-            TryAdd(RandomItemStatType.WeaponMinPhysicalDamage, weapon.minPhysicalDamage);
-            TryAdd(RandomItemStatType.WeaponMaxPhysicalDamage, weapon.maxPhysicalDamage);
-            TryAdd(RandomItemStatType.WeaponMinFireDamage, weapon.minFireDamage);
-            TryAdd(RandomItemStatType.WeaponMaxFireDamage, weapon.maxFireDamage);
-            TryAdd(RandomItemStatType.WeaponMinIceDamage, weapon.minIceDamage);
-            TryAdd(RandomItemStatType.WeaponMaxIceDamage, weapon.maxIceDamage);
-            TryAdd(RandomItemStatType.WeaponMinLightningDamage, weapon.minLightningDamage);
-            TryAdd(RandomItemStatType.WeaponMaxLightningDamage, weapon.maxLightningDamage);
-            TryAdd(RandomItemStatType.WeaponMinCorruptionDamage, weapon.minCorruptionDamage);
-            TryAdd(RandomItemStatType.WeaponMaxCorruptionDamage, weapon.maxCorruptionDamage);
-            TryAdd(RandomItemStatType.WeaponAttacksPerSecond, weapon.attacksPerSecond);
-            TryAdd(RandomItemStatType.WeaponCritChance, weapon.critChance);
-            TryAdd(RandomItemStatType.WeaponCritMultiplier, weapon.critMultiplier);
-            TryAdd(RandomItemStatType.WeaponAttackRange, weapon.attackRange);
-            TryAdd(RandomItemStatType.WeaponMagicAilmentApplyChance, weapon.magicAilmentApplyChance);
-        }
-
-        if (item.IsArmour)
-        {
-            ArmourStats armour = item.armourStats;
-            TryAdd(RandomItemStatType.ArmourFlatArmour, armour.armour);
-            TryAdd(RandomItemStatType.ArmourMagicResist, armour.magicResist);
-            TryAdd(RandomItemStatType.ArmourCorruptionResist, armour.corruptionResist);
-            TryAdd(RandomItemStatType.ArmourPhysBlockChance, armour.physBlockChance);
-            TryAdd(RandomItemStatType.ArmourBonusHealth, armour.bonusHealth);
-            TryAdd(RandomItemStatType.ArmourBonusEnergy, armour.bonusEnergy);
-            TryAdd(RandomItemStatType.ArmourEnergyEfficiency, armour.energyEfficiency);
-            TryAdd(RandomItemStatType.ArmourFlatGuard, armour.flatGuard);
-            TryAdd(RandomItemStatType.ArmourMaxGuardPercent, armour.maxGuardPercent);
-        }
-
         if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
             TryAdd(RandomItemStatType.EnemyRespawnTimeReductionSeconds, item.miscEffects.enemyRespawnTimeReductionSeconds);
+    }
 
-        if (item.IsWeapon &&
-            (item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand ||
-             item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff))
-            AppendMissingSpellScalingMagicWeaponPoolEntries(results);
+    /// <summary>
+    /// Builds pool entries for editor template generation (weight + rarity tables for weapons/armour).
+    /// </summary>
+    public static List<RandomStatPoolEntry> BuildTemplatePoolEntries(ItemDefinition item)
+    {
+        var results = new List<RandomStatPoolEntry>();
+        if (!item)
+            return results;
+
+        if (item.IsWeapon)
+        {
+            if (IsSpellScalingMagicWeapon(item))
+                AppendMissingSpellScalingMagicWeaponPoolEntries(results);
+            else
+                AppendCombatWeaponTemplatePool(item, results);
+        }
+        else if (item.IsArmour)
+        {
+            AppendArmourTemplatePool(item, results);
+        }
+        else
+        {
+            AppendLegacyDerivedTemplatePoolEntries(item, results);
+        }
 
         results.Sort((a, b) => ComparePoolEntriesForDisplay(a, b, item));
         return results;
@@ -591,6 +1106,9 @@ public static class ItemRandomStatRoller
 
     private static int PickWeightedIndex(IReadOnlyList<RandomStatPoolEntry> entries)
     {
+        if (entries == null || entries.Count == 0)
+            return -1;
+
         float total = 0f;
         for (int i = 0; i < entries.Count; i++)
             total += Mathf.Max(0f, entries[i].weight);
@@ -608,6 +1126,43 @@ public static class ItemRandomStatRoller
         }
 
         return entries.Count - 1;
+    }
+
+    private static int PickWeightedIndex(
+        IReadOnlyList<RandomStatPoolEntry> entries,
+        IReadOnlyList<int> allowedIndices)
+    {
+        if (entries == null || allowedIndices == null || allowedIndices.Count == 0)
+            return -1;
+
+        if (allowedIndices.Count == 1)
+            return allowedIndices[0];
+
+        float total = 0f;
+        for (int i = 0; i < allowedIndices.Count; i++)
+        {
+            int entryIndex = allowedIndices[i];
+            if (entryIndex >= 0 && entryIndex < entries.Count)
+                total += Mathf.Max(0f, entries[entryIndex].weight);
+        }
+
+        if (total <= 0f)
+            return allowedIndices[Random.Range(0, allowedIndices.Count)];
+
+        float roll = Random.value * total;
+        float cumulative = 0f;
+        for (int i = 0; i < allowedIndices.Count; i++)
+        {
+            int entryIndex = allowedIndices[i];
+            if (entryIndex < 0 || entryIndex >= entries.Count)
+                continue;
+
+            cumulative += Mathf.Max(0f, entries[entryIndex].weight);
+            if (roll <= cumulative)
+                return entryIndex;
+        }
+
+        return allowedIndices[allowedIndices.Count - 1];
     }
 
     private static void ApplyEntry(ItemDefinition item, RandomStatPoolEntry entry)
@@ -827,6 +1382,9 @@ public static class ItemRandomStatRoller
                 break;
             case RandomItemStatType.ArmourPhysBlockChance:
                 item.armourStats.physBlockChance = Mathf.Clamp01(item.armourStats.physBlockChance + primary);
+                break;
+            case RandomItemStatType.ArmourPhysBlockMitigation:
+                item.armourStats.physBlockMitigation = Mathf.Clamp01(item.armourStats.physBlockMitigation + primary);
                 break;
             case RandomItemStatType.ArmourBonusHealth:
                 AddArmourInt(ref item.armourStats.bonusHealth, primary, kind);

@@ -80,8 +80,18 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
+    lightningDamagePercent: 0
+    spellDamagePercent: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    chargedRuneElement: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
+    consumableOnSpell: 0
   toolStats:
     toolType: 0
     equipmentTier: 0
@@ -91,6 +101,7 @@ MonoBehaviour:
     staminaEfficiency: 0
   armourStats:
     equipmentTier: 0
+    armourType: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -100,10 +111,14 @@ MonoBehaviour:
     energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
+    armor: 0
+    staminaEfficiency: 0
+    armorType: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
+    maxHealthPercent: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
@@ -123,6 +138,7 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
+    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -147,17 +163,14 @@ MonoBehaviour:
     shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    allElementalAilmentChance: 0
     parryChance: 0
     stunChance: 0
+    minThornsDamage: 0
+    maxThornsDamage: 0
+    thornsDamagePercent: 0
+    evadeChance: 0
   randomStatPool:
-  - stat: 46
-    weight: 1
-    minValue: 1
-    maxValue: 2
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   - stat: 47
     weight: 1
     minValue: 1
@@ -166,27 +179,43 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 51
+  - stat: 48
     weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 3
+    minValue: 1
+    maxValue: 2
+    valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 52
     weight: 1
-    minValue: 2
-    maxValue: 4
+    minValue: 4
+    maxValue: 6
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 53
     weight: 1
-    minValue: 5
-    maxValue: 10
+    minValue: 2
+    maxValue: 5
     valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 54
+    weight: 1
+    minValue: 4
+    maxValue: 9
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 55
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 1
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
@@ -204,6 +233,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+      hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
     mapEnhancementTier: 0
