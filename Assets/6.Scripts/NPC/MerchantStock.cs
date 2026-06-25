@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 [CreateAssetMenu(menuName = "Desktop Idle Game/Merchant Stock", fileName = "MerchantStock")]
 public class MerchantStock : ScriptableObject
 {
-    public const int MaxCapacity = 21;
+    public const int MaxCapacity = 24;
 
     public enum CostType
     {

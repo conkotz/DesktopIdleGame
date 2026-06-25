@@ -1011,12 +1011,24 @@ public class Inventory : MonoBehaviour, ISaveable
         id = id.Trim().ToLowerInvariant().Replace(" ", "_");
         id = RemapObsoleteWandItemId(id);
 
-        // legacy -> new
-        return id switch
+        const string runtimeEnhancedSeparator = "__enh_";
+        int marker = id.IndexOf(runtimeEnhancedSeparator, System.StringComparison.Ordinal);
+        string suffix = marker > 0 ? id.Substring(marker) : string.Empty;
+        string baseId = marker > 0 ? id.Substring(0, marker) : id;
+
+        // legacy -> new (base ids)
+        string remappedBaseId = baseId switch
         {
             "log" => "wood_log",
-            _ => id
+            "ability_power_pendant" => "amethyst_pendant",
+            "bone_ring" => "citrine_ring",
+            "crit_ring" => "diamond_ring",
+            "physical_damage_pendant" => "ruby_pendant",
+            "vamp_ring" => "quartz_ring",
+            _ => baseId
         };
+
+        return remappedBaseId + suffix;
     }
 
     /// <summary>Old per-element basic wands were consolidated into <c>basic_wand</c>.</summary>

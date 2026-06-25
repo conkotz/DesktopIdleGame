@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: ability_power_pendant
+  m_Name: citrine_pendant
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: ability_power_pendant
-  displayName: Pendant of Ability Power
+  itemId: citrine_pendant
+  displayName: Minion Pendant
   displayNameSingular: 
-  icon: {fileID: 6223703686444782735, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: -6810298481128598173, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Grants increased Ability Power to increase damage dealt by abilites
+  description: Tier 1 citrine pendant.
   rarity: 1
   value: 800
   equipSlot: 7
@@ -143,10 +143,10 @@ MonoBehaviour:
     spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
-    abilityPower: 5
+    abilityPower: 0
     attackSpeedPercent: 0
     abilityCooldownReductionFraction: 0
-    minionDamagePercent: 0
+    minionDamagePercent: 0.1
     minionAttackSpeedPercent: 0
     minionCritChance: 0
     minionMaxLifePercent: 0
@@ -173,14 +173,6 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 24
-    weight: 1
-    minValue: 3
-    maxValue: 7
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   - stat: 0
     weight: 1
     minValue: 5
@@ -189,6 +181,40 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 30
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 31
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 29
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 32
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  jewelryEquipmentTier: 0
+  jewelryGemType: 4
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

@@ -36,6 +36,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty useDefaultRandomStatPoolPackage;
     private SerializedProperty extraRandomStatPoolPackages;
     private SerializedProperty jewelryEquipmentTier;
+    private SerializedProperty jewelryGemType;
     private SerializedProperty miscEffects;
 
     private int _expandedStatPickerEntryIndex = -1;
@@ -81,6 +82,7 @@ public class ItemDefinitionEditor : Editor
         useDefaultRandomStatPoolPackage = serializedObject.FindProperty("useDefaultRandomStatPoolPackage");
         extraRandomStatPoolPackages = serializedObject.FindProperty("extraRandomStatPoolPackages");
         jewelryEquipmentTier = serializedObject.FindProperty("jewelryEquipmentTier");
+        jewelryGemType = serializedObject.FindProperty("jewelryGemType");
         miscEffects = serializedObject.FindProperty("miscEffects");
 
         TryAutoApplyDefaultPackagePool();
@@ -319,6 +321,8 @@ public class ItemDefinitionEditor : Editor
         {
             if (jewelryEquipmentTier != null)
                 EditorGUILayout.PropertyField(jewelryEquipmentTier, new GUIContent("Equipment Tier"));
+            if (jewelryGemType != null)
+                EditorGUILayout.PropertyField(jewelryGemType, new GUIContent("Gem Type"));
             DrawBonusBlockIfPresent("Bonus Stats (Jewelry)", show: true);
             DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
@@ -1729,12 +1733,13 @@ public class ItemDefinitionEditor : Editor
                 "Combat weapons: damage min/max (from base weapon), crit, speed. Add bleed/poison/element/defensive/range packages below.\n" +
                 "Wands/staffs: spell damage, elemental skill %, crit, mana, ailment multipliers (staff values are higher).\n" +
                 "Armour: light/medium/heavy/shield templates by rarity (light never rolls guard).\n" +
+                "Jewelry: health + gem-type stat package (Ruby, Emerald, Sapphire, etc.).\n" +
                 "Uncheck Use default package for fully custom pools.",
                 MessageType.Info);
 
             if (item != null && item.IsWeapon && !item.UsesSpellScalingMagicWeaponTooltip)
                 DrawWeaponPackageButtons();
-            else if (item != null && item.IsJewelry)
+            else if (item != null && item.IsJewelry && item.JewelryGemType == JewelryGemType.None)
                 DrawJewelryPackageButtons();
         }
         else

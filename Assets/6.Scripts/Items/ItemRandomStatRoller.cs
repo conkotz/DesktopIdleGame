@@ -161,23 +161,22 @@ public class RandomStatPoolEntry
 /// </summary>
 public static class ItemRandomStatRoller
 {
-    /// <summary>Every weapon rolls this many identified affix lines; roll strength comes from pool min/max.</summary>
-    public const int WeaponIdentifiedAffixRollCount = 4;
+    /// <summary>Common, Uncommon, and Rare items roll this many identified affix lines.</summary>
+    public const int StandardIdentifiedAffixRollCount = 3;
+
+    /// <summary>Epic and Legendary items roll this many identified affix lines.</summary>
+    public const int HighTierIdentifiedAffixRollCount = 4;
 
     /// <summary>Same random affix type can be rolled at most this many times per identification.</summary>
     public const int MaxIdentifiedRollsPerStatType = 2;
 
     public static int GetRollCountForRarity(ItemRarity rarity, ItemDefinition item = null)
     {
-        if (item != null && item.IsWeapon)
-            return WeaponIdentifiedAffixRollCount;
-
         return rarity switch
         {
-            ItemRarity.Rare => 2,
-            ItemRarity.Epic => 3,
-            ItemRarity.Legendary => 4,
-            _ => 1
+            ItemRarity.Epic => HighTierIdentifiedAffixRollCount,
+            ItemRarity.Legendary => HighTierIdentifiedAffixRollCount,
+            _ => StandardIdentifiedAffixRollCount
         };
     }
 
@@ -983,6 +982,146 @@ public static class ItemRandomStatRoller
             AddTemplatePoolEntryIfMissing(results, RandomItemStatType.WeaponAttackRange, new PoolValueBand(1f, 2f), RandomStatValueKind.FlatFloat);
     }
 
+    private static PoolValueBand GetJewelryHealthBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(8f, 12f),
+            TemplateRarityBand.Epic => new PoolValueBand(10f, 15f),
+            TemplateRarityBand.Legendary => new PoolValueBand(12f, 18f),
+            _ => new PoolValueBand(5f, 10f),
+        };
+
+    private static PoolValueBand GetJewelrySmallPercentBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(2f, 5f),
+            TemplateRarityBand.Epic => new PoolValueBand(3f, 6f),
+            TemplateRarityBand.Legendary => new PoolValueBand(4f, 8f),
+            _ => new PoolValueBand(1f, 3f),
+        };
+
+    private static PoolValueBand GetJewelryMediumPercentBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(3f, 6f),
+            TemplateRarityBand.Epic => new PoolValueBand(4f, 8f),
+            TemplateRarityBand.Legendary => new PoolValueBand(5f, 10f),
+            _ => new PoolValueBand(2f, 5f),
+        };
+
+    private static PoolValueBand GetJewelryAilmentChanceBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(2f, 5f),
+            TemplateRarityBand.Epic => new PoolValueBand(3f, 6f),
+            TemplateRarityBand.Legendary => new PoolValueBand(4f, 7f),
+            _ => new PoolValueBand(2f, 4f),
+        };
+
+    private static PoolValueBand GetJewelryAilmentMultiBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(4f, 8f),
+            TemplateRarityBand.Epic => new PoolValueBand(5f, 10f),
+            TemplateRarityBand.Legendary => new PoolValueBand(6f, 12f),
+            _ => new PoolValueBand(3f, 6f),
+        };
+
+    private static PoolValueBand GetJewelryAbilityPowerBand(TemplateRarityBand band) =>
+        band switch
+        {
+            TemplateRarityBand.Rare => new PoolValueBand(4f, 8f),
+            TemplateRarityBand.Epic => new PoolValueBand(5f, 10f),
+            TemplateRarityBand.Legendary => new PoolValueBand(6f, 12f),
+            _ => new PoolValueBand(3f, 7f),
+        };
+
+    private static void AppendJewelryDefaultPackage(ItemDefinition item, List<RandomStatPoolEntry> results)
+    {
+        if (!item || !item.IsJewelry)
+            return;
+
+        TemplateRarityBand rarityBand = GetTemplateRarityBand(item.rarity);
+        AddTemplatePoolEntry(results, RandomItemStatType.BonusHealth, GetJewelryHealthBand(rarityBand), RandomStatValueKind.FlatInteger);
+
+        if (item.JewelryGemType != JewelryGemType.None)
+            AppendJewelryGemTypePool(item.JewelryGemType, rarityBand, results);
+        else
+            AppendJewelryExtraPackages(item, item.ExtraRandomStatPoolPackages, results);
+    }
+
+    private static void AppendJewelryGemTypePool(
+        JewelryGemType gemType,
+        TemplateRarityBand rarityBand,
+        List<RandomStatPoolEntry> results)
+    {
+        PoolValueBand small = GetJewelrySmallPercentBand(rarityBand);
+        PoolValueBand medium = GetJewelryMediumPercentBand(rarityBand);
+        PoolValueBand ailmentChance = GetJewelryAilmentChanceBand(rarityBand);
+        PoolValueBand ailmentMulti = GetJewelryAilmentMultiBand(rarityBand);
+
+        switch (gemType)
+        {
+            case JewelryGemType.Ruby:
+                AddTemplatePoolEntry(results, RandomItemStatType.MeleePhysicalDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.BleedChance, ailmentChance, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.BleedMultiplier, ailmentMulti, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Topaz:
+                AddTemplatePoolEntry(results, RandomItemStatType.MeleePhysicalDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MagicDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.FireSkillDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.BurnChance, ailmentChance, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.BurnMultiplier, ailmentMulti, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Emerald:
+                AddTemplatePoolEntry(results, RandomItemStatType.RangedPhysicalDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.AttackSpeedPercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.AbilityPowerPercent, GetJewelryAbilityPowerBand(rarityBand), RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.LightningSkillDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.ShockChance, ailmentChance, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.ShockMultiplier, ailmentMulti, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Sapphire:
+                AddTemplatePoolEntry(results, RandomItemStatType.SpellDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MagicDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.IceSkillDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.ChillMultiplier, ailmentMulti, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.ChillChance, ailmentChance, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Citrine:
+                AddTemplatePoolEntry(results, RandomItemStatType.MinionDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MinionAttackSpeedPercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MinionCritChance, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MinionMaxLifePercent, medium, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Quartz:
+                AddTemplatePoolEntry(results, RandomItemStatType.LifeSteal, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.GlobalPhysicalDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.MagicDamagePercent, small, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.RangedPhysicalDamagePercent, small, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Diamond:
+                AddTemplatePoolEntry(results, RandomItemStatType.CritChanceBonus, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.CritMultiplierBonus, ailmentMulti, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.AttackSpeedPercent, medium, RandomStatValueKind.PercentPoints);
+                break;
+
+            case JewelryGemType.Amethyst:
+                AddTemplatePoolEntry(results, RandomItemStatType.CorruptionDamagePercent, medium, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.PoisonChance, ailmentChance, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.PoisonMultiplier, ailmentMulti, RandomStatValueKind.PercentPoints);
+                AddTemplatePoolEntry(results, RandomItemStatType.AttackSpeedPercent, medium, RandomStatValueKind.PercentPoints);
+                break;
+        }
+    }
+
     private static PoolValueBand ScaleBand(PoolValueBand source, float scale) =>
         new(Mathf.Max(0f, source.Min * scale), Mathf.Max(0f, source.Max * scale));
 
@@ -1111,8 +1250,7 @@ public static class ItemRandomStatRoller
         }
         else if (item.IsJewelry)
         {
-            AppendLegacyDerivedTemplatePoolEntries(item, results);
-            AppendJewelryExtraPackages(item, item.ExtraRandomStatPoolPackages, results);
+            AppendJewelryDefaultPackage(item, results);
         }
         else
         {
@@ -1922,6 +2060,7 @@ public static class ItemRandomStatRoller
 
             case RandomItemStatType.BonusMana: return 600;
             case RandomItemStatType.ManaRegen: return 601;
+            case RandomItemStatType.BonusHealth: return 50;
             case RandomItemStatType.ArmourBonusHealth: return 610;
             case RandomItemStatType.ArmourFlatGuard: return 611;
             case RandomItemStatType.ArmourFlatArmour: return 612;

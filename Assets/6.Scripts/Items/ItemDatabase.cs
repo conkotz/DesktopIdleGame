@@ -102,6 +102,7 @@ public class ItemDatabase : ScriptableObject
     public ItemDefinition Get(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId)) return null;
+        itemId = Inventory.RemapLegacyItemId(itemId);
 
         // Rebuild if needed (runtime safety)
         if (_map == null || _map.Count == 0)
@@ -246,6 +247,7 @@ public class ItemDatabase : ScriptableObject
                 continue;
 
             string baseItemId = Inventory.RemapLegacyItemId(saved.baseItemId);
+            string runtimeItemId = Inventory.RemapLegacyItemId(saved.itemId);
             if (Inventory.IsObsoleteWandItemId(saved.itemId) || Inventory.IsObsoleteWandItemId(saved.baseItemId))
                 continue;
 
@@ -253,7 +255,7 @@ public class ItemDatabase : ScriptableObject
             if (!baseDef)
                 continue;
 
-            ItemDefinition clone = CreateRuntimeEnhancedItem(baseDef, saved.itemId);
+            ItemDefinition clone = CreateRuntimeEnhancedItem(baseDef, runtimeItemId);
             if (!clone)
                 continue;
 

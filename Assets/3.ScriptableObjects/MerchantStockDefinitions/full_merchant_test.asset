@@ -46,7 +46,7 @@ MonoBehaviour:
       amount: 3000
       itemId: 
     defaultQuantity: 1
-  - itemId: crit_ring
+  - itemId: diamond_ring
     costs:
     - type: 0
       amount: 3000
@@ -55,7 +55,7 @@ MonoBehaviour:
       amount: 3
       itemId: gem_sapphire
     defaultQuantity: 1
-  - itemId: vamp_ring
+  - itemId: quartz_ring
     costs:
     - type: 0
       amount: 3000
@@ -64,7 +64,7 @@ MonoBehaviour:
       amount: 3
       itemId: gem_sapphire
     defaultQuantity: 1
-  - itemId: bone_ring
+  - itemId: citrine_ring
     costs:
     - type: 0
       amount: 3000
@@ -73,7 +73,7 @@ MonoBehaviour:
       amount: 3
       itemId: gem_sapphire
     defaultQuantity: 1
-  - itemId: ability_power_pendant
+  - itemId: amethyst_pendant
     costs:
     - type: 0
       amount: 3000
@@ -82,7 +82,7 @@ MonoBehaviour:
       amount: 3
       itemId: gem_sapphire
     defaultQuantity: 1
-  - itemId: physical_damage_pendant
+  - itemId: ruby_pendant
     costs:
     - type: 0
       amount: 3000
@@ -92,6 +92,105 @@ MonoBehaviour:
       itemId: gem_sapphire
     defaultQuantity: 1
   - itemId: sapphire_trinket
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: ruby_ring
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: emerald_ring
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: emerald_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: sapphire_ring
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: sapphire_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: citrine_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: quartz_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: diamond_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: amethyst_ring
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: topaz_ring
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: topaz_pendant
     costs:
     - type: 0
       amount: 3000

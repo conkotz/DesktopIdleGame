@@ -33,6 +33,19 @@ public enum EquipSlot
     Ring,
 }
 
+public enum JewelryGemType
+{
+    None = 0,
+    Ruby = 1,
+    Emerald = 2,
+    Sapphire = 3,
+    Citrine = 4,
+    Quartz = 5,
+    Diamond = 6,
+    Amethyst = 7,
+    Topaz = 8,
+}
+
 public enum ItemKind
 {
     Resource,
@@ -1063,7 +1076,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Additional Random Stat Pool")]
     [Tooltip(
         "Optional affixes rolled when this item is identified. " +
-        "Weapons always roll 4 affix lines; armour/jewelry follow rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4). " +
+        "All equippables roll by rarity: Common/Uncommon/Rare=3, Epic/Legendary=4. " +
         "Affix strength comes from each pool entry's min/max. The same affix type can roll up to 2 times. Leave empty to keep static stats only.")]
     [SerializeField]
     [HideInInspector]
@@ -1073,6 +1086,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Tooltip("Shown as Tier 1–5; gate uses Endurance at L1 / L10 / L20 / L30 / L50.")]
     [SerializeField]
     private EquipmentTierRank jewelryEquipmentTier = EquipmentTierRank.Tier1;
+
+    [Tooltip("Determines which additional random stat package this jewelry rolls when using the default package.")]
+    [SerializeField]
+    private JewelryGemType jewelryGemType = JewelryGemType.None;
 
     [Tooltip("When enabled, the pool is built from the default package for this item type plus any extra weapon packages below.")]
     [SerializeField]
@@ -1162,6 +1179,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public RandomStatPoolPackageFlags ExtraRandomStatPoolPackages => extraRandomStatPoolPackages;
 
     public EquipmentTierRank JewelryEquipmentTier => jewelryEquipmentTier;
+
+    public JewelryGemType JewelryGemType => jewelryGemType;
 
     private void OnEnable()
     {

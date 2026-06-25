@@ -311,7 +311,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_7
+      name: JewelerySpriteSheet_DIAMOND_Ring
       rect:
         serializedVersion: 2
         x: 729
@@ -421,7 +421,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_16
+      name: JewelerySpriteSheet_SAPPHIRE_Trinket
       rect:
         serializedVersion: 2
         x: 754
@@ -507,7 +507,6 @@ TextureImporter:
       JewelerySpriteSheet_13: -3888247484048830334
       JewelerySpriteSheet_14RUBY_Pendant: 3726802059033397765
       JewelerySpriteSheet_15Emerald_Pendant: -4369353832453534255
-      JewelerySpriteSheet_16: 7238642868589546159
       JewelerySpriteSheet_17Amethyst_Pendant: 6223703686444782735
       JewelerySpriteSheet_18: -8940986733612128406
       JewelerySpriteSheet_19Diamond_Pendant: 9214255559410618789
@@ -517,9 +516,10 @@ TextureImporter:
       JewelerySpriteSheet_4CITRINE_Ring: -8049167607937462275
       JewelerySpriteSheet_5: 3321728945047895435
       JewelerySpriteSheet_6: 3799228797227806774
-      JewelerySpriteSheet_7: 2990212776707475007
       JewelerySpriteSheet_8: 238261412264344948
       JewelerySpriteSheet_9: 1319239339354618872
+      JewelerySpriteSheet_DIAMOND_Ring: 2990212776707475007
+      JewelerySpriteSheet_SAPPHIRE_Trinket: 7238642868589546159
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

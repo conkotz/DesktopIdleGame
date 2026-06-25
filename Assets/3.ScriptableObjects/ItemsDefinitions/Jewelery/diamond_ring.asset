@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: sapphire_trinket
+  m_Name: diamond_ring
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: sapphire_trinket
-  displayName: Trinket of respawning
+  itemId: diamond_ring
+  displayName: Crit Ring
   displayNameSingular: 
-  icon: {fileID: 7238642868589546159, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: 3562001690808654238, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,11 +25,11 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Reduces the time enemies in the current combat map take to respawn.
+  description: Tier 1 diamond ring.
   rarity: 1
   value: 800
-  equipSlot: 6
-  uniquelyEquipped: 0
+  equipSlot: 8
+  uniquelyEquipped: 1
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -151,7 +151,7 @@ MonoBehaviour:
     minionCritChance: 0
     minionMaxLifePercent: 0
     critChanceBonus: 0
-    critMultiplierBonus: 0
+    critMultiplierBonus: 0.1
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0
@@ -181,20 +181,36 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 74
+  - stat: 27
     weight: 1
-    minValue: 0.5
-    maxValue: 1
-    valueKind: 0
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 33
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 34
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   jewelryEquipmentTier: 0
-  jewelryGemType: 3
-  useDefaultRandomStatPoolPackage: 0
+  jewelryGemType: 6
+  useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:
-    enemyRespawnTimeReductionSeconds: 1
+    enemyRespawnTimeReductionSeconds: 0
   randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0

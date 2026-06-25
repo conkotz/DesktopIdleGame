@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: crit_ring
+  m_Name: topaz_pendant
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: crit_ring
-  displayName: Criticality Ring
+  itemId: topaz_pendant
+  displayName: Fire Pendant
   displayNameSingular: 
-  icon: {fileID: 2990212776707475007, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: -1497863532701309970, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,11 +25,11 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A useful item.
+  description: Tier 1 topaz pendant.
   rarity: 1
   value: 800
-  equipSlot: 8
-  uniquelyEquipped: 1
+  equipSlot: 7
+  uniquelyEquipped: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -137,7 +137,7 @@ MonoBehaviour:
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
     magicDamagePercent: 0
-    fireSkillDamagePercent: 0
+    fireSkillDamagePercent: 0.1
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
     spellDamagePercent: 0
@@ -150,7 +150,7 @@ MonoBehaviour:
     minionAttackSpeedPercent: 0
     minionCritChance: 0
     minionMaxLifePercent: 0
-    critChanceBonus: 0.05
+    critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
     bleedChance: 0
@@ -173,22 +173,6 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 31
-    weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 32
-    weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 2
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   - stat: 0
     weight: 1
     minValue: 5
@@ -197,6 +181,48 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 15
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 19
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 20
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 42
+    weight: 1
+    minValue: 2
+    maxValue: 4
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 43
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  jewelryEquipmentTier: 0
+  jewelryGemType: 8
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

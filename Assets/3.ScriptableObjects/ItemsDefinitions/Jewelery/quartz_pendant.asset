@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: physical_damage_pendant
+  m_Name: quartz_pendant
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: physical_damage_pendant
-  displayName: Pendant of Physical Damage
+  itemId: quartz_pendant
+  displayName: Blood Pendant
   displayNameSingular: 
-  icon: {fileID: 3726802059033397765, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: -7553657719077892405, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Grants increased global physcial damage
+  description: Tier 1 quartz pendant.
   rarity: 1
   value: 800
   equipSlot: 7
@@ -129,11 +129,11 @@ MonoBehaviour:
     energyRegen: 0
     manaRegen: 0
     energyEfficiency: 0
-    lifeSteal: 0
+    lifeSteal: 0.02
     moveSpeedPercent: 0
     physicalDamage: 0
     meleePhysicalDamagePercent: 0
-    globalPhysicalDamagePercent: 0.1
+    globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
     magicDamagePercent: 0
@@ -181,14 +181,40 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 15
+  - stat: 17
     weight: 1
-    minValue: 2
-    maxValue: 4
+    minValue: 1
+    maxValue: 3
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 19
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 12
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 16
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  jewelryEquipmentTier: 0
+  jewelryGemType: 5
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

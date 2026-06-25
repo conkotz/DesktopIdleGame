@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: vamp_ring
+  m_Name: emerald_ring
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: vamp_ring
-  displayName: Vamparism Ring
+  itemId: emerald_ring
+  displayName: Archers Ring
   displayNameSingular: 
-  icon: {fileID: 3799228797227806774, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: -1814343929521560271, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A useful item.
+  description: Tier 1 emerald ring.
   rarity: 1
   value: 800
   equipSlot: 8
@@ -129,12 +129,12 @@ MonoBehaviour:
     energyRegen: 0
     manaRegen: 0
     energyEfficiency: 0
-    lifeSteal: 0.02
+    lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
     meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
-    rangedPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0.05
     magicDamage: 0
     magicDamagePercent: 0
     fireSkillDamagePercent: 0
@@ -181,14 +181,56 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 11
+  - stat: 27
     weight: 1
-    minValue: 0.5
-    maxValue: 1.5
+    minValue: 2
+    maxValue: 5
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 76
+    weight: 1
+    minValue: 2
+    maxValue: 4
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 45
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 17
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 26
+    weight: 1
+    minValue: 3
+    maxValue: 7
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 22
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  jewelryEquipmentTier: 0
+  jewelryGemType: 2
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

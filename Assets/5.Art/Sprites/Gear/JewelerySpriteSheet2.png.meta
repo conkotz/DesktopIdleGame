@@ -1,0 +1,641 @@
+fileFormatVersion: 2
+guid: e63c0e6b691c1d54db07e10dcfc1f4e7
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 6500240759911043593
+    second: JewelerySpriteSheet2_0
+  - first:
+      213: -6810298481128598173
+    second: JewelerySpriteSheet2_1
+  - first:
+      213: -4288542241394198516
+    second: JewelerySpriteSheet2_2
+  - first:
+      213: -7553657719077892405
+    second: JewelerySpriteSheet2_3
+  - first:
+      213: -2961483189478975584
+    second: JewelerySpriteSheet2_4
+  - first:
+      213: -3823864527797362523
+    second: JewelerySpriteSheet2_5
+  - first:
+      213: 3230863743032886274
+    second: JewelerySpriteSheet2_6
+  - first:
+      213: -677497186611993699
+    second: JewelerySpriteSheet2_7
+  - first:
+      213: -1497863532701309970
+    second: JewelerySpriteSheet2_8
+  - first:
+      213: -1839819618659715284
+    second: JewelerySpriteSheet2_9
+  - first:
+      213: 5297772804011768690
+    second: JewelerySpriteSheet2_10
+  - first:
+      213: -5874652657637241405
+    second: JewelerySpriteSheet2_11
+  - first:
+      213: 982257782835586359
+    second: JewelerySpriteSheet2_12
+  - first:
+      213: -1814343929521560271
+    second: JewelerySpriteSheet2_13
+  - first:
+      213: 3562001690808654238
+    second: JewelerySpriteSheet2_14
+  - first:
+      213: 43234287552490072
+    second: JewelerySpriteSheet2_15
+  - first:
+      213: 4496587434617507688
+    second: JewelerySpriteSheet2_16
+  - first:
+      213: -13772995391913280
+    second: JewelerySpriteSheet2_17
+  - first:
+      213: -4811723893680409773
+    second: JewelerySpriteSheet2_18
+  - first:
+      213: 2162647823172497181
+    second: JewelerySpriteSheet2_19
+  - first:
+      213: -8151110572263070407
+    second: JewelerySpriteSheet2_20
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 250
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 1024
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_RUBY_Pendant
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 725
+        width: 177
+        height: 278
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9025309088e753a50800000000000000
+      internalID: 6500240759911043593
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_CITRINE_Pendant
+      rect:
+        serializedVersion: 2
+        x: 108
+        y: 424
+        width: 196
+        height: 273
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 36592f92d95fc71a0800000000000000
+      internalID: -6810298481128598173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_QUARTZ_Pendant
+      rect:
+        serializedVersion: 2
+        x: 374
+        y: 401
+        width: 187
+        height: 299
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bce897353540c2790800000000000000
+      internalID: -7553657719077892405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_SAPPHIRE_Pendant
+      rect:
+        serializedVersion: 2
+        x: 378
+        y: 722
+        width: 183
+        height: 277
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0a790d2dab2b6e6d0800000000000000
+      internalID: -2961483189478975584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_EMERALD_Pendant
+      rect:
+        serializedVersion: 2
+        x: 631
+        y: 705
+        width: 202
+        height: 303
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5a0eb6fb877eeeac0800000000000000
+      internalID: -3823864527797362523
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_CRYSTAL_Pendant
+      rect:
+        serializedVersion: 2
+        x: 631
+        y: 424
+        width: 186
+        height: 273
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2040a29d47556dc20800000000000000
+      internalID: 3230863743032886274
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_DIAMOND_Pendant
+      rect:
+        serializedVersion: 2
+        x: 899
+        y: 715
+        width: 194
+        height: 288
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d936aa7f5eb0996f0800000000000000
+      internalID: -677497186611993699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_TOPAZ_Pendant
+      rect:
+        serializedVersion: 2
+        x: 903
+        y: 424
+        width: 192
+        height: 270
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee3a3539d05863be0800000000000000
+      internalID: -1497863532701309970
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_AMETHYST_Pendant
+      rect:
+        serializedVersion: 2
+        x: 1167
+        y: 721
+        width: 193
+        height: 279
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c273efafdc5a776e0800000000000000
+      internalID: -1839819618659715284
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_OBSIDIAN_Pendant
+      rect:
+        serializedVersion: 2
+        x: 1168
+        y: 422
+        width: 193
+        height: 275
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 27bb8d3eb48758940800000000000000
+      internalID: 5297772804011768690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_RUBY_Ring
+      rect:
+        serializedVersion: 2
+        x: 103
+        y: 221
+        width: 210
+        height: 172
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3cd4aba788a097ea0800000000000000
+      internalID: -5874652657637241405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_SAPPHIRE_Ring
+      rect:
+        serializedVersion: 2
+        x: 350
+        y: 209
+        width: 220
+        height: 187
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 73527cfcf3ea1ad00800000000000000
+      internalID: 982257782835586359
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_EMERALD_Ring
+      rect:
+        serializedVersion: 2
+        x: 631
+        y: 221
+        width: 207
+        height: 172
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1352b741fc722d6e0800000000000000
+      internalID: -1814343929521560271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_DIAMOND_Ring
+      rect:
+        serializedVersion: 2
+        x: 878
+        y: 217
+        width: 219
+        height: 181
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e999dfd5aa5ce6130800000000000000
+      internalID: 3562001690808654238
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_AMETHYST_Ring
+      rect:
+        serializedVersion: 2
+        x: 1140
+        y: 217
+        width: 221
+        height: 183
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85aeeaffa59999000800000000000000
+      internalID: 43234287552490072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_CITRINE_Ring
+      rect:
+        serializedVersion: 2
+        x: 108
+        y: 4
+        width: 213
+        height: 198
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86f8cd5a276176e30800000000000000
+      internalID: 4496587434617507688
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_QUARTZ_Ring
+      rect:
+        serializedVersion: 2
+        x: 359
+        y: 14
+        width: 221
+        height: 191
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c20c2e98811fcff0800000000000000
+      internalID: -13772995391913280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_CRYSTAL_Ring
+      rect:
+        serializedVersion: 2
+        x: 627
+        y: 9
+        width: 211
+        height: 187
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3537befbc92593db0800000000000000
+      internalID: -4811723893680409773
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_TOPAZ_Ring
+      rect:
+        serializedVersion: 2
+        x: 874
+        y: 12
+        width: 223
+        height: 195
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1fe77aacb4430e10800000000000000
+      internalID: 2162647823172497181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JewelerySpriteSheet2_OBSIDIAN_Ring
+      rect:
+        serializedVersion: 2
+        x: 1140
+        y: 2
+        width: 221
+        height: 194
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9352457fe1071ee80800000000000000
+      internalID: -8151110572263070407
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 535f89cb5c8874740b71e97d7529bced
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      JewelerySpriteSheet2_2: -4288542241394198516
+      JewelerySpriteSheet2_AMETHYST_Pendant: -1839819618659715284
+      JewelerySpriteSheet2_AMETHYST_Ring: 43234287552490072
+      JewelerySpriteSheet2_CITRINE_Pendant: -6810298481128598173
+      JewelerySpriteSheet2_CITRINE_Ring: 4496587434617507688
+      JewelerySpriteSheet2_CRYSTAL_Pendant: 3230863743032886274
+      JewelerySpriteSheet2_CRYSTAL_Ring: -4811723893680409773
+      JewelerySpriteSheet2_DIAMOND_Pendant: -677497186611993699
+      JewelerySpriteSheet2_DIAMOND_Ring: 3562001690808654238
+      JewelerySpriteSheet2_EMERALD_Pendant: -3823864527797362523
+      JewelerySpriteSheet2_EMERALD_Ring: -1814343929521560271
+      JewelerySpriteSheet2_OBSIDIAN_Pendant: 5297772804011768690
+      JewelerySpriteSheet2_OBSIDIAN_Ring: -8151110572263070407
+      JewelerySpriteSheet2_QUARTZ_Pendant: -7553657719077892405
+      JewelerySpriteSheet2_QUARTZ_Ring: -13772995391913280
+      JewelerySpriteSheet2_RUBY_Pendant: 6500240759911043593
+      JewelerySpriteSheet2_RUBY_Ring: -5874652657637241405
+      JewelerySpriteSheet2_SAPPHIRE_Pendant: -2961483189478975584
+      JewelerySpriteSheet2_SAPPHIRE_Ring: 982257782835586359
+      JewelerySpriteSheet2_TOPAZ_Pendant: -1497863532701309970
+      JewelerySpriteSheet2_TOPAZ_Ring: 2162647823172497181
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
