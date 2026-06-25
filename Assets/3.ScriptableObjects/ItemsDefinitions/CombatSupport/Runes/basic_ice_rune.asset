@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: basic_ice_rune
   displayName: Basic Ice Rune
   displayNameSingular: 
-  icon: {fileID: 2225079337066959512, guid: ca56f4a66fb9cd145a055cda7e049823, type: 3}
+  icon: {fileID: 7660778507314729855, guid: ca56f4a66fb9cd145a055cda7e049823, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -29,6 +29,7 @@ MonoBehaviour:
   rarity: 0
   value: 12
   equipSlot: 2
+  uniquelyEquipped: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0

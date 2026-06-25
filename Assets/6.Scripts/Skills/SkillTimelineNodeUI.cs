@@ -353,6 +353,15 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
         _abilityDrag.Bind(this);
     }
 
+    /// <summary>Re-evaluates whether this node can be dragged onto the action bar (e.g. after row pick).</summary>
+    public void RefreshAbilityDragState()
+    {
+        if (_abilityDrag != null)
+            _abilityDrag.RefreshDragState();
+        else if (_binding != null)
+            RefreshAbilityDragFromBinding(_binding);
+    }
+
     private void EnsureClickHandler()
     {
         if (!Application.isPlaying)

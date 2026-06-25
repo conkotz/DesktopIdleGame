@@ -133,10 +133,10 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         PreferRuntimeSkillsManager();
         EnsureDetailsPanelReference();
         EnsureSkillLevelTextReference();
-        EnsureSkillLevelPanelHoverDim();
+        RemoveSkillLevelPanelHoverDim();
     }
 
-    private static void EnsureSkillLevelPanelHoverDim()
+    private static void RemoveSkillLevelPanelHoverDim()
     {
         Transform timelineContainer = null;
         var horizontal = FindFirstObjectByType<HorizontalSkillTreeScaffoldUI>(FindObjectsInactive.Include);
@@ -157,8 +157,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (skillLevelPanel == null)
             return;
 
-        if (skillLevelPanel.GetComponent<SkillLevelPanelHoverDimUI>() == null)
-            skillLevelPanel.gameObject.AddComponent<SkillLevelPanelHoverDimUI>();
+        if (skillLevelPanel.TryGetComponent(out SkillLevelPanelHoverDimUI dim))
+            Destroy(dim);
+
+        if (skillLevelPanel.TryGetComponent(out CanvasGroup canvasGroup))
+            canvasGroup.alpha = 1f;
     }
 
     private bool _pendingConnectorRefreshWhileInactive;
@@ -1891,6 +1894,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 node.ConfigureRowSelectionButtons(false, false, false, null, null);
             }
 
+            RefreshAllTimelineNodeDragStates();
             return;
         }
 
@@ -1900,6 +1904,17 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RefreshRowSelectionButtons();
         RefreshConnectorSelectionHighlights();
         BringSpineMinorNodesToFront();
+        RefreshAllTimelineNodeDragStates();
+    }
+
+    private void RefreshAllTimelineNodeDragStates()
+    {
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node != null)
+                node.RefreshAbilityDragState();
+        }
     }
 
     private void RefreshConnectorSelectionHighlights()

@@ -48,7 +48,10 @@ public partial class PlayerAbilityController
         }
 
         if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
+        {
+            RefundAbilityResourceCost(def);
             return false;
+        }
 
         MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(def.abilityId);
         float rolled = SpellDamageScaling.RollScaledElementDamage(stats, element, baseMin, baseMax);
@@ -84,48 +87,6 @@ public partial class PlayerAbilityController
         if (combat == null || target == null || target.IsDead || stats == null || def == null)
             return;
 
-        combat.ApplyStaticArrowsCritArcDamage(target, rolled, wasCrit, sourceLabel);
-        TryApplyMagicStarterSpellElementalAilment(target, element, rolled.magic);
-    }
-
-    private void TryApplyMagicStarterSpellElementalAilment(
-        EnemyBaseController target,
-        MagicAttackType element,
-        float magicDealt)
-    {
-        if (target == null || stats == null || magicDealt <= 0f)
-            return;
-
-        AilmentController ailments = target.GetComponent<AilmentController>();
-        if (ailments == null)
-            return;
-
-        switch (element)
-        {
-            case MagicAttackType.Fire:
-                stats.TryApplyBurnFromDealtHit(ailments, magicDealt, 0f, transform);
-                break;
-            case MagicAttackType.Ice:
-                if (UnityEngine.Random.value <= stats.ChillApplyChanceForElementalMagicHit)
-                {
-                    ailments.ApplyChillFromHit(new ChillPayload(
-                        duration: stats.ChillDuration,
-                        maxStacks: stats.ChillMaxStacks,
-                        slowPerStack: stats.ChillSlowPerStack,
-                        source: transform));
-                }
-
-                break;
-            default:
-                if (UnityEngine.Random.value <= stats.ShockApplyChanceForElementalMagicHit)
-                {
-                    ailments.ApplyShockFromHit(new ShockPayload(
-                        duration: stats.ShockDuration,
-                        damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
-                        source: transform));
-                }
-
-                break;
-        }
+        combat.ApplySpellArcDamage(target, rolled, wasCrit, element, sourceLabel);
     }
 }

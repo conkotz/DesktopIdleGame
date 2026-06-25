@@ -473,13 +473,27 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // -------------------------
         if (damageText)
         {
-            bool meleeProfile = stats.CurrentAttackSkill == AttackSkill.Melee;
-            string damageLabel = meleeProfile ? "Melee Damage" : "Damage";
-            damageText.text = $"{damageLabel}: {stats.MinDamage}-{stats.MaxDamage}";
+            if (stats.UsesSpellScalingMagicWeapon())
+            {
+                damageText.text = "View spell for details";
+            }
+            else
+            {
+                bool meleeProfile = stats.CurrentAttackSkill == AttackSkill.Melee;
+                string damageLabel = meleeProfile ? "Melee Damage" : "Damage";
+                damageText.text = $"{damageLabel}: {stats.MinDamage}-{stats.MaxDamage}";
+            }
         }
 
         if (damageSplitText)
         {
+            if (stats.UsesSpellScalingMagicWeapon())
+            {
+                damageSplitText.richText = true;
+                damageSplitText.text = "View spell for details\nSplit: -";
+            }
+            else
+            {
             SplitDamage min = stats.MinSplitDamage;
             SplitDamage max = stats.MaxSplitDamage;
 
@@ -513,6 +527,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
             damageSplitText.richText = true;
             damageSplitText.text = $"Type: {colouredTypeLabel}\nSplit: {split}";
+            }
         }
 
         if (atkSpeedText) atkSpeedText.text = $"Attack Speed: {stats.AttacksPerSecond:0.00}/s";
@@ -600,11 +615,24 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             float bleedDps = stats.ExpectedBleedDPS;
             float poisonDps = stats.ExpectedPoisonDPS;
             float burnDps = stats.ExpectedBurnDPS;
-            float abilityDps = AbilityCombatPower.EstimateTotalSlottedAbilityDps(stats);
-            float totalWithAbilities = sheetDps + Mathf.Max(0f, abilityDps);
+            float spellDps = AbilityCombatPower.EstimateTotalSlottedAbilityDps(stats);
+            bool magicWeapon = stats.UsesSpellScalingMagicWeapon();
 
-            float headlineTotal = abilityDps > 0.01f ? totalWithAbilities : sheetDps;
-            string breakdown = BuildDpsBreakdownLine(weaponDps, bleedDps, poisonDps, burnDps, abilityDps);
+            float headlineTotal;
+            string breakdown;
+            if (magicWeapon)
+            {
+                float spellAilmentDps = AbilityCombatPower.EstimateTotalSlottedSpellAilmentDps(stats);
+                float ailmentDps = bleedDps + poisonDps + burnDps + spellAilmentDps;
+                headlineTotal = spellDps + ailmentDps;
+                breakdown = BuildMagicWeaponDpsBreakdownLine(spellDps, ailmentDps);
+            }
+            else
+            {
+                float totalWithAbilities = sheetDps + Mathf.Max(0f, spellDps);
+                headlineTotal = spellDps > 0.01f ? totalWithAbilities : sheetDps;
+                breakdown = BuildDpsBreakdownLine(weaponDps, bleedDps, poisonDps, burnDps, spellDps);
+            }
 
             if (dpsBreakdownText)
             {
@@ -771,6 +799,19 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             parts.Add($"{burnDps:0.#} burn");
         if (abilityDps > eps)
             parts.Add($"{abilityDps:0.#} ability");
+        return string.Join(", ", parts);
+    }
+
+    private static string BuildMagicWeaponDpsBreakdownLine(float spellDps, float ailmentDps)
+    {
+        const float eps = 0.01f;
+        var parts = new List<string>(2);
+        if (spellDps > eps)
+            parts.Add($"{spellDps:0.#} Spell");
+        if (ailmentDps > eps)
+            parts.Add($"{ailmentDps:0.#} ailment");
+        if (parts.Count == 0)
+            return "0 Spell";
         return string.Join(", ", parts);
     }
 

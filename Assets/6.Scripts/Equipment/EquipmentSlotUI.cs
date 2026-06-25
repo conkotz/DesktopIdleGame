@@ -82,6 +82,14 @@ public class EquipmentSlotUI : MonoBehaviour,
     private Action<EquipmentUISlotType, string> _uiSlotCb;
     private Action<int> _activeSetCb;
 
+    private bool _labelLayoutCaptured;
+    private Vector2 _defaultLabelAnchorMin;
+    private Vector2 _defaultLabelAnchorMax;
+    private Vector2 _defaultLabelPivot;
+    private Vector2 _defaultLabelAnchoredPosition;
+    private Vector2 _defaultLabelSizeDelta;
+    private TextAlignmentOptions _defaultLabelAlignment;
+
     private Canvas _rootCanvas;
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
@@ -162,6 +170,8 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (icon) icon.raycastTarget = false;
         if (label) label.raycastTarget = false;
+
+        CaptureDefaultLabelLayout();
 
         if (!_rootCanvas)
             _rootCanvas = GetComponentInParent<Canvas>();
@@ -371,9 +381,57 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         if (label)
+        {
             label.text = GetDisplayLabel();
+            ApplyLabelLayoutForCurrentState();
+        }
 
         RefreshRarityBorder(_def);
+    }
+
+    private void CaptureDefaultLabelLayout()
+    {
+        if (_labelLayoutCaptured || !label)
+            return;
+
+        RectTransform rt = label.rectTransform;
+        _defaultLabelAnchorMin = rt.anchorMin;
+        _defaultLabelAnchorMax = rt.anchorMax;
+        _defaultLabelPivot = rt.pivot;
+        _defaultLabelAnchoredPosition = rt.anchoredPosition;
+        _defaultLabelSizeDelta = rt.sizeDelta;
+        _defaultLabelAlignment = label.alignment;
+        _labelLayoutCaptured = true;
+    }
+
+    private bool ShouldUseOffHandStockLabelLayout() =>
+        slotType == EquipmentUISlotType.OffHand && _def != null && _def.IsCombatSupport;
+
+    private void ApplyLabelLayoutForCurrentState()
+    {
+        if (!label)
+            return;
+
+        CaptureDefaultLabelLayout();
+        RectTransform rt = label.rectTransform;
+
+        if (ShouldUseOffHandStockLabelLayout())
+        {
+            rt.anchorMin = new Vector2(0.5f, 1f);
+            rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -12f);
+            rt.sizeDelta = new Vector2(72f, 22f);
+            label.alignment = TextAlignmentOptions.Top | TextAlignmentOptions.Center;
+            return;
+        }
+
+        rt.anchorMin = _defaultLabelAnchorMin;
+        rt.anchorMax = _defaultLabelAnchorMax;
+        rt.pivot = _defaultLabelPivot;
+        rt.anchoredPosition = _defaultLabelAnchoredPosition;
+        rt.sizeDelta = _defaultLabelSizeDelta;
+        label.alignment = _defaultLabelAlignment;
     }
 
     private void RefreshOffHandStackLabel(int stackAmount)
@@ -382,7 +440,10 @@ public class EquipmentSlotUI : MonoBehaviour,
             return;
 
         if (_def != null && _def.IsCombatSupport)
+        {
             label.text = $"x{Mathf.Max(1, stackAmount)}";
+            ApplyLabelLayoutForCurrentState();
+        }
     }
 
     private void SetEmptyVisual()
@@ -397,7 +458,10 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         if (label)
+        {
             label.text = GetTitle();
+            ApplyLabelLayoutForCurrentState();
+        }
 
         RefreshRarityBorder(null);
     }

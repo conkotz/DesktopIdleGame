@@ -223,10 +223,11 @@ public partial class PlayerAbilityController
 
         float damage = Mathf.Max(1f, baseDamage * critMult);
         SplitDamage rolled = new SplitDamage(0f, damage, 0f);
-        combat.ApplyStaticArrowsCritArcDamage(
+        combat.ApplySpellArcDamage(
             target,
             rolled,
             wasCrit,
+            MagicAttackType.Lightning,
             AbilityCombatPower.ChainLightningOutgoingDamageSourceLabel);
 
         if (tryShock)

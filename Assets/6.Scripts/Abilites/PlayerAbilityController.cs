@@ -2731,12 +2731,104 @@ public partial class PlayerAbilityController : MonoBehaviour
         return stats != null ? stats.EnergyRegenPerSecond : 0f;
     }
 
+    /// <summary>Queued, target-gated, or spell abilities spend their resource cost when they actually fire, not in the generic pre-check.</summary>
+    private static bool AbilityDefersResourceCostUntilActivated(AbilityDefinition def)
+    {
+        if (AbilityDefersEnergyUntilActivated(def))
+            return true;
+
+        return SpellCombatRules.IsSpellAbility(def);
+    }
+
+    /// <summary>Whether the player can pay this ability's resource cost right now (no spending).</summary>
+    public bool CanAffordAbilityResourceCost(AbilityDefinition def)
+    {
+        if (def == null || stats == null)
+            return true;
+
+        switch (def.GetResourceCostType())
+        {
+            case AbilityResourceCostType.None:
+                return true;
+            case AbilityResourceCostType.Health:
+            {
+                int hpCost = Mathf.Max(0, Mathf.RoundToInt(def.healthCost));
+                return hpCost <= 0 || stats.HP >= hpCost;
+            }
+            case AbilityResourceCostType.Mana:
+            {
+                int manaCost = Mathf.Max(0, Mathf.RoundToInt(def.manaCost));
+                return manaCost <= 0 || stats.Mana >= manaCost;
+            }
+            default:
+            {
+                if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase) &&
+                    IsCrusaderStrikeSecondCastFree())
+                    return true;
+
+                float costMultiplier = GetBattleEngineOverloadEnergyCostMultiplier();
+                int energyCost = Mathf.Max(0, Mathf.RoundToInt(def.energyCost * costMultiplier));
+                energyCost = stats.ApplyEnergyEfficiencyToAbilityEnergyCost(def, energyCost);
+                if (energyCost <= 0)
+                    return true;
+
+                int manaCost = GetEnergyInfusionConvertedManaCost(def, energyCost);
+                if (manaCost > 0 && stats.Mana + 0.0001f >= manaCost)
+                {
+                    int reducedEnergyCost = Mathf.Max(0, energyCost - manaCost);
+                    return stats.Energy + 0.0001f >= reducedEnergyCost;
+                }
+
+                return stats.Energy + 0.0001f >= energyCost;
+            }
+        }
+    }
+
+    public bool CanAffordAbilityResourceCostForId(string abilityId) =>
+        CanAffordAbilityResourceCost(GetAbilityDefinition(abilityId));
+
+    /// <summary>Mana-cost ability that is off cooldown and eligible for idle auto-battle rotation.</summary>
+    public bool IsManaCostAbilityReadyForAutoBattle(string abilityId, out AbilityDefinition def)
+    {
+        def = GetAbilityDefinition(abilityId);
+        if (def == null || !CanAbilityBeUsedByAutoBattle(def))
+            return false;
+        if (def.GetResourceCostType() != AbilityResourceCostType.Mana)
+            return false;
+        if (def.GetBaseResourceCostAmount() <= 0f)
+            return false;
+        if (IsOnCooldown(abilityId, out _))
+            return false;
+        return true;
+    }
+
     private bool TrySpendAbilityResourceCost(AbilityDefinition def, bool showInsufficientFeedback = true)
     {
         if (def == null || player == null || stats == null)
             return true;
 
         ResetLastAbilityResourceSpend();
+
+        if (!CanAffordAbilityResourceCost(def))
+        {
+            switch (def.GetResourceCostType())
+            {
+                case AbilityResourceCostType.Health:
+                    if (showInsufficientFeedback)
+                        player.ShowPopup("Not enough health.");
+                    break;
+                case AbilityResourceCostType.Mana:
+                    if (showInsufficientFeedback)
+                        player.ShowPopup("Not enough mana.");
+                    break;
+                default:
+                    if (showInsufficientFeedback)
+                        player.ShowPopup("Not enough energy.");
+                    break;
+            }
+
+            return false;
+        }
 
         switch (def.GetResourceCostType())
         {
@@ -2747,12 +2839,6 @@ public partial class PlayerAbilityController : MonoBehaviour
                 int hpCost = Mathf.Max(0, Mathf.RoundToInt(def.healthCost));
                 if (hpCost <= 0)
                     return true;
-                if (stats.HP < hpCost)
-                {
-                    if (showInsufficientFeedback)
-                        player.ShowPopup("Not enough health.");
-                    return false;
-                }
 
                 bool spentHealth = stats.SpendHealthForAbilityCost(hpCost);
                 if (spentHealth)
@@ -2764,12 +2850,6 @@ public partial class PlayerAbilityController : MonoBehaviour
                 int manaCost = Mathf.Max(0, Mathf.RoundToInt(def.manaCost));
                 if (manaCost <= 0)
                     return true;
-                if (stats.Mana < manaCost)
-                {
-                    if (showInsufficientFeedback)
-                        player.ShowPopup("Not enough mana.");
-                    return false;
-                }
 
                 bool spentMana = player.SpendMana(manaCost);
                 if (spentMana)
@@ -3710,7 +3790,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             !isPenetratingShot &&
             !UsesMeleeApproachOnActivate(def) &&
             !isGuardiansHammer &&
-            !AbilityDefersEnergyUntilActivated(def) &&
+            !AbilityDefersResourceCostUntilActivated(def) &&
             !TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;
 

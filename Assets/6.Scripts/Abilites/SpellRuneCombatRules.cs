@@ -62,4 +62,15 @@ public static class SpellRuneCombatRules
             ChargedRuneElement.Elemental => "elemental runes",
             _ => "runes"
         };
+
+    /// <summary>Tooltip hint under spell rune consumption, e.g. "(Lightning or elemental runes)".</summary>
+    public static string FormatSpellRuneRequirementParenthetical(ChargedRuneElement element) =>
+        element switch
+        {
+            ChargedRuneElement.Fire => "(Fire or elemental runes)",
+            ChargedRuneElement.Ice => "(Ice or elemental runes)",
+            ChargedRuneElement.Lightning => "(Lightning or elemental runes)",
+            ChargedRuneElement.Elemental => "(elemental runes)",
+            _ => "(Runes)"
+        };
 }

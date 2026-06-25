@@ -450,6 +450,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     private float _autoAttackCadencePausedAt;
     private float _nextIdleScanTime;
     private float _nextLowManaPopupTime;
+    private float _nextOutOfManaActivityLogTime;
+    private const float OutOfManaActivityLogCooldownSeconds = 3f;
+    private const string OutOfManaActivityLogMessage = "Out of mana.";
     private float _nextSupportWeaponMismatchPopupTime;
     private bool _isClosingDistanceForAttack;
     private float _stableCombatSideSign;
@@ -1296,7 +1299,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (_target == null || _target.IsDead)
             return;
 
-        if (TryAutoCastCommittedMagicStarterSpell())
+        bool anyOffCooldownManaAbility = false;
+        bool anyAffordableOffCooldownManaAbility = false;
+
+        if (TryAutoCastCommittedMagicStarterSpell(ref anyOffCooldownManaAbility, ref anyAffordableOffCooldownManaAbility))
             return;
 
         var orderedSlots = actionBar
@@ -1357,15 +1363,16 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (CombatStarterAttackAbility.IsCombatStarterAttackId(action.id))
                 continue;
 
-            if (stats != null
-                && stats.CurrentAttackSkill == AttackSkill.Magic
-                && MagicStarterSpellRules.IsMagicStarterSpellId(action.id))
-                continue;
-
             if (!slot.CanAccept(action))
                 continue;
 
             if (_autoBattleDeferExtraFlameCharge && IsFlameChargeActionBarSlot(slot))
+                continue;
+
+            TrackAutoBattleManaAbilityGate(action.id, ref anyOffCooldownManaAbility, ref anyAffordableOffCooldownManaAbility);
+
+            if (abilityController.IsManaCostAbilityReadyForAutoBattle(action.id, out AbilityDefinition manaDef) &&
+                !abilityController.CanAffordAbilityResourceCost(manaDef))
                 continue;
 
             bool used = abilityController.TryUseAbility(
@@ -1403,18 +1410,56 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
             break;
         }
+
+        TryLogAutoBattleOutOfMana(anyOffCooldownManaAbility, anyAffordableOffCooldownManaAbility);
+    }
+
+    private void TrackAutoBattleManaAbilityGate(
+        string abilityId,
+        ref bool anyOffCooldownManaAbility,
+        ref bool anyAffordableOffCooldownManaAbility)
+    {
+        if (abilityController == null || string.IsNullOrWhiteSpace(abilityId))
+            return;
+
+        if (!abilityController.IsManaCostAbilityReadyForAutoBattle(abilityId, out AbilityDefinition def))
+            return;
+
+        anyOffCooldownManaAbility = true;
+        if (abilityController.CanAffordAbilityResourceCost(def))
+            anyAffordableOffCooldownManaAbility = true;
+    }
+
+    private void TryLogAutoBattleOutOfMana(bool anyOffCooldownManaAbility, bool anyAffordableOffCooldownManaAbility)
+    {
+        if (!anyOffCooldownManaAbility || anyAffordableOffCooldownManaAbility)
+            return;
+
+        if (Time.time < _nextOutOfManaActivityLogTime)
+            return;
+
+        _nextOutOfManaActivityLogTime = Time.time + OutOfManaActivityLogCooldownSeconds;
+        GameLog.Add(OutOfManaActivityLogMessage, GameLog.CannotMessageColor);
     }
 
     /// <summary>
     /// Idle auto-battle: cast the committed Lv1 magic starter spell (respects cooldown + mana via <see cref="PlayerAbilityController.TryUseAbility"/>).
     /// </summary>
-    private bool TryAutoCastCommittedMagicStarterSpell()
+    private bool TryAutoCastCommittedMagicStarterSpell(
+        ref bool anyOffCooldownManaAbility,
+        ref bool anyAffordableOffCooldownManaAbility)
     {
         if (stats == null || abilityController == null || stats.CurrentAttackSkill != AttackSkill.Magic)
             return false;
 
         SkillsManager sm = SkillsManager.Instance;
         if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
+            return false;
+
+        TrackAutoBattleManaAbilityGate(spellId, ref anyOffCooldownManaAbility, ref anyAffordableOffCooldownManaAbility);
+
+        if (abilityController.IsManaCostAbilityReadyForAutoBattle(spellId, out AbilityDefinition def) &&
+            !abilityController.CanAffordAbilityResourceCost(def))
             return false;
 
         return abilityController.TryUseAbility(
@@ -2623,7 +2668,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         SplitDamage rolled,
         bool wasCrit,
         bool forceElementalAilment,
-        string outgoingDamageSourceLabel = null)
+        string outgoingDamageSourceLabel = null,
+        MagicAttackType? spellElementOverride = null)
     {
         DamageResult dealt = ApplySplitDamageToTarget(target, rolled, wasCrit, outgoingDamageSourceLabel);
         if (dealt.Total <= 0f)
@@ -2634,7 +2680,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         {
             TryApplyBleed(target, dealt);
             TryApplyPoison(target, dealt);
-            TryApplyElementalMagicAilment(target, dealt, forceElementalAilment);
+            TryApplyElementalMagicAilment(target, dealt, forceElementalAilment, spellElementOverride);
             TryApplyMeleeShock(target, dealt);
         }
     }
@@ -2646,6 +2692,23 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         string outgoingDamageSourceLabel)
     {
         ApplySecondaryHitPipeline(target, rolled, wasCrit, forceElementalAilment: false, outgoingDamageSourceLabel);
+    }
+
+    /// <summary>Spell hits apply ailments for the spell element — not <see cref="CharacterStats.CurrentMagicAttackType"/>.</summary>
+    public void ApplySpellArcDamage(
+        EnemyBaseController target,
+        SplitDamage rolled,
+        bool wasCrit,
+        MagicAttackType spellElement,
+        string outgoingDamageSourceLabel)
+    {
+        ApplySecondaryHitPipeline(
+            target,
+            rolled,
+            wasCrit,
+            forceElementalAilment: false,
+            outgoingDamageSourceLabel,
+            spellElement);
     }
 
     public void ToggleIdleCombat()
@@ -3619,12 +3682,22 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             ailments.ApplyPoisonFromHit(payload);
     }
 
-    private void TryApplyElementalMagicAilment(EnemyBaseController target, DamageResult dealt, bool forceApply = false)
+    private void TryApplyElementalMagicAilment(
+        EnemyBaseController target,
+        DamageResult dealt,
+        bool forceApply = false,
+        MagicAttackType? spellElementOverride = null)
     {
         if (target == null) return;
         if (stats == null) return;
         var ailments = target.GetComponent<AilmentController>();
         if (ailments == null) return;
+
+        if (spellElementOverride.HasValue)
+        {
+            TryApplySpellElementAilment(target, ailments, dealt, forceApply, spellElementOverride.Value);
+            return;
+        }
 
         float fireDealt = stats.ResolveFireDamageFromDealt(dealt.magic, dealt.physical);
         if (fireDealt > 0f)
@@ -3637,10 +3710,32 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (!forceApply && dealt.magic <= 0f) return;
         if (!forceApply && stats.CurrentAttackSkill != AttackSkill.Magic) return;
 
-        switch (stats.CurrentMagicAttackType)
+        TryApplySpellElementAilment(target, ailments, dealt, forceApply, stats.CurrentMagicAttackType);
+    }
+
+    private void TryApplySpellElementAilment(
+        EnemyBaseController target,
+        AilmentController ailments,
+        DamageResult dealt,
+        bool forceApply,
+        MagicAttackType element)
+    {
+        if (target == null || ailments == null || stats == null)
+            return;
+
+        switch (element)
         {
+            case MagicAttackType.Fire:
+            {
+                if (dealt.magic <= 0f)
+                    return;
+                stats.TryApplyBurnFromSpellFireDealt(ailments, dealt.magic, transform);
+                break;
+            }
+
             case MagicAttackType.Ice:
             {
+                if (!forceApply && dealt.magic <= 0f) return;
                 float chillChance = stats.ChillApplyChanceForElementalMagicHit;
                 if (!forceApply && chillChance <= 0f) return;
                 if (!forceApply && Random.value > chillChance) return;
@@ -3657,6 +3752,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             case MagicAttackType.Lightning:
             default:
             {
+                if (!forceApply && dealt.magic <= 0f) return;
                 float shockChance = stats.ShockApplyChanceForElementalMagicHit;
                 if (!forceApply && shockChance <= 0f) return;
                 if (!forceApply && Random.value > shockChance) return;

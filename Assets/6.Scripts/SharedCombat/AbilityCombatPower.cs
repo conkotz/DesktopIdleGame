@@ -915,6 +915,55 @@ public static class AbilityCombatPower
         return result;
     }
 
+    /// <summary>Expected ailment DPS from spells on the action bar (e.g. Fire Ball burn).</summary>
+    public static float EstimateTotalSlottedSpellAilmentDps(CharacterStats stats)
+    {
+        if (!stats)
+            return 0f;
+
+        ActionBarUI bar = ActionBarUI.FindForCharacterStats(stats);
+        if (!bar)
+            return 0f;
+
+        PlayerAbilityController abilityController =
+            stats.GetComponent<PlayerAbilityController>() ?? stats.GetComponentInParent<PlayerAbilityController>();
+
+        AbilityDatabase barDb = bar.GetAbilityDatabaseOrDefault();
+        AbilityDatabase playerDb = abilityController != null ? abilityController.GetDatabaseOrDefault() : null;
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        float total = 0f;
+        SkillDatabase skillDb = SkillDatabase.LoadDefault();
+        SkillsManager skillsMgr = SkillsManager.Instance;
+
+        foreach (string abilityId in bar.EnumerateCombatLoadoutAbilityIdsForCombatPower())
+        {
+            if (string.IsNullOrWhiteSpace(abilityId) || !seen.Add(abilityId))
+                continue;
+
+            AbilityDefinition def = ResolveAbilityDefinition(abilityId, barDb, playerDb, out _);
+            if (!def || !SpellCombatRules.IsSpellAbility(def))
+                continue;
+
+            if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+                continue;
+
+            if (ActionBarUI.IsGatheringSkillType(def.sourceSkill))
+                continue;
+
+            SkillDefinition skillDef = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
+            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skillDef, def, skillsMgr))
+                continue;
+
+            if (!stats.IsAbilityUsableWithEquippedWeapon(def))
+                continue;
+
+            total += EstimateSpellAilmentDps(def, stats);
+        }
+
+        return Mathf.Max(0f, total);
+    }
+
     private static string DescribeDb(AbilityDatabase db)
     {
         if (!db)
@@ -979,6 +1028,9 @@ public static class AbilityCombatPower
         // Lv1 Attack abilities trigger weapon swings; direct weapon DPS already covers them.
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return 0f;
+
+        if (SpellCombatRules.IsSpellAbility(def))
+            return EstimateSpellAbilityDps(def, stats);
 
         if (def.minionSpawnDefinition)
         {
@@ -1274,6 +1326,80 @@ public static class AbilityCombatPower
         }
 
         return dps;
+    }
+
+    private static float EstimateSpellAbilityDps(AbilityDefinition def, CharacterStats stats)
+    {
+        if (!def || !stats)
+            return 0f;
+
+        float cd = Mathf.Max(0.01f, def.cooldown);
+        if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
+            cd = Mathf.Max(0.01f, MagicStarterSpellRules.GetCooldownSecondsForAbilityId(def.abilityId));
+
+        float critFactor = GetCritFactor(stats);
+
+        if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
+        {
+            if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
+                return 0f;
+
+            MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(def.abilityId);
+            SpellDamageScaling.ScaleElementBounds(stats, element, baseMin, baseMax, out float minD, out float maxD);
+            float avgHit = (minD + maxD) * 0.5f * critFactor;
+            return Mathf.Max(0f, avgHit / cd);
+        }
+
+        if (string.Equals(def.abilityId, ChainLightningAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            GetChainLightningDamageBounds(stats, out float minD, out float maxD);
+            float avgPerHit = (minD + maxD) * 0.5f * critFactor;
+            int maxJumps = ChainLightningBaseMaxChainJumps;
+            float expectedHits = 1f + maxJumps * 0.8f;
+            return Mathf.Max(0f, avgPerHit * expectedHits / cd);
+        }
+
+        return 0f;
+    }
+
+    private static float EstimateSpellAilmentDps(AbilityDefinition def, CharacterStats stats)
+    {
+        if (!def || !stats || !SpellCombatRules.IsSpellAbility(def))
+            return 0f;
+
+        if (!MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
+            return 0f;
+
+        MagicAttackType element = MagicStarterSpellRules.GetMagicAttackTypeForAbilityId(def.abilityId);
+        if (element != MagicAttackType.Fire)
+            return 0f;
+
+        if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
+            return 0f;
+
+        float cd = Mathf.Max(0.01f, MagicStarterSpellRules.GetCooldownSecondsForAbilityId(def.abilityId));
+        SpellDamageScaling.ScaleElementBounds(stats, element, baseMin, baseMax, out float minD, out float maxD);
+        float critFactor = GetCritFactor(stats);
+        float avgHit = (minD + maxD) * 0.5f * critFactor;
+        return EstimateSpellBurnAilmentDps(stats, avgHit, cd);
+    }
+
+    private static float EstimateSpellBurnAilmentDps(CharacterStats stats, float avgFireHit, float cooldownSeconds)
+    {
+        float p = Mathf.Clamp01(stats.BurnApplyChance);
+        if (p <= 0f || avgFireHit <= 0f || cooldownSeconds <= 0f)
+            return 0f;
+
+        const float burnFraction = 0.15f;
+        const int combustStacks = 3;
+        float mult = Mathf.Max(0f, stats.BurnExplosionMultiplier);
+        float tick = Mathf.Max(1f, Mathf.Ceil(avgFireHit * burnFraction * mult));
+        float applyPerSec = p / cooldownSeconds;
+        float tickInterval = Mathf.Max(0.05f, stats.BurnTickIntervalSeconds);
+        float dotDps = tick * Mathf.Clamp(applyPerSec * 0.35f, 0f, 1f) / tickInterval;
+        const int combustTickWorth = 10;
+        float combustDps = (tick * combustTickWorth) * (applyPerSec / Mathf.Max(1, combustStacks));
+        return dotDps + combustDps;
     }
 
     private static int GetSoulforgedWeaponSelectedChoice()

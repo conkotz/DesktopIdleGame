@@ -1363,6 +1363,40 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>Staff or wand — spells scale independently; weapon sheet stats omit committed starter spell damage.</summary>
+    public bool UsesSpellScalingMagicWeapon()
+    {
+        var mh = GetMainHandWeaponDef();
+        return mh != null && mh.UsesSpellScalingMagicWeaponTooltip;
+    }
+
+    /// <summary>Whether the player can cast this spell with equipped staff runes (always true for wands / no rune cost).</summary>
+    public bool HasRequiredSpellRunesForAbility(AbilityDefinition def)
+    {
+        if (def == null)
+            return true;
+
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+
+        ItemDefinition mainHand = GetEquippedMainHandWeaponOrNull();
+        ItemDefinition offHand = equipment != null ? equipment.GetOffHandDef() : null;
+        int stack = equipment != null ? equipment.OffHandStackAmount : 0;
+        return SpellRuneCombatRules.HasRequiredSpellRunes(def, mainHand, offHand, stack);
+    }
+
+    /// <summary>Whether equipped bow/crossbow ammo is available for ranged abilities (always true when no ammo is required).</summary>
+    public bool HasConsumableRangedAmmoForAbilities()
+    {
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+
+        ItemDefinition mainHand = GetEquippedMainHandWeaponOrNull();
+        ItemDefinition offHand = equipment != null ? equipment.GetOffHandDef() : null;
+        int stack = equipment != null ? equipment.OffHandStackAmount : 0;
+        return RangedAmmoCombatRules.HasRequiredRangedAmmo(mainHand, offHand, stack);
+    }
+
     // Ailment (Expected DPS / UI)
     public float AveragePhysicalHit => (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
     public float AverageMagicHit => (MinSplitDamage.magic + MaxSplitDamage.magic) * 0.5f;
@@ -1649,6 +1683,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
             burnTickIntervalSeconds: BurnTickIntervalSeconds);
     }
 
+    /// <summary>Burn from an explicit spell fire hit — not weapon/committed-starter fire resolution.</summary>
+    public bool TryApplyBurnFromSpellFireDealt(AilmentController ailments, float fireDealt, Transform source)
+    {
+        if (ailments == null || source == null || fireDealt <= 0f || BurnApplyChance <= 0f)
+            return false;
+
+        return ailments.TryApplyBurnFromFireHit(
+            fireDealt,
+            BurnApplyChance,
+            BurnExplosionMultiplier,
+            source,
+            burnTickIntervalSeconds: BurnTickIntervalSeconds);
+    }
+
     /// <summary>
     /// When the player has Holy Seal (Pure Form capstone), every burn that lands on an enemy also shocks them.
     /// </summary>
@@ -1816,6 +1864,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetExpectedBurnDps()
     {
+        if (UsesSpellScalingMagicWeapon())
+            return 0f;
+
         float fireHit = ResolveFireDamageFromDealt(ExpectedMagicHit, ExpectedPhysicalHit);
         if (fireHit <= 0f)
             return 0f;
@@ -2506,6 +2557,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private void TryAddMagicStarterSpellDamageToLane(ref float magLane, bool useMaxBounds)
     {
+        if (UsesSpellScalingMagicWeapon())
+            return;
+
         if (GetCurrentAttackSkill() != AttackSkill.Magic)
             return;
 

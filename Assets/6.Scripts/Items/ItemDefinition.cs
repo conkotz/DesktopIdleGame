@@ -1473,13 +1473,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         };
     }
 
-    public bool HasUpgradeSlots => IsWeapon || IsArmour || IsTool || IsOffhandCombatSupport;
+    public bool HasUpgradeSlots => IsWeapon || IsArmour || IsTool;
 
     public int MaxUpgradeSlots
     {
         get
         {
-            if (IsWeapon || IsArmour || IsOffhandCombatSupport)
+            if (IsWeapon || IsArmour)
                 return 5 + (int)GetEquipmentTierRank();
             if (IsTool)
                 return 3;
@@ -2528,11 +2528,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (SupportSpellDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportSpellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent)}";
             if (SupportMinFireDamage > 0f || SupportMaxFireDamage > 0f)
-                s += $"\nFire Damage: {FormatDamageRange(SupportMinFireDamage, SupportMaxFireDamage)}";
+                s += $"\n{FormatFlatAddedElementLine("fire", SupportMinFireDamage, SupportMaxFireDamage)}";
             if (SupportMinIceDamage > 0f || SupportMaxIceDamage > 0f)
-                s += $"\nIce Damage: {FormatDamageRange(SupportMinIceDamage, SupportMaxIceDamage)}";
+                s += $"\n{FormatFlatAddedElementLine("ice", SupportMinIceDamage, SupportMaxIceDamage)}";
             if (SupportMinLightningDamage > 0f || SupportMaxLightningDamage > 0f)
-                s += $"\nLightning Damage: {FormatDamageRange(SupportMinLightningDamage, SupportMaxLightningDamage)}";
+                s += $"\n{FormatFlatAddedElementLine("lightning", SupportMinLightningDamage, SupportMaxLightningDamage)}";
             if (SupportCorruptionDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
@@ -2736,6 +2736,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (Mathf.Approximately(min, max))
             return FormatSignedNumber(min);
         return $"{FormatSignedNumber(min)}-{FormatSignedNumber(max)}";
+    }
+
+    private static string FormatFlatAddedElementLine(string elementLabel, float min, float max)
+    {
+        int minInt = Mathf.RoundToInt(min);
+        int maxInt = Mathf.RoundToInt(max);
+        if (minInt == maxInt)
+            return $"Flat added {elementLabel}: {minInt}";
+        return $"Flat added {elementLabel}: {minInt} - {maxInt}";
     }
 
     private static string FormatSignedNumber(float value)

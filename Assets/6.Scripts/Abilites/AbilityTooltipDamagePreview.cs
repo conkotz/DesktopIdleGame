@@ -1013,7 +1013,14 @@ public static class AbilityTooltipDamagePreview
             return "";
 
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
-            return string.Empty;
+        {
+            if (!string.Equals(def.abilityId, CombatStarterAttackAbility.RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase))
+                return string.Empty;
+
+            var rangedBody = new StringBuilder();
+            AppendRangedAmmoConsumptionLines(rangedBody, def, stats);
+            return rangedBody.Length > 0 ? rangedBody.ToString().TrimEnd() : string.Empty;
+        }
 
         string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;
 
@@ -1572,6 +1579,8 @@ public static class AbilityTooltipDamagePreview
                 $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.HammerTempestBaseDurationSeconds, GetHammerTempestDurationBonusSeconds(skillsManager)):0.#}s"));
         }
 
+        AppendRangedAmmoConsumptionLines(body, def, stats);
+
         body.AppendLine(string.Empty);
         AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
 
@@ -1840,6 +1849,8 @@ public static class AbilityTooltipDamagePreview
             .Replace("<color=#FFB347>", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Replace("<color=#B0C8DD>", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Replace("<color=#9DD4FF>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("<color=#55DD55>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("<color=#FF5C5C>", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Replace("</color>", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Trim();
     }
@@ -2130,7 +2141,42 @@ public static class AbilityTooltipDamagePreview
 
         int consume = def.GetSupportRunesConsumedPerCast();
         string runeLabel = consume == 1 ? "rune" : "runes";
-        AppendDetailsEffectParagraph(body, O($"Consumes {consume} {runeLabel} per cast"));
+        string consumeLine = $"Consumes {consume} {runeLabel} per cast";
+        string runeTypesLine = SpellRuneCombatRules.FormatSpellRuneRequirementParenthetical(def.requiredChargedRuneElement);
+
+        if (stats != null)
+        {
+            bool runesOk = stats.HasRequiredSpellRunesForAbility(def);
+            consumeLine = FormatSpellRuneAvailabilityLine(consumeLine, runesOk);
+            runeTypesLine = FormatSpellRuneAvailabilityLine(runeTypesLine, runesOk);
+        }
+
+        AppendDetailsEffectParagraph(body, consumeLine);
+        AppendDetailsEffectParagraph(body, runeTypesLine);
+    }
+
+    private static string FormatSpellRuneAvailabilityLine(string text, bool runesAvailable) =>
+        runesAvailable
+            ? $"<color=#55DD55>{text}</color>"
+            : $"<color=#FF5C5C>{text}</color>";
+
+    private static void AppendRangedAmmoConsumptionLines(
+        StringBuilder body,
+        AbilityDefinition def,
+        CharacterStats stats)
+    {
+        if (!RangedAmmoCombatRules.TryBuildAmmoConsumptionLines(def, stats, out string consumeLine, out string ammoTypeLine))
+            return;
+
+        if (stats != null)
+        {
+            bool ammoOk = stats.HasConsumableRangedAmmoForAbilities();
+            consumeLine = FormatSpellRuneAvailabilityLine(consumeLine, ammoOk);
+            ammoTypeLine = FormatSpellRuneAvailabilityLine(ammoTypeLine, ammoOk);
+        }
+
+        AppendDetailsEffectParagraph(body, consumeLine);
+        AppendDetailsEffectParagraph(body, ammoTypeLine);
     }
 
     private static string BuildMagicStarterSpellCompactEffectsBody(AbilityDefinition def, CharacterStats stats)

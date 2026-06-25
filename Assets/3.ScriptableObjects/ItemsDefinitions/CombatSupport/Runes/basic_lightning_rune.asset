@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: basic_lightning_rune
   displayName: Basic Lightning Rune
   displayNameSingular: 
-  icon: {fileID: 2225079337066959512, guid: ca56f4a66fb9cd145a055cda7e049823, type: 3}
+  icon: {fileID: 2092713203257311132, guid: ca56f4a66fb9cd145a055cda7e049823, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,10 +25,12 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A charged rune that empowers lightning spells when equipped with a staff.
+  description: A charged rune that empowers lightning spells when equipped with a
+    staff.
   rarity: 0
   value: 12
   equipSlot: 2
+  uniquelyEquipped: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0

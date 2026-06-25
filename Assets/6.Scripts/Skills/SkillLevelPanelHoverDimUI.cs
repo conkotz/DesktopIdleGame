@@ -43,36 +43,10 @@ public sealed class SkillLevelPanelHoverDimUI : MonoBehaviour
 
     private void Update()
     {
-        if (_canvasGroup == null || _rectTransform == null)
+        if (_canvasGroup == null)
             return;
 
-        float target = IsCursorNearPanel() ? dimmedAlpha : normalAlpha;
-        _canvasGroup.alpha = Mathf.MoveTowards(
-            _canvasGroup.alpha,
-            target,
-            fadeSpeed * Time.unscaledDeltaTime);
-    }
-
-    private bool IsCursorNearPanel()
-    {
-        Camera eventCamera = null;
-        if (_rootCanvas != null && _rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
-            eventCamera = _rootCanvas.worldCamera;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                _rectTransform,
-                Input.mousePosition,
-                eventCamera,
-                out Vector2 localPoint))
-        {
-            return false;
-        }
-
-        Rect expanded = _rectTransform.rect;
-        expanded.xMin -= nearPaddingPixels;
-        expanded.yMin -= nearPaddingPixels;
-        expanded.xMax += nearPaddingPixels;
-        expanded.yMax += nearPaddingPixels;
-        return expanded.Contains(localPoint);
+        // Hover dim disabled for now — keep the level header at full opacity.
+        _canvasGroup.alpha = normalAlpha;
     }
 }

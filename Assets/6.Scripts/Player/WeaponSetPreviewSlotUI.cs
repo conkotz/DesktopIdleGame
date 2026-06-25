@@ -42,6 +42,14 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
     private string _itemId;
     private ItemDefinition _def;
 
+    private bool _labelLayoutCaptured;
+    private Vector2 _defaultLabelAnchorMin;
+    private Vector2 _defaultLabelAnchorMax;
+    private Vector2 _defaultLabelPivot;
+    private Vector2 _defaultLabelAnchoredPosition;
+    private Vector2 _defaultLabelSizeDelta;
+    private TextAlignmentOptions _defaultLabelAlignment;
+
     private void Awake()
     {
         if (!equipment) equipment = FindFirstObjectByType<EquipmentManager>();
@@ -59,7 +67,54 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         if (icon) icon.raycastTarget = false;
         if (label) label.raycastTarget = false;
 
+        CaptureDefaultLabelLayout();
+
         ApplyVisuals();
+    }
+
+    private void CaptureDefaultLabelLayout()
+    {
+        if (_labelLayoutCaptured || !label)
+            return;
+
+        RectTransform rt = label.rectTransform;
+        _defaultLabelAnchorMin = rt.anchorMin;
+        _defaultLabelAnchorMax = rt.anchorMax;
+        _defaultLabelPivot = rt.pivot;
+        _defaultLabelAnchoredPosition = rt.anchoredPosition;
+        _defaultLabelSizeDelta = rt.sizeDelta;
+        _defaultLabelAlignment = label.alignment;
+        _labelLayoutCaptured = true;
+    }
+
+    private bool ShouldUseOffHandStockLabelLayout() =>
+        slotType == PreviewSlotType.OffHandInactive && _def != null && _def.IsCombatSupport;
+
+    private void ApplyLabelLayoutForCurrentState()
+    {
+        if (!label)
+            return;
+
+        CaptureDefaultLabelLayout();
+        RectTransform rt = label.rectTransform;
+
+        if (ShouldUseOffHandStockLabelLayout())
+        {
+            rt.anchorMin = new Vector2(0.5f, 1f);
+            rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -4f);
+            rt.sizeDelta = new Vector2(96f, 22f);
+            label.alignment = TextAlignmentOptions.Top | TextAlignmentOptions.Center;
+            return;
+        }
+
+        rt.anchorMin = _defaultLabelAnchorMin;
+        rt.anchorMax = _defaultLabelAnchorMax;
+        rt.pivot = _defaultLabelPivot;
+        rt.anchoredPosition = _defaultLabelAnchoredPosition;
+        rt.sizeDelta = _defaultLabelSizeDelta;
+        label.alignment = _defaultLabelAlignment;
     }
 
     private void OnEnable()
@@ -139,7 +194,10 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         }
 
         if (label)
+        {
             label.text = GetDisplayLabel();
+            ApplyLabelLayoutForCurrentState();
+        }
 
         ApplyVisuals();
     }
@@ -220,7 +278,10 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         }
 
         if (label)
+        {
             label.text = GetTitle();
+            ApplyLabelLayoutForCurrentState();
+        }
 
         ApplyVisuals();
     }

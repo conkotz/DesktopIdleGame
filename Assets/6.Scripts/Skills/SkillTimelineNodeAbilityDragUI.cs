@@ -24,7 +24,7 @@ public sealed class SkillTimelineNodeAbilityDragUI : MonoBehaviour,
         RefreshDragState();
     }
 
-    private void RefreshDragState()
+    public void RefreshDragState()
     {
         _ability = null;
         _canDrag = false;
@@ -52,6 +52,7 @@ public sealed class SkillTimelineNodeAbilityDragUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        RefreshDragState();
         if (!_canDrag || _ability == null)
             return;
         if (eventData.button != PointerEventData.InputButton.Left || eventData.clickCount < 2)
@@ -69,6 +70,7 @@ public sealed class SkillTimelineNodeAbilityDragUI : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        RefreshDragState();
         if (!_canDrag || _ability == null)
             return;
 

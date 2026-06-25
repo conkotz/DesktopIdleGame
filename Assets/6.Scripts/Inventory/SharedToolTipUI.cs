@@ -799,7 +799,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (!enhancementIconsRow)
             return;
 
-        if (!def || !def.HasUpgradeSlots || def.MaxUpgradeSlots <= 0)
+        if (!def || !def.HasUpgradeSlots || def.IsCombatSupport || def.MaxUpgradeSlots <= 0)
         {
             enhancementIconsRow.gameObject.SetActive(false);
             return;
