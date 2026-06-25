@@ -3286,11 +3286,20 @@ public class PlayerController : MonoBehaviour
         _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.None;
         if (def == null || characterStats == null) return true;
 
-        // Energy model: node defines % of max energy per swing (stable swings per full bar as max energy grows).
+        // Energy model: node defines flat energy per swing, or % of max (stable swings per full bar as max energy grows).
         // Stamina efficiency reduces that cost.
-        float pctOfMax = Mathf.Clamp01(def.energyCostPercentOfMaxPerSwing / 100f);
-        if (pctOfMax <= 0f)
-            return true;
+        float baseCostPerSwing;
+        if (def.energyCostFlatPerSwing > 0f)
+            baseCostPerSwing = def.energyCostFlatPerSwing;
+        else
+        {
+            float pctOfMax = Mathf.Clamp01(def.energyCostPercentOfMaxPerSwing / 100f);
+            if (pctOfMax <= 0f)
+                return true;
+
+            float maxEnergy = Mathf.Max(1f, characterStats.MaxEnergy);
+            baseCostPerSwing = maxEnergy * pctOfMax;
+        }
 
         if (targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
             abilityController != null && abilityController.IsAvatarOfTheForestActive)
@@ -3319,8 +3328,6 @@ public class PlayerController : MonoBehaviour
             _activeFishingBaitSpeedBonusFraction = 0f;
         }
 
-        float maxEnergy = Mathf.Max(1f, characterStats.MaxEnergy);
-        float baseCostPerSwing = maxEnergy * pctOfMax;
         float staminaEfficiency = Mathf.Clamp01(_gatherStaminaEfficiency);
         if (targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
             _woodcuttingBonuses.forestFlowStacks > 0 &&

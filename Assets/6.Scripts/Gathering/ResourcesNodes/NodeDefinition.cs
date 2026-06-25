@@ -39,6 +39,12 @@ public class NodeDefinition : ScriptableObject
         [Min(0)]
         [Tooltip("Fishing only: XP for this item when it is the result of a successful roll. 0 = use the node's XP Per Tick as fallback. Ignored for woodcutting / mining.")]
         public int xpPerTick = 0;
+        [Min(1)]
+        [Tooltip("Woodcutting / Mining: pieces granted when this row succeeds (random between min and max, inclusive).")]
+        public int amountMin = 1;
+        [Min(1)]
+        [Tooltip("Woodcutting / Mining: max pieces per successful roll for this row.")]
+        public int amountMax = 1;
     }
 
     [Header("Main Yield (rolled each gather tick)")]
@@ -87,7 +93,9 @@ public class NodeDefinition : ScriptableObject
     public string missingToolMessage = "No tool available in toolbelt.";
 
     [Header("Energy Cost")]
-    [Tooltip("Percent of maximum energy spent per gather swing (e.g. 10 = 10%). Cost scales with max energy so a bigger pool does not give more swings per full bar; raise stamina efficiency to reduce cost.")]
+    [Tooltip("When > 0, spend this flat energy per gather swing instead of % of max.")]
+    [Min(0f)] public float energyCostFlatPerSwing = 0f;
+    [Tooltip("Percent of maximum energy spent per gather swing (e.g. 10 = 10%). Ignored when Energy Cost Flat Per Swing is > 0.")]
     [Range(0f, 100f)] public float energyCostPercentOfMaxPerSwing = 10f;
 
     [Header("Depletion (Optional)")]
@@ -175,6 +183,16 @@ public class NodeDefinition : ScriptableObject
         return UnityEngine.Random.Range(lo, hi);
     }
 
+    private static int RollMainYieldAmount(MainYieldEntry entry)
+    {
+        if (entry == null)
+            return 1;
+
+        int min = Mathf.Max(1, entry.amountMin);
+        int max = Mathf.Max(min, entry.amountMax);
+        return UnityEngine.Random.Range(min, max + 1);
+    }
+
     public string GetActionText()
     {
         return actionType switch
@@ -204,7 +222,7 @@ public class NodeDefinition : ScriptableObject
         {
             if (TryPickWeightedFishingMainYield(gatherSkillLevel, out MainYieldEntry picked))
             {
-                counts[picked.item.itemId] = 1;
+                counts[picked.item.itemId] = RollMainYieldAmount(picked);
                 if (fishingXpPerSuccessOut != null)
                 {
                     int x = picked.xpPerTick > 0 ? picked.xpPerTick : xpPerTick;
@@ -232,7 +250,7 @@ public class NodeDefinition : ScriptableObject
 
             string id = e.item.itemId;
             counts.TryGetValue(id, out int c);
-            counts[id] = c + 1;
+            counts[id] = c + RollMainYieldAmount(e);
         }
     }
 
@@ -418,7 +436,7 @@ public class NodeDefinition : ScriptableObject
         if (actionType == NodeAction.Fishing)
         {
             if (TryPickWeightedFishingMainYield(gatherSkillLevelForMainYield, out MainYieldEntry picked))
-                outDrops.Add(new Drop(picked.item.itemId, 1));
+                outDrops.Add(new Drop(picked.item.itemId, RollMainYieldAmount(picked)));
             return;
         }
 
@@ -434,7 +452,7 @@ public class NodeDefinition : ScriptableObject
                 continue;
             if (UnityEngine.Random.value >= p)
                 continue;
-            outDrops.Add(new Drop(e.item.itemId, 1));
+            outDrops.Add(new Drop(e.item.itemId, RollMainYieldAmount(e)));
         }
     }
 
@@ -471,7 +489,7 @@ public class NodeDefinition : ScriptableObject
             if (actionType == NodeAction.Fishing)
             {
                 if (TryPickWeightedFishingMainYield(gatherSkillLevel, out MainYieldEntry fp))
-                    inventory.Add(fp.item.itemId, 1);
+                    inventory.Add(fp.item.itemId, RollMainYieldAmount(fp));
             }
             else
             {
@@ -485,7 +503,7 @@ public class NodeDefinition : ScriptableObject
                     float p = Mathf.Clamp01(e.chancePercent / 100f);
                     if (p <= 0f || UnityEngine.Random.value >= p)
                         continue;
-                    inventory.Add(e.item.itemId, 1);
+                    inventory.Add(e.item.itemId, RollMainYieldAmount(e));
                 }
             }
         }

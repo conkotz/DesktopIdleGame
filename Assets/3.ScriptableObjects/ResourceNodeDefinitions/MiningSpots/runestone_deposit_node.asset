@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
+  m_Name: runestone_deposit_node
+  m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
+  displayName: Runestone Deposit
+  actionType: 0
+  gatherPlayerAction: 2
+  useLevelRequirement: 1
+  requiredLevel: 10
+  xpPerTick: 1
+  mainYieldEntries:
+  - item: {fileID: 11400000, guid: e8f1a2b3c4d5678901234abcd5678901, type: 2}
+    itemRequiredLevel: 1
+    chancePercent: 100
+    xpPerTick: 0
+    amountMin: 1
+    amountMax: 3
+  minInterval: 2
+  maxInterval: 4
+  bonusDrops: []
+  hiddenDrops: []
+  requiresTool: 1
+  requiredTool: 2
+  missingToolMessage: No pickaxe found in toolbelt
+  energyCostFlatPerSwing: 0
+  energyCostPercentOfMaxPerSwing: 15
+  depletionGatherCount: 50
+  depletionRegenSeconds: 10
+  depletedYieldMultiplier: 0.3

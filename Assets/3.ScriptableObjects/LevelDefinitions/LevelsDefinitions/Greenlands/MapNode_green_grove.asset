@@ -19,6 +19,8 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  mapCombatScalingEnabled: 0
+  mapCombatScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
   eliteSpawnChance: 0
@@ -52,6 +54,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint14
       enemyDefinition: {fileID: 0}
@@ -63,6 +67,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint20_Middle
       enemyDefinition: {fileID: 0}
@@ -74,6 +80,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint26
       enemyDefinition: {fileID: 0}
@@ -85,6 +93,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint42
       enemyDefinition: {fileID: 0}
@@ -96,6 +106,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint48
       enemyDefinition: {fileID: 0}
@@ -107,6 +119,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint50
       enemyDefinition: {fileID: 0}
@@ -118,6 +132,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint56
       enemyDefinition: {fileID: 0}
@@ -129,6 +145,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint59
       enemyDefinition: {fileID: 0}
@@ -140,6 +158,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint54
       enemyDefinition: {fileID: 0}
@@ -151,6 +171,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint64
       enemyDefinition: {fileID: 0}
@@ -162,6 +184,8 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint66
       enemyDefinition: {fileID: 0}
@@ -173,7 +197,26 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-15
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1392043344387743544, guid: ad4915f3d5918804dbdb8cf3d7cb1173, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 10
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     shuffleSpawnPoints: 0
+  enabledSidePlayAreaIds: []
+  useDefaultSpawnOnMapTeleport: 0
+  defaultPlayerSpawnPointName: 
+  inMapTeleporters: []
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1

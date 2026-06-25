@@ -56,6 +56,7 @@ public class ResourceNode : MonoBehaviour
     public bool RequiresTool => definition && definition.requiresTool && definition.requiredTool != ToolKey.None;
     public ToolKey RequiredTool => definition ? definition.requiredTool : ToolKey.None;
     public string MissingToolMessage => definition ? definition.missingToolMessage : "Put the required tool in your toolbelt.";
+    public float EnergyCostFlatPerSwing => definition ? Mathf.Max(0f, definition.energyCostFlatPerSwing) : 0f;
     public float EnergyCostPercentOfMaxPerSwing => definition ? Mathf.Max(0f, definition.energyCostPercentOfMaxPerSwing) : 0f;
 
     public bool UseLevelRequirement => definition && definition.useLevelRequirement;
