@@ -1026,7 +1026,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Additional Random Stat Pool")]
     [Tooltip(
         "Optional affixes rolled when this item enters the player's inventory. " +
-        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4; wands gain +2 extra rolls). " +
+        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4; wands and staffs gain +2 extra rolls). " +
         "Leave empty to keep static stats only.")]
     [SerializeField]
     [HideInInspector]
@@ -1058,6 +1058,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsWeapon => itemKind == ItemKind.Weapon;
     public bool IsMagicWand =>
         IsWeapon && weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand;
+
+    public bool IsMagicStaff =>
+        IsWeapon && weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff;
+
+    /// <summary>Wands and staffs: spell-scaling % at top of tooltip, no attack speed line, range at bottom.</summary>
+    public bool UsesSpellScalingMagicWeaponTooltip => IsMagicWand || IsMagicStaff;
     public bool IsTool => itemKind == ItemKind.Tool;
     public bool IsArmour => itemKind == ItemKind.Armour;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
@@ -2355,7 +2361,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     {
         if (IsWeapon)
         {
-            if (IsMagicWand)
+            if (UsesSpellScalingMagicWeaponTooltip)
                 return BuildMagicWandTooltipMainStatsInternal();
 
             float aps = weaponStats.attacksPerSecond > 0f ? weaponStats.attacksPerSecond : 1f;
@@ -2828,8 +2834,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             omitParryStunChance: true,
             omitChillShockBonuses: true,
             omitCritBonuses: IsWeapon,
-            omitWandSpellScalingPercent: IsMagicWand,
-            omitAttackRangeBonus: IsMagicWand);
+            omitWandSpellScalingPercent: UsesSpellScalingMagicWeaponTooltip,
+            omitAttackRangeBonus: UsesSpellScalingMagicWeaponTooltip);
     }
 
     internal string BuildWandSpellScalingBonusLinesForHighlight(ItemDefinition baseline)

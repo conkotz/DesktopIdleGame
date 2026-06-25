@@ -42,5 +42,17 @@ MonoBehaviour:
     - type: 0
       amount: 3000
       itemId: 
+    - type: 1
+      amount: 30
+      itemId: splitwood_log
+    defaultQuantity: 1
+  - itemId: basic_staff
+    costs:
+    - type: 0
+      amount: 6000
+      itemId: 
+    - type: 1
+      amount: 100
+      itemId: splitwood_log
     defaultQuantity: 1
   stockSaveKey: 

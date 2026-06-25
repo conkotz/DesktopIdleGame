@@ -154,8 +154,10 @@ public static class ItemRandomStatRoller
             _ => 1
         };
 
-        // Wands now rely more on identified affixes, so they roll 2 extra random stats.
-        if (item != null && item.IsWeapon && item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand)
+        // Wands and staffs rely on identified affixes — +2 extra rolls (Common=3 … Legendary=6).
+        if (item != null && item.IsWeapon &&
+            (item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand ||
+             item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff))
             rollCount += 2;
 
         return rollCount;
@@ -331,15 +333,17 @@ public static class ItemRandomStatRoller
         if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
             TryAdd(RandomItemStatType.EnemyRespawnTimeReductionSeconds, item.miscEffects.enemyRespawnTimeReductionSeconds);
 
-        if (item.IsWeapon && item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand)
-            AppendMissingWandSpellScalingPoolEntries(results);
+        if (item.IsWeapon &&
+            (item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Wand ||
+             item.weaponStats.mainHandArchetype == MainHandWeaponArchetype.Staff))
+            AppendMissingSpellScalingMagicWeaponPoolEntries(results);
 
         results.Sort((a, b) => ComparePoolEntriesForDisplay(a, b, item));
         return results;
     }
 
-    /// <summary>Default spell-scaling affixes for wand random pools (used by editor template generation).</summary>
-    private static void AppendMissingWandSpellScalingPoolEntries(List<RandomStatPoolEntry> results)
+    /// <summary>Default spell-scaling affixes for wand/staff random pools (used by editor template generation).</summary>
+    private static void AppendMissingSpellScalingMagicWeaponPoolEntries(List<RandomStatPoolEntry> results)
     {
         void Ensure(RandomItemStatType stat, float min, float max, RandomStatValueKind kind, float weight = 1f)
         {

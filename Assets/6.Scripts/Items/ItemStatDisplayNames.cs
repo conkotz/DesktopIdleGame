@@ -226,7 +226,7 @@ public static class ItemStatDisplayNames
         if (!item || !item.IsWeapon)
             return ElementalAilmentChance;
 
-        if (item.IsMagicWand)
+        if (item.IsMagicWand || item.IsMagicStaff)
             return ElementalAilmentChance;
 
         return item.weaponStats.magicAttackType switch

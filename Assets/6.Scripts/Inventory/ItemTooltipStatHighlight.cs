@@ -73,7 +73,7 @@ public static class ItemTooltipStatHighlight
 
     private static string BuildWeaponMainStats(ItemDefinition current, ItemDefinition baseline)
     {
-        if (current.IsMagicWand)
+        if (current.UsesSpellScalingMagicWeaponTooltip)
             return BuildMagicWandWeaponMainStats(current, baseline);
 
         float aps = current.weaponStats.attacksPerSecond > 0f ? current.weaponStats.attacksPerSecond : 1f;

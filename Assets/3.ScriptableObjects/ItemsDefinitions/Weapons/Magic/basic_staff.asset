@@ -51,7 +51,7 @@ MonoBehaviour:
     attacksPerSecond: 0
     critChance: 0.1
     critMultiplier: 1.5
-    handedness: 0
+    handedness: 1
     attackRange: 12
     attackSkill: 2
     mainHandArchetype: 3
@@ -61,8 +61,8 @@ MonoBehaviour:
     magicAilmentApplyChance: 0
     unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
-    requiresOffhandSupport: 0
-    requiredSupportType: 0
+    requiresOffhandSupport: 1
+    requiredSupportType: 3
     equipmentTier: 0
     weaponWeight: 3
   combatSupportStats:
