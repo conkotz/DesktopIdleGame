@@ -157,7 +157,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: JewelerySpriteSheet_0
+      name: JewelerySpriteSheet_0RUBY_Ring
       rect:
         serializedVersion: 2
         x: 83
@@ -179,7 +179,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_1
+      name: JewelerySpriteSheet_1EMERALD_Ring
       rect:
         serializedVersion: 2
         x: 423
@@ -201,7 +201,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_2
+      name: JewelerySpriteSheet_2SAPPHIRE_Ring
       rect:
         serializedVersion: 2
         x: 719
@@ -245,7 +245,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_4
+      name: JewelerySpriteSheet_4CITRINE_Ring
       rect:
         serializedVersion: 2
         x: 1228
@@ -377,7 +377,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_14
+      name: JewelerySpriteSheet_14RUBY_Pendant
       rect:
         serializedVersion: 2
         x: 131
@@ -399,7 +399,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_15
+      name: JewelerySpriteSheet_15Emerald_Pendant
       rect:
         serializedVersion: 2
         x: 457
@@ -443,7 +443,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_17
+      name: JewelerySpriteSheet_17Amethyst_Pendant
       rect:
         serializedVersion: 2
         x: 1050
@@ -465,7 +465,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: JewelerySpriteSheet_19
+      name: JewelerySpriteSheet_19Diamond_Pendant
       rect:
         serializedVersion: 2
         x: 1276
@@ -500,21 +500,21 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      JewelerySpriteSheet_0: 8339452560537083239
-      JewelerySpriteSheet_1: 3141935959341602472
+      JewelerySpriteSheet_0RUBY_Ring: 8339452560537083239
       JewelerySpriteSheet_10: 8390657119641921014
       JewelerySpriteSheet_11: 6092755267475268119
       JewelerySpriteSheet_12: 381312801842361883
       JewelerySpriteSheet_13: -3888247484048830334
-      JewelerySpriteSheet_14: 3726802059033397765
-      JewelerySpriteSheet_15: -4369353832453534255
+      JewelerySpriteSheet_14RUBY_Pendant: 3726802059033397765
+      JewelerySpriteSheet_15Emerald_Pendant: -4369353832453534255
       JewelerySpriteSheet_16: 7238642868589546159
-      JewelerySpriteSheet_17: 6223703686444782735
+      JewelerySpriteSheet_17Amethyst_Pendant: 6223703686444782735
       JewelerySpriteSheet_18: -8940986733612128406
-      JewelerySpriteSheet_19: 9214255559410618789
-      JewelerySpriteSheet_2: 647588772610573750
+      JewelerySpriteSheet_19Diamond_Pendant: 9214255559410618789
+      JewelerySpriteSheet_1EMERALD_Ring: 3141935959341602472
+      JewelerySpriteSheet_2SAPPHIRE_Ring: 647588772610573750
       JewelerySpriteSheet_3: 3483010696081942063
-      JewelerySpriteSheet_4: -8049167607937462275
+      JewelerySpriteSheet_4CITRINE_Ring: -8049167607937462275
       JewelerySpriteSheet_5: 3321728945047895435
       JewelerySpriteSheet_6: 3799228797227806774
       JewelerySpriteSheet_7: 2990212776707475007

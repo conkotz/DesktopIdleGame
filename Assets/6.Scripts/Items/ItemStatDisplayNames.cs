@@ -73,6 +73,9 @@ public static class ItemStatDisplayNames
     /// <summary>Label for a random pool stat entry (shop Alt preview, database, inspector picker).</summary>
     public static string ForRandomPoolStat(RandomItemStatType stat, ItemDefinition item = null)
     {
+        if (stat == RandomItemStatType.AttackSpeedPercent && item != null && item.IsWeapon)
+            return WeaponSpeed;
+
         switch (stat)
         {
             case RandomItemStatType.BonusHealth:

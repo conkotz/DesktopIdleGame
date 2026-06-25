@@ -1069,6 +1069,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [HideInInspector]
     private List<RandomStatPoolEntry> randomStatPool = new();
 
+    [Header("Jewelry Tier")]
+    [Tooltip("Shown as Tier 1–5; gate uses Endurance at L1 / L10 / L20 / L30 / L50.")]
+    [SerializeField]
+    private EquipmentTierRank jewelryEquipmentTier = EquipmentTierRank.Tier1;
+
     [Tooltip("When enabled, the pool is built from the default package for this item type plus any extra weapon packages below.")]
     [SerializeField]
     private bool useDefaultRandomStatPoolPackage = true;
@@ -1155,6 +1160,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool UseDefaultRandomStatPoolPackage => useDefaultRandomStatPoolPackage;
 
     public RandomStatPoolPackageFlags ExtraRandomStatPoolPackages => extraRandomStatPoolPackages;
+
+    public EquipmentTierRank JewelryEquipmentTier => jewelryEquipmentTier;
 
     private void OnEnable()
     {
@@ -1285,6 +1292,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsWeapon) return weaponStats.equipmentTier;
         if (IsArmour) return armourStats.equipmentTier;
         if (IsTool) return toolStats.equipmentTier;
+        if (IsJewelry) return jewelryEquipmentTier;
         return EquipmentTierRank.Tier1;
     }
 

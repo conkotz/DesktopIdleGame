@@ -35,6 +35,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty randomStatPool;
     private SerializedProperty useDefaultRandomStatPoolPackage;
     private SerializedProperty extraRandomStatPoolPackages;
+    private SerializedProperty jewelryEquipmentTier;
     private SerializedProperty miscEffects;
 
     private int _expandedStatPickerEntryIndex = -1;
@@ -79,6 +80,7 @@ public class ItemDefinitionEditor : Editor
         randomStatPool = serializedObject.FindProperty("randomStatPool");
         useDefaultRandomStatPoolPackage = serializedObject.FindProperty("useDefaultRandomStatPoolPackage");
         extraRandomStatPoolPackages = serializedObject.FindProperty("extraRandomStatPoolPackages");
+        jewelryEquipmentTier = serializedObject.FindProperty("jewelryEquipmentTier");
         miscEffects = serializedObject.FindProperty("miscEffects");
 
         TryAutoApplyDefaultPackagePool();
@@ -315,6 +317,8 @@ public class ItemDefinitionEditor : Editor
         }
         else if (kind == ItemKind.Jewelry)
         {
+            if (jewelryEquipmentTier != null)
+                EditorGUILayout.PropertyField(jewelryEquipmentTier, new GUIContent("Equipment Tier"));
             DrawBonusBlockIfPresent("Bonus Stats (Jewelry)", show: true);
             DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
@@ -1730,13 +1734,15 @@ public class ItemDefinitionEditor : Editor
 
             if (item != null && item.IsWeapon && !item.UsesSpellScalingMagicWeaponTooltip)
                 DrawWeaponPackageButtons();
+            else if (item != null && item.IsJewelry)
+                DrawJewelryPackageButtons();
         }
         else
         {
             EditorGUILayout.HelpBox(
                 "Custom pool mode. Use Generate template stats for a full legacy template, or add entries manually.\n" +
                 "Weapons (except wands/staffs) and armour can use Use default package for structured templates.\n" +
-                "Value Kind: Flat Integer, Flat Float, Percent Points (5 = +5%; weapon APS adds flat APS — 2 = +0.02 APS).",
+                "Value Kind: Flat Integer, Flat Float, Percent Points (5 = +5%; weapon speed rolls are now percent-based).",
                 MessageType.Info);
         }
 
@@ -1842,6 +1848,28 @@ public class ItemDefinitionEditor : Editor
         DrawPackageToggle("Ice", RandomStatPoolPackageFlags.Ice);
         DrawPackageToggle("Defensive", RandomStatPoolPackageFlags.Defensive);
         DrawPackageToggle("Attack range", RandomStatPoolPackageFlags.AttackRange);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawJewelryPackageButtons()
+    {
+        if (extraRandomStatPoolPackages == null)
+            return;
+
+        EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("Extra jewelry packages", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        DrawPackageToggle("Minion", RandomStatPoolPackageFlags.Minion);
+        DrawPackageToggle("Crit", RandomStatPoolPackageFlags.Crit);
+        DrawPackageToggle("Bleed", RandomStatPoolPackageFlags.Bleed);
+        DrawPackageToggle("Poison", RandomStatPoolPackageFlags.Poison);
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        DrawPackageToggle("Fire", RandomStatPoolPackageFlags.Fire);
+        DrawPackageToggle("Lightning", RandomStatPoolPackageFlags.Lightning);
+        DrawPackageToggle("Ice", RandomStatPoolPackageFlags.Ice);
         EditorGUILayout.EndHorizontal();
     }
 
