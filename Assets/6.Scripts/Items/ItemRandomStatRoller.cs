@@ -903,7 +903,6 @@ public static class ItemRandomStatRoller
         AddTemplatePoolEntry(results, RandomItemStatType.CritMultiplierBonus, bands.CritMulti, RandomStatValueKind.PercentPoints);
         AddTemplatePoolEntry(results, RandomItemStatType.BonusMana, bands.Mana, RandomStatValueKind.FlatInteger);
         AddTemplatePoolEntry(results, RandomItemStatType.AllElementalAilmentChance, bands.ElementalAilmentChance, RandomStatValueKind.PercentPoints);
-        AddTemplatePoolEntry(results, RandomItemStatType.ShockChance, bands.ShockChance, RandomStatValueKind.PercentPoints);
         AddTemplatePoolEntry(results, RandomItemStatType.BurnMultiplier, bands.BurnMultiplier, RandomStatValueKind.PercentPoints);
         AddTemplatePoolEntry(results, RandomItemStatType.ChillMultiplier, bands.ChillMultiplier, RandomStatValueKind.PercentPoints, weight: 0.5f);
         AddTemplatePoolEntry(results, RandomItemStatType.ShockMultiplier, bands.ShockMultiplier, RandomStatValueKind.PercentPoints, weight: 0.1f);
@@ -2044,66 +2043,98 @@ public static class ItemRandomStatRoller
         field += Mathf.RoundToInt(kind == RandomStatValueKind.FlatInteger ? value : value);
     }
 
-    /// <summary>Sort key for database pool listings (matches weapon tooltip stat order).</summary>
+    /// <summary>Sort key for database pool listings (roughly matches the character stats panel).</summary>
     public static int GetRandomStatPoolSortOrder(RandomItemStatType stat)
     {
         switch (stat)
         {
+            case RandomItemStatType.BonusHealth: return 40;
+            case RandomItemStatType.ArmourBonusHealth: return 41;
+            case RandomItemStatType.BonusEnergy: return 42;
+            case RandomItemStatType.ArmourBonusEnergy: return 43;
+            case RandomItemStatType.BonusMana: return 44;
+            case RandomItemStatType.ManaRegen: return 45;
+            case RandomItemStatType.LifeRegen: return 46;
+            case RandomItemStatType.EnergyRegen: return 47;
+            case RandomItemStatType.EnergyEfficiency: return 48;
+            case RandomItemStatType.ArmourEnergyEfficiency: return 49;
+
             case RandomItemStatType.WeaponMinPhysicalDamage: return 100;
             case RandomItemStatType.WeaponMinFireDamage: return 101;
             case RandomItemStatType.WeaponMinIceDamage: return 102;
             case RandomItemStatType.WeaponMinLightningDamage: return 103;
             case RandomItemStatType.WeaponMinCorruptionDamage: return 104;
 
-            case RandomItemStatType.WeaponMaxPhysicalDamage: return 200;
-            case RandomItemStatType.WeaponMaxFireDamage: return 201;
-            case RandomItemStatType.WeaponMaxIceDamage: return 202;
-            case RandomItemStatType.WeaponMaxLightningDamage: return 203;
-            case RandomItemStatType.WeaponMaxCorruptionDamage: return 204;
-            case RandomItemStatType.WeaponCorruptionDamageRange: return 205;
+            case RandomItemStatType.WeaponMaxPhysicalDamage: return 110;
+            case RandomItemStatType.WeaponMaxFireDamage: return 111;
+            case RandomItemStatType.WeaponMaxIceDamage: return 112;
+            case RandomItemStatType.WeaponMaxLightningDamage: return 113;
+            case RandomItemStatType.WeaponMaxCorruptionDamage: return 114;
+            case RandomItemStatType.WeaponCorruptionDamageRange: return 115;
 
-            case RandomItemStatType.WeaponAttacksPerSecond: return 300;
-            case RandomItemStatType.AttackSpeedPercent: return 301;
+            case RandomItemStatType.WeaponAttacksPerSecond: return 120;
+            case RandomItemStatType.AttackSpeedPercent: return 121;
 
-            case RandomItemStatType.WeaponCritChance: return 400;
-            case RandomItemStatType.CritChanceBonus: return 401;
-            case RandomItemStatType.WeaponCritMultiplier: return 402;
-            case RandomItemStatType.CritMultiplierBonus: return 403;
+            case RandomItemStatType.WeaponCritChance: return 130;
+            case RandomItemStatType.CritChanceBonus: return 131;
+            case RandomItemStatType.WeaponCritMultiplier: return 132;
+            case RandomItemStatType.CritMultiplierBonus: return 133;
 
-            case RandomItemStatType.WeaponMagicAilmentApplyChance: return 500;
-            case RandomItemStatType.BleedChance: return 510;
-            case RandomItemStatType.BleedMultiplier: return 511;
-            case RandomItemStatType.PoisonChance: return 512;
-            case RandomItemStatType.PoisonMultiplier: return 513;
-            case RandomItemStatType.PoisonDurationBonus: return 514;
-            case RandomItemStatType.PoisonMaxStacksBonus: return 515;
-            case RandomItemStatType.BurnChance: return 516;
-            case RandomItemStatType.ChillChance: return 517;
-            case RandomItemStatType.ShockChance: return 518;
-            case RandomItemStatType.BurnMultiplier: return 519;
-            case RandomItemStatType.ChillMultiplier: return 520;
-            case RandomItemStatType.ShockMultiplier: return 521;
-            case RandomItemStatType.AllElementalAilmentChance: return 522;
+            case RandomItemStatType.MeleePhysicalDamagePercent: return 200;
+            case RandomItemStatType.RangedPhysicalDamagePercent: return 201;
+            case RandomItemStatType.MagicDamagePercent: return 202;
+            case RandomItemStatType.SpellDamagePercent: return 203;
+            case RandomItemStatType.AbilityPowerPercent: return 204;
+            case RandomItemStatType.AbilityCooldownReduction: return 205;
+            case RandomItemStatType.GlobalPhysicalDamagePercent: return 206;
+            case RandomItemStatType.PhysicalDamageFlat: return 207;
+            case RandomItemStatType.CorruptionDamagePercent: return 208;
+            case RandomItemStatType.CorruptionDamageFlat: return 209;
+            case RandomItemStatType.FireSkillDamagePercent: return 210;
+            case RandomItemStatType.IceSkillDamagePercent: return 211;
+            case RandomItemStatType.LightningSkillDamagePercent: return 212;
+            case RandomItemStatType.MinionDamagePercent: return 213;
+            case RandomItemStatType.MinionAttackSpeedPercent: return 214;
+            case RandomItemStatType.MinionCritChance: return 215;
+            case RandomItemStatType.MinionMaxLifePercent: return 216;
+            case RandomItemStatType.LifeSteal: return 217;
+            case RandomItemStatType.MoveSpeedPercent: return 218;
+            case RandomItemStatType.AttackRangeBonus: return 219;
 
-            case RandomItemStatType.BonusMana: return 600;
-            case RandomItemStatType.ManaRegen: return 601;
-            case RandomItemStatType.BonusHealth: return 50;
-            case RandomItemStatType.ArmourBonusHealth: return 610;
-            case RandomItemStatType.ArmourFlatGuard: return 611;
-            case RandomItemStatType.ArmourFlatArmour: return 612;
-            case RandomItemStatType.ArmourCorruptionResist: return 613;
-            case RandomItemStatType.ArmourMagicResist: return 614;
-            case RandomItemStatType.ArmourEnergyEfficiency: return 615;
-            case RandomItemStatType.MeleePhysicalDamagePercent: return 616;
-            case RandomItemStatType.MoveSpeedPercent: return 617;
-            case RandomItemStatType.RangedPhysicalDamagePercent: return 618;
-            case RandomItemStatType.MagicDamagePercent: return 619;
+            case RandomItemStatType.WeaponMagicAilmentApplyChance: return 300;
+            case RandomItemStatType.BleedChance: return 310;
+            case RandomItemStatType.BleedMultiplier: return 311;
+            case RandomItemStatType.PoisonChance: return 320;
+            case RandomItemStatType.PoisonMultiplier: return 321;
+            case RandomItemStatType.PoisonDurationBonus: return 322;
+            case RandomItemStatType.PoisonMaxStacksBonus: return 323;
+            case RandomItemStatType.BurnChance: return 330;
+            case RandomItemStatType.BurnMultiplier: return 331;
+            case RandomItemStatType.ShockChance: return 340;
+            case RandomItemStatType.ShockMultiplier: return 341;
+            case RandomItemStatType.ChillChance: return 350;
+            case RandomItemStatType.ChillMultiplier: return 351;
+            case RandomItemStatType.AllElementalAilmentChance: return 360;
 
-            case RandomItemStatType.ParryChance: return 700;
-            case RandomItemStatType.StunChance: return 701;
+            case RandomItemStatType.ArmourFlatGuard: return 500;
+            case RandomItemStatType.ArmourFlatArmour: return 501;
+            case RandomItemStatType.ArmourCorruptionResist: return 502;
+            case RandomItemStatType.ArmourMagicResist: return 503;
+            case RandomItemStatType.ArmourPhysBlockChance: return 504;
+            case RandomItemStatType.ArmourPhysBlockMitigation: return 505;
+            case RandomItemStatType.ArmourMaxGuardPercent: return 506;
+            case RandomItemStatType.BonusPhysBlockChance: return 507;
+            case RandomItemStatType.BonusPhysBlockMitigation: return 508;
 
-            case RandomItemStatType.WeaponAttackRange: return 900;
-            case RandomItemStatType.AttackRangeBonus: return 901;
+            case RandomItemStatType.ParryChance: return 600;
+            case RandomItemStatType.StunChance: return 601;
+
+            case RandomItemStatType.WeaponAttackRange: return 700;
+            case RandomItemStatType.EnemyRespawnTimeReductionSeconds: return 800;
+
+            case RandomItemStatType.BonusArmour: return 998;
+            case RandomItemStatType.BonusMagicResist: return 999;
+            case RandomItemStatType.BonusCorruptionResist: return 1000;
 
             default: return 750;
         }

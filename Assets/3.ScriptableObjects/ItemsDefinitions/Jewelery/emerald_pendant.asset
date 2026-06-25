@@ -181,7 +181,31 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 17
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   - stat: 27
+    weight: 1
+    minValue: 2
+    maxValue: 5
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 26
+    weight: 1
+    minValue: 3
+    maxValue: 7
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 22
     weight: 1
     minValue: 2
     maxValue: 5
@@ -201,30 +225,6 @@ MonoBehaviour:
     weight: 1
     minValue: 3
     maxValue: 6
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 17
-    weight: 1
-    minValue: 1
-    maxValue: 3
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 26
-    weight: 1
-    minValue: 3
-    maxValue: 7
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 22
-    weight: 1
-    minValue: 2
-    maxValue: 5
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0

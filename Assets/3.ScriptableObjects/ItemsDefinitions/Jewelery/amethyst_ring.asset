@@ -155,7 +155,7 @@ MonoBehaviour:
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0
-    poisonChance: 0.05
+    poisonChance: 0.1
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
@@ -181,7 +181,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 27
+  - stat: 24
     weight: 1
     minValue: 2
     maxValue: 5
@@ -205,7 +205,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 24
+  - stat: 27
     weight: 1
     minValue: 2
     maxValue: 5

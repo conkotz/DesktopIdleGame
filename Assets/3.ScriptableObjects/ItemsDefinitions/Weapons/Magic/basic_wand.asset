@@ -174,15 +174,7 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 22
-    weight: 1
-    minValue: 3
-    maxValue: 10
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 19
+  - stat: 23
     weight: 1
     minValue: 3
     maxValue: 10
@@ -206,7 +198,15 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 32
+  - stat: 22
+    weight: 1
+    minValue: 3
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 33
     weight: 1
     minValue: 2
     maxValue: 5
@@ -214,7 +214,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 33
+  - stat: 34
     weight: 1
     minValue: 5
     maxValue: 12
@@ -230,7 +230,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 56
+  - stat: 77
     weight: 1
     minValue: 2
     maxValue: 6
@@ -238,24 +238,8 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 75
-    weight: 1
-    minValue: 5
-    maxValue: 15
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 42
-    weight: 1
-    minValue: 5
-    maxValue: 15
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   - stat: 43
-    weight: 0.5
+    weight: 1
     minValue: 2
     maxValue: 6
     valueKind: 3
@@ -263,9 +247,17 @@ MonoBehaviour:
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 44
+    weight: 0.5
+    minValue: 2
+    maxValue: 6
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 45
     weight: 0.1
     minValue: 2
-    maxValue: 4
+    maxValue: 6
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0

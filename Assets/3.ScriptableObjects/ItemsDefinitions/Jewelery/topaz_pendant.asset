@@ -183,16 +183,16 @@ MonoBehaviour:
     secondaryMaxValue: 0
   - stat: 15
     weight: 1
-    minValue: 1
-    maxValue: 3
+    minValue: 2
+    maxValue: 5
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 19
     weight: 1
-    minValue: 1
-    maxValue: 3
+    minValue: 2
+    maxValue: 5
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0

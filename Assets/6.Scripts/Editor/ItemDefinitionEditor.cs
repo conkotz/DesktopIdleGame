@@ -1731,7 +1731,7 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.HelpBox(
                 "Default package is on. Pool entries are generated from item type, rarity, and optional weapon packages.\n" +
                 "Combat weapons: damage min/max (from base weapon), crit, speed. Add bleed/poison/element/defensive/range packages below.\n" +
-                "Wands/staffs: spell damage, elemental skill %, crit, mana, ailment multipliers (staff values are higher).\n" +
+                "Wands/staffs: spell damage, elemental skill %, crit, mana, all elemental ailment chance, ailment multipliers (staff values are higher).\n" +
                 "Armour: light/medium/heavy/shield templates by rarity (light never rolls guard).\n" +
                 "Jewelry: health + gem-type stat package (Ruby, Emerald, Sapphire, etc.).\n" +
                 "Uncheck Use default package for fully custom pools.",

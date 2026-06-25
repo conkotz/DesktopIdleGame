@@ -141,7 +141,7 @@ MonoBehaviour:
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
     spellDamagePercent: 0
-    corruptionDamagePercent: 0.05
+    corruptionDamagePercent: 0.1
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -181,7 +181,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 27
+  - stat: 24
     weight: 1
     minValue: 2
     maxValue: 5
@@ -205,7 +205,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 24
+  - stat: 27
     weight: 1
     minValue: 2
     maxValue: 5

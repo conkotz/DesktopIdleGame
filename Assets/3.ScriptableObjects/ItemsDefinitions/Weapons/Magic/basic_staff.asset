@@ -172,94 +172,95 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 22
+  - stat: 23
     weight: 1
-    minValue: 5
-    maxValue: 15
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 19
-    weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 8
+    maxValue: 16
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 20
     weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 6
+    maxValue: 14
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 21
     weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 6
+    maxValue: 14
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 32
+  - stat: 22
     weight: 1
-    minValue: 3
-    maxValue: 7
+    minValue: 6
+    maxValue: 14
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 33
     weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 4
+    maxValue: 7
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 34
+    weight: 1
+    minValue: 8
+    maxValue: 16
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 2
     weight: 1
-    minValue: 25
-    maxValue: 35
+    minValue: 18
+    maxValue: 32
     valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 75
+  - stat: 77
     weight: 1
-    minValue: 10
-    maxValue: 25
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 42
-    weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 4
+    maxValue: 9
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 43
-    weight: 0.5
-    minValue: 2
-    maxValue: 6
+    weight: 1
+    minValue: 8
+    maxValue: 18
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 44
-    weight: 0.1
-    minValue: 2
-    maxValue: 4
+    weight: 0.5
+    minValue: 4
+    maxValue: 8
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  - stat: 45
+    weight: 0.1
+    minValue: 4
+    maxValue: 8
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   randomStatsPendingIdentification: 0

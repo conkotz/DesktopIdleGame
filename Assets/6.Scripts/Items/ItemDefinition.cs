@@ -3849,11 +3849,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             if (!omitAilmentChanceBonuses && bonusStats.burnChance != 0f)
                 s += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
-            if (bonusStats.burnExplosionMultiplierBonus != 0f)
+            if (!omitAilmentMultiplierBonuses && bonusStats.burnExplosionMultiplierBonus != 0f)
                 s += $"{FormatBurnMultiplierLine(bonusStats.burnExplosionMultiplierBonus)}\n";
         }
+        if (!omitAilmentChanceBonuses && bonusStats.chillChance != 0f)
+            s += $"Chill Chance: {FormatSignedPercent01(bonusStats.chillChance)}\n";
         if (!omitChillShockBonuses && bonusStats.chillSlowPerStackBonus != 0f)
             s += $"{FormatChillEffectLine(bonusStats.chillSlowPerStackBonus)}\n";
+        if (!omitAilmentChanceBonuses && bonusStats.shockChance != 0f)
+            s += $"Shock Chance: {FormatSignedPercent01(bonusStats.shockChance)}\n";
         if (!omitChillShockBonuses && bonusStats.shockDamageTakenMultiplierBonus != 0f)
             s += $"{FormatShockEffectLine(bonusStats.shockDamageTakenMultiplierBonus)}\n";
         if (!omitAilmentChanceBonuses && bonusStats.allElementalAilmentChance != 0f)
