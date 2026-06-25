@@ -1036,6 +1036,30 @@ public static class ItemRandomStatRoller
             _ => new PoolValueBand(3f, 7f),
         };
 
+    private static readonly PoolValueBand JewelrySharedResistBand = new(3f, 6f);
+
+    private static void AppendJewelrySharedResistPackage(List<RandomStatPoolEntry> results)
+    {
+        AddTemplatePoolEntryIfMissing(results, RandomItemStatType.BonusMagicResist, JewelrySharedResistBand, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntryIfMissing(results, RandomItemStatType.BonusArmour, JewelrySharedResistBand, RandomStatValueKind.FlatInteger);
+        AddTemplatePoolEntryIfMissing(results, RandomItemStatType.BonusCorruptionResist, JewelrySharedResistBand, RandomStatValueKind.FlatInteger);
+    }
+
+    private static void AppendJewelryTrinketExtras(ItemDefinition item, List<RandomStatPoolEntry> results)
+    {
+        if (!item || item.equipSlot != EquipSlot.Trinket)
+            return;
+
+        if (item.miscEffects.enemyRespawnTimeReductionSeconds > 0f)
+        {
+            AddTemplatePoolEntryIfMissing(
+                results,
+                RandomItemStatType.EnemyRespawnTimeReductionSeconds,
+                new PoolValueBand(0.5f, 1f),
+                RandomStatValueKind.FlatFloat);
+        }
+    }
+
     private static void AppendJewelryDefaultPackage(ItemDefinition item, List<RandomStatPoolEntry> results)
     {
         if (!item || !item.IsJewelry)
@@ -1048,6 +1072,9 @@ public static class ItemRandomStatRoller
             AppendJewelryGemTypePool(item.JewelryGemType, rarityBand, results);
         else
             AppendJewelryExtraPackages(item, item.ExtraRandomStatPoolPackages, results);
+
+        AppendJewelrySharedResistPackage(results);
+        AppendJewelryTrinketExtras(item, results);
     }
 
     private static void AppendJewelryGemTypePool(

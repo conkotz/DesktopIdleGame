@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 4
   maxStack: 1
   itemId: emerald_pendant
-  displayName: Archers Pendant
+  displayName: Lightning Pendant
   displayNameSingular: 
   icon: {fileID: -3823864527797362523, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
@@ -134,12 +134,12 @@ MonoBehaviour:
     physicalDamage: 0
     meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
-    rangedPhysicalDamagePercent: 0.1
+    rangedPhysicalDamagePercent: 0
     magicDamage: 0
     magicDamagePercent: 0
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
-    lightningSkillDamagePercent: 0
+    lightningSkillDamagePercent: 0.1
     spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
@@ -226,6 +226,30 @@ MonoBehaviour:
     minValue: 2
     maxValue: 5
     valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 4
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 3
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 5
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0

@@ -1497,6 +1497,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public CombatSupportType SupportType =>
         IsCombatSupport ? combatSupportStats.supportType : CombatSupportType.None;
 
+    /// <summary>Off-hand combat support items that show a stack count on equipment slots (arrows, runes).</summary>
+    public bool ShowsOffHandStackCount =>
+        IsCombatSupport &&
+        (SupportType == CombatSupportType.Arrows || SupportType == CombatSupportType.Runes);
+
     public MainHandWeaponArchetype MainHandArchetype
     {
         get

@@ -88,7 +88,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
     }
 
     private bool ShouldUseOffHandStockLabelLayout() =>
-        slotType == PreviewSlotType.OffHandInactive && _def != null && _def.IsCombatSupport;
+        slotType == PreviewSlotType.OffHandInactive && _def != null && _def.ShowsOffHandStackCount;
 
     private void ApplyLabelLayoutForCurrentState()
     {
@@ -246,7 +246,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         if (_def == null)
             return GetTitle();
 
-        if (slotType == PreviewSlotType.OffHandInactive && _def.IsCombatSupport && equipment != null)
+        if (slotType == PreviewSlotType.OffHandInactive && _def.ShowsOffHandStackCount && equipment != null)
         {
             int amount = Mathf.Max(1, equipment.GetInactiveOffHandStackAmount());
             return $"Set 2 · x{amount}";
@@ -260,7 +260,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         if (_def == null)
             return 1;
 
-        if (slotType == PreviewSlotType.OffHandInactive && _def.IsCombatSupport && equipment != null)
+        if (slotType == PreviewSlotType.OffHandInactive && _def.ShowsOffHandStackCount && equipment != null)
             return Mathf.Max(1, equipment.GetInactiveOffHandStackAmount());
 
         return 1;

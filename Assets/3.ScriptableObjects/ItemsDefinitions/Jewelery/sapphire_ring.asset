@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 4
   maxStack: 1
   itemId: sapphire_ring
-  displayName: Magicians Ring
+  displayName: Ice Ring
   displayNameSingular: 
   icon: {fileID: 647588772610573750, guid: ac973c93083da51478234ecaea5660ca, type: 3}
   heldSprite: {fileID: 0}
@@ -140,7 +140,7 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
-    spellDamagePercent: 0.05
+    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -161,7 +161,7 @@ MonoBehaviour:
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
-    chillChance: 0
+    chillChance: 0.1
     shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
@@ -218,6 +218,30 @@ MonoBehaviour:
     minValue: 2
     maxValue: 5
     valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 4
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 3
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 5
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0

@@ -160,7 +160,7 @@ MonoBehaviour:
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
-    burnChance: 0.05
+    burnChance: 0.1
     chillChance: 0
     shockChance: 0
     chillSlowPerStackBonus: 0
@@ -218,6 +218,30 @@ MonoBehaviour:
     minValue: 3
     maxValue: 6
     valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 4
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 3
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 5
+    weight: 1
+    minValue: 3
+    maxValue: 6
+    valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0

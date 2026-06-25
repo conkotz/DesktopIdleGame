@@ -405,7 +405,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     }
 
     private bool ShouldUseOffHandStockLabelLayout() =>
-        slotType == EquipmentUISlotType.OffHand && _def != null && _def.IsCombatSupport;
+        slotType == EquipmentUISlotType.OffHand && _def != null && _def.ShowsOffHandStackCount;
 
     private void ApplyLabelLayoutForCurrentState()
     {
@@ -439,9 +439,14 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (!_bound || slotType != EquipmentUISlotType.OffHand || label == null)
             return;
 
-        if (_def != null && _def.IsCombatSupport)
+        if (_def != null && _def.ShowsOffHandStackCount)
         {
             label.text = $"x{Mathf.Max(1, stackAmount)}";
+            ApplyLabelLayoutForCurrentState();
+        }
+        else if (label != null)
+        {
+            label.text = GetTitle();
             ApplyLabelLayoutForCurrentState();
         }
     }
@@ -588,7 +593,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (_def == null)
             return GetTitle();
 
-        if (slotType == EquipmentUISlotType.OffHand && _def.IsCombatSupport && equipment != null)
+        if (slotType == EquipmentUISlotType.OffHand && _def.ShowsOffHandStackCount && equipment != null)
         {
             int amount = Mathf.Max(1, equipment.OffHandStackAmount);
             return $"x{amount}";
@@ -602,7 +607,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (_def == null)
             return 1;
 
-        if (slotType == EquipmentUISlotType.OffHand && _def.IsCombatSupport && equipment != null)
+        if (slotType == EquipmentUISlotType.OffHand && _def.ShowsOffHandStackCount && equipment != null)
             return Mathf.Max(1, equipment.OffHandStackAmount);
 
         return 1;
