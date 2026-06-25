@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: fire_ball
   displayName: Fire Ball
-  tag: 1
+  tag: 5
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 97a52048aa814570976ed277a43e59fe, type: 2}
   cooldown: 2
@@ -34,3 +34,5 @@ MonoBehaviour:
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
   minionSpawnDefinition: {fileID: 0}
+  supportRunesConsumedPerCast: 1
+  requiredChargedRuneElement: 1

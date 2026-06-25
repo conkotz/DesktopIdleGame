@@ -115,6 +115,8 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
                               (see Shadow Strike enhancements)
   K) Ranged combat major passive → MajorPassive row, no ability; SCALING + EFFECT details panel;
                               RangedMajorPassiveTooltipText + combat partial (see K2 Seeker Arrows)
+  O) Magic spell (staff/wand)  → tag Spell (UI type line = Active); fixed base damage + spell stat scaling;
+                              staff requires offhand runes per cast; wand does not (see section O)
 
 ### ABILITY TAGS (AbilityDefinition.tag)
   None        — Hides category line in tooltips. Use when tag is obvious from effects.
@@ -127,6 +129,17 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
                 Duration line on action bar; HUD hover shows "Remaining: Until dismissed".
 
   Legacy: untagged assets with minionSpawnDefinition still show "Minion" in tooltips.
+
+  Spell (internal classification)
+  - tag = Spell on AbilityDefinition. Tooltip **type line** still shows **Active** (not "Spell") —
+      ResolveAbilityCategoryTagLabel maps Spell → "Active" for UI.
+  - Combat/rules path uses AbilityTag.Spell via SpellCombatRules.IsSpellAbility(def).
+  - Spells do NOT use weaponDamageMultiplier, Ability Power, or weapon hit split damage.
+  - Damage = fixed base (MagicStarterSpellRules / AbilityCombatPower constants) × spell scaling
+      (SpellDamageScaling: Magic %, Spell %, element % from gear + buffs + skill-tree minors).
+  - Crit still applies to spell hits (not shown in scaling section).
+  - CDR affects spell cooldowns; attack speed does NOT affect spell cast speed.
+  - See **section O** for staff rune costs, wand exemption, and tooltip lines.
 
 ### WHEN TO USE BUFF vs MINION vs TOGGLE BUFF
   Buff (timed)
@@ -345,6 +358,10 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
         Then `\n\n` before "Fires N arrows (...)" line.
   - **Penetrating Shot:** damage range lines = ONE group.
         Then `\n\n` before hit-cap line, range line, and "Consumes 1 arrow on cast."
+  - **Magic spells (staff):** damage range line(s) = ONE group.
+        Then `\n\n` before "Spell hit range: X".
+        Then `\n\n` before "Consumes N rune(s) per cast" **only when a staff is equipped**
+        (wand players never see rune cost — SpellRuneCombatRules.StaffRequiresSpellRunes).
   - **Seeker Arrows (major passive):** separate paragraphs for:
         damage per hit | proc chance | committed enhancement (each `\n\n` apart).
         Scaling stays in SCALING section — never duplicate in EFFECT.
@@ -367,6 +384,8 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 - abilityId (stable string), displayName, sourceSkill, unlockLevel.
 - tag: None | Active | Minion | Buff | Toggle Buff (see sections above).
 - cooldown, energyCost, requiredWeaponType, scaling multipliers.
+- **Spell abilities:** tag = Spell; leave weaponDamageMultiplier = 0; set supportRunesConsumedPerCast
+     and requiredChargedRuneElement on AbilityDefinition (see section O). Do NOT put % scaling on the asset.
 - Buff (timed): tooltipBuffMinionDurationSeconds = BASE seconds before skill-tree bonuses.
      Leave 0 to use code fallback for that ability id.
 - Toggle Buff: leave tooltipBuffMinionDurationSeconds at 0.
@@ -398,9 +417,15 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
 - AbilityCombatPower.YourAbilityId for cross-script compares.
 - AbilityEntryUI.BuildActiveEnhancementLineForAbility: add branch for enhancement at bottom (green).
 - Compact UI auto-wires after step 3 (TryBuildHudBuffTooltip / TryBuildActionBarCompactBody).
+- **Spell abilities:** use AppendMagicStarterSpellTooltipEffects / AppendChainLightningTooltipEffects;
+     AppendSpellElementTooltipScaling (not weapon-% line); AppendSpellHitRangeEffectLine + rune cost
+     when staff equipped. See section O.
 
 4) Runtime (PlayerAbilityController unless gathering-only)
 - Cast / toggle / minion spawn logic.
+- **Spell abilities:** partial classes MagicStarterSpells.cs / ChainLightning.cs; gate + consume runes
+     before cast when staff equipped (HasRequiredSpellRunesForAbility / TryConsumeSpellRunesForAbility).
+     Wands skip rune logic entirely. See section O.
 - Timed buff: _active flag, _endsAt, _duration, Cleanup*IfExpired, Sync*HudBuff.
 - Toggle buff: toggle on/off, SetHudAbilityBuff(..., persistActiveOverlay: true) while on.
 - Minion: spawn list, dismiss cooldown, SyncSoulforgedWeaponHudBuff as reference for HUD timing.
@@ -797,6 +822,85 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   ReduceAbilityCooldownBySeconds(def, seconds) — flat shave (Shadow Execution −3s).
 
   Both read/write _cooldownEndsById[def.abilityId]. Call only when enhancement condition met.
+## O) MAGIC SPELLS (starter spells, Chain Lightning — staff runes + wand exemption)
+
+  When to use:
+  - Magic skill Active abilities with **fixed base elemental damage** scaled by spell stats (not weapon hit).
+  - Player wields **wand** (Focus offhand) OR **staff** (Runes offhand).
+  - Examples: fire_ball, ice_shard, energy_bolt, chain_lightning.
+
+  Ability asset (AbilityDefinition):
+  - tag = **Spell** (tooltip type line still shows **Active**).
+  - requiredWeaponType = Magic.
+  - weaponDamageMultiplier = 0 (spells never use weapon-scaled % line or AP).
+  - requireRangeCheckToActivate = Yes for targeted spells.
+  - **Spell rune consumption (staff only at runtime):**
+    - supportRunesConsumedPerCast — runes removed from offhand stack per cast (0 = no rune cost on asset).
+    - requiredChargedRuneElement — Fire | Ice | Lightning | None.
+    - **Elemental runes** (ChargedRuneElement.Elemental) satisfy **any** spell's element requirement.
+  - Reference values (starter spells):
+    - fire_ball / ice_shard / energy_bolt → 1 rune/cast, element matches spell (Fire / Ice / Lightning).
+    - chain_lightning → 3 runes/cast, Lightning (or 3 elemental runes).
+
+  Staff vs wand (CRITICAL):
+  - **Wand** (MainHandWeaponArchetype.Wand + Focus offhand): spells cast **without** rune cost.
+        HasRequiredSpellRunesForAbility / TryConsumeSpellRunesForAbility no-op when main hand is not a staff.
+  - **Staff** (MainHandWeaponArchetype.Staff + Runes offhand): spells **require** matching charged runes.
+        Wrong element or insufficient stack → cast blocked with popup (like arrows for Penetrating Shot).
+  - Rune **stat bonuses apply once per cast** from the equipped rune type — consuming 3 runes for
+        Chain Lightning does **NOT** triple rune damage bonuses.
+
+  Charged runes (CombatSupport items — like arrows for bows):
+  - itemKind = CombatSupport; supportType = Runes; equipSlot = OffHand; consumableOnSpell = true.
+  - combatSupportStats: flat elemental min/max, element % or spellDamagePercent, chargedRuneElement.
+  - Consume **amount** comes from AbilityDefinition.supportRunesConsumedPerCast (not the item).
+  - Assets: Assets/3.ScriptableObjects/ItemsDefinitions/CombatSupport/Runes/basic_*_rune.asset
+  - Register new rune items in Resources/Databases/ItemDatabase.asset.
+
+  Damage scaling (CODE — single source of truth):
+  - MagicStarterSpellRules — base min/max per abilityId + element mapping.
+  - SpellDamageScaling.ScaleElementBounds / RollScaledElementDamage — Magic %, Spell %, element %.
+  - CharacterStats.TryGetEquippedRuneElementFlatBounds — adds staff rune flat damage once (staff only).
+  - CharacterStats.SpellMagicDamageScalingPercentPoints — gear Magic % + buffs + magic skill-tree minors.
+  - CharacterStats.SpellDamageTotalScalingPercentPoints — gear Spell % + SupportSpellDamagePercent from runes.
+  - **Do NOT** add Ability Power to spell damage. **Do NOT** duplicate gear % on ability assets.
+
+  Runtime (PlayerAbilityController):
+  - Magic starter spells: PlayerAbilityController.MagicStarterSpells.cs → TryCastMagicStarterSpell.
+  - Chain Lightning: PlayerAbilityController.ChainLightning.cs → TryCastChainLightning.
+  - Before spending mana: combat.HasRequiredSpellRunesForAbility(def) → popup via ResolveMissingSpellRunesMessage.
+  - After spending mana: combat.TryConsumeSpellRunesForAbility(def); refund mana on consume failure.
+  - Spell hit range: same as auto-attack range check (combat.IsEnemyWithinAttackRange / stats.Range).
+  - Chain Lightning: **initial cast** uses spell hit range; **chain jumps** use separate chain range constant.
+
+  Tooltips (AbilityTooltipDamagePreview):
+  - Effects: scaled elemental damage range (SpellDamageScaling.ScaleElementBounds).
+  - AppendSpellHitRangeEffectLine(def, stats): "Spell hit range: X".
+  - **If staff equipped:** next paragraph "Consumes N rune(s) per cast" (hidden for wand).
+  - Scaling section: Magic %, Spell %, element % lines via AppendSpellElementTooltipScaling.
+  - **Do NOT** show "per auto attack", weapon damage %, or Ability Power for spells.
+  - Use AppendDetailsEffectParagraph / `\n\n` between damage, range, and rune-cost paragraphs.
+
+  Helper scripts:
+  - SpellCombatRules.cs — IsSpellAbility, GetSpellHitRange.
+  - SpellRuneCombatRules.cs — staff detection, rune type match, missing-rune messages.
+  - AbilityDefinition.OffhandRuneSatisfiesSpell(support) — Fire/Ice/Lightning or Elemental fallback.
+
+  Smoke test (spells):
+  - Wand + Focus: cast all spells with no runes equipped; no "Consumes runes" line on tooltip.
+  - Staff + wrong rune (e.g. fire rune for Ice Shard): cast blocked with clear message.
+  - Staff + elemental rune: all starter spells + Chain Lightning work (3 elemental for chain).
+  - Stack decrements by supportRunesConsumedPerCast; rune stat bonus unchanged when consuming 3 vs 1.
+  - Tooltip damage matches combat; Magic % on stats panel matches scaling section (includes skill-tree minors).
+
+  Reference ability ids:
+  - fire_ball, ice_shard, energy_bolt (Lv1 starters), chain_lightning (Lv15).
+
+  Reference scripts:
+  - MagicStarterSpellRules.cs, SpellDamageScaling.cs, SpellCombatRules.cs, SpellRuneCombatRules.cs
+  - PlayerAbilityController.MagicStarterSpells.cs, PlayerAbilityController.ChainLightning.cs
+  - PlayerCombatController.HasRequiredSpellRunesForAbility / TryConsumeSpellRunesForAbility
+  - ItemDefinition.CombatSupportStats (chargedRuneElement, consumableOnSpell, elemental flat + %)
 ## L) DPS / OUTGOING DAMAGE ATTRIBUTION (if ability deals damage)
 
   Ability hits use GetAbilityOutgoingDamageSourceLabel(def.abilityId) → displayName on ability asset.
@@ -881,6 +985,13 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
     volley info, and enhancement lines.
 - Major passive enhancement shown on preview click in EFFECT column → only committed choice after
     SELECT/CHANGE ENHANCEMENT (pass committedChoiceIndex from skillsManager, not preview index).
+- Putting weaponDamageMultiplier or Ability Power scaling on a Spell-tagged ability → wrong damage path.
+- Showing "Consumes runes" on spell tooltip when player has a **wand** equipped → only show for staff.
+- Multiplying rune stat bonuses by supportRunesConsumedPerCast → bonuses apply once per cast only.
+- Forgetting supportRunesConsumedPerCast / requiredChargedRuneElement on new staff spells → free casts.
+- Using AppendWeaponScaledHitScalerEffects or blue weapon-% line for spells → use SpellDamageScaling instead.
+- Chain Lightning initial cast using chain range instead of spell hit range → initial target uses stats.Range.
+- Registering charged rune items only in folder, not ItemDatabase.asset → item missing at runtime.
 
 ## Reference — presentation assets (Assets/3.ScriptableObjects/Presentation/)
   Presentation_ability_avatar_of_the_forest
@@ -905,11 +1016,19 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   Presentation_ability_penetrating_shot
   Presentation_ability_hunters_swiftness
   Presentation_ability_tornado
+  Presentation_ability_fire_ball
+  Presentation_ability_ice_shard
+  Presentation_ability_energy_bolt
+  Presentation_ability_chain_lightning
 
 ## Reference — ability assets (Assets/3.ScriptableObjects/AbilitiesDefinitions/)
   Melee/Ability_executioners_descent.asset   — executioners_descent (Lv45 slot 1)
   Melee/Ability_shadow_strike.asset          — shadow_strike (Lv25 slot 0)
   Melee/Ability_battle_trance.asset          — battle_trance (Lv35 slot 1, timed Buff)
+  Magic/Ability_fire_ball.asset              — fire_ball (Spell, 1 fire/elemental rune with staff)
+  Magic/Ability_ice_shard.asset              — ice_shard (Spell, 1 ice/elemental rune with staff)
+  Magic/Ability_energy_bolt.asset            — energy_bolt (Spell, 1 lightning/elemental rune with staff)
+  Magic/Ability_chain_lightning.asset        — chain_lightning (Spell, 3 lightning/elemental runes with staff)
 
 ## Reference — HUD ability buff ids (SetHudAbilityBuff abilityId)
   lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
@@ -926,6 +1045,15 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   Lv25_0                  — Hunter's Swiftness
   Lv45_0                  — Tornado
 
+## Reference — magic weapons & rune support
+  basic_wand.asset        — Wand + Focus offhand; spells cost mana only (no runes).
+  basic_staff.asset       — Staff + Runes offhand required; spells consume charged runes per cast.
+  CombatSupport/Runes/basic_fire_rune.asset       — Fire, 3–4 flat, +3% fire, consumableOnSpell.
+  CombatSupport/Runes/basic_ice_rune.asset        — Ice, 2–5 flat, +3% ice, consumableOnSpell.
+  CombatSupport/Runes/basic_lightning_rune.asset  — Lightning, 1–6 flat, +3% lightning, consumableOnSpell.
+  CombatSupport/Runes/basic_elemental_rune.asset  — +10% spell damage; satisfies any spell rune requirement.
+  arcanist_merchant.asset — sells charged runes (10g + uncharged rune; elemental 20g + uncharged rune).
+
 ## Reference — enhancement parent spine ids (Melee examples)
   Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places
   Lv15_0 / Lv15_1 / Lv15_2 — Lv15 branch abilities (Whirlwind, Cleaving Strikes, Crescent)
@@ -941,9 +1069,16 @@ for path in pathlib.Path('Assets').rglob('*.meta'):
   Lv45_1                  — Executioner's Descent
 
 ## Reference — key scripts (skills & abilities only)
-  AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds, minionSpawnDefinition
+  AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds, minionSpawnDefinition,
+                                   supportRunesConsumedPerCast, requiredChargedRuneElement (staff spells)
   AbilityTooltipDamagePreview.cs — tooltip builders (Effects, HUD buff, action bar)
+  MagicStarterSpellRules.cs      — starter spell base damage + element per abilityId
+  SpellDamageScaling.cs          — spell hit multiplier (Magic/Spell/element %; rune flat)
+  SpellCombatRules.cs            — IsSpellAbility, spell hit range
+  SpellRuneCombatRules.cs        — staff rune validation, missing-rune messages, elemental fallback
   PlayerAbilityController.cs     — cast, buff sync, minions (partials for large abilities)
+  PlayerAbilityController.MagicStarterSpells.cs — fire_ball / ice_shard / energy_bolt cast path
+  PlayerAbilityController.ChainLightning.cs     — chain_lightning cast + chain jumps
   PlayerAbilityVfxController.cs  — world VFX fields + spawn/update/cleanup
   Editor/PlayerAbilityVfxControllerEditor.cs — inspector foldouts (must list new VFX fields)
   PlayerBuffController.cs        — SetHudAbilityBuff / hudPersistActiveOverlay

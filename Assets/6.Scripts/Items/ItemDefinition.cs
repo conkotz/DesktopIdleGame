@@ -56,6 +56,17 @@ public enum CombatSupportType
     Focus
 }
 
+/// <summary>Element category for charged runes equipped in the offhand with a staff.</summary>
+public enum ChargedRuneElement
+{
+    None,
+    Fire,
+    Ice,
+    Lightning,
+    /// <summary>Universal rune — satisfies any spell rune requirement.</summary>
+    Elemental
+}
+
 public enum Handedness
 {
     OneHanded,
@@ -257,10 +268,28 @@ public struct CombatSupportStats
     public float coldDamagePercent;
     [Tooltip("Extra corruption on attack split (0.1 = +10%).")]
     public float corruptionDamagePercent;
+    [Tooltip("Extra lightning damage on lightning-tagged hits and skills (0.1 = +10%).")]
+    public float lightningDamagePercent;
+    [Tooltip("Extra spell damage on spell hits (0.1 = +10%).")]
+    public float spellDamagePercent;
+
+    [Header("Elemental Flat (spells)")]
+    public float minFireDamage;
+    public float maxFireDamage;
+    public float minIceDamage;
+    public float maxIceDamage;
+    public float minLightningDamage;
+    public float maxLightningDamage;
+
+    [Header("Rune Classification")]
+    [Tooltip("When support type is Runes, which element this charged rune satisfies for spell casting.")]
+    public ChargedRuneElement chargedRuneElement;
 
     [Header("Optional Charges/Consumption")]
     public bool consumableOnAttack;
     public int consumeAmountPerAttack;
+    [Tooltip("When enabled, staff spells consume runes per cast (amount comes from the ability definition).")]
+    public bool consumableOnSpell;
 }
 
 
@@ -1301,11 +1330,41 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float SupportCorruptionDamagePercent =>
         IsCombatSupport ? combatSupportStats.corruptionDamagePercent : 0f;
 
+    public float SupportLightningDamagePercent =>
+        IsCombatSupport ? combatSupportStats.lightningDamagePercent : 0f;
+
+    public float SupportSpellDamagePercent =>
+        IsCombatSupport ? combatSupportStats.spellDamagePercent : 0f;
+
+    public float SupportMinFireDamage =>
+        IsCombatSupport ? combatSupportStats.minFireDamage : 0f;
+
+    public float SupportMaxFireDamage =>
+        IsCombatSupport ? combatSupportStats.maxFireDamage : 0f;
+
+    public float SupportMinIceDamage =>
+        IsCombatSupport ? combatSupportStats.minIceDamage : 0f;
+
+    public float SupportMaxIceDamage =>
+        IsCombatSupport ? combatSupportStats.maxIceDamage : 0f;
+
+    public float SupportMinLightningDamage =>
+        IsCombatSupport ? combatSupportStats.minLightningDamage : 0f;
+
+    public float SupportMaxLightningDamage =>
+        IsCombatSupport ? combatSupportStats.maxLightningDamage : 0f;
+
+    public ChargedRuneElement SupportChargedRuneElement =>
+        IsCombatSupport ? combatSupportStats.chargedRuneElement : ChargedRuneElement.None;
+
     public bool SupportConsumableOnAttack =>
         IsCombatSupport && combatSupportStats.consumableOnAttack;
 
     public int SupportConsumeAmountPerAttack =>
         IsCombatSupport ? Mathf.Max(0, combatSupportStats.consumeAmountPerAttack) : 0;
+
+    public bool SupportConsumableOnSpell =>
+        IsCombatSupport && combatSupportStats.consumableOnSpell;
 
     public bool IsTwoHandedWeapon => IsWeapon && weaponStats.handedness == Handedness.TwoHanded;
     public bool CanDualWieldOffHand => IsWeapon && weaponStats.canEquipInOffHand && weaponStats.handedness == Handedness.OneHanded;
@@ -2462,8 +2521,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, OffenseBonusDisplayNames.FireDamagePercent)}";
             if (SupportIceDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportIceDamagePercent, OffenseBonusDisplayNames.IceDamagePercent)}";
+            if (SupportLightningDamagePercent != 0f)
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportLightningDamagePercent, OffenseBonusDisplayNames.LightningDamagePercent)}";
             if (SupportColdDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportColdDamagePercent, "Cold skills")}";
+            if (SupportSpellDamagePercent != 0f)
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportSpellDamagePercent, OffenseBonusDisplayNames.SpellDamagePercent)}";
+            if (SupportMinFireDamage > 0f || SupportMaxFireDamage > 0f)
+                s += $"\nFire Damage: {FormatDamageRange(SupportMinFireDamage, SupportMaxFireDamage)}";
+            if (SupportMinIceDamage > 0f || SupportMaxIceDamage > 0f)
+                s += $"\nIce Damage: {FormatDamageRange(SupportMinIceDamage, SupportMaxIceDamage)}";
+            if (SupportMinLightningDamage > 0f || SupportMaxLightningDamage > 0f)
+                s += $"\nLightning Damage: {FormatDamageRange(SupportMinLightningDamage, SupportMaxLightningDamage)}";
             if (SupportCorruptionDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, OffenseBonusDisplayNames.CorruptionDamagePercent)}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
@@ -2473,6 +2542,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (SupportConsumableOnAttack)
                 s += $"\nConsumes: {Mathf.Max(1, SupportConsumeAmountPerAttack)} per attack";
+            if (SupportConsumableOnSpell)
+                s += "\nConsumable on spell cast (amount per ability)";
 
             string miscCs = BuildMiscTooltipLines();
             if (!string.IsNullOrWhiteSpace(miscCs))
@@ -2658,6 +2729,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (string.IsNullOrWhiteSpace(main))
             return misc;
         return misc.TrimEnd('\n') + "\n\n" + main.TrimEnd('\n');
+    }
+
+    private static string FormatDamageRange(float min, float max)
+    {
+        if (Mathf.Approximately(min, max))
+            return FormatSignedNumber(min);
+        return $"{FormatSignedNumber(min)}-{FormatSignedNumber(max)}";
     }
 
     private static string FormatSignedNumber(float value)

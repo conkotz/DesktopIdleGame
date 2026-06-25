@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: ice_shard
   displayName: Ice Shard
-  tag: 1
+  tag: 5
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 5e0c89c88d8f45b08fa81ffcef319ab2, type: 2}
   cooldown: 2
@@ -34,3 +34,5 @@ MonoBehaviour:
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
   minionSpawnDefinition: {fileID: 0}
+  supportRunesConsumedPerCast: 1
+  requiredChargedRuneElement: 2

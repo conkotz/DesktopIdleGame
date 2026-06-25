@@ -23254,7 +23254,7 @@ MonoBehaviour:
   abilityController: {fileID: 0}
   statsHeaderText: {fileID: 1305159995}
   hpText: {fileID: 341048051}
-  hpPercentText: {fileID: 0}
+  hpPercentText: {fileID: 88454769}
   energyText: {fileID: 323539602}
   manaText: {fileID: 448082460}
   armourText: {fileID: 1524067718}
@@ -23295,7 +23295,8 @@ MonoBehaviour:
   globalFireBonusText: {fileID: 208404718}
   globalIceBonusText: {fileID: 1972778337}
   globalLightningBonusText: {fileID: 14424387}
-  globalSpellBonusText: {fileID: 0}
+  globalSpellBonusText: {fileID: 902004294}
+  spellDmgBonusText: {fileID: 0}
   meleeDamageBonusText: {fileID: 1647763550}
   rangedDamageBonusText: {fileID: 1747026420}
   bleedSectionTitleText: {fileID: 1493027192}

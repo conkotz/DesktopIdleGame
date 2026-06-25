@@ -55,4 +55,40 @@ MonoBehaviour:
       amount: 100
       itemId: splitwood_log
     defaultQuantity: 1
+  - itemId: basic_fire_rune
+    costs:
+    - type: 0
+      amount: 10
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: uncharged_rune
+    defaultQuantity: -1
+  - itemId: basic_lightning_rune
+    costs:
+    - type: 0
+      amount: 10
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: uncharged_rune
+    defaultQuantity: -1
+  - itemId: basic_ice_rune
+    costs:
+    - type: 0
+      amount: 10
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: uncharged_rune
+    defaultQuantity: -1
+  - itemId: basic_elemental_rune
+    costs:
+    - type: 0
+      amount: 20
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: uncharged_rune
+    defaultQuantity: -1
   stockSaveKey: 

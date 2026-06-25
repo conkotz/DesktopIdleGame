@@ -541,9 +541,20 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty iceDamagePercent = combatSupportStats.FindPropertyRelative("iceDamagePercent");
         SerializedProperty coldDamagePercent = combatSupportStats.FindPropertyRelative("coldDamagePercent");
         SerializedProperty corruptionDamagePercent = combatSupportStats.FindPropertyRelative("corruptionDamagePercent");
+        SerializedProperty lightningDamagePercent = combatSupportStats.FindPropertyRelative("lightningDamagePercent");
+        SerializedProperty spellDamagePercentCs = combatSupportStats.FindPropertyRelative("spellDamagePercent");
+
+        SerializedProperty minFireDamage = combatSupportStats.FindPropertyRelative("minFireDamage");
+        SerializedProperty maxFireDamage = combatSupportStats.FindPropertyRelative("maxFireDamage");
+        SerializedProperty minIceDamage = combatSupportStats.FindPropertyRelative("minIceDamage");
+        SerializedProperty maxIceDamage = combatSupportStats.FindPropertyRelative("maxIceDamage");
+        SerializedProperty minLightningDamage = combatSupportStats.FindPropertyRelative("minLightningDamage");
+        SerializedProperty maxLightningDamage = combatSupportStats.FindPropertyRelative("maxLightningDamage");
+        SerializedProperty chargedRuneElement = combatSupportStats.FindPropertyRelative("chargedRuneElement");
 
         SerializedProperty consumableOnAttack = combatSupportStats.FindPropertyRelative("consumableOnAttack");
         SerializedProperty consumeAmountPerAttack = combatSupportStats.FindPropertyRelative("consumeAmountPerAttack");
+        SerializedProperty consumableOnSpell = combatSupportStats.FindPropertyRelative("consumableOnSpell");
 
         EditorGUILayout.LabelField("Type", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(supportType);
@@ -568,6 +579,22 @@ public class ItemDefinitionEditor : Editor
         PropertyField(iceDamagePercent, "Ice damage %");
         PropertyField(coldDamagePercent, "Cold damage %");
         PropertyField(corruptionDamagePercent, "Corruption damage %");
+        PropertyField(lightningDamagePercent, "Lightning damage %");
+        PropertyField(spellDamagePercentCs, "Spell damage %");
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField("Elemental Flat (spells)", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(minFireDamage);
+        EditorGUILayout.PropertyField(maxFireDamage);
+        EditorGUILayout.PropertyField(minIceDamage);
+        EditorGUILayout.PropertyField(maxIceDamage);
+        EditorGUILayout.PropertyField(minLightningDamage);
+        EditorGUILayout.PropertyField(maxLightningDamage);
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField("Rune Classification", EditorStyles.boldLabel);
+        if (chargedRuneElement != null)
+            EditorGUILayout.PropertyField(chargedRuneElement);
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Consumption", EditorStyles.boldLabel);
@@ -583,6 +610,8 @@ public class ItemDefinitionEditor : Editor
         {
             consumeAmountPerAttack.intValue = 0;
         }
+
+        EditorGUILayout.PropertyField(consumableOnSpell);
 
         EditorGUILayout.HelpBox(
             "Combat Support items are offhand requirements for certain weapons.\n\n" +

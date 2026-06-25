@@ -23,7 +23,9 @@ public enum AbilityTag
     Minion,
     Buff,
     [InspectorName("Toggle Buff")]
-    ToggleBuff
+    ToggleBuff,
+    /// <summary>Combat classification for spell scaling (uses spell stats, not Ability Power). UI type line maps to <see cref="Active"/>.</summary>
+    Spell
 }
 
 /// <summary>
@@ -117,6 +119,12 @@ public class AbilityDefinition : ScriptableObject
         "No: the ability can still require range to cast but does not change the player's target (e.g. Whirlwind).")]
     public AbilitySetsTargetOnHit setsTargetOnHit = AbilitySetsTargetOnHit.Yes;
 
+    [Header("Spell Rune Consumption (staff offhand)")]
+    [Tooltip("Runes consumed from offhand per cast when wielding a staff. 0 = no rune cost.")]
+    [Min(0)] public int supportRunesConsumedPerCast;
+    [Tooltip("Required charged rune element in offhand. Elemental runes satisfy any spell.")]
+    public ChargedRuneElement requiredChargedRuneElement = ChargedRuneElement.None;
+
     /// <summary>True when <see cref="setsTargetOnHit"/> is Yes.</summary>
     public bool SetsTargetOnHit() => setsTargetOnHit == AbilitySetsTargetOnHit.Yes;
 
@@ -164,6 +172,30 @@ public class AbilityDefinition : ScriptableObject
             default:
                 return 0f;
         }
+    }
+
+    /// <summary>Runes consumed per staff spell cast; 0 when the spell does not use runes.</summary>
+    public int GetSupportRunesConsumedPerCast() => Mathf.Max(0, supportRunesConsumedPerCast);
+
+    /// <summary>True when a staff must spend offhand runes to cast this ability.</summary>
+    public bool RequiresSpellRuneConsumption() => GetSupportRunesConsumedPerCast() > 0;
+
+    /// <summary>Whether the equipped offhand rune satisfies this spell's element requirement.</summary>
+    public bool OffhandRuneSatisfiesSpell(ItemDefinition support)
+    {
+        if (!RequiresSpellRuneConsumption())
+            return true;
+        if (support == null || !support.IsCombatSupport || support.SupportType != CombatSupportType.Runes)
+            return false;
+        if (!support.SupportConsumableOnSpell)
+            return false;
+        if (requiredChargedRuneElement == ChargedRuneElement.None)
+            return true;
+
+        ChargedRuneElement equipped = support.SupportChargedRuneElement;
+        if (equipped == ChargedRuneElement.Elemental)
+            return true;
+        return equipped == requiredChargedRuneElement;
     }
 }
 

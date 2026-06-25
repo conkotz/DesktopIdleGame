@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: energy_bolt
   displayName: Energy Bolt
-  tag: 1
+  tag: 5
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 56b8f3643b09433f9b62ea5137b98e42, type: 2}
   cooldown: 2
@@ -34,3 +34,5 @@ MonoBehaviour:
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
   minionSpawnDefinition: {fileID: 0}
+  supportRunesConsumedPerCast: 1
+  requiredChargedRuneElement: 3

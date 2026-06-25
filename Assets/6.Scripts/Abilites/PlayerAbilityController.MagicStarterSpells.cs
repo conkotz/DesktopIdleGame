@@ -29,8 +29,23 @@ public partial class PlayerAbilityController
         if (def.SetsTargetOnHit())
             combat.SetTargetIfNone(target);
 
+        if (!combat.HasRequiredSpellRunesForAbility(def))
+        {
+            if (showLockedFeedback)
+                player?.ShowPopup(combat.ResolveMissingSpellRunesMessage(def));
+            return false;
+        }
+
         if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;
+
+        if (!combat.TryConsumeSpellRunesForAbility(def))
+        {
+            RefundAbilityResourceCost(def);
+            if (showLockedFeedback)
+                player?.ShowPopup(combat.ResolveMissingSpellRunesMessage(def));
+            return false;
+        }
 
         if (!MagicStarterSpellRules.TryGetBaseDamageBounds(def.abilityId, out float baseMin, out float baseMax))
             return false;

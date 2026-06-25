@@ -2313,7 +2313,46 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return equipment.OffHandStackAmount >= consume;
         }
 
+        if (support.SupportConsumableOnSpell && equipment != null)
+            return equipment.OffHandStackAmount >= 1;
+
         return true;
+    }
+
+    /// <summary>Flat elemental damage from the equipped staff rune (applied once per spell, not per rune consumed).</summary>
+    public bool TryGetEquippedRuneElementFlatBounds(MagicAttackType element, out float min, out float max)
+    {
+        min = 0f;
+        max = 0f;
+
+        var mh = GetMainHandWeaponDef();
+        if (mh == null || !mh.IsMagicStaff)
+            return false;
+
+        var support = GetActiveOffHandSupportDef();
+        if (support == null)
+            return false;
+
+        switch (element)
+        {
+            case MagicAttackType.Fire:
+                min = support.SupportMinFireDamage;
+                max = support.SupportMaxFireDamage;
+                break;
+            case MagicAttackType.Ice:
+                min = support.SupportMinIceDamage;
+                max = support.SupportMaxIceDamage;
+                break;
+            default:
+                min = support.SupportMinLightningDamage;
+                max = support.SupportMaxLightningDamage;
+                break;
+        }
+
+        if (max < min)
+            max = min;
+
+        return max > 0f || min > 0f;
     }
 
     private ItemDefinition GetActiveOffHandSupportDef()
@@ -2775,9 +2814,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Spell-only damage % from gear (wands/staffs). Applied to Lv1 starter spells and other spells.</summary>
     public float SpellDamageTotalScalingPercentPoints => GetEquippedSpellDamagePercent() * 100f;
 
-    /// <summary>Magic damage % applied to spells: gear, supports, and active magic boost consumables.</summary>
-    public float SpellMagicDamageScalingPercentPoints =>
-        (GetEquippedMagicDamagePercent() + (buffController ? buffController.MagicDamageBoostPercent : 0f)) * 100f;
+    /// <summary>Magic damage % for spells: gear, buffs, and magic skill-tree minors.</summary>
+    public float SpellMagicDamageScalingPercentPoints
+    {
+        get
+        {
+            float total = GetEquippedMagicDamagePercent();
+            if (buffController)
+                total += buffController.MagicDamageBoostPercent;
+            total += GetUnlockedSkillMinorBonuses(SkillType.Magic).magicDamagePercent;
+            return total * 100f;
+        }
+    }
 
     /// <summary>Living Inferno — +2% melee per burning enemy nearby (max 10% at 5 enemies).</summary>
     public float PhoenixLivingInfernoMeleeDamageBonusPercentPoints
@@ -5307,7 +5355,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.LightningSkillDamagePercent;
+            total += def.SupportLightningDamagePercent;
+        }
         return Mathf.Max(0f, total);
     }
 
@@ -5315,7 +5366,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.SpellDamagePercent;
+            total += def.SupportSpellDamagePercent;
+        }
         return Mathf.Max(0f, total);
     }
 

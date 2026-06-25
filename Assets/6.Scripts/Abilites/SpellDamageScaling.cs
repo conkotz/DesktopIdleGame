@@ -2,18 +2,17 @@ using UnityEngine;
 
 /// <summary>
 /// Spell hits use fixed base damage scaled by spell-specific stats — not weapon split damage.
+/// Multipliers: Spell Damage %, Magic Damage %, element % (Fire/Ice/Lightning). Ability Power excluded.
 /// </summary>
 public static class SpellDamageScaling
 {
     /// <summary>
-    /// Combined multiplier for spell lightning damage: Spell damage %, Magic damage %, Lightning damage %, Ability Power %.
+    /// Combined multiplier for spell lightning damage: Spell damage %, Magic damage %, Lightning damage %.
     /// </summary>
     public static float GetSpellDamageMultiplier(CharacterStats stats) =>
         GetSpellDamageMultiplierForElement(stats, MagicAttackType.Lightning);
 
-    /// <summary>
-    /// Full spell multiplier including magic damage % (instant-cast spells).
-    /// </summary>
+    /// <summary>Spell hits use fixed base damage scaled by spell stats — not weapon split damage or Ability Power.</summary>
     public static float GetSpellDamageMultiplierForElement(CharacterStats stats, MagicAttackType element)
     {
         if (stats == null)
@@ -22,8 +21,7 @@ public static class SpellDamageScaling
         float spellMult = 1f + stats.SpellDamageTotalScalingPercentPoints / 100f;
         float magicMult = 1f + stats.SpellMagicDamageScalingPercentPoints / 100f;
         float elementMult = GetElementSkillDamageMultiplier(stats, element);
-        float apMult = stats.GetAbilityPowerDamageMultiplier();
-        return spellMult * magicMult * elementMult * apMult;
+        return spellMult * magicMult * elementMult;
     }
 
     private static float GetElementSkillDamageMultiplier(CharacterStats stats, MagicAttackType element)
@@ -45,8 +43,16 @@ public static class SpellDamageScaling
         out float maxDamage)
     {
         float mult = GetSpellDamageMultiplierForElement(stats, element);
-        minDamage = Mathf.Max(0f, baseMin * mult);
-        maxDamage = Mathf.Max(minDamage, baseMax * mult);
+        float flatMin = 0f;
+        float flatMax = 0f;
+        if (stats != null && stats.TryGetEquippedRuneElementFlatBounds(element, out float runeMin, out float runeMax))
+        {
+            flatMin = runeMin;
+            flatMax = runeMax;
+        }
+
+        minDamage = Mathf.Max(0f, (baseMin + flatMin) * mult);
+        maxDamage = Mathf.Max(minDamage, (baseMax + flatMax) * mult);
     }
 
     public static void ScaleBaseLightningBounds(

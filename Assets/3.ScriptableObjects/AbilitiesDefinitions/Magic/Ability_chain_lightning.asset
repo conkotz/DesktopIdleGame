@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: chain_lightning
   displayName: Chain Lightning
-  tag: 1
+  tag: 5
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
   cooldown: 4
@@ -34,3 +34,5 @@ MonoBehaviour:
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
   minionSpawnDefinition: {fileID: 0}
+  supportRunesConsumedPerCast: 3
+  requiredChargedRuneElement: 3

@@ -104,6 +104,8 @@ public static class AbilityTooltipDamagePreview
 
         switch (def.tag)
         {
+            case AbilityTag.Spell:
+                return "Active";
             case AbilityTag.Active:
                 return "Active";
             case AbilityTag.Minion:
@@ -812,6 +814,18 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (SpellCombatRules.IsSpellAbility(def))
+        {
+            SpellCombatRules.TryGetSpellElement(def, out MagicAttackType spellElement);
+            AppendSpellElementTooltipScaling(
+                scaling,
+                S,
+                stats,
+                spellElement,
+                includeElementScaling: SpellCombatRules.SpellUsesElementScaling(def));
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsTornado(def))
         {
             AppendTornadoTooltipScaling(scaling, S, stats, skillsManager);
@@ -1110,7 +1124,7 @@ public static class AbilityTooltipDamagePreview
 
         if (IsChainLightning(def))
         {
-            AppendChainLightningTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+            AppendChainLightningTooltipEffects(body, O, def, skillsManager, stats, includeEnhancementEffects);
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -2093,18 +2107,30 @@ public static class AbilityTooltipDamagePreview
         int minShown = Mathf.Max(1, Mathf.RoundToInt(minD));
         int maxShown = Mathf.Max(minShown, Mathf.RoundToInt(maxD));
         AppendDetailsEffectParagraph(body, O($"{minShown}–{maxShown} {elementLabel} damage"));
-        AppendSpellHitRangeEffectLine(body, O, stats);
+        AppendSpellHitRangeEffectLine(body, O, def, stats);
     }
 
     private static void AppendSpellHitRangeEffectLine(
         StringBuilder body,
         System.Func<string, string> O,
+        AbilityDefinition def,
         CharacterStats stats)
     {
         if (stats == null)
             return;
 
         AppendDetailsEffectParagraph(body, O($"Spell hit range: {SpellCombatRules.GetSpellHitRange(stats):0.#}"));
+
+        if (def == null || !def.RequiresSpellRuneConsumption())
+            return;
+
+        ItemDefinition mainHand = stats.GetEquippedMainHandWeaponOrNull();
+        if (!SpellRuneCombatRules.StaffRequiresSpellRunes(mainHand))
+            return;
+
+        int consume = def.GetSupportRunesConsumedPerCast();
+        string runeLabel = consume == 1 ? "rune" : "runes";
+        AppendDetailsEffectParagraph(body, O($"Consumes {consume} {runeLabel} per cast"));
     }
 
     private static string BuildMagicStarterSpellCompactEffectsBody(AbilityDefinition def, CharacterStats stats)
@@ -2119,20 +2145,22 @@ public static class AbilityTooltipDamagePreview
         StringBuilder scaling,
         System.Func<string, string> S,
         CharacterStats stats,
-        MagicAttackType element)
+        MagicAttackType element,
+        bool includeElementScaling = true)
     {
         if (stats == null)
             return;
+
+        float magicPct = stats.SpellMagicDamageScalingPercentPoints;
+        if (magicPct > 0.05f)
+            scaling.AppendLine(S($"+{magicPct:0.#}% damage from {OffenseBonusDisplayNames.MagicDamagePercent}"));
 
         float spellPct = stats.SpellDamageTotalScalingPercentPoints;
         if (spellPct > 0.05f)
             scaling.AppendLine(S($"+{spellPct:0.#}% damage from {OffenseBonusDisplayNames.SpellDamagePercent}"));
 
-        AppendAbilityPowerScalingLine(scaling, S, stats);
-
-        float magicPct = stats.SpellMagicDamageScalingPercentPoints;
-        if (magicPct > 0.05f)
-            scaling.AppendLine(S($"+{magicPct:0.#}% damage from {OffenseBonusDisplayNames.MagicDamagePercent}"));
+        if (!includeElementScaling)
+            return;
 
         float elementPct = element switch
         {
@@ -2190,6 +2218,7 @@ public static class AbilityTooltipDamagePreview
     private static void AppendChainLightningTooltipEffects(
         StringBuilder body,
         System.Func<string, string> O,
+        AbilityDefinition def,
         SkillsManager skillsManager,
         CharacterStats stats,
         bool includeEnhancementEffects)
@@ -2217,7 +2246,7 @@ public static class AbilityTooltipDamagePreview
                 O($"+{AbilityCombatPower.ChainLightningEnh2ShockChance * 100f:0.#}% chance to shock; shocks from this spell deal +{AbilityCombatPower.ChainLightningEnh2ShockEffectBonus * 100f:0.#}% increased effect"));
         }
 
-        AppendSpellHitRangeEffectLine(body, O, stats);
+        AppendSpellHitRangeEffectLine(body, O, def, stats);
     }
 
     private static string BuildChainLightningCompactEffectsBody(
@@ -2228,7 +2257,7 @@ public static class AbilityTooltipDamagePreview
     {
         var body = new StringBuilder();
         System.Func<string, string> O = s => s;
-        AppendChainLightningTooltipEffects(body, O, skillsManager, stats, includeEnhancementEffects);
+        AppendChainLightningTooltipEffects(body, O, def, skillsManager, stats, includeEnhancementEffects);
         return body.ToString().TrimEnd();
     }
 

@@ -109,6 +109,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [FormerlySerializedAs("lightningSkillScalingText")]
     [SerializeField] private TMP_Text globalLightningBonusText;
     [SerializeField] private TMP_Text globalSpellBonusText;
+    [SerializeField] private TMP_Text spellDmgBonusText;
 
     [Header("Style bonuses (melee vs ranged — all basic-attack damage types)")]
     [FormerlySerializedAs("conditionalMeleePhysicalText")]
@@ -577,9 +578,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (globalLightningBonusText)
             globalLightningBonusText.text =
                 $"{OffenseBonusDisplayNames.LightningDamagePercent}: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
-        if (globalSpellBonusText)
-            globalSpellBonusText.text =
-                $"{OffenseBonusDisplayNames.SpellDamagePercent}: {FormatSignedPercentPoints(stats.SpellDamageTotalScalingPercentPoints)}";
+        ApplySpellDamageBonusLineText(stats);
 
         if (meleeDamageBonusText)
             meleeDamageBonusText.text =
@@ -854,7 +853,24 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 thornsDmgText = tmp;
             else if (!thornsDmgIncText && key.Equals("ThornsDmgIncText", StringComparison.OrdinalIgnoreCase))
                 thornsDmgIncText = tmp;
+            else if (!spellDmgBonusText && key.Equals("SpellDmgBonusText", StringComparison.OrdinalIgnoreCase))
+                spellDmgBonusText = tmp;
+            else if (!meleeDamageBonusText && key.Equals("MeleeBonusText", StringComparison.OrdinalIgnoreCase))
+                meleeDamageBonusText = tmp;
         }
+    }
+
+    private void ApplySpellDamageBonusLineText(CharacterStats stats)
+    {
+        if (!stats)
+            return;
+
+        string line =
+            $"{OffenseBonusDisplayNames.SpellDamagePercent}: {FormatSignedPercentPoints(stats.SpellDamageTotalScalingPercentPoints)}";
+        if (globalSpellBonusText)
+            globalSpellBonusText.text = line;
+        if (spellDmgBonusText)
+            spellDmgBonusText.text = line;
     }
 
     private void EnsureParryStatTextRefs()
@@ -945,6 +961,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(globalIceBonusText);
         Wire(globalLightningBonusText);
         WireFixedGuardLine(globalSpellBonusText, "GlobalSpellBonusText");
+        WireFixedGuardLine(spellDmgBonusText, "SpellDmgBonusText");
         Wire(meleeDamageBonusText);
         Wire(rangedDamageBonusText);
         Wire(abilityPowerText);
@@ -1010,6 +1027,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 case "LightningBonusText":
                     WireFixedGuardLine(tmp, "LightningBonusText");
                     break;
+                case "GlobalSpellBonusText":
+                case "SpellDmgBonusText":
+                    WireFixedGuardLine(tmp, "SpellDmgBonusText");
+                    break;
+                case "MeleeBonusText":
                 case "MeleePhysBonusText":
                 case "MeleeDamageBonusText":
                 case "ConditionalMeleePhysBonusText":

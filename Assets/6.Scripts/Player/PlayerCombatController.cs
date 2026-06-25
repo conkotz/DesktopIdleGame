@@ -1486,6 +1486,73 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return equipment.ConsumeOffHandSupport(consume);
     }
 
+    /// <summary>Returns true when a staff spell has valid offhand runes (type + stack) or no runes are required.</summary>
+    public bool HasRequiredSpellRunesForAbility(AbilityDefinition def)
+    {
+        if (def == null)
+            return true;
+
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inventory = _inventory != null ? _inventory : GetComponent<Inventory>();
+        if (equipment == null || inventory == null)
+            return true;
+
+        ItemDefinition mainDef = string.IsNullOrWhiteSpace(equipment.MainHandItemId)
+            ? null
+            : inventory.GetItemDef(equipment.MainHandItemId);
+        ItemDefinition offDef = equipment.GetOffHandDef();
+
+        return SpellRuneCombatRules.HasRequiredSpellRunes(
+            def,
+            mainDef,
+            offDef,
+            equipment.OffHandStackAmount);
+    }
+
+    /// <summary>Consumes staff spell runes per ability definition. No-op for wands or abilities without rune cost.</summary>
+    public bool TryConsumeSpellRunesForAbility(AbilityDefinition def)
+    {
+        if (def == null)
+            return true;
+
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inventory = _inventory != null ? _inventory : GetComponent<Inventory>();
+        if (equipment == null || inventory == null)
+            return true;
+
+        ItemDefinition mainDef = string.IsNullOrWhiteSpace(equipment.MainHandItemId)
+            ? null
+            : inventory.GetItemDef(equipment.MainHandItemId);
+        if (!SpellRuneCombatRules.AbilityUsesSpellRunesWithStaff(def, mainDef))
+            return true;
+
+        ItemDefinition offDef = equipment.GetOffHandDef();
+        if (offDef == null || !offDef.SupportConsumableOnSpell)
+            return false;
+
+        int consume = def.GetSupportRunesConsumedPerCast();
+        return equipment.ConsumeOffHandSupport(consume);
+    }
+
+    public string ResolveMissingSpellRunesMessage(AbilityDefinition def)
+    {
+        EquipmentManager equipment = _equipment != null ? _equipment : GetComponent<EquipmentManager>();
+        Inventory inventory = _inventory != null ? _inventory : GetComponent<Inventory>();
+        if (equipment == null || inventory == null)
+            return "Out of runes.";
+
+        ItemDefinition mainDef = string.IsNullOrWhiteSpace(equipment.MainHandItemId)
+            ? null
+            : inventory.GetItemDef(equipment.MainHandItemId);
+        ItemDefinition offDef = equipment.GetOffHandDef();
+
+        return SpellRuneCombatRules.ResolveMissingSpellRunesMessage(
+            def,
+            mainDef,
+            offDef,
+            equipment.OffHandStackAmount);
+    }
+
     private ItemDefinition GetMainWeaponDefForPopup()
     {
         if (stats == null) return null;
@@ -1515,6 +1582,15 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             offDef.SupportType == mainDef.RequiredSupportType &&
             offDef.SupportConsumableOnAttack &&
             equipment.OffHandStackAmount < Mathf.Max(1, offDef.SupportConsumeAmountPerAttack))
+        {
+            return $"Out of {mainDef.RequiredSupportType} (active weapon set).";
+        }
+
+        if (offDef != null &&
+            offDef.IsCombatSupport &&
+            offDef.SupportType == mainDef.RequiredSupportType &&
+            offDef.SupportConsumableOnSpell &&
+            equipment.OffHandStackAmount < 1)
         {
             return $"Out of {mainDef.RequiredSupportType} (active weapon set).";
         }

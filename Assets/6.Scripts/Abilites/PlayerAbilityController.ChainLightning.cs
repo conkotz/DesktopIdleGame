@@ -35,11 +35,27 @@ public partial class PlayerAbilityController
             return false;
         }
 
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        if (combat != null && !combat.HasRequiredSpellRunesForAbility(def))
+        {
+            if (showLockedFeedback)
+                player?.ShowPopup(combat.ResolveMissingSpellRunesMessage(def));
+            return false;
+        }
+
         if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;
 
-        if (combat == null)
-            combat = GetComponent<PlayerCombatController>();
+        if (combat != null && !combat.TryConsumeSpellRunesForAbility(def))
+        {
+            RefundAbilityResourceCost(def);
+            if (showLockedFeedback)
+                player?.ShowPopup(combat.ResolveMissingSpellRunesMessage(def));
+            return false;
+        }
+
         if (!abilityVfx)
             abilityVfx = GetComponent<PlayerAbilityVfxController>();
 

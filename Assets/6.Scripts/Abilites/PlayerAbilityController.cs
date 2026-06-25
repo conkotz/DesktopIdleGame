@@ -2132,7 +2132,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private float GetAbilityPowerDamageMultiplierForAbility(AbilityDefinition def)
     {
-        if (stats == null)
+        if (stats == null || SpellCombatRules.IsSpellAbility(def))
             return 1f;
 
         return stats.GetAbilityPowerDamageMultiplier(

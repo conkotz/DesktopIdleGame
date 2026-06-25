@@ -127,8 +127,7 @@ public static class GameTooltipTexts
                 title = "Ability Power";
                 description =
                     "Percentage bonus to ability damage only.\n\n" +
-                    "Each point adds the same percent to ability hits (+25% ability power = +25% ability damage). " +
-                    "Does not affect basic attacks or minions.";
+                    "Does not affect basic attacks, spells, or minion damage.";
                 return true;
 
             case "CooldownReductionText":
@@ -184,8 +183,8 @@ public static class GameTooltipTexts
             case "GlobalMagBonusText":
                 title = OffenseBonusDisplayNames.MagicDamagePercent;
                 description =
-                    "Bonus to Magic damage while using magic weapons or magic-tagged attacks.\n\n" +
-                    "Included in your weapon damage range on elemental gear.";
+                    "Increases damage of any magical hit (Fire, Ice, or Lightning). " +
+                    "This could be from basic attacks, abilities, or spells.";
                 return true;
 
             case "CorruptionBonusText":
@@ -214,12 +213,14 @@ public static class GameTooltipTexts
                 return true;
 
             case "GlobalSpellBonusText":
+            case "SpellDmgBonusText":
                 title = OffenseBonusDisplayNames.SpellDamagePercent;
                 description =
                     "Percentage bonus to spell damage only (starter spells, slotted spells).\n\n" +
-                    "Does not affect basic wand attacks or non-spell abilities.";
+                    "Does not affect basic attacks, non-spell abilities, or minion damage.";
                 return true;
 
+            case "MeleeBonusText":
             case "MeleePhysBonusText":
             case "MeleeDamageBonusText":
             case "ConditionalMeleePhysBonusText":
