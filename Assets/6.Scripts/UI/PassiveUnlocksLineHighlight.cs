@@ -133,10 +133,26 @@ public static class PassiveUnlocksLineHighlight
     {
         key = opt switch
         {
-            MagicMinorNodeStatOption.MagicDamagePercent3 => "Magic Damage",
+            MagicMinorNodeStatOption.MagicDamagePercent3 or MagicMinorNodeStatOption.SpellDamagePercent5 => "Spell Damage",
             MagicMinorNodeStatOption.MagicAttackSpeedPercent3 => "Cast Speed",
-            MagicMinorNodeStatOption.MagicCritChancePercent2 => "Crit Chance",
-            MagicMinorNodeStatOption.MagicCritDamagePercent8 => "Crit Damage",
+            MagicMinorNodeStatOption.MagicCritChancePercent2 or MagicMinorNodeStatOption.CritChancePercent2 => "Crit Chance",
+            MagicMinorNodeStatOption.MagicCritDamagePercent8 or MagicMinorNodeStatOption.CritMultiplierPercent8 => "Crit Multiplier",
+            MagicMinorNodeStatOption.CooldownReductionPercent2 => "Cooldown Reduction",
+            MagicMinorNodeStatOption.RuneConservationPercent5 => "Rune Conservation",
+            MagicMinorNodeStatOption.MaxManaFlat50 => "Max Mana",
+            MagicMinorNodeStatOption.ManaRegenFlat2 or MagicMinorNodeStatOption.ManaRegenFlat3 => "Mana Regeneration",
+            MagicMinorNodeStatOption.FireDamagePercent5 => "Fire Damage",
+            MagicMinorNodeStatOption.BurnChancePercent10 => "Burn Chance",
+            MagicMinorNodeStatOption.BurnTickIntervalReduction025 => "Burn Tick Rate",
+            MagicMinorNodeStatOption.IceDamagePercent5 => "Ice Damage",
+            MagicMinorNodeStatOption.LightningDamagePercent5 => "Lightning Damage",
+            MagicMinorNodeStatOption.ShockChancePercent10 => "Shock Chance",
+            MagicMinorNodeStatOption.BurnMultiplierPercent4 => "Burn Multiplier",
+            MagicMinorNodeStatOption.LightningLuckyChancePercent5 => "Lightning Lucky Chance",
+            MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent4 or MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent6 =>
+                $"Spell Damage above {CharacterStats.ArchmageInsightManaThreshold01 * 100f:0}% Mana",
+            MagicMinorNodeStatOption.ChillChancePercent10 => "Chill Chance",
+            MagicMinorNodeStatOption.DoubleChillStackChancePercent10 => "Double Chill Stack Chance",
             _ => null
         };
         return key != null;

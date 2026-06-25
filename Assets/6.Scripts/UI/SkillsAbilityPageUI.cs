@@ -1707,9 +1707,24 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float minionDamage = 0f;
         float minionHealth = 0f;
         float magicDamage = 0f;
-        float magicAttackSpeed = 0f;
+        float magicCooldownReduction = 0f;
         float magicCritChance = 0f;
         float magicCritDamage = 0f;
+        float magicRuneConservation = 0f;
+        float magicMaxMana = 0f;
+        float magicManaRegen = 0f;
+        float magicFireDamage = 0f;
+        float magicBurnChance = 0f;
+        float magicBurnTickReduction = 0f;
+        float magicIceDamage = 0f;
+        float magicLightningDamage = 0f;
+        float magicShockChance = 0f;
+        float magicBurnMultiplier = 0f;
+        float magicLightningLucky = 0f;
+        float magicSpellDamageAbove70Mana = 0f;
+        float magicChillChance = 0f;
+        float magicDoubleChillStack = 0f;
+        float magicCastSpeed = 0f;
 
         foreach (var unlock in skill.unlocks)
         {
@@ -1936,9 +1951,29 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 switch (unlock.magicMinorStatOption)
                 {
                     case MagicMinorNodeStatOption.MagicDamagePercent3: magicDamage += 0.03f; break;
-                    case MagicMinorNodeStatOption.MagicAttackSpeedPercent3: magicAttackSpeed += 0.03f; break;
+                    case MagicMinorNodeStatOption.MagicAttackSpeedPercent3: magicCastSpeed += 0.03f; break;
                     case MagicMinorNodeStatOption.MagicCritChancePercent2: magicCritChance += 0.02f; break;
                     case MagicMinorNodeStatOption.MagicCritDamagePercent8: magicCritDamage += 0.08f; break;
+                    case MagicMinorNodeStatOption.SpellDamagePercent5: magicDamage += 0.05f; break;
+                    case MagicMinorNodeStatOption.CooldownReductionPercent2: magicCooldownReduction += 0.02f; break;
+                    case MagicMinorNodeStatOption.CritChancePercent2: magicCritChance += 0.02f; break;
+                    case MagicMinorNodeStatOption.RuneConservationPercent5: magicRuneConservation += 0.05f; break;
+                    case MagicMinorNodeStatOption.MaxManaFlat50: magicMaxMana += 50f; break;
+                    case MagicMinorNodeStatOption.ManaRegenFlat2: magicManaRegen += 2f; break;
+                    case MagicMinorNodeStatOption.ManaRegenFlat3: magicManaRegen += 3f; break;
+                    case MagicMinorNodeStatOption.FireDamagePercent5: magicFireDamage += 0.05f; break;
+                    case MagicMinorNodeStatOption.BurnChancePercent10: magicBurnChance += 0.10f; break;
+                    case MagicMinorNodeStatOption.BurnTickIntervalReduction025: magicBurnTickReduction += 0.25f; break;
+                    case MagicMinorNodeStatOption.IceDamagePercent5: magicIceDamage += 0.05f; break;
+                    case MagicMinorNodeStatOption.CritMultiplierPercent8: magicCritDamage += 0.08f; break;
+                    case MagicMinorNodeStatOption.LightningDamagePercent5: magicLightningDamage += 0.05f; break;
+                    case MagicMinorNodeStatOption.ShockChancePercent10: magicShockChance += 0.10f; break;
+                    case MagicMinorNodeStatOption.BurnMultiplierPercent4: magicBurnMultiplier += 0.04f; break;
+                    case MagicMinorNodeStatOption.LightningLuckyChancePercent5: magicLightningLucky += 0.05f; break;
+                    case MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent4: magicSpellDamageAbove70Mana += 0.04f; break;
+                    case MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent6: magicSpellDamageAbove70Mana += 0.06f; break;
+                    case MagicMinorNodeStatOption.ChillChancePercent10: magicChillChance += 0.10f; break;
+                    case MagicMinorNodeStatOption.DoubleChillStackChancePercent10: magicDoubleChillStack += 0.10f; break;
                 }
             }
         }
@@ -1992,10 +2027,35 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else if (skill.skillType == SkillType.Magic)
         {
-            Pct(magicDamage, "Magic Damage");
-            Pct(magicAttackSpeed, "Cast Speed");
+            // Core casting
+            Pct(magicDamage, "Spell Damage");
+            Pct(magicCooldownReduction, "Cooldown Reduction");
             Pct(magicCritChance, "Crit Chance");
-            Pct(magicCritDamage, "Crit Damage");
+            Pct(magicCritDamage, "Crit Multiplier");
+            Pct(magicSpellDamageAbove70Mana, $"Spell Damage above {CharacterStats.ArchmageInsightManaThreshold01 * 100f:0}% Mana");
+            Pct(magicCastSpeed, "Cast Speed");
+
+            // Fire / burn
+            Pct(magicFireDamage, "Fire Damage");
+            Pct(magicBurnChance, "Burn Chance");
+            if (magicBurnTickReduction > 0f)
+                Line($"• Burn ticks {magicBurnTickReduction:0.##}s faster");
+            Pct(magicBurnMultiplier, "Burn Multiplier");
+
+            // Ice / chill
+            Pct(magicIceDamage, "Ice Damage");
+            Pct(magicChillChance, "Chill Chance");
+            Pct(magicDoubleChillStack, "Double Chill Stack Chance");
+
+            // Lightning / shock
+            Pct(magicLightningDamage, "Lightning Damage");
+            Pct(magicShockChance, "Shock Chance");
+            Pct(magicLightningLucky, "Lightning Lucky Chance");
+
+            // Resources / utility
+            Pct(magicRuneConservation, "Rune Conservation");
+            Flat(magicMaxMana, "Max Mana");
+            Flat(magicManaRegen, "Mana Regeneration");
         }
         else if (skill.skillType == SkillType.Endurance)
         {

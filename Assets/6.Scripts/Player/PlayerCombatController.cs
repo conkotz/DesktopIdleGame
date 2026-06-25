@@ -1576,6 +1576,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
 
         int consume = def.GetSupportRunesConsumedPerCast();
+        CharacterStats stats = GetComponent<CharacterStats>();
+        if (stats != null && stats.RuneConservationChanceFraction > 0f &&
+            Random.value < stats.RuneConservationChanceFraction)
+            return true;
+
         return equipment.ConsumeOffHandSupport(consume);
     }
 
@@ -3746,6 +3751,18 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                     slowPerStack: stats.ChillSlowPerStack,
                     source: transform
                 ));
+
+                if (stats.DoubleChillStackChanceFraction > 0f &&
+                    Random.value < stats.DoubleChillStackChanceFraction)
+                {
+                    ailments.ApplyChillFromHit(new ChillPayload(
+                        duration: stats.ChillDuration,
+                        maxStacks: stats.ChillMaxStacks,
+                        slowPerStack: stats.ChillSlowPerStack,
+                        source: transform
+                    ));
+                }
+
                 break;
             }
 

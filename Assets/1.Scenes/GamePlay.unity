@@ -151328,6 +151328,9 @@ MonoBehaviour:
   capstoneListContent: {fileID: 0}
   majorPassivesListContent: {fileID: 0}
   majorPassivesEmptyText: {fileID: 0}
+  generalUnlocksSectionRoot: {fileID: 0}
+  generalUnlocksListContent: {fileID: 0}
+  generalUnlocksEmptyText: {fileID: 0}
   majorPassiveEntryPrefab: {fileID: -834920543007812868, guid: f66499e61975aa4438b70b0968de0719, type: 3}
   majorPassiveRowHeight: 40
   rowSpacing: 6

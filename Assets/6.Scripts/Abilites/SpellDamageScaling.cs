@@ -66,7 +66,7 @@ public static class SpellDamageScaling
     public static float RollScaledLightningDamage(CharacterStats stats, float baseMin, float baseMax)
     {
         ScaleBaseLightningBounds(stats, baseMin, baseMax, out float min, out float max);
-        return RollFromScaledBounds(min, max);
+        return RollElementDamage(min, max, stats, MagicAttackType.Lightning);
     }
 
     public static float RollScaledElementDamage(
@@ -76,7 +76,24 @@ public static class SpellDamageScaling
         float baseMax)
     {
         ScaleElementBounds(stats, element, baseMin, baseMax, out float min, out float max);
-        return RollFromScaledBounds(min, max);
+        return RollElementDamage(min, max, stats, element);
+    }
+
+    private static float RollElementDamage(float min, float max, CharacterStats stats, MagicAttackType element)
+    {
+        float luckyChance = element == MagicAttackType.Lightning && stats != null
+            ? stats.LightningLuckyChanceFraction
+            : 0f;
+        return RollWithOptionalLucky(min, max, luckyChance);
+    }
+
+    /// <summary>Roll damage; when lucky procs, roll again and keep the higher value.</summary>
+    public static float RollWithOptionalLucky(float min, float max, float luckyChance)
+    {
+        float roll = RollFromScaledBounds(min, max);
+        if (luckyChance > 0f && max > min + 0.001f && Random.value < Mathf.Clamp01(luckyChance))
+            roll = Mathf.Max(roll, RollFromScaledBounds(min, max));
+        return roll;
     }
 
     private static float RollFromScaledBounds(float min, float max)

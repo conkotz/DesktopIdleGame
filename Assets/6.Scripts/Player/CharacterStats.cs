@@ -177,6 +177,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private int baseMaxHP = 100;
     [SerializeField] private float baseMaxHealthPercent;
     [SerializeField] private int baseMaxEnergy = 100;
+    public const float ArchmageInsightManaThreshold01 = 0.70f;
+
     [SerializeField] private int baseMaxMana = 50;
     [FormerlySerializedAs("baseArmor")]
     [SerializeField] private int baseArmour = 0;
@@ -391,6 +393,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float damageVsFullHp;
         public float minionDamagePercent;
         public float minionMaxLifePercent;
+    }
+
+    private struct MagicMinorNodeBonuses
+    {
+        public float spellDamagePercent;
+        public float cooldownReductionFraction;
+        public float critChance;
+        public float critMultiplier;
+        public float runeConservationChance;
+        public int maxManaFlat;
+        public float manaRegenFlat;
+        public float fireDamagePercent;
+        public float burnChance;
+        public float burnTickIntervalReduction;
+        public float iceDamagePercent;
+        public float lightningDamagePercent;
+        public float shockChance;
+        public float burnMultiplier;
+        public float lightningLuckyChance;
+        public float spellDamageAbove70ManaPercent;
+        public float chillChance;
+        public float doubleChillStackChance;
+        // Legacy cast-speed minors
+        public float castSpeedPercent;
     }
 
     private struct SkillMinorNodeBonuses
@@ -631,7 +657,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetNaturalGuardMaxGuardPercentTotal() + EnduranceMaxGuardPercentSum;
     public float TotalMaxGuardPercentPointsForStatsPanel => TotalMaxGuardPercentFraction * 100f;
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
-    public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana() + GetEnduranceLightArmourMasteryManaBonus());
+    public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana() + GetEnduranceLightArmourMasteryManaBonus() + GetMagicMinorMaxManaBonus());
     public int Armour =>
         baseArmour + GetEquippedArmour() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmour) +
         GetTacticianFlatArmourBonus() +
@@ -761,7 +787,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
     public float ManaRegenPerSecond => Mathf.Max(
         0f,
-        baseManaRegen + GetEquippedManaRegen() + _combatFlatManaRegenPerSecond + GetEnduranceLightArmourMasteryManaRegenBonus());
+        baseManaRegen + GetEquippedManaRegen() + _combatFlatManaRegenPerSecond + GetEnduranceLightArmourMasteryManaRegenBonus() +
+        GetMagicMinorManaRegenBonus());
     public float LifeSteal => Mathf.Clamp01(
         baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal +
         GetWayOfTheBerserkerLeechBonusFraction());
@@ -914,7 +941,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             0f,
             GetEquippedAbilityCooldownReductionFraction() +
             bonusAbilityCooldownReductionFraction +
-            _combatAbilityCooldownReductionFraction);
+            _combatAbilityCooldownReductionFraction +
+            GetUnlockedMagicMinorBonuses().cooldownReductionFraction);
 
     /// <summary>UI: ability cooldown reduction as percentage points (15 = 15%).</summary>
     public float FinalAbilityCooldownReductionPercentPoints =>
@@ -1120,7 +1148,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Chill apply chance for ice magic hits (combat).</summary>
     public float ChillApplyChanceForElementalMagicHit =>
-        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedChillChanceBonus()));
+        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(
+            GetEquippedChillChanceBonus() + GetActiveMagicMinorBonuses().chillChance));
 
     public float ChillApplyChancePercentForStatsPanel =>
         GetElementalAilmentApplyChancePercentForStatsPanel(GetChillApplyChanceForStatsPanel());
@@ -1135,7 +1164,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Shock apply chance for lightning magic hits (combat).</summary>
     public float ShockApplyChanceForElementalMagicHit =>
-        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedShockChanceBonus()));
+        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(
+            GetEquippedShockChanceBonus() + GetActiveMagicMinorBonuses().shockChance));
 
     public float ShockApplyChancePercentForStatsPanel =>
         GetElementalAilmentApplyChancePercentForStatsPanel(GetShockApplyChanceForStatsPanel());
@@ -1175,7 +1205,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         Mathf.Max(
             0f,
             baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus() + bonusBurnDamageMultiplier +
-            GetActiveMeleeMinorBonuses().meleeAilmentDamage);
+            GetActiveMeleeMinorBonuses().meleeAilmentDamage + GetActiveMagicMinorBonuses().burnMultiplier);
 
     /// <summary>Multiplies burn tick damage; same value as <see cref="BurnDamageMultiplier"/>.</summary>
     public float BurnExplosionMultiplier => BurnDamageMultiplier;
@@ -1209,7 +1239,34 @@ public class CharacterStats : MonoBehaviour, ISaveable
         Mathf.Max(
             0.05f,
             AilmentController.DefaultBurnTickIntervalSeconds -
-            GetActiveMeleeMinorBonuses().burnTickIntervalReduction);
+            GetActiveMeleeMinorBonuses().burnTickIntervalReduction -
+            GetActiveMagicMinorBonuses().burnTickIntervalReduction);
+
+    /// <summary>Chance (0–1) that lightning spell damage rolls twice and keeps the higher result.</summary>
+    public float LightningLuckyChanceFraction => Mathf.Clamp01(GetUnlockedMagicMinorBonuses().lightningLuckyChance);
+
+    public float LightningLuckyChancePercentForStatsPanel => LightningLuckyChanceFraction * 100f;
+
+    /// <summary>Chance (0–1) to not consume spell runes on cast.</summary>
+    public float RuneConservationChanceFraction => Mathf.Clamp01(GetUnlockedMagicMinorBonuses().runeConservationChance);
+
+    public float RuneConservationChancePercentForStatsPanel => RuneConservationChanceFraction * 100f;
+
+    /// <summary>Extra spell damage % while mana is above <see cref="ArchmageInsightManaThreshold01"/>.</summary>
+    public float SpellDamageAbove70ManaPercentPoints
+    {
+        get
+        {
+            if (MaxMana <= 0 || Mana / MaxMana < ArchmageInsightManaThreshold01)
+                return 0f;
+            return GetUnlockedMagicMinorBonuses().spellDamageAbove70ManaPercent * 100f;
+        }
+    }
+
+    /// <summary>Chance (0–1) that a chill application adds a second stack immediately.</summary>
+    public float DoubleChillStackChanceFraction => Mathf.Clamp01(GetActiveMagicMinorBonuses().doubleChillStackChance);
+
+    public float DoubleChillStackChancePercentForStatsPanel => DoubleChillStackChanceFraction * 100f;
     public float MeleeDamageVsShocked => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsShocked);
     public float MeleeDamageVsBurning => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsBurning);
     public float MeleeDamageVsLowHp => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsLowHp);
@@ -2602,7 +2659,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         return Mathf.Clamp01(
             baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive() +
-            GetActiveMeleeMinorBonuses().meleeBurnChance + GetTacticianBurnChanceBonus());
+            GetActiveMeleeMinorBonuses().meleeBurnChance + GetActiveMagicMinorBonuses().burnChance +
+            GetTacticianBurnChanceBonus());
     }
 
     /// <summary>True when the current attack can deal fire damage (any weapon style).</summary>
@@ -2751,7 +2809,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         AttackSkill skill = GetCurrentAttackSkill();
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
-        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        MagicMinorNodeBonuses magicBonuses = GetActiveMagicMinorBonuses();
         float rangedGear = GetEquippedRangedPhysicalDamagePercent();
         float rangedSkill = rangedBonuses.rangedDamagePercent;
         float rangedTotalPct = rangedGear + rangedSkill;
@@ -2779,7 +2837,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (skill == AttackSkill.Ranged)
             corrPct += rangedTotalPct;
         if (skill == AttackSkill.Magic)
-            magicPct += skillBonuses.magicDamagePercent;
+            magicPct += magicBonuses.spellDamagePercent;
 
         if (skill == AttackSkill.Melee)
         {
@@ -2847,9 +2905,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>Equipped additive fraction for Fire skill damage (0.10 = +10%). Buffs can extend later.</summary>
-    public float FireSkillDamageTotalScalingPercentPoints => GetEquippedFireSkillDamagePercent() * 100f;
+    public float FireSkillDamageTotalScalingPercentPoints =>
+        (GetEquippedFireSkillDamagePercent() + GetUnlockedMagicMinorBonuses().fireDamagePercent) * 100f;
 
-    public float IceSkillDamageTotalScalingPercentPoints => GetEquippedIceSkillDamagePercent() * 100f;
+    public float IceSkillDamageTotalScalingPercentPoints =>
+        (GetEquippedIceSkillDamagePercent() + GetUnlockedMagicMinorBonuses().iceDamagePercent) * 100f;
 
     public float LightningSkillDamageTotalScalingPercentPoints => GetLightningSkillDamagePercent() * 100f;
 
@@ -2861,7 +2921,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float GlobalMagicDamageBonusPercentPoints =>
         (GetEquippedMagicDamagePercent() +
          (buffController ? buffController.MagicDamageBoostPercent : 0f) +
-         GetActiveSkillMinorBonusesForCurrentAttack().magicDamagePercent) * 100f;
+         GetActiveMagicMinorBonuses().spellDamagePercent) * 100f;
 
     /// <summary>Equipped corruption attack-split % (armour bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
@@ -2874,11 +2934,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
+            MagicMinorNodeBonuses magic = GetUnlockedMagicMinorBonuses();
             float total = GetEquippedMagicDamagePercent();
             if (buffController)
                 total += buffController.MagicDamageBoostPercent;
-            total += GetUnlockedSkillMinorBonuses(SkillType.Magic).magicDamagePercent;
-            return total * 100f;
+            total += magic.spellDamagePercent;
+            float pts = total * 100f;
+            if (MaxMana > 0 && Mana / MaxMana >= ArchmageInsightManaThreshold01)
+                pts += magic.spellDamageAbove70ManaPercent * 100f;
+            return pts;
         }
     }
 
@@ -3210,8 +3274,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float gearAtkSpeedPct = GetEquippedAttackSpeedPercent() + meleeBonuses.meleeAttackSpeedPercent;
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
-        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
-        gearAtkSpeedPct += rangedBonuses.rangedAttackSpeedPercent + skillBonuses.magicAttackSpeedPercent;
+        MagicMinorNodeBonuses magicBonuses = GetActiveMagicMinorBonuses();
+        gearAtkSpeedPct += rangedBonuses.rangedAttackSpeedPercent + magicBonuses.castSpeedPercent;
 
         if (buffController)
             gearAtkSpeedPct += buffController.GetTotalMagnitude(ConsumableEffectType.AttackSpeed);
@@ -3296,12 +3360,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
             gearBonus += support.SupportCritChanceBonus;
 
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
-        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        MagicMinorNodeBonuses magicBonuses = GetActiveMagicMinorBonuses();
         return Mathf.Clamp01(
             baseCrit + gearBonus + meleeBonuses.meleeCritChance + GetTacticianCritChanceBonus() +
             GetWayOfTheBerserkerCritChanceBonusFraction() +
             GetWayOfTheBladeDancerKillCritBonusFraction() +
-            rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
+            rangedBonuses.rangedCritChance + magicBonuses.critChance);
     }
 
     private float GetCritMultiplier()
@@ -3337,10 +3401,59 @@ public class CharacterStats : MonoBehaviour, ISaveable
             gearBonus += support.SupportCritMultiplierBonus;
 
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
-        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        MagicMinorNodeBonuses magicBonuses = GetActiveMagicMinorBonuses();
         return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage + rangedBonuses.rangedCritDamage +
-                         skillBonuses.magicCritDamage);
+                         magicBonuses.critMultiplier);
     }
+
+    private MagicMinorNodeBonuses GetActiveMagicMinorBonuses()
+    {
+        if (!_ownerPlayer || GetCurrentAttackSkill() != AttackSkill.Magic)
+            return default;
+        return GetUnlockedMagicMinorBonuses();
+    }
+
+    private MagicMinorNodeBonuses GetUnlockedMagicMinorBonuses()
+    {
+        if (!_ownerPlayer)
+            return default;
+
+        PreferRuntimeSkillsManager();
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
+        if (!skillsManager || !skillDatabase)
+            return default;
+
+        SkillDefinition magicDef = skillDatabase.Get(SkillType.Magic);
+        if (magicDef == null || magicDef.unlocks == null || magicDef.unlocks.Count == 0)
+            return default;
+
+        int magicLevel = skillsManager.GetLevel(SkillType.Magic);
+        MagicMinorNodeBonuses total = default;
+        for (int i = 0; i < magicDef.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = magicDef.unlocks[i];
+            if (unlock == null)
+                continue;
+            if (unlock.unlockType != SkillUnlockType.MinorPassive)
+                continue;
+            if (unlock.requiredLevel > magicLevel)
+                continue;
+
+            ApplyMagicMinorOption(unlock.magicMinorStatOption, ref total);
+        }
+
+        int pastCap = Mathf.Max(0, magicLevel - SkillPostCapThresholdLevel);
+        if (pastCap > 0)
+            total.spellDamagePercent += pastCap * 0.01f;
+
+        return total;
+    }
+
+    private int GetMagicMinorMaxManaBonus() =>
+        _ownerPlayer ? GetUnlockedMagicMinorBonuses().maxManaFlat : 0;
+
+    private float GetMagicMinorManaRegenBonus() =>
+        _ownerPlayer ? GetUnlockedMagicMinorBonuses().manaRegenFlat : 0f;
 
     private MeleeMinorNodeBonuses GetActiveMeleeMinorBonuses()
     {
@@ -3495,9 +3608,6 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             switch (skillType)
             {
-                case SkillType.Magic:
-                    total.magicDamagePercent += pastCap * 0.01f;
-                    break;
                 case SkillType.Endurance:
                     total.enduranceHealthFlat += pastCap * 5f;
                     total.enduranceArmourFlat += pastCap * 1f;
@@ -4871,7 +4981,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = GetEquippedLightningSkillDamagePercent();
         if (_ownerPlayer)
+        {
             total += GetActiveRangedMinorBonuses().lightningSkillDamagePercent;
+            total += GetUnlockedMagicMinorBonuses().lightningDamagePercent;
+        }
         return Mathf.Max(0f, total);
     }
 
@@ -5106,13 +5219,86 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 break;
 
             case SkillType.Magic:
-                switch (unlock.magicMinorStatOption)
-                {
-                    case MagicMinorNodeStatOption.MagicDamagePercent3: total.magicDamagePercent += 0.03f; break;
-                    case MagicMinorNodeStatOption.MagicCritChancePercent2: total.magicCritChance += 0.02f; break;
-                    case MagicMinorNodeStatOption.MagicAttackSpeedPercent3: total.magicAttackSpeedPercent += 0.03f; break;
-                    case MagicMinorNodeStatOption.MagicCritDamagePercent8: total.magicCritDamage += 0.08f; break;
-                }
+                // Magic minors are aggregated via <see cref="GetUnlockedMagicMinorBonuses"/>.
+                break;
+        }
+    }
+
+    private static void ApplyMagicMinorOption(MagicMinorNodeStatOption option, ref MagicMinorNodeBonuses total)
+    {
+        switch (option)
+        {
+            case MagicMinorNodeStatOption.MagicDamagePercent3:
+                total.spellDamagePercent += 0.03f;
+                break;
+            case MagicMinorNodeStatOption.MagicCritChancePercent2:
+                total.critChance += 0.02f;
+                break;
+            case MagicMinorNodeStatOption.MagicAttackSpeedPercent3:
+                total.castSpeedPercent += 0.03f;
+                break;
+            case MagicMinorNodeStatOption.MagicCritDamagePercent8:
+                total.critMultiplier += 0.08f;
+                break;
+            case MagicMinorNodeStatOption.SpellDamagePercent5:
+                total.spellDamagePercent += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.CooldownReductionPercent2:
+                total.cooldownReductionFraction += 0.02f;
+                break;
+            case MagicMinorNodeStatOption.CritChancePercent2:
+                total.critChance += 0.02f;
+                break;
+            case MagicMinorNodeStatOption.RuneConservationPercent5:
+                total.runeConservationChance += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.MaxManaFlat50:
+                total.maxManaFlat += 50;
+                break;
+            case MagicMinorNodeStatOption.ManaRegenFlat2:
+                total.manaRegenFlat += 2f;
+                break;
+            case MagicMinorNodeStatOption.ManaRegenFlat3:
+                total.manaRegenFlat += 3f;
+                break;
+            case MagicMinorNodeStatOption.FireDamagePercent5:
+                total.fireDamagePercent += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.BurnChancePercent10:
+                total.burnChance += 0.10f;
+                break;
+            case MagicMinorNodeStatOption.BurnTickIntervalReduction025:
+                total.burnTickIntervalReduction += 0.25f;
+                break;
+            case MagicMinorNodeStatOption.IceDamagePercent5:
+                total.iceDamagePercent += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.CritMultiplierPercent8:
+                total.critMultiplier += 0.08f;
+                break;
+            case MagicMinorNodeStatOption.LightningDamagePercent5:
+                total.lightningDamagePercent += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.ShockChancePercent10:
+                total.shockChance += 0.10f;
+                break;
+            case MagicMinorNodeStatOption.BurnMultiplierPercent4:
+                total.burnMultiplier += 0.04f;
+                break;
+            case MagicMinorNodeStatOption.LightningLuckyChancePercent5:
+                total.lightningLuckyChance += 0.05f;
+                break;
+            case MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent4:
+                total.spellDamageAbove70ManaPercent += 0.04f;
+                break;
+            case MagicMinorNodeStatOption.SpellDamageAbove70ManaPercent6:
+                total.spellDamageAbove70ManaPercent += 0.06f;
+                break;
+            case MagicMinorNodeStatOption.ChillChancePercent10:
+                total.chillChance += 0.10f;
+                break;
+            case MagicMinorNodeStatOption.DoubleChillStackChancePercent10:
+                total.doubleChillStackChance += 0.10f;
                 break;
         }
     }
