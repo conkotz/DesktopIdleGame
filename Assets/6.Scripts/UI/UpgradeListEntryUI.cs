@@ -19,6 +19,10 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
     [SerializeField] private CanvasGroup rowCanvasGroup;
 
     public ItemDefinition BoundScroll { get; private set; }
+    public string BoundOptionId { get; private set; }
+
+    private bool _dimRow;
+    private Action<EnhancementOptionEntry> _optionClickHandler;
 
     private void Awake()
     {
@@ -53,6 +57,9 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
         ItemDefinition selectedGear = null)
     {
         BoundScroll = null;
+        BoundOptionId = option?.optionId;
+        _dimRow = dimRow;
+        _optionClickHandler = onClicked;
 
         if (nameText)
         {
@@ -82,13 +89,35 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
         EnsureRowCanvasGroup();
         rowCanvasGroup.alpha = dimRow ? 0.72f : 1f;
 
+        WireOptionClick(option);
+    }
+
+    public void SetOptionSelectionVisual(bool selected, bool dimRow)
+    {
+        _dimRow = dimRow;
+
+        if (nameText)
+            nameText.color = dimRow ? DimTextColor : NormalTextColor;
+        if (upgradeValueText)
+            upgradeValueText.color = dimRow ? DimTextColor : NormalTextColor;
+        if (hasScrollImage)
+            hasScrollImage.color = dimRow ? DimTextColor : Color.white;
+        if (rowBackground)
+            rowBackground.color = selected ? SelectedRowColor : NormalRowColor;
+
+        EnsureRowCanvasGroup();
+        rowCanvasGroup.alpha = dimRow ? 0.72f : 1f;
+    }
+
+    private void WireOptionClick(EnhancementOptionEntry option)
+    {
         if (!button)
             return;
 
         button.interactable = true;
         button.onClick.RemoveAllListeners();
-        if (option != null && onClicked != null)
-            button.onClick.AddListener(() => onClicked(option));
+        if (option != null && _optionClickHandler != null)
+            button.onClick.AddListener(() => _optionClickHandler(option));
     }
 
     public void Bind(

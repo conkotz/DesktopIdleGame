@@ -150,7 +150,7 @@ public static class AbilityCombatPower
     public const int ChainLightningBaseMaxChainJumps = 3;
     public const float ChainLightningBaseChainRange = 8f;
     public const float ChainLightningEnh1ChainRangeBonus = 2f;
-    public const float ChainLightningUnusedChainPrimaryDamageBonusPerJump = 0.25f;
+    public const float ChainLightningUnusedChainPrimaryDamageBonusPerJump = 0.75f;
     public const float ChainLightningEnh2ShockChance = 0.15f;
     public const float ChainLightningEnh2ShockEffectBonus = 0.03f;
     public const string ChainLightningOutgoingDamageSourceLabel = "Chain Lightning";

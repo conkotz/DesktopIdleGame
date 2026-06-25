@@ -32,6 +32,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
     private const int PrewarmPoolBatchSize = 12;
 
     private readonly List<InventorySlotUI> _slotPool = new(64);
+    private readonly HashSet<InventorySlotUI> _slotPoolSet = new();
     private GridLayoutGroup _grid;
     private Canvas _rootCanvas;
     private RectTransform _upgradeDropTarget;
@@ -210,7 +211,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
         {
             Transform child = slotsGrid.GetChild(i);
             InventorySlotUI slotUi = child.GetComponent<InventorySlotUI>();
-            if (!slotUi || _slotPool.Contains(slotUi))
+            if (!slotUi || _slotPoolSet.Contains(slotUi))
                 continue;
 
             if (Application.isPlaying)
@@ -362,6 +363,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
             InventorySlotUI created = Instantiate(slotPrefab, slotsGrid);
             created.gameObject.SetActive(true);
             _slotPool.Add(created);
+            _slotPoolSet.Add(created);
         }
 
         for (int i = 0; i < _slotPool.Count; i++)
@@ -387,6 +389,7 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
                 InventorySlotUI created = Instantiate(slotPrefab, slotsGrid);
                 created.gameObject.SetActive(true);
                 _slotPool.Add(created);
+                _slotPoolSet.Add(created);
             }
 
             for (int i = 0; i < _slotPool.Count; i++)

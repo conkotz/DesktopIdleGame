@@ -1287,6 +1287,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             _pendingAbilityPresetLabelRefresh = false;
         RefreshAbilityPresetButtonLabels();
 
+        // Equipment/stats may have changed on Character tab; re-bind scaling/effects for the open node.
+        horizontalSkillTimeline?.RefreshOpenDetailsAfterDataChange();
+
         _deferredOpenRefresh = null;
     }
 

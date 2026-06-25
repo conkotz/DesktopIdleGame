@@ -133,10 +133,10 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         PreferRuntimeSkillsManager();
         EnsureDetailsPanelReference();
         EnsureSkillLevelTextReference();
-        RemoveSkillLevelPanelHoverDim();
+        ResetSkillLevelPanelOpacity();
     }
 
-    private static void RemoveSkillLevelPanelHoverDim()
+    private static void ResetSkillLevelPanelOpacity()
     {
         Transform timelineContainer = null;
         var horizontal = FindFirstObjectByType<HorizontalSkillTreeScaffoldUI>(FindObjectsInactive.Include);
@@ -156,9 +156,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         Transform skillLevelPanel = timelineContainer.Find("SkillLevelPanel");
         if (skillLevelPanel == null)
             return;
-
-        if (skillLevelPanel.TryGetComponent(out SkillLevelPanelHoverDimUI dim))
-            Destroy(dim);
 
         if (skillLevelPanel.TryGetComponent(out CanvasGroup canvasGroup))
             canvasGroup.alpha = 1f;

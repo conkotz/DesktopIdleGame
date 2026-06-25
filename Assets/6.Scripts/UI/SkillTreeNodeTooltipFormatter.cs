@@ -154,7 +154,7 @@ public static class SkillTreeNodeTooltipFormatter
             ? TypeLabel(SkillTreeNodeVisualType.CapstonePassive)
             : useMajorPassivePresentation
                 ? TypeLabel(SkillTreeNodeVisualType.MajorPassive)
-                : TypeLabel(visualType);
+                : ResolveNodeTypeLabel(visualType, binding);
 
         string weaponRequirements = BuildWeaponRequirementsRichText(skill, unlock, null, stats);
 
@@ -639,6 +639,17 @@ public static class SkillTreeNodeTooltipFormatter
             SkillTimelineNodeUI.SkillTimelineNodeType.Unlock => SkillTreeNodeVisualType.Unlock,
             _ => SkillTreeNodeVisualType.Ability
         };
+    }
+
+    private static string ResolveNodeTypeLabel(SkillTreeNodeVisualType visualType, SkillTimelineNodeBinding binding)
+    {
+        if (visualType == SkillTreeNodeVisualType.Ability
+            && SpellCombatRules.IsSpellAbility(binding?.Unlock?.ability))
+        {
+            return "Spell";
+        }
+
+        return TypeLabel(visualType);
     }
 
     private static string TypeLabel(SkillTreeNodeVisualType type) =>

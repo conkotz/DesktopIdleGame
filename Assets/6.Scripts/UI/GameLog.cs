@@ -379,6 +379,9 @@ public static class GameLog
         if (m.StartsWith("Missing ", StringComparison.OrdinalIgnoreCase))
             return true;
 
+        if (m.StartsWith("Out of runes", StringComparison.OrdinalIgnoreCase))
+            return true;
+
         if (m.StartsWith("Unable to", StringComparison.OrdinalIgnoreCase) ||
             m.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(m, "Action not allowed.", StringComparison.OrdinalIgnoreCase))

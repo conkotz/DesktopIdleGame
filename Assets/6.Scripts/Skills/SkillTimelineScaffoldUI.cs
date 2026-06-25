@@ -442,8 +442,6 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (skillLevelPanel != null)
         {
             skillLevelPanel.SetSiblingIndex(index++);
-            if (skillLevelPanel.TryGetComponent(out SkillLevelPanelHoverDimUI dim))
-                Destroy(dim);
             if (skillLevelPanel.TryGetComponent(out CanvasGroup canvasGroup))
                 canvasGroup.alpha = 1f;
         }
