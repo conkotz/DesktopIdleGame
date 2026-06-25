@@ -1,0 +1,497 @@
+fileFormatVersion: 2
+guid: ca56f4a66fb9cd145a055cda7e049823
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -3267488870146170370
+    second: RuneSpriteSheet_0
+  - first:
+      213: 5409443081462523026
+    second: RuneSpriteSheet_1
+  - first:
+      213: 2225079337066959512
+    second: RuneSpriteSheet_2
+  - first:
+      213: 2092713203257311132
+    second: RuneSpriteSheet_3
+  - first:
+      213: -2698465805432192820
+    second: RuneSpriteSheet_4
+  - first:
+      213: 7660778507314729855
+    second: RuneSpriteSheet_5
+  - first:
+      213: -4191282296818943853
+    second: RuneSpriteSheet_6
+  - first:
+      213: -2702859985167370030
+    second: RuneSpriteSheet_7
+  - first:
+      213: -455716084239465369
+    second: RuneSpriteSheet_8
+  - first:
+      213: -4885893413495059718
+    second: RuneSpriteSheet_9
+  - first:
+      213: 2863612445707863854
+    second: RuneSpriteSheet_10
+  - first:
+      213: 2272586919509203242
+    second: RuneSpriteSheet_11
+  - first:
+      213: -3469722869821738513
+    second: RuneSpriteSheet_12
+  - first:
+      213: 3397206235872045408
+    second: RuneSpriteSheet_13
+  - first:
+      213: 2231198241394858731
+    second: RuneSpriteSheet_14
+  - first:
+      213: 4805606800996444369
+    second: RuneSpriteSheet_15
+  - first:
+      213: 8002217749671437087
+    second: RuneSpriteSheet_16
+  - first:
+      213: -8184477589247251308
+    second: RuneSpriteSheet_17
+  - first:
+      213: -6440697214895737159
+    second: RuneSpriteSheet_18
+  - first:
+      213: -6206751300052635495
+    second: RuneSpriteSheet_19
+  - first:
+      213: -8856294366459808410
+    second: RuneSpriteSheet_20
+  - first:
+      213: 5108036052102086424
+    second: RuneSpriteSheet_21
+  - first:
+      213: -3516278267459227510
+    second: RuneSpriteSheet_22
+  - first:
+      213: -5871882485822707685
+    second: RuneSpriteSheet_23
+  - first:
+      213: -4398391333222953710
+    second: RuneSpriteSheet_24
+  - first:
+      213: 990101435711765687
+    second: RuneSpriteSheet_25
+  - first:
+      213: 5242633469655924948
+    second: RuneSpriteSheet_26
+  - first:
+      213: 2175534414894790304
+    second: RuneSpriteSheet_27
+  - first:
+      213: -916989700713690452
+    second: RuneSpriteSheet_28
+  - first:
+      213: 7080637738500220996
+    second: RuneSpriteSheet_29
+  - first:
+      213: 3417288202315939686
+    second: RuneSpriteSheet_30
+  - first:
+      213: -6499564570517178246
+    second: RuneSpriteSheet_31
+  - first:
+      213: 473909029983329962
+    second: RuneSpriteSheet_32
+  - first:
+      213: 2289916907855090765
+    second: RuneSpriteSheet_33
+  - first:
+      213: -2531846179283025875
+    second: RuneSpriteSheet_34
+  - first:
+      213: 4377820903702849816
+    second: RuneSpriteSheet_35
+  - first:
+      213: 4102466405349563697
+    second: RuneSpriteSheet_36
+  - first:
+      213: -4656051897323891159
+    second: RuneSpriteSheet_37
+  - first:
+      213: 8643892849254860326
+    second: RuneSpriteSheet_38
+  - first:
+      213: 2433197261444823905
+    second: RuneSpriteSheet_39
+  - first:
+      213: -4978184613322059467
+    second: RuneSpriteSheet_40
+  - first:
+      213: -5809313387909826068
+    second: RuneSpriteSheet_41
+  - first:
+      213: -4661116215997171096
+    second: RuneSpriteSheet_42
+  - first:
+      213: 714719965394238077
+    second: RuneSpriteSheet_43
+  - first:
+      213: -2117070150020974506
+    second: RuneSpriteSheet_44
+  - first:
+      213: -8498767363311859812
+    second: RuneSpriteSheet_45
+  - first:
+      213: -8986712910578720633
+    second: RuneSpriteSheet_46
+  - first:
+      213: -6601706091431267596
+    second: RuneSpriteSheet_47
+  - first:
+      213: 7225418981724422435
+    second: RuneSpriteSheet_48
+  - first:
+      213: -2717981031421785186
+    second: RuneSpriteSheet_49
+  - first:
+      213: -763998057909063850
+    second: RuneSpriteSheet_50
+  - first:
+      213: 2889419804357401969
+    second: RuneSpriteSheet_51
+  - first:
+      213: 1756684631015699142
+    second: RuneSpriteSheet_52
+  - first:
+      213: 4078152878933770263
+    second: RuneSpriteSheet_53
+  - first:
+      213: -2866897318181859685
+    second: RuneSpriteSheet_54
+  - first:
+      213: 1715629245821443521
+    second: RuneSpriteSheet_55
+  - first:
+      213: -8888117771855173753
+    second: RuneSpriteSheet_56
+  - first:
+      213: -401569469803095439
+    second: RuneSpriteSheet_57
+  - first:
+      213: -7593212304549811446
+    second: RuneSpriteSheet_58
+  - first:
+      213: 6634032857758847283
+    second: RuneSpriteSheet_59
+  - first:
+      213: 3181604801929862675
+    second: RuneSpriteSheet_60
+  - first:
+      213: -2806146773053945088
+    second: RuneSpriteSheet_61
+  - first:
+      213: 5778743597087685230
+    second: RuneSpriteSheet_62
+  - first:
+      213: 6151265059983133979
+    second: RuneSpriteSheet_63
+  - first:
+      213: 4566367949587872184
+    second: RuneSpriteSheet_64
+  - first:
+      213: -651625710709202188
+    second: RuneSpriteSheet_65
+  - first:
+      213: 4864904615178517287
+    second: RuneSpriteSheet_66
+  - first:
+      213: -6468262108305044562
+    second: RuneSpriteSheet_67
+  - first:
+      213: 3471460656778464530
+    second: RuneSpriteSheet_68
+  - first:
+      213: -1943968523479876577
+    second: RuneSpriteSheet_69
+  - first:
+      213: 9042205269387339476
+    second: RuneSpriteSheet_70
+  - first:
+      213: -5376489072521768303
+    second: RuneSpriteSheet_71
+  - first:
+      213: 4945819115614838522
+    second: RuneSpriteSheet_72
+  - first:
+      213: -1604858262963831220
+    second: RuneSpriteSheet_73
+  - first:
+      213: -6412064567284555417
+    second: RuneSpriteSheet_74
+  - first:
+      213: 4193352535681540862
+    second: RuneSpriteSheet_75
+  - first:
+      213: -2139780675774979393
+    second: RuneSpriteSheet_76
+  - first:
+      213: -8927131247131568625
+    second: RuneSpriteSheet_77
+  - first:
+      213: -7578465097866031815
+    second: RuneSpriteSheet_78
+  - first:
+      213: 9203408744311861747
+    second: RuneSpriteSheet_79
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 512
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: RuneStone
+      rect:
+        serializedVersion: 2
+        x: 150
+        y: 572
+        width: 539
+        height: 452
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ef1256b3f2c87a2d0800000000000000
+      internalID: -3267488870146170370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ElementalRune
+      rect:
+        serializedVersion: 2
+        x: 1140
+        y: 87
+        width: 330
+        height: 334
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 294a44772d3321b40800000000000000
+      internalID: 5409443081462523026
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UnchargedRune
+      rect:
+        serializedVersion: 2
+        x: 931
+        y: 570
+        width: 211
+        height: 264
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89210fa3ed111ee10800000000000000
+      internalID: 2225079337066959512
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: LightningRune
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 114
+        width: 297
+        height: 302
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9ffbe8129fca0d10800000000000000
+      internalID: 2092713203257311132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: FireRune
+      rect:
+        serializedVersion: 2
+        x: 441
+        y: 119
+        width: 286
+        height: 310
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc00da4a5af1d8ad0800000000000000
+      internalID: -2698465805432192820
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: IceRune
+      rect:
+        serializedVersion: 2
+        x: 793
+        y: 101
+        width: 294
+        height: 322
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f73117fb67d805a60800000000000000
+      internalID: 7660778507314729855
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 29f15e904452c814fba80fed5b888f73
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":512.0,"y":512.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      ElementalRune: 5409443081462523026
+      FireRune: -2698465805432192820
+      IceRune: 7660778507314729855
+      LightningRune: 2092713203257311132
+      RuneStone: -3267488870146170370
+      UnchargedRune: 2225079337066959512
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

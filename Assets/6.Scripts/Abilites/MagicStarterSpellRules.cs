@@ -1,7 +1,7 @@
 using System;
 
 /// <summary>
-/// Magic Lv1 row-pick spells that define wand auto-attack element, base damage, cadence, and mana cost.
+/// Magic Lv1 row-pick spells used as the primary magic weapon attack (manual bar or auto-battle).
 /// </summary>
 public static class MagicStarterSpellRules
 {

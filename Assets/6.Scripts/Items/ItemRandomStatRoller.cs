@@ -88,6 +88,9 @@ public enum RandomItemStatType
 
     /// <summary>Additive bonus shock apply chance on weapons (stacks with lightning magic ailment chance).</summary>
     ShockChance,
+
+    /// <summary>Additive burn/chill/shock apply chance while using elemental magic attacks.</summary>
+    AllElementalAilmentChance,
 }
 
 public enum RandomStatValueKind
@@ -287,6 +290,7 @@ public static class ItemRandomStatRoller
         TryAdd(RandomItemStatType.BurnMultiplier, bonus.burnExplosionMultiplierBonus);
         TryAdd(RandomItemStatType.ChillMultiplier, bonus.chillSlowPerStackBonus);
         TryAdd(RandomItemStatType.ShockMultiplier, bonus.shockDamageTakenMultiplierBonus);
+        TryAdd(RandomItemStatType.AllElementalAilmentChance, bonus.allElementalAilmentChance);
         TryAdd(RandomItemStatType.ParryChance, bonus.parryChance);
         TryAdd(RandomItemStatType.StunChance, bonus.stunChance);
 
@@ -337,7 +341,7 @@ public static class ItemRandomStatRoller
     /// <summary>Default spell-scaling affixes for wand random pools (used by editor template generation).</summary>
     private static void AppendMissingWandSpellScalingPoolEntries(List<RandomStatPoolEntry> results)
     {
-        void Ensure(RandomItemStatType stat, float min, float max, RandomStatValueKind kind)
+        void Ensure(RandomItemStatType stat, float min, float max, RandomStatValueKind kind, float weight = 1f)
         {
             for (int i = 0; i < results.Count; i++)
             {
@@ -348,7 +352,7 @@ public static class ItemRandomStatRoller
             results.Add(new RandomStatPoolEntry
             {
                 stat = stat,
-                weight = 1f,
+                weight = weight,
                 valueKind = kind,
                 minValue = min,
                 maxValue = max,
@@ -363,6 +367,11 @@ public static class ItemRandomStatRoller
         Ensure(RandomItemStatType.CritChanceBonus, 2f, 5f, RandomStatValueKind.PercentPoints);
         Ensure(RandomItemStatType.CritMultiplierBonus, 5f, 12f, RandomStatValueKind.PercentPoints);
         Ensure(RandomItemStatType.BonusMana, 10f, 25f, RandomStatValueKind.FlatInteger);
+        Ensure(RandomItemStatType.WeaponMagicAilmentApplyChance, 2f, 6f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.AllElementalAilmentChance, 2f, 6f, RandomStatValueKind.PercentPoints);
+        Ensure(RandomItemStatType.BurnMultiplier, 3f, 8f, RandomStatValueKind.PercentPoints, weight: 1f);
+        Ensure(RandomItemStatType.ChillMultiplier, 2f, 6f, RandomStatValueKind.PercentPoints, weight: 0.5f);
+        Ensure(RandomItemStatType.ShockMultiplier, 2f, 6f, RandomStatValueKind.PercentPoints, weight: 0.1f);
     }
 
     public static int ComparePoolEntriesForDisplay(
@@ -753,6 +762,10 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.ShockMultiplier:
                 item.bonusStats.shockDamageTakenMultiplierBonus += primary;
                 break;
+            case RandomItemStatType.AllElementalAilmentChance:
+                item.bonusStats.allElementalAilmentChance = Mathf.Clamp01(
+                    item.bonusStats.allElementalAilmentChance + primary);
+                break;
             case RandomItemStatType.ParryChance:
                 item.bonusStats.parryChance = Mathf.Clamp01(item.bonusStats.parryChance + primary);
                 break;
@@ -949,6 +962,7 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.BurnMultiplier: return 519;
             case RandomItemStatType.ChillMultiplier: return 520;
             case RandomItemStatType.ShockMultiplier: return 521;
+            case RandomItemStatType.AllElementalAilmentChance: return 522;
 
             case RandomItemStatType.BonusMana: return 600;
             case RandomItemStatType.ManaRegen: return 601;

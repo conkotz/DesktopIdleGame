@@ -514,6 +514,10 @@ public struct BonusStats
     [Tooltip("Shock multiplier bonus. 0.05 = +5 percentage points to shock effect (e.g. 10% -> 15%).")]
     public float shockDamageTakenMultiplierBonus;
 
+    [Range(0f, 1f)]
+    [Tooltip("Bonus chance to apply burn/chill/shock on elemental magic hits (additive).")]
+    public float allElementalAilmentChance;
+
     [Header("Combat Procs")]
     [Range(0f, 1f)]
     [Tooltip("0.10 = 10% parry chance (requires Parry major passive to activate).")]
@@ -568,6 +572,7 @@ public struct BonusStats
                shockChance > 0f ||
                chillSlowPerStackBonus != 0f ||
                shockDamageTakenMultiplierBonus != 0f ||
+               allElementalAilmentChance > 0f ||
                parryChance > 0f ||
                stunChance > 0f ||
                minThornsDamage > 0f || maxThornsDamage > 0f || thornsDamagePercent > 0f ||
@@ -1306,10 +1311,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         ? Mathf.Clamp01(weaponStats.magicAilmentApplyChance)
         : 0f;
 
-    /// <summary>Burn stack chance from this fire magic weapon: same as <see cref="WeaponStats.magicAilmentApplyChance"/>.</summary>
+    /// <summary>Burn stack chance from fire magic weapons while using fire magic (starter spell or fire-tagged weapon).</summary>
     public float ResolveWeaponBurnApplyChance()
     {
         if (!IsWeapon || weaponStats.attackSkill != AttackSkill.Magic)
+            return 0f;
+        if (!HasFireWeaponDamage && weaponStats.magicAttackType != MagicAttackType.Fire)
             return 0f;
         return Mathf.Clamp01(weaponStats.magicAilmentApplyChance);
     }
@@ -1752,8 +1759,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public int PoisonMaxStacksBonus => Mathf.Max(0, bonusStats.poisonMaxStacksBonus);
     public float BurnExplosionMultiplierBonus => bonusStats.burnExplosionMultiplierBonus;
     public float BonusBurnChance => Mathf.Clamp01(bonusStats.burnChance);
+    public float BonusChillChance => Mathf.Clamp01(bonusStats.chillChance);
+    public float BonusShockChance => Mathf.Clamp01(bonusStats.shockChance);
     public float ChillSlowPerStackBonus => bonusStats.chillSlowPerStackBonus;
     public float ShockDamageTakenMultiplierBonus => bonusStats.shockDamageTakenMultiplierBonus;
+    public float AllElementalAilmentChance => Mathf.Clamp01(bonusStats.allElementalAilmentChance);
     public float ParryChance => Mathf.Clamp01(bonusStats.parryChance);
     public float StunChance => Mathf.Clamp01(bonusStats.stunChance);
     public float MinThornsDamage => Mathf.Max(0f, bonusStats.minThornsDamage);
@@ -2297,6 +2307,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (HasSignificantPercentPoints(critMultBonusPct))
             s += $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n";
+
+        if (MagicAilmentApplyChance > 0.0001f)
+            s += $"{ItemStatDisplayNames.ElementalAilmentChance}: {FormatSignedPercent01(MagicAilmentApplyChance)}\n";
 
         string ailments = BuildWeaponAilmentsLine();
         if (!string.IsNullOrWhiteSpace(ailments))
@@ -3444,6 +3457,17 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 $"{delta * 100f:+0.#;-0.#;0}%");
         }
 
+        if (!omitAilmentChanceBonuses && cur.allElementalAilmentChance != 0f)
+        {
+            float delta = FloatDelta(cur.allElementalAilmentChance, baselineStats.allElementalAilmentChance);
+            AppendAilmentCompareLineIfDelta(
+                cur.allElementalAilmentChance,
+                baselineStats.allElementalAilmentChance,
+                $"{ItemStatDisplayNames.AllElementalAilmentChance}: {FormatSignedPercent01(baselineStats.allElementalAilmentChance)}",
+                $"{ItemStatDisplayNames.AllElementalAilmentChance}: {FormatSignedPercent01(cur.allElementalAilmentChance)}",
+                FormatSignedPercent01(delta));
+        }
+
         if (!omitParryStunChance)
         {
             float parryDelta = FloatDelta(cur.parryChance, baselineStats.parryChance);
@@ -3657,6 +3681,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"{FormatChillEffectLine(bonusStats.chillSlowPerStackBonus)}\n";
         if (!omitChillShockBonuses && bonusStats.shockDamageTakenMultiplierBonus != 0f)
             s += $"{FormatShockEffectLine(bonusStats.shockDamageTakenMultiplierBonus)}\n";
+        if (!omitAilmentChanceBonuses && bonusStats.allElementalAilmentChance != 0f)
+            s += $"{ItemStatDisplayNames.AllElementalAilmentChance}: {FormatSignedPercent01(bonusStats.allElementalAilmentChance)}\n";
         if (!omitParryStunChance && bonusStats.parryChance != 0f)
             s += $"Parry Chance: {FormatSignedPercent01(bonusStats.parryChance)}\n";
         if (!omitParryStunChance && bonusStats.stunChance != 0f)
@@ -3758,6 +3784,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             baseBonus.shockDamageTakenMultiplierBonus,
             baseline,
             FormatShockEffectLine(bonusStats.shockDamageTakenMultiplierBonus));
+        AppendWeaponAilmentDisplayLine(
+            ref block,
+            bonusStats.allElementalAilmentChance,
+            baseBonus.allElementalAilmentChance,
+            baseline,
+            $"{ItemStatDisplayNames.AllElementalAilmentChance}: {FormatSignedPercent01(bonusStats.allElementalAilmentChance)}");
         AppendWeaponAilmentDisplayLine(
             ref block,
             bonusStats.poisonDurationBonus,
@@ -3876,6 +3908,26 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 v => $"Shock Chance: {FormatSignedPercent01(v)}",
                 FormatSignedPercent01);
         }
+
+        if (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic)
+        {
+            AppendUnifiedWeaponAilmentStatLine(
+                matching,
+                bonus,
+                MagicAilmentApplyChance,
+                baseline.MagicAilmentApplyChance,
+                v => $"{ItemStatDisplayNames.ElementalAilmentChance}: {FormatSignedPercent01(v)}",
+                FormatSignedPercent01);
+        }
+
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.allElementalAilmentChance,
+            baseline.bonusStats.allElementalAilmentChance,
+            v => $"{ItemStatDisplayNames.AllElementalAilmentChance}: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+
         AppendUnifiedWeaponAilmentStatLine(
             matching,
             bonus,

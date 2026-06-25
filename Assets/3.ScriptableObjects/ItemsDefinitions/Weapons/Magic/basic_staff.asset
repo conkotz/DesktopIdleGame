@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: basic_wand
+  m_Name: basic_staff
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 1
   maxStack: 1
-  itemId: basic_wand
-  displayName: Basic Wand
+  itemId: basic_staff
+  displayName: Basic Staff
   displayNameSingular: 
-  icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  icon: {fileID: 21300172, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,10 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic wand. Damage comes from your chosen Lv1 spell, not the weapon
-    itself.
-  rarity: 1
-  value: 150
+  description: A basic staff. Staffs require runes to attack with to increase your
+    spells damage
+  rarity: 2
+  value: 500
   equipSlot: 1
   uniquelyEquipped: 0
   handVisualKey: 1
@@ -49,12 +49,12 @@ MonoBehaviour:
     minCorruptionDamage: 0
     maxCorruptionDamage: 0
     attacksPerSecond: 0
-    critChance: 0.05
+    critChance: 0.1
     critMultiplier: 1.5
     handedness: 0
-    attackRange: 8
+    attackRange: 12
     attackSkill: 2
-    mainHandArchetype: 4
+    mainHandArchetype: 3
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -64,7 +64,7 @@ MonoBehaviour:
     requiresOffhandSupport: 0
     requiredSupportType: 0
     equipmentTier: 0
-    weaponWeight: 1
+    weaponWeight: 3
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -154,7 +154,7 @@ MonoBehaviour:
     shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
-    allElementalAilmentChance: 0.1
+    allElementalAilmentChance: 0.2
     parryChance: 0
     stunChance: 0
     minThornsDamage: 0
@@ -164,40 +164,40 @@ MonoBehaviour:
   randomStatPool:
   - stat: 22
     weight: 1
-    minValue: 3
-    maxValue: 10
+    minValue: 5
+    maxValue: 15
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 19
     weight: 1
-    minValue: 3
-    maxValue: 10
+    minValue: 5
+    maxValue: 15
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 20
     weight: 1
-    minValue: 3
-    maxValue: 10
+    minValue: 5
+    maxValue: 15
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 21
     weight: 1
-    minValue: 3
-    maxValue: 10
+    minValue: 5
+    maxValue: 15
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 32
     weight: 1
-    minValue: 2
-    maxValue: 5
+    minValue: 3
+    maxValue: 7
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
@@ -205,31 +205,23 @@ MonoBehaviour:
   - stat: 33
     weight: 1
     minValue: 5
-    maxValue: 12
+    maxValue: 15
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 2
     weight: 1
-    minValue: 10
-    maxValue: 25
+    minValue: 25
+    maxValue: 35
     valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 56
-    weight: 1
-    minValue: 2
-    maxValue: 6
-    valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
   - stat: 75
     weight: 1
-    minValue: 5
-    maxValue: 15
+    minValue: 10
+    maxValue: 25
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0

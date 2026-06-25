@@ -2965,6 +2965,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return false;
 
+        if (CombatStarterAttackAbility.IsLegacyMagicAttackAbilityId(def.abilityId))
+            return false;
+
         if (def.tag == AbilityTag.ToggleBuff)
             return !IsToggleBuffActive(def);
 
@@ -9220,7 +9223,10 @@ public partial class PlayerAbilityController : MonoBehaviour
     private void StartCooldown(AbilityDefinition def)
     {
         if (!def) return;
-        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetTripleShotCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
+        float cd = def.cooldown;
+        if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
+            cd = Mathf.Max(cd, MagicStarterSpellRules.GetCooldownSecondsForAbilityId(def.abilityId));
+        cd = Mathf.Max(0f, cd - GetPowerSlashCooldownReduction(def) - GetTripleShotCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
         if (stats != null)
             cd *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
         if (cd <= 0f) return;
@@ -9381,6 +9387,8 @@ public partial class PlayerAbilityController : MonoBehaviour
     private bool IsAbilityAllowedBySkillProgress(AbilityDefinition def)
     {
         if (!def)
+            return false;
+        if (CombatStarterAttackAbility.IsLegacyMagicAttackAbilityId(def.abilityId))
             return false;
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;

@@ -232,6 +232,7 @@ public static class ItemRandomStatIdentification
         TryAppendFloatDelta(sb, "Chill Effect", cur.chillSlowPerStackBonus, baseline.chillSlowPerStackBonus, suffix: "% slow / stack");
         TryAppendPercent01Delta(sb, "Shock Chance", cur.shockChance, baseline.shockChance);
         TryAppendFloatDelta(sb, "Shock Effect", cur.shockDamageTakenMultiplierBonus, baseline.shockDamageTakenMultiplierBonus, suffix: "%");
+        TryAppendPercent01Delta(sb, ItemStatDisplayNames.AllElementalAilmentChance, cur.allElementalAilmentChance, baseline.allElementalAilmentChance);
         TryAppendPercent01Delta(sb, "Parry Chance", cur.parryChance, baseline.parryChance);
         TryAppendPercent01Delta(sb, "Stun Chance", cur.stunChance, baseline.stunChance);
     }
@@ -323,6 +324,7 @@ public static class ItemRandomStatIdentification
         CountFloatDelta(ref count, cur.chillSlowPerStackBonus, baseline.chillSlowPerStackBonus);
         CountFloatDelta(ref count, cur.shockChance, baseline.shockChance);
         CountFloatDelta(ref count, cur.shockDamageTakenMultiplierBonus, baseline.shockDamageTakenMultiplierBonus);
+        CountFloatDelta(ref count, cur.allElementalAilmentChance, baseline.allElementalAilmentChance);
         CountFloatDelta(ref count, cur.parryChance, baseline.parryChance);
         CountFloatDelta(ref count, cur.stunChance, baseline.stunChance);
     }

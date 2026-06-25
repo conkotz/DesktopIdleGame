@@ -1068,6 +1068,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
+        // Magic weapons do not auto-attack; damage comes from Lv1 starter spells and other slotted abilities.
+        if (IsMagicAttack())
+        {
+            player.ClearActionOverride();
+            return;
+        }
+
         float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
 
         // Prioritize queued Crescent Slash over normal auto attack cadence.
@@ -1289,6 +1296,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (_target == null || _target.IsDead)
             return;
 
+        if (TryAutoCastCommittedMagicStarterSpell())
+            return;
+
         var orderedSlots = actionBar
             .GetSlots()
             .Where(slot => slot != null)
@@ -1347,6 +1357,11 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (CombatStarterAttackAbility.IsCombatStarterAttackId(action.id))
                 continue;
 
+            if (stats != null
+                && stats.CurrentAttackSkill == AttackSkill.Magic
+                && MagicStarterSpellRules.IsMagicStarterSpellId(action.id))
+                continue;
+
             if (!slot.CanAccept(action))
                 continue;
 
@@ -1388,6 +1403,27 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
             break;
         }
+    }
+
+    /// <summary>
+    /// Idle auto-battle: cast the committed Lv1 magic starter spell (respects cooldown + mana via <see cref="PlayerAbilityController.TryUseAbility"/>).
+    /// </summary>
+    private bool TryAutoCastCommittedMagicStarterSpell()
+    {
+        if (stats == null || abilityController == null || stats.CurrentAttackSkill != AttackSkill.Magic)
+            return false;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
+            return false;
+
+        return abilityController.TryUseAbility(
+            spellId,
+            showLockedFeedback: false,
+            allowSoulforgedRecastWhileActive: false,
+            requireCrescentSlashTargetInFacingLane: true,
+            requireWhirlwindTargetInRadius: true,
+            requireGuardiansHammerTargetInFacingZone: true);
     }
 
     private static bool IsFlameChargeActionBarSlot(ActionBarSlotUI slot)
@@ -1676,7 +1712,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (targetAtFireTime == null || targetAtFireTime.IsDead)
             return;
 
-        if (!TrySpawnMagicProjectile(targetAtFireTime, out IMagicProjectileVisual bolt))
+        if (!TrySpawnMagicProjectile(targetAtFireTime, stats != null ? stats.CurrentMagicAttackType : MagicAttackType.Lightning, out IMagicProjectileVisual bolt))
         {
             ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
             return;
@@ -1780,11 +1816,52 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     private Vector3 GetSnipeProjectileSpawnPosition() => GetRangedProjectileSpawnPosition();
 
-    private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out IMagicProjectileVisual bolt)
+    /// <summary>
+    /// Lv1 magic starter spells — spawn elemental projectile (or instant fallback) then run <paramref name="onImpact"/> on hit.
+    /// </summary>
+    public void LaunchMagicStarterSpellAtTarget(
+        EnemyBaseController targetAtFireTime,
+        MagicAttackType element,
+        System.Action onImpact)
+    {
+        if (targetAtFireTime == null || onImpact == null)
+            return;
+
+        void Release()
+        {
+            if (targetAtFireTime == null || targetAtFireTime.IsDead)
+                return;
+
+            if (!TrySpawnMagicProjectile(targetAtFireTime, element, out IMagicProjectileVisual bolt))
+            {
+                onImpact();
+                return;
+            }
+
+            bolt.OnImpact += onImpact;
+        }
+
+        float fireDelay = Mathf.Max(0f, magicProjectileFireDelay);
+        if (fireDelay <= 0f)
+            Release();
+        else
+            StartCoroutine(ReleaseMagicStarterSpellAfterDelay(fireDelay, Release));
+    }
+
+    private static System.Collections.IEnumerator ReleaseMagicStarterSpellAfterDelay(float delay, System.Action release)
+    {
+        yield return new WaitForSeconds(delay);
+        release?.Invoke();
+    }
+
+    private bool TrySpawnMagicProjectile(
+        EnemyBaseController targetAtFireTime,
+        MagicAttackType element,
+        out IMagicProjectileVisual bolt)
     {
         bolt = null;
 
-        MonoBehaviour prefab = ResolveMagicProjectilePrefab();
+        MonoBehaviour prefab = ResolveMagicProjectilePrefab(element);
         if (prefab == null || targetAtFireTime == null)
             return false;
 
@@ -1816,9 +1893,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return true;
     }
 
-    private MonoBehaviour ResolveMagicProjectilePrefab()
+    private MonoBehaviour ResolveMagicProjectilePrefab(MagicAttackType type)
     {
-        MagicAttackType type = stats != null ? stats.CurrentMagicAttackType : MagicAttackType.Lightning;
         return type switch
         {
             MagicAttackType.Fire => magicFireProjectilePrefab != null ? magicFireProjectilePrefab : magicProjectilePrefab,
@@ -3485,16 +3561,14 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (!forceApply && dealt.magic <= 0f) return;
         if (!forceApply && stats.CurrentAttackSkill != AttackSkill.Magic) return;
 
-        float chance = stats.MagicAilmentApplyChance;
-        if (!forceApply)
-        {
-            if (chance <= 0f) return;
-            if (Random.value > chance) return;
-        }
-
         switch (stats.CurrentMagicAttackType)
         {
             case MagicAttackType.Ice:
+            {
+                float chillChance = stats.ChillApplyChanceForElementalMagicHit;
+                if (!forceApply && chillChance <= 0f) return;
+                if (!forceApply && Random.value > chillChance) return;
+
                 ailments.ApplyChillFromHit(new ChillPayload(
                     duration: stats.ChillDuration,
                     maxStacks: stats.ChillMaxStacks,
@@ -3502,15 +3576,22 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                     source: transform
                 ));
                 break;
+            }
 
             case MagicAttackType.Lightning:
             default:
+            {
+                float shockChance = stats.ShockApplyChanceForElementalMagicHit;
+                if (!forceApply && shockChance <= 0f) return;
+                if (!forceApply && Random.value > shockChance) return;
+
                 ailments.ApplyShockFromHit(new ShockPayload(
                     duration: stats.ShockDuration,
                     damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
                     source: transform
                 ));
                 break;
+            }
         }
     }
 

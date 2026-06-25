@@ -461,9 +461,12 @@ public class ItemDefinitionEditor : Editor
                 SerializedProperty burnExplosionMultiplierBonus = bonusStats.FindPropertyRelative("burnExplosionMultiplierBonus");
                 SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
                 SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
+                SerializedProperty allElementalAilmentChance = bonusStats.FindPropertyRelative("allElementalAilmentChance");
 
                 EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("Magic Ailment Scaling (Bonus Stats)", EditorStyles.boldLabel);
+                if (allElementalAilmentChance != null)
+                    EditorGUILayout.PropertyField(allElementalAilmentChance, new GUIContent(ItemStatDisplayNames.AllElementalAilmentChance));
                 if (burnExplosionMultiplierBonus != null)
                     EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
                 if (chillSlowPerStackBonus != null)
@@ -1532,6 +1535,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty burnExplosionMultiplierBonus = bonusStats.FindPropertyRelative("burnExplosionMultiplierBonus");
         SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
         SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
+        SerializedProperty allElementalAilmentChance = bonusStats.FindPropertyRelative("allElementalAilmentChance");
         SerializedProperty bonusBurnChance = bonusStats.FindPropertyRelative("burnChance");
         SerializedProperty bonusChillChance = bonusStats.FindPropertyRelative("chillChance");
         SerializedProperty bonusShockChance = bonusStats.FindPropertyRelative("shockChance");
@@ -1612,6 +1616,8 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Multiplier"));
         EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Effect"));
         EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Effect"));
+        if (allElementalAilmentChance != null)
+            EditorGUILayout.PropertyField(allElementalAilmentChance, new GUIContent(ItemStatDisplayNames.AllElementalAilmentChance));
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Combat Procs", EditorStyles.boldLabel);

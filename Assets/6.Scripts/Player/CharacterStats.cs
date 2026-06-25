@@ -1093,16 +1093,72 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float PoisonPoolFractionOfCorruptionDamage => Mathf.Clamp(poisonPoolFractionOfCorruptionDamage, 0.05f, 1f);
 
     public MagicAttackType CurrentMagicAttackType => GetCurrentMagicAttackType();
-    public float MagicAilmentApplyChance => Mathf.Clamp01(baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance());
+    public float MagicAilmentApplyChance => Mathf.Clamp01(
+        baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance() + GetEquippedAllElementalAilmentChanceBonus());
 
     /// <summary>True when the current attack can deal fire damage (melee, ranged, or magic).</summary>
     public bool CurrentAttackAppliesAsFireForBurn => GetCurrentAttackAppliesAsFireForBurn();
 
     /// <summary>
-    /// Chance to add a burn stack on fire damage hits. Player: character base + gear bonus + fire weapon <see cref="ItemDefinition.ResolveWeaponBurnApplyChance"/> (weapon magic ailment chance).
+    /// Chance to add a burn stack on fire damage hits. Player: character base + gear bonus + magic ailment chance while using fire magic.
     /// </summary>
     public float BurnApplyChance => GetBurnApplyChanceUnconditional();
-    public float BurnApplyChancePercentForStatsPanel => GetBurnApplyChanceUnconditional() * 100f;
+    public float BurnApplyChancePercentForStatsPanel => GetElementalAilmentApplyChancePercentForStatsPanel(GetBurnApplyChanceForStatsPanel());
+
+    /// <summary>Burn apply chance shown in UI when a magic weapon is equipped (ignores selected starter spell).</summary>
+    private float GetBurnApplyChanceForStatsPanel()
+    {
+        if (HasEquippedMagicWeapon())
+            return GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedBurnChanceBonus());
+
+        if (!GetCurrentAttackAppliesAsFireForBurn())
+            return 0f;
+
+        return GetBurnApplyChanceUnconditional();
+    }
+
+    /// <summary>Chill apply chance for ice magic hits (combat).</summary>
+    public float ChillApplyChanceForElementalMagicHit =>
+        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedChillChanceBonus()));
+
+    public float ChillApplyChancePercentForStatsPanel =>
+        GetElementalAilmentApplyChancePercentForStatsPanel(GetChillApplyChanceForStatsPanel());
+
+    private float GetChillApplyChanceForStatsPanel()
+    {
+        if (HasEquippedMagicWeapon())
+            return GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedChillChanceBonus());
+
+        return 0f;
+    }
+
+    /// <summary>Shock apply chance for lightning magic hits (combat).</summary>
+    public float ShockApplyChanceForElementalMagicHit =>
+        Mathf.Clamp01(GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedShockChanceBonus()));
+
+    public float ShockApplyChancePercentForStatsPanel =>
+        GetElementalAilmentApplyChancePercentForStatsPanel(GetShockApplyChanceForStatsPanel());
+
+    private float GetShockApplyChanceForStatsPanel()
+    {
+        if (HasEquippedMagicWeapon())
+            return GetMagicWeaponElementalAilmentApplyChanceWithBonus(GetEquippedShockChanceBonus());
+
+        return MeleeShockChance;
+    }
+
+    private bool HasEquippedMagicWeapon()
+    {
+        var mh = GetMainHandWeaponDef();
+        return mh && mh.IsWeapon && mh.weaponStats.attackSkill == AttackSkill.Magic;
+    }
+
+    /// <summary>Wand/staff elemental ailment chance — not tied to the committed starter spell.</summary>
+    private float GetMagicWeaponElementalAilmentApplyChanceWithBonus(float elementSpecificBonus) =>
+        Mathf.Clamp01(MagicAilmentApplyChance + elementSpecificBonus);
+
+    private static float GetElementalAilmentApplyChancePercentForStatsPanel(float chanceFraction) =>
+        Mathf.Clamp01(chanceFraction) * 100f;
     public float ChillDuration => Mathf.Max(0.1f, baseChillDuration);
     public int ChillMaxStacks => Mathf.Max(1, baseChillMaxStacks);
     public float ChillSlowPerStack => Mathf.Clamp01(baseChillSlowPerStack + GetEquippedChillSlowPerStackBonus());
@@ -1555,7 +1611,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
             fire = Mathf.Max(fire, m);
 
         // Added/conversion fire (capstones, buffs, flat procs) not in the weapon elemental split still rolls burn.
-        if (m > 0f && BurnApplyChance > 0f)
+        // Lightning/ice magic attacks (starter spells, etc.) must not be treated as conversion fire.
+        if (m > 0f && BurnApplyChance > 0f
+            && !(skill == AttackSkill.Magic
+                 && (GetCurrentMagicAttackType() == MagicAttackType.Lightning
+                     || GetCurrentMagicAttackType() == MagicAttackType.Ice)))
         {
             float accounted = m * Mathf.Clamp01(
                 GetWeaponMagicFireFraction()
@@ -2467,10 +2527,36 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private float GetEquippedChillChanceBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.BonusChillChance;
+        }
+
+        return total;
+    }
+
+    private float GetEquippedShockChanceBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.BonusShockChance;
+        }
+
+        return total;
+    }
+
     private float GetMainHandWeaponBurnAdditive()
     {
-        var mh = GetMainHandWeaponDef();
-        return mh != null ? mh.ResolveWeaponBurnApplyChance() : 0f;
+        if (GetCurrentAttackSkill() == AttackSkill.Magic && CurrentMagicAttackType == MagicAttackType.Fire)
+            return GetEquippedMagicAilmentApplyChance() + GetEquippedAllElementalAilmentChanceBonus();
+
+        return 0f;
     }
 
     private DamageType GetLegacyCurrentDamageType()
@@ -2757,28 +2843,6 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Burn DoT duration shown in UI (fixed wall-clock window; tick rate does not shorten it).</summary>
     public float BurnDotDurationSeconds => AilmentController.DefaultBurnWallClockDurationSeconds;
-
-    /// <summary>Chance to apply shock for stats panel: lightning magic hits use magic ailment chance; otherwise melee shock.</summary>
-    public float ShockApplyChancePercentForStatsPanel
-    {
-        get
-        {
-            if (CurrentAttackSkill == AttackSkill.Magic && CurrentMagicAttackType == MagicAttackType.Lightning)
-                return MagicAilmentApplyChance * 100f;
-            return MeleeShockChance * 100f;
-        }
-    }
-
-    /// <summary>Chill apply chance for stats panel when ice magic attacks.</summary>
-    public float ChillApplyChancePercentForStatsPanel
-    {
-        get
-        {
-            if (CurrentAttackSkill == AttackSkill.Magic && CurrentMagicAttackType == MagicAttackType.Ice)
-                return MagicAilmentApplyChance * 100f;
-            return 0f;
-        }
-    }
 
     /// <summary>Tactician two-handed and gear: chance on hit to stun enemies (matches <see cref="TryApplyTacticianStunOnEnemyHit"/>).</summary>
     public float StunChancePercentForStatsPanel => GetStunChanceFraction() * 100f;
@@ -5372,6 +5436,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.ShockDamageTakenMultiplierBonus;
+        return total;
+    }
+
+    private float GetEquippedAllElementalAilmentChanceBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.AllElementalAilmentChance;
         return total;
     }
 

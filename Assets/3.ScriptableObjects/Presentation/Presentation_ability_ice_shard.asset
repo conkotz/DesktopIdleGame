@@ -15,8 +15,7 @@ MonoBehaviour:
   notes: "Lv1 starter spell \u2014 ice wand auto attack"
   displayNameOverride: Ice Shard
   icon: {fileID: 1411015114, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
-  shortDescription: Launch a shard of ice at your target. Your wand auto attacks
-    use this spell.
+  shortDescription: Launch a shard of ice at your target.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

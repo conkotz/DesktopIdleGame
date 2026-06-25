@@ -15,8 +15,7 @@ MonoBehaviour:
   notes: "Lv1 starter spell \u2014 fire wand auto attack"
   displayNameOverride: Fire Ball
   icon: {fileID: -317914268, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
-  shortDescription: Hurl a ball of fire at your target. Your wand auto attacks use
-    this spell.
+  shortDescription: 'Hurl a ball of fire at your target. '
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

@@ -63,6 +63,8 @@ public static class ItemStatDisplayNames
     public const string ChillEffect = "Chill Effect";
     public const string ShockChance = "Shock Chance";
     public const string ShockEffect = "Shock Effect";
+    public const string ElementalAilmentChance = "Elemental Ailment Chance";
+    public const string AllElementalAilmentChance = "All Elemental Ailment Chance";
     public const string ParryChance = "Parry Chance";
     public const string StunChance = "Stun Chance";
     public const string EnemyRespawnReduction = "Enemy Respawn Reduction";
@@ -202,6 +204,8 @@ public static class ItemStatDisplayNames
                 return ShockChance;
             case RandomItemStatType.ShockMultiplier:
                 return ShockEffect;
+            case RandomItemStatType.AllElementalAilmentChance:
+                return AllElementalAilmentChance;
             case RandomItemStatType.ParryChance:
                 return ParryChance;
             case RandomItemStatType.StunChance:
@@ -220,14 +224,17 @@ public static class ItemStatDisplayNames
     private static string MagicAilmentChanceRollName(ItemDefinition item)
     {
         if (!item || !item.IsWeapon)
-            return "Magic Ailment Apply Chance";
+            return ElementalAilmentChance;
+
+        if (item.IsMagicWand)
+            return ElementalAilmentChance;
 
         return item.weaponStats.magicAttackType switch
         {
             MagicAttackType.Fire => BurnChance,
             MagicAttackType.Ice => ChillChance,
             MagicAttackType.Lightning => ShockChance,
-            _ => "Magic Ailment Apply Chance"
+            _ => ElementalAilmentChance
         };
     }
 

@@ -15,8 +15,7 @@ MonoBehaviour:
   notes: "Lv1 starter spell \u2014 lightning wand auto attack"
   displayNameOverride: Energy Bolt
   icon: {fileID: -69107095, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
-  shortDescription: Fire a bolt of energy at your target. Your wand auto attacks
-    use this spell.
+  shortDescription: Fire a bolt of energy at your target.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 
