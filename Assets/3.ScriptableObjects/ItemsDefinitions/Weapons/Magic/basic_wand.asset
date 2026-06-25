@@ -81,8 +81,18 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
+    lightningDamagePercent: 0
+    spellDamagePercent: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    chargedRuneElement: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
+    consumableOnSpell: 0
   toolStats:
     toolType: 0
     equipmentTier: 0
@@ -97,6 +107,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     bonusHealth: 0
     bonusEnergy: 0
     energyEfficiency: 0
@@ -114,6 +125,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
@@ -258,6 +270,8 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
+  extraRandomStatPoolPackages: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   randomStatsPendingIdentification: 0

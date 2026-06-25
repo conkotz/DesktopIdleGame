@@ -106,6 +106,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     bonusHealth: 0
     bonusEnergy: 0
     energyEfficiency: 0
@@ -123,6 +124,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
@@ -171,7 +173,7 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 66
+  - stat: 68
     weight: 1
     minValue: 5
     maxValue: 8
@@ -179,7 +181,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 67
+  - stat: 69
     weight: 1
     minValue: 5
     maxValue: 8
@@ -187,7 +189,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 52
+  - stat: 53
     weight: 1
     minValue: 6
     maxValue: 10
@@ -195,7 +197,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 53
+  - stat: 54
     weight: 1
     minValue: 6
     maxValue: 11
@@ -203,7 +205,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 54
+  - stat: 55
     weight: 1
     minValue: 10
     maxValue: 20
@@ -211,15 +213,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 41
-    weight: 1
-    minValue: 5
-    maxValue: 10
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 42
+  - stat: 43
     weight: 1
     minValue: 10
     maxValue: 20
@@ -227,6 +221,8 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
+  extraRandomStatPoolPackages: 4
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   randomStatsPendingIdentification: 0

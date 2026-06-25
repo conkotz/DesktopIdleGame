@@ -26,7 +26,7 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: 'Reduces the time enemies in the current combat map take to respawn '
-  rarity: 2
+  rarity: 1
   value: 800
   equipSlot: 6
   uniquelyEquipped: 0
@@ -80,8 +80,18 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
+    lightningDamagePercent: 0
+    spellDamagePercent: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    chargedRuneElement: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
+    consumableOnSpell: 0
   toolStats:
     toolType: 0
     equipmentTier: 0
@@ -91,23 +101,30 @@ MonoBehaviour:
     staminaEfficiency: 0
   armourStats:
     equipmentTier: 0
+    armourType: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     bonusHealth: 0
     bonusEnergy: 0
     energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
+    armor: 0
+    staminaEfficiency: 0
+    armorType: 0
   bonusStats:
     bonusHealth: 5
     bonusEnergy: 0
     bonusMana: 0
+    maxHealthPercent: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
@@ -123,6 +140,7 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
+    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -147,8 +165,13 @@ MonoBehaviour:
     shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    allElementalAilmentChance: 0
     parryChance: 0
     stunChance: 0
+    minThornsDamage: 0
+    maxThornsDamage: 0
+    thornsDamagePercent: 0
+    evadeChance: 0
   randomStatPool:
   - stat: 0
     weight: 1
@@ -158,14 +181,8 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 71
-    weight: 1
-    minValue: 1
-    maxValue: 2
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
+  extraRandomStatPoolPackages: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 1
   randomStatsPendingIdentification: 0
@@ -180,6 +197,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+      hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
     mapEnhancementTier: 0

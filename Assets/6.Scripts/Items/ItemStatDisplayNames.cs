@@ -95,6 +95,7 @@ public static class ItemStatDisplayNames
             case RandomItemStatType.BonusPhysBlockChance:
             case RandomItemStatType.ArmourPhysBlockChance:
                 return PhysBlock;
+            case RandomItemStatType.BonusPhysBlockMitigation:
             case RandomItemStatType.ArmourPhysBlockMitigation:
                 return BlockMitigation;
             case RandomItemStatType.LifeRegen:

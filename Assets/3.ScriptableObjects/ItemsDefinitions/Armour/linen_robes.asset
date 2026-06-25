@@ -29,6 +29,7 @@ MonoBehaviour:
   rarity: 1
   value: 250
   equipSlot: 4
+  uniquelyEquipped: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -72,7 +73,6 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamagePercent: 0
@@ -80,8 +80,18 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
+    lightningDamagePercent: 0
+    spellDamagePercent: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    chargedRuneElement: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
+    consumableOnSpell: 0
   toolStats:
     toolType: 0
     equipmentTier: 0
@@ -96,19 +106,25 @@ MonoBehaviour:
     magicResist: 15
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     bonusHealth: 25
     bonusEnergy: 0
     energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
+    armor: 0
+    staminaEfficiency: 0
+    armorType: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 40
+    maxHealthPercent: 0
     armour: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 3
@@ -116,7 +132,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0
+    meleePhysicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -124,6 +140,7 @@ MonoBehaviour:
     fireSkillDamagePercent: 0
     iceSkillDamagePercent: 0
     lightningSkillDamagePercent: 0
+    spellDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
     abilityPower: 0
@@ -148,26 +165,31 @@ MonoBehaviour:
     shockChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    allElementalAilmentChance: 0
     parryChance: 0
     stunChance: 0
+    minThornsDamage: 0
+    maxThornsDamage: 0
+    thornsDamagePercent: 0
+    evadeChance: 0
   randomStatPool:
   - stat: 2
     weight: 1
-    minValue: 10
-    maxValue: 20
+    minValue: 5
+    maxValue: 8
     valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 9
+  - stat: 10
     weight: 1
-    minValue: 0.5
-    maxValue: 0.1
+    minValue: 0.3
+    maxValue: 0.5
     valueKind: 1
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 18
+  - stat: 65
     weight: 1
     minValue: 1
     maxValue: 3
@@ -175,24 +197,35 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 57
+  - stat: 63
+    weight: 1
+    minValue: 8
+    maxValue: 12
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 19
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 59
     weight: 1
     minValue: 4
-    maxValue: 8
+    maxValue: 6
     valueKind: 0
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 60
-    weight: 1
-    minValue: 5
-    maxValue: 10
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
+  extraRandomStatPoolPackages: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
+  randomStatsPendingIdentification: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -204,6 +237,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+      hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
     mapEnhancementTier: 0
@@ -231,6 +265,9 @@ MonoBehaviour:
     destroyChanceOnFailure: 0
     cursed: 0
     allowedGearTypes: 0
+  mapEnhancementStats:
+    tier: 0
+    modRolls: []
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

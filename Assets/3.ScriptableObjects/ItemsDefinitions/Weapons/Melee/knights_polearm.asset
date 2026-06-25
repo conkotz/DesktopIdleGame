@@ -106,6 +106,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     bonusHealth: 0
     bonusEnergy: 0
     energyEfficiency: 0
@@ -123,6 +124,7 @@ MonoBehaviour:
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
+    physBlockMitigation: 0
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
@@ -171,14 +173,6 @@ MonoBehaviour:
     thornsDamagePercent: 0
     evadeChance: 0
   randomStatPool:
-  - stat: 47
-    weight: 1
-    minValue: 5
-    maxValue: 9
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
   - stat: 48
     weight: 1
     minValue: 5
@@ -187,7 +181,15 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 52
+  - stat: 49
+    weight: 1
+    minValue: 5
+    maxValue: 9
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 53
     weight: 1
     minValue: 4
     maxValue: 6
@@ -195,7 +197,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 53
+  - stat: 54
     weight: 1
     minValue: 6
     maxValue: 11
@@ -203,7 +205,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 54
+  - stat: 55
     weight: 1
     minValue: 9
     maxValue: 18
@@ -211,7 +213,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 35
+  - stat: 36
     weight: 1
     minValue: 5
     maxValue: 9
@@ -219,7 +221,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 36
+  - stat: 37
     weight: 1
     minValue: 9
     maxValue: 18
@@ -227,7 +229,7 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  - stat: 55
+  - stat: 56
     weight: 1
     minValue: 1
     maxValue: 2
@@ -235,6 +237,8 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
+  useDefaultRandomStatPoolPackage: 1
+  extraRandomStatPoolPackages: 65
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   randomStatsPendingIdentification: 0

@@ -33,6 +33,8 @@ public class ItemDefinitionEditor : Editor
     // Bonuses
     private SerializedProperty bonusStats;
     private SerializedProperty randomStatPool;
+    private SerializedProperty useDefaultRandomStatPoolPackage;
+    private SerializedProperty extraRandomStatPoolPackages;
     private SerializedProperty miscEffects;
 
     private int _expandedStatPickerEntryIndex = -1;
@@ -75,7 +77,11 @@ public class ItemDefinitionEditor : Editor
 
         bonusStats = serializedObject.FindProperty("bonusStats");
         randomStatPool = serializedObject.FindProperty("randomStatPool");
+        useDefaultRandomStatPoolPackage = serializedObject.FindProperty("useDefaultRandomStatPoolPackage");
+        extraRandomStatPoolPackages = serializedObject.FindProperty("extraRandomStatPoolPackages");
         miscEffects = serializedObject.FindProperty("miscEffects");
+
+        TryAutoApplyDefaultPackagePool();
     }
 
     public override void OnInspectorGUI()
@@ -1695,22 +1701,49 @@ public class ItemDefinitionEditor : Editor
 
         DrawModuleHeader("Additional Random Stat Pool");
 
-        EditorGUILayout.HelpBox(
-            "Weapons (except wands/staffs) and armour use structured templates from weapon weight or armour type + item rarity.\n" +
-            "Light armour: magic res, health, mana, mana regen, magic damage %. Medium: health, resists, move speed, ranged damage %.\n" +
-            "Heavy: health, armour, resists, flat guard, melee damage %. Shields: phys block + block mitigation %.\n" +
-            "Armour templates use energy efficiency only (no flat energy). Common/Uncommon, Rare, Epic, Legendary scale up.\n" +
-            "Wands/staffs keep their spell-scaling template. Jewelry/tools still derive from non-zero stats.\n" +
-            "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until identified.\n" +
-            "Value Kind: Flat Integer (health/damage), Flat Float (regen/range), " +
-            "Percent Points (enter 5 for +5% crit/stun/etc.; weapon APS rolls add flat APS — 2 = +0.02 APS on a 0.6 weapon → 0.62). " +
-            "Ability power stores points as-is. Legacy Fraction APS entries still multiply.",
-            MessageType.Info
-        );
+        var item = (ItemDefinition)target;
+        bool supportsDefaultPackage = ItemRandomStatRoller.SupportsDefaultRandomStatPoolPackage(item);
+
+        if (useDefaultRandomStatPoolPackage != null && supportsDefaultPackage)
+        {
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.PropertyField(
+                useDefaultRandomStatPoolPackage,
+                new GUIContent("Use default package"));
+            if (EditorGUI.EndChangeCheck() && useDefaultRandomStatPoolPackage.boolValue)
+                RefreshDefaultPackagePool(prompt: false);
+        }
+
+        bool usingDefaultPackage = supportsDefaultPackage
+                                   && useDefaultRandomStatPoolPackage != null
+                                   && useDefaultRandomStatPoolPackage.boolValue;
+
+        if (usingDefaultPackage)
+        {
+            EditorGUILayout.HelpBox(
+                "Default package is on. Pool entries are generated from item type, rarity, and optional weapon packages.\n" +
+                "Combat weapons: damage min/max (from base weapon), crit, speed. Add bleed/poison/element/defensive/range packages below.\n" +
+                "Wands/staffs: spell damage, elemental skill %, crit, mana, ailment multipliers (staff values are higher).\n" +
+                "Armour: light/medium/heavy/shield templates by rarity (light never rolls guard).\n" +
+                "Uncheck Use default package for fully custom pools.",
+                MessageType.Info);
+
+            if (item != null && item.IsWeapon && !item.UsesSpellScalingMagicWeaponTooltip)
+                DrawWeaponPackageButtons();
+        }
+        else
+        {
+            EditorGUILayout.HelpBox(
+                "Custom pool mode. Use Generate template stats for a full legacy template, or add entries manually.\n" +
+                "Weapons (except wands/staffs) and armour can use Use default package for structured templates.\n" +
+                "Value Kind: Flat Integer, Flat Float, Percent Points (5 = +5%; weapon APS adds flat APS — 2 = +0.02 APS).",
+                MessageType.Info);
+        }
 
         if (randomStatPool.arraySize == 0)
-            EditorGUILayout.LabelField("No pool entries yet. Add one below.", EditorStyles.centeredGreyMiniLabel);
+            EditorGUILayout.LabelField("No pool entries yet.", EditorStyles.centeredGreyMiniLabel);
 
+        bool poolReadOnly = usingDefaultPackage;
         _randomStatPoolScroll = EditorGUILayout.BeginScrollView(_randomStatPoolScroll, GUILayout.MaxHeight(420f));
 
         int removeAt = -1;
@@ -1733,10 +1766,11 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField($"Pool Entry {i + 1}", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Remove", GUILayout.Width(72)))
+            if (!poolReadOnly && GUILayout.Button("Remove", GUILayout.Width(72)))
                 removeAt = i;
             EditorGUILayout.EndHorizontal();
 
+            EditorGUI.BeginDisabledGroup(poolReadOnly);
             if (stat != null)
                 DrawScrollableRandomStatPicker(stat, i);
             if (weight != null) EditorGUILayout.PropertyField(weight, new GUIContent("Weight"));
@@ -1760,6 +1794,7 @@ public class ItemDefinitionEditor : Editor
                     }
                 }
             }
+            EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space(4);
@@ -1772,13 +1807,111 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(2);
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("Generate template stats"))
-            GenerateTemplateRandomStatPool();
+        if (usingDefaultPackage)
+        {
+            if (GUILayout.Button("Refresh default pool"))
+                RefreshDefaultPackagePool(prompt: false);
+        }
+        else
+        {
+            if (GUILayout.Button("Generate template stats"))
+                GenerateTemplateRandomStatPool();
 
-        if (GUILayout.Button("+ Add Pool Entry"))
-            AddEmptyRandomStatPoolEntry();
-
+            if (GUILayout.Button("+ Add Pool Entry"))
+                AddEmptyRandomStatPoolEntry();
+        }
         EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawWeaponPackageButtons()
+    {
+        if (extraRandomStatPoolPackages == null)
+            return;
+
+        EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("Extra weapon packages", EditorStyles.boldLabel);
+
+        EditorGUILayout.BeginHorizontal();
+        DrawPackageToggle("Bleed", RandomStatPoolPackageFlags.Bleed);
+        DrawPackageToggle("Poison", RandomStatPoolPackageFlags.Poison);
+        DrawPackageToggle("Fire", RandomStatPoolPackageFlags.Fire);
+        DrawPackageToggle("Lightning", RandomStatPoolPackageFlags.Lightning);
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginHorizontal();
+        DrawPackageToggle("Ice", RandomStatPoolPackageFlags.Ice);
+        DrawPackageToggle("Defensive", RandomStatPoolPackageFlags.Defensive);
+        DrawPackageToggle("Attack range", RandomStatPoolPackageFlags.AttackRange);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawPackageToggle(string label, RandomStatPoolPackageFlags flag)
+    {
+        var current = (RandomStatPoolPackageFlags)extraRandomStatPoolPackages.intValue;
+        bool on = (current & flag) != 0;
+        bool next = GUILayout.Toggle(on, label, EditorStyles.miniButton);
+        if (next == on)
+            return;
+
+        extraRandomStatPoolPackages.intValue = next
+            ? (int)(current | flag)
+            : (int)(current & ~flag);
+        serializedObject.ApplyModifiedProperties();
+        RefreshDefaultPackagePool(prompt: false);
+    }
+
+    private void TryAutoApplyDefaultPackagePool()
+    {
+        var item = (ItemDefinition)target;
+        if (!item || useDefaultRandomStatPoolPackage == null || randomStatPool == null)
+            return;
+
+        if (!useDefaultRandomStatPoolPackage.boolValue)
+            return;
+
+        if (!ItemRandomStatRoller.SupportsDefaultRandomStatPoolPackage(item))
+            return;
+
+        if (randomStatPool.arraySize > 0)
+            return;
+
+        RefreshDefaultPackagePool(prompt: false);
+    }
+
+    private void RefreshDefaultPackagePool(bool prompt)
+    {
+        var item = (ItemDefinition)target;
+        if (!item)
+            return;
+
+        List<RandomStatPoolEntry> templates = ItemRandomStatRoller.BuildConfiguredDefaultPoolEntries(item);
+        if (templates.Count == 0)
+        {
+            if (prompt)
+            {
+                EditorUtility.DisplayDialog(
+                    "Refresh default pool",
+                    "No default package entries for this item type.",
+                    "OK");
+            }
+            return;
+        }
+
+        if (prompt && randomStatPool.arraySize > 0 &&
+            !EditorUtility.DisplayDialog(
+                "Refresh default pool",
+                $"Replace {randomStatPool.arraySize} existing pool entr{(randomStatPool.arraySize == 1 ? "y" : "ies")} " +
+                $"with {templates.Count} default package entr{(templates.Count == 1 ? "y" : "ies")}?",
+                "Replace",
+                "Cancel"))
+            return;
+
+        randomStatPool.ClearArray();
+        for (int i = 0; i < templates.Count; i++)
+            WriteRandomStatPoolEntry(randomStatPool, i, templates[i]);
+
+        serializedObject.ApplyModifiedProperties();
+        EditorUtility.SetDirty(item);
     }
 
     private void AddEmptyRandomStatPoolEntry()

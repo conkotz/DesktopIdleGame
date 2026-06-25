@@ -413,6 +413,10 @@ public struct BonusStats
     public int corruptionResist;
     [Range(0f, 1f)] public float physBlockChance;
 
+    [Range(0f, 1f)]
+    [Tooltip("Extra block damage mitigation from weapons/accessories (0.15 = 15%).")]
+    public float physBlockMitigation;
+
     [Header("Sustain")]
     [Tooltip("HP per second")]
     public float lifeRegen;
@@ -1065,6 +1069,14 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [HideInInspector]
     private List<RandomStatPoolEntry> randomStatPool = new();
 
+    [Tooltip("When enabled, the pool is built from the default package for this item type plus any extra weapon packages below.")]
+    [SerializeField]
+    private bool useDefaultRandomStatPoolPackage = true;
+
+    [Tooltip("Optional weapon packages merged into the default pool (bleed, poison, elements, defensive, attack range).")]
+    [SerializeField]
+    private RandomStatPoolPackageFlags extraRandomStatPoolPackages = RandomStatPoolPackageFlags.None;
+
     [Header("Misc (unique effects)")]
     [Tooltip("Per-item hooks not covered by bonus stats (respawn modifiers, future procs, etc.).")]
     public ItemMiscEffects miscEffects;
@@ -1140,6 +1152,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool HasRandomStatPool => randomStatPool != null && randomStatPool.Count > 0;
 
+    public bool UseDefaultRandomStatPoolPackage => useDefaultRandomStatPoolPackage;
+
+    public RandomStatPoolPackageFlags ExtraRandomStatPoolPackages => extraRandomStatPoolPackages;
+
     private void OnEnable()
     {
         randomStatPool ??= new List<RandomStatPoolEntry>();
@@ -1163,6 +1179,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         for (int i = 0; i < source.randomStatPool.Count; i++)
         {
             RandomStatPoolEntry entry = source.randomStatPool[i];
+            if (entry != null)
+                randomStatPool.Add(entry);
+        }
+    }
+
+    internal void ReplaceRandomStatPool(IReadOnlyList<RandomStatPoolEntry> entries)
+    {
+        randomStatPool ??= new List<RandomStatPoolEntry>();
+        randomStatPool.Clear();
+        if (entries == null)
+            return;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            RandomStatPoolEntry entry = entries[i];
             if (entry != null)
                 randomStatPool.Add(entry);
         }
@@ -1762,7 +1793,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     }
 
     public float ArmourPhysBlockMitigation =>
-        IsArmour ? Mathf.Clamp01(armourStats.physBlockMitigation) : 0f;
+        (IsArmour ? Mathf.Clamp01(armourStats.physBlockMitigation) : 0f) +
+        Mathf.Clamp01(bonusStats.physBlockMitigation);
 
     public int BonusHealth => (IsArmour ? armourStats.bonusHealth : 0) + bonusStats.bonusHealth;
     public int BonusEnergy => (IsArmour ? armourStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
