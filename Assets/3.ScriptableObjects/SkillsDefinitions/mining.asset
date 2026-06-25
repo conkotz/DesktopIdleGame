@@ -101,3 +101,19 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 10
+    title: Runestone
+    description: Can mine runestone deposits
+    icon: {fileID: -3267488870146170370, guid: ca56f4a66fb9cd145a055cda7e049823, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []

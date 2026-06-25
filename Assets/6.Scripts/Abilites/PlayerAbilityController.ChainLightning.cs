@@ -8,8 +8,13 @@ public partial class PlayerAbilityController
     private static bool IsChainLightningAbilityId(string abilityId) =>
         string.Equals(abilityId, AbilityCombatPower.ChainLightningAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
-    private bool CanHitAnyEnemyWithChainLightning() =>
-        CollectChainLightningForwardHits(GetChainLightningCastReach()).Count > 0;
+    private bool CanHitAnyEnemyWithChainLightning()
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        return combat != null && combat.FindClosestEnemyInAttackRange() != null;
+    }
 
     private bool TryCastChainLightning(AbilityDefinition def, bool showLockedFeedback)
     {
@@ -19,14 +24,14 @@ public partial class PlayerAbilityController
         if (!CanHitAnyEnemyWithChainLightning())
         {
             if (showLockedFeedback)
-                player?.ShowPopup("No enemy in front of you.");
+                player?.ShowPopup("No targets in range.");
             return false;
         }
 
-        if (!TryFindClosestEnemyInChainLightningCone(out EnemyBaseController primary))
+        if (!TryFindClosestEnemyInChainLightningSpellRange(out EnemyBaseController primary))
         {
             if (showLockedFeedback)
-                player?.ShowPopup("No enemy in front of you.");
+                player?.ShowPopup("No targets in range.");
             return false;
         }
 
@@ -45,18 +50,23 @@ public partial class PlayerAbilityController
         return true;
     }
 
-    private bool TryFindClosestEnemyInChainLightningCone(out EnemyBaseController target)
+    private bool TryFindClosestEnemyInChainLightningSpellRange(out EnemyBaseController target)
     {
-        target = PickPreferredForwardArcEnemy(CollectChainLightningForwardHits(GetChainLightningCastReach()));
+        target = null;
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return false;
+
+        EnemyBaseController engaged = combat.GetPrimaryEngagedEnemy();
+        if (engaged != null && combat.IsEnemyWithinAttackRange(engaged))
+        {
+            target = engaged;
+            return true;
+        }
+
+        target = combat.FindClosestEnemyInAttackRange();
         return target != null;
-    }
-
-    private float GetChainLightningCastReach()
-    {
-        if (stats == null)
-            return 8f;
-
-        return Mathf.Max(0.5f, stats.Range);
     }
 
     private float GetChainLightningChainRange()
@@ -73,35 +83,6 @@ public partial class PlayerAbilityController
         if (GetChainLightningSelectedChoice() == AbilityCombatPower.ChainLightningEnh1ExtraChainChoiceIndex)
             jumps++;
         return jumps;
-    }
-
-    /// <summary>Forward lane check — same cone math as Penetrating Shot / Crescent Slash.</summary>
-    private List<(EnemyBaseController enemy, float dist)> CollectChainLightningForwardHits(float reach)
-    {
-        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
-        List<(EnemyBaseController enemy, float dist)> forwardHits =
-            new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
-        float facing = GetCombatFacingSign();
-        Vector3 origin = transform.position;
-        float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
-
-        for (int i = 0; i < allEnemies.Count; i++)
-        {
-            EnemyBaseController enemy = allEnemies[i];
-            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
-                continue;
-
-            Vector3 to = enemy.transform.position - origin;
-            float forwardDist = to.x * facing;
-            if (forwardDist <= 0f || forwardDist > reach)
-                continue;
-            if (Mathf.Abs(to.y) > laneWidth)
-                continue;
-
-            forwardHits.Add((enemy, forwardDist));
-        }
-
-        return forwardHits;
     }
 
     /// <summary>

@@ -12,14 +12,22 @@ public partial class PlayerAbilityController
 
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return false;
 
-        EnemyBaseController target = combat != null ? combat.CurrentTarget : null;
+        EnemyBaseController target = combat.CurrentTarget;
+        if (target == null || target.IsDead || !combat.IsEnemyWithinAttackRange(target))
+            target = combat.FindClosestEnemyInAttackRange();
+
         if (target == null || target.IsDead)
         {
             if (showLockedFeedback)
-                player?.ShowPopup("No valid target.");
+                LogNoTargetsInRangeThrottled();
             return false;
         }
+
+        if (def.SetsTargetOnHit())
+            combat.SetTargetIfNone(target);
 
         if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;

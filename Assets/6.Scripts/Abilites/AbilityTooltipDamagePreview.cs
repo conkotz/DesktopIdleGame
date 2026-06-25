@@ -2092,8 +2092,19 @@ public static class AbilityTooltipDamagePreview
         };
         int minShown = Mathf.Max(1, Mathf.RoundToInt(minD));
         int maxShown = Mathf.Max(minShown, Mathf.RoundToInt(maxD));
-        AppendDetailsEffectParagraph(body, O($"{minShown}–{maxShown} {elementLabel} damage per auto attack"));
-        AppendDetailsEffectParagraph(body, O("Used by your wand auto attacks while this spell is selected"));
+        AppendDetailsEffectParagraph(body, O($"{minShown}–{maxShown} {elementLabel} damage"));
+        AppendSpellHitRangeEffectLine(body, O, stats);
+    }
+
+    private static void AppendSpellHitRangeEffectLine(
+        StringBuilder body,
+        System.Func<string, string> O,
+        CharacterStats stats)
+    {
+        if (stats == null)
+            return;
+
+        AppendDetailsEffectParagraph(body, O($"Spell hit range: {SpellCombatRules.GetSpellHitRange(stats):0.#}"));
     }
 
     private static string BuildMagicStarterSpellCompactEffectsBody(AbilityDefinition def, CharacterStats stats)
@@ -2205,6 +2216,8 @@ public static class AbilityTooltipDamagePreview
             AppendDetailsEffectParagraph(body,
                 O($"+{AbilityCombatPower.ChainLightningEnh2ShockChance * 100f:0.#}% chance to shock; shocks from this spell deal +{AbilityCombatPower.ChainLightningEnh2ShockEffectBonus * 100f:0.#}% increased effect"));
         }
+
+        AppendSpellHitRangeEffectLine(body, O, stats);
     }
 
     private static string BuildChainLightningCompactEffectsBody(

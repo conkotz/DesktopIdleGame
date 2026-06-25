@@ -82,7 +82,9 @@ public static class GameTooltipTexts
 
             case "AttackSpdText":
                 title = "Attack Speed";
-                description = "How many basic attacks you perform per second.";
+                description =
+                    "How many basic attacks you perform per second.\n\n" +
+                    "This does not affect abilities or spell cast speed.";
                 return true;
 
             case "AttackRangeText":

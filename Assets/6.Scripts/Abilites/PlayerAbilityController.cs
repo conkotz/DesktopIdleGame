@@ -3291,9 +3291,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (IsPenetratingShotAbilityId(id))
             return TryFindClosestEnemyInPenetratingShotLane(out target);
 
-        if (IsChainLightningAbilityId(id))
-            return TryFindClosestEnemyInChainLightningCone(out target);
-
         if (string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInGuardiansHammerZone(out target);
 
@@ -3809,7 +3806,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             if (!CanHitAnyEnemyWithChainLightning())
             {
                 if (showLockedFeedback)
-                    player?.ShowPopup("No enemy in front of you.");
+                    LogNoTargetsInRangeThrottled();
                 return false;
             }
 
