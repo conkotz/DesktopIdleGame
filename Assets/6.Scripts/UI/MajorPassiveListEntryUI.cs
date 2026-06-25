@@ -38,6 +38,10 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
     [SerializeField] private Button selectButton;
 
+    [SerializeField] private GameObject iconBackgroundRoot;
+
+    [SerializeField] private Image iconImage;
+
     [Tooltip("Yellow ! — enhancement not chosen yet (matches skill tree NotSelected).")]
 
     [SerializeField] private GameObject notSelectedIndicatorRoot;
@@ -213,6 +217,34 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
                     selectButton = t.GetComponent<Button>();
 
             }
+
+        }
+
+
+
+        if (iconBackgroundRoot == null)
+
+        {
+
+            Transform t = transform.Find("RowGroup/IconBackground") ?? transform.Find("IconBackground");
+
+            if (t != null)
+
+                iconBackgroundRoot = t.gameObject;
+
+        }
+
+
+
+        if (iconImage == null && iconBackgroundRoot != null)
+
+        {
+
+            Transform t = iconBackgroundRoot.transform.Find("Icon");
+
+            if (t != null)
+
+                iconImage = t.GetComponent<Image>();
 
         }
 
@@ -482,6 +514,10 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
 
 
+        SetIconDisplay(false);
+
+
+
         string displayName = unlock != null
 
             ? SkillsAbilityPresentationResolver.ResolveUnlockTitle(unlock)
@@ -589,6 +625,10 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
 
 
+        SetIconDisplay(false);
+
+
+
         ApplyPassiveNameAndEnhancement("Major Passive Available", null);
 
 
@@ -628,6 +668,108 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
         RegisterRootRowScrollClick(onSelectScrollTree);
 
         SetTreeStatusIndicators(showNotSelectedPrompt: true, showEnhanceButton: false);
+
+    }
+
+
+
+    public void BindGeneralUnlock(
+
+        SkillDefinition skill,
+
+        SkillUnlockDefinition unlock,
+
+        SharedTooltipUI tooltip,
+
+        Canvas rootCanvas,
+
+        System.Action onRowClickScrollToTree)
+
+    {
+
+        ClearRowClickListeners();
+
+        _isAvailablePlaceholder = false;
+
+        _skill = skill;
+
+        _unlock = unlock;
+
+        _isCapstoneStyle = false;
+
+        _treeScrollLevel = unlock != null ? Mathf.Max(1, unlock.requiredLevel) : 1;
+
+        _tooltip = tooltip;
+
+        _rootCanvas = rootCanvas;
+
+        if (_rootCanvas == null)
+
+            _rootCanvas = GetComponentInParent<Canvas>();
+
+
+
+        if (selectAbilityRoot)
+
+            selectAbilityRoot.SetActive(false);
+
+
+
+        SetTreeStatusIndicators(showNotSelectedPrompt: false, showEnhanceButton: false);
+
+
+
+        string displayName = unlock != null
+
+            ? SkillsAbilityPresentationResolver.ResolveUnlockTitle(unlock)
+
+            : "Unlock";
+
+        if (string.IsNullOrWhiteSpace(displayName))
+
+            displayName = "Unlock";
+
+
+
+        ApplyPassiveNameAndEnhancement(displayName, null);
+
+
+
+        if (requiredLevelText)
+
+            requiredLevelText.text = $"Lv {_treeScrollLevel}";
+
+
+
+        Sprite unlockIcon = unlock != null ? unlock.icon : null;
+
+        SetIconDisplay(unlockIcon != null, unlockIcon);
+
+
+
+        ApplyRowBackgroundColor();
+
+
+
+        if (!canvasGroup)
+
+            canvasGroup = GetComponent<CanvasGroup>();
+
+        if (!canvasGroup)
+
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+
+
+        canvasGroup.alpha = 1f;
+
+        canvasGroup.blocksRaycasts = true;
+
+
+
+        SkillUnlockPanelTooltipBuilder.TryBuildListEntryTooltip(skill, unlock, SkillsManager.Instance, out _tooltipTitle, out _tooltipBody);
+
+        RegisterRootRowScrollClick(onRowClickScrollToTree);
 
     }
 
@@ -714,6 +856,36 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
         if (requiredLevelText)
 
             requiredLevelText.raycastTarget = false;
+
+        if (iconImage)
+
+            iconImage.raycastTarget = false;
+
+    }
+
+
+
+    private void SetIconDisplay(bool visible, Sprite sprite = null)
+
+    {
+
+        if (iconBackgroundRoot != null)
+
+            iconBackgroundRoot.SetActive(visible);
+
+
+
+        if (iconImage != null)
+
+        {
+
+            iconImage.enabled = visible && sprite != null;
+
+            iconImage.sprite = sprite;
+
+            iconImage.preserveAspect = true;
+
+        }
 
     }
 

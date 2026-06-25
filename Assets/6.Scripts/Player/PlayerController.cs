@@ -1577,7 +1577,14 @@ public class PlayerController : MonoBehaviour
 
         if (!MeetsNodeLevelRequirement(node))
         {
-            ShowPopup($"Requires level {node.RequiredLevel}.");
+            string skillName = node.ActionType switch
+            {
+                NodeAction.Mining => "mining",
+                NodeAction.Woodcutting => "woodcutting",
+                NodeAction.Fishing => "fishing",
+                _ => "skill"
+            };
+            ShowPopup($"Requires level {node.RequiredLevel} {skillName}.");
             return;
         }
 

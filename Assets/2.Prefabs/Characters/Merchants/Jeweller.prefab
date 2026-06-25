@@ -324,13 +324,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: I stock the finest jewelery
+  dialogue: I stock the finest jewellery
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   useDialogueLocalOffsetOverride: 0
   dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
   dialogueFollowWorldAnchor: {fileID: 2582707405390846100}
   dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 5
+  onlyShowDialogueWhenNoQuestAvailable: 0
   openDialogueOnFirstSighting: 0
   walkPlayerToNpcOnClick: 1
   openWhenWithinXDistance: 0.15

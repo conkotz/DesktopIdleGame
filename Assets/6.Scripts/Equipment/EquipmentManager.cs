@@ -660,25 +660,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                         }
                     }
                 }
-                else
+                else if (!string.IsNullOrWhiteSpace(currentOff) && !CanMainHandUseCurrentOffHand(next, currentOff))
                 {
-                    if (!string.IsNullOrWhiteSpace(currentOff))
-                    {
-                        var offDef = GetDef(currentOff);
-                        bool valid =
-                            (offDef && offDef.itemKind == ItemKind.Armour && offDef.equipSlot == EquipSlot.OffHand) ||
-                            (offDef && offDef.IsWeapon && offDef.weaponStats.handedness == Handedness.OneHanded && offDef.weaponStats.canEquipInOffHand);
-
-                        if (!valid)
-                        {
-                            SetOffHandForSet(activeWeaponSetIndex, null, 0);
-                            OnOffHandChanged?.Invoke(OffHandItemId);
-                            OnUISlotChanged?.Invoke(EquipmentUISlotType.OffHand, OffHandItemId);
-                            ReturnOrDrop(currentOff, Mathf.Max(1, currentOffAmount));
-                            currentOff = null;
-                            currentOffAmount = 0;
-                        }
-                    }
+                    SetOffHandForSet(activeWeaponSetIndex, null, 0);
+                    OnOffHandChanged?.Invoke(OffHandItemId);
+                    OnUISlotChanged?.Invoke(EquipmentUISlotType.OffHand, OffHandItemId);
+                    ReturnOrDrop(currentOff, Mathf.Max(1, currentOffAmount));
+                    currentOff = null;
+                    currentOffAmount = 0;
                 }
             }
         }

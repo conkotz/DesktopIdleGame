@@ -18,10 +18,15 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     private const string MajorPassivesHeaderName = "UnlocksHeader";
     private const string MinorPassivesSectionName = "MinorPassiveUnlocksSection";
     private const string MinorPassivesHeaderName = "MinorPassivesHeader";
+    private const string GeneralUnlocksSectionName = "GeneralUnlocksSection";
+    private const string GeneralUnlocksContentName = "GeneralUnlocksContent";
+    private const string GeneralUnlocksHeaderName = "GeneralUnlocksHeader";
+    private const string GeneralUnlocksEmptyName = "GeneralUnlocksText";
 
     private const float MajorHeaderFontSize = 28f;
     private const float MinorContentFontSize = 18f;
     private const string MinorEmptyText = "No minor passives yet";
+    private const string GeneralUnlocksEmptyText = "No general unlocks yet";
 
     private static readonly Color LightBonusesHeaderColor = new(0.95f, 0.92f, 0.86f, 1f);
     private static readonly Color MinorBonusesBodyColor = new(0.82f, 0.78f, 0.72f, 1f);
@@ -32,12 +37,16 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     [SerializeField] private Transform capstoneListContent;
     [SerializeField] private Transform majorPassivesListContent;
     [SerializeField] private GameObject majorPassivesEmptyText;
+    [SerializeField] private Transform generalUnlocksSectionRoot;
+    [SerializeField] private Transform generalUnlocksListContent;
+    [SerializeField] private GameObject generalUnlocksEmptyText;
     [SerializeField] private MajorPassiveListEntryUI majorPassiveEntryPrefab;
     [SerializeField] private float majorPassiveRowHeight = 48f;
     [SerializeField] private float rowSpacing = 6f;
 
     private HorizontalSkillTreeScaffoldUI _horizontalTimeline;
     private readonly List<MajorPassiveListEntryUI> _majorRows = new();
+    private readonly List<MajorPassiveListEntryUI> _generalRows = new();
     private MajorPassiveListEntryUI _capstoneRow;
     private Canvas _rootCanvas;
     private SkillType _cachedSkillType;
@@ -57,25 +66,31 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             _cachedSkillType = default;
             _cachedLevel = -1;
             ClearMajorRows();
+            ClearGeneralRows();
             ClearCapstoneRow();
             SetMinorText(null);
             SetMajorEmptyVisible(true);
+            SetGeneralUnlocksEmptyVisible(true);
             SetCapstoneSectionVisible(false);
+            SetGeneralUnlocksSectionVisible(false);
             return;
         }
 
         int level = skillsManager != null ? skillsManager.GetLevel(skill.skillType) : 1;
-        if (skill.skillType == _cachedSkillType && level == _cachedLevel && _majorRows.Count + (_capstoneRow != null ? 1 : 0) > 0)
+        if (skill.skillType == _cachedSkillType && level == _cachedLevel &&
+            _majorRows.Count + _generalRows.Count + (_capstoneRow != null ? 1 : 0) > 0)
             return;
 
         _cachedSkillType = skill.skillType;
         _cachedLevel = level;
 
         ClearMajorRows();
+        ClearGeneralRows();
         ClearCapstoneRow();
         SetMinorText(SkillsAbilitiesPageUI.BuildMinorPassivesDisplay(skill, level));
         RefreshCapstoneRow(skill, level);
         RefreshMajorPassives(skill, level, skillsManager);
+        RefreshGeneralUnlocks(skill, level);
     }
 
     private void RefreshCapstoneRow(SkillDefinition skill, int level)
@@ -172,6 +187,40 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         }
     }
 
+    private void RefreshGeneralUnlocks(SkillDefinition skill, int level)
+    {
+        EnsureGeneralUnlocksSection();
+
+        var unlocks = new List<SkillUnlockDefinition>();
+        SkillsAbilitiesPageUI.CollectGeneralUnlockRows(skill, level, unlocks);
+
+        bool hasUnlocks = unlocks.Count > 0;
+        SetGeneralUnlocksSectionVisible(true);
+        SetGeneralUnlocksEmptyVisible(!hasUnlocks);
+
+        if (!hasUnlocks || generalUnlocksListContent == null || majorPassiveEntryPrefab == null)
+            return;
+
+        RightPanelMajorPassiveListUtil.EnsureListSpacing(generalUnlocksListContent, rowSpacing);
+        _rootCanvas ??= GetComponentInParent<Canvas>();
+
+        for (int i = 0; i < unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = unlocks[i];
+            if (unlock == null)
+                continue;
+
+            MajorPassiveListEntryUI row = CreateMajorPassiveRow(generalUnlocksListContent);
+            if (row == null)
+                continue;
+
+            int rowLevel = Mathf.Max(1, unlock.requiredLevel);
+            row.BindGeneralUnlock(skill, unlock, tooltip: null, _rootCanvas,
+                () => FocusUnlock(skill, unlock, rowLevel));
+            _generalRows.Add(row);
+        }
+    }
+
     private void FocusMajorPassiveTier(SkillDefinition skill, int rowLevel)
     {
         if (_horizontalTimeline == null)
@@ -224,6 +273,20 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             RightPanelMajorPassiveListUtil.ClearRows(majorPassivesListContent);
     }
 
+    private void ClearGeneralRows()
+    {
+        for (int i = _generalRows.Count - 1; i >= 0; i--)
+        {
+            if (_generalRows[i] != null)
+                Destroy(_generalRows[i].gameObject);
+        }
+
+        _generalRows.Clear();
+
+        if (generalUnlocksListContent != null)
+            RightPanelMajorPassiveListUtil.ClearRows(generalUnlocksListContent);
+    }
+
     private void ClearCapstoneRow()
     {
         if (_capstoneRow != null)
@@ -262,6 +325,21 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             majorPassivesListContent.gameObject.SetActive(!showEmpty);
     }
 
+    private void SetGeneralUnlocksSectionVisible(bool visible)
+    {
+        if (generalUnlocksSectionRoot != null)
+            generalUnlocksSectionRoot.gameObject.SetActive(visible);
+    }
+
+    private void SetGeneralUnlocksEmptyVisible(bool showEmpty)
+    {
+        if (generalUnlocksEmptyText != null)
+            generalUnlocksEmptyText.SetActive(showEmpty);
+
+        if (generalUnlocksListContent != null)
+            generalUnlocksListContent.gameObject.SetActive(!showEmpty);
+    }
+
     private void EnsureReferences()
     {
         if (scrollContent == null)
@@ -286,6 +364,7 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         EnsureCapstoneSection();
         EnsureMajorPassivesSection();
         EnsureMinorPassivesSection();
+        EnsureGeneralUnlocksSection();
         ApplyBonusesTypography();
 
         if (majorPassiveEntryPrefab == null)
@@ -453,6 +532,79 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         }
     }
 
+    private void EnsureGeneralUnlocksSection()
+    {
+        if (scrollContent == null)
+            return;
+
+        if (generalUnlocksSectionRoot == null)
+            generalUnlocksSectionRoot = scrollContent.Find(GeneralUnlocksSectionName);
+
+        if (generalUnlocksSectionRoot == null)
+            generalUnlocksSectionRoot = CreateGeneralUnlocksSection(scrollContent);
+
+        if (generalUnlocksListContent == null && generalUnlocksSectionRoot != null)
+            generalUnlocksListContent = generalUnlocksSectionRoot.Find(GeneralUnlocksContentName);
+
+        if (generalUnlocksEmptyText == null && generalUnlocksSectionRoot != null)
+        {
+            Transform empty = generalUnlocksSectionRoot.Find(GeneralUnlocksEmptyName);
+            if (empty != null)
+                generalUnlocksEmptyText = empty.gameObject;
+        }
+    }
+
+    private static Transform CreateGeneralUnlocksSection(Transform scrollContentRoot)
+    {
+        var sectionGo = new GameObject(GeneralUnlocksSectionName, typeof(RectTransform));
+        var sectionRt = (RectTransform)sectionGo.transform;
+        sectionRt.SetParent(scrollContentRoot, false);
+
+        Transform minorSection = scrollContentRoot.Find(MinorPassivesSectionName);
+        int siblingIndex = minorSection != null ? minorSection.GetSiblingIndex() + 1 : scrollContentRoot.childCount;
+        sectionRt.SetSiblingIndex(siblingIndex);
+
+        var sectionVlg = sectionGo.AddComponent<VerticalLayoutGroup>();
+        sectionVlg.spacing = 8;
+        sectionVlg.childAlignment = TextAnchor.UpperLeft;
+        sectionVlg.childControlWidth = true;
+        sectionVlg.childControlHeight = true;
+        sectionVlg.childForceExpandWidth = true;
+        sectionVlg.childForceExpandHeight = false;
+        sectionGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var headerGo = new GameObject(GeneralUnlocksHeaderName, typeof(RectTransform));
+        headerGo.transform.SetParent(sectionRt, false);
+        TMP_Text header = headerGo.AddComponent<TextMeshProUGUI>();
+        ApplyHeaderStyle(header, "General Unlocks");
+        header.alignment = TextAlignmentOptions.TopLeft;
+        LayoutElement headerLayout = headerGo.AddComponent<LayoutElement>();
+        headerLayout.preferredHeight = 32f;
+
+        var emptyGo = new GameObject(GeneralUnlocksEmptyName, typeof(RectTransform));
+        emptyGo.transform.SetParent(sectionRt, false);
+        TMP_Text empty = emptyGo.AddComponent<TextMeshProUGUI>();
+        empty.text = GeneralUnlocksEmptyText;
+        ApplyEmptyStateStyle(empty);
+        empty.alignment = TextAlignmentOptions.TopLeft;
+        LayoutElement emptyLayout = emptyGo.AddComponent<LayoutElement>();
+        emptyLayout.preferredHeight = 20f;
+
+        var listGo = new GameObject(GeneralUnlocksContentName, typeof(RectTransform));
+        listGo.transform.SetParent(sectionRt, false);
+        var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
+        listVlg.spacing = 6;
+        listVlg.childAlignment = TextAnchor.UpperLeft;
+        listVlg.childControlWidth = true;
+        listVlg.childControlHeight = true;
+        listVlg.childForceExpandWidth = true;
+        listVlg.childForceExpandHeight = false;
+        listGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        sectionGo.SetActive(true);
+        return sectionRt;
+    }
+
     private void ApplyBonusesTypography()
     {
         if (scrollContent == null)
@@ -481,6 +633,16 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         {
             TMP_Text minorHeader = minorSection.Find(MinorPassivesHeaderName)?.GetComponent<TMP_Text>();
             ApplyHeaderStyle(minorHeader, "Minor Passives");
+        }
+
+        Transform generalSection = scrollContent.Find(GeneralUnlocksSectionName);
+        if (generalSection != null)
+        {
+            TMP_Text generalHeader = generalSection.Find(GeneralUnlocksHeaderName)?.GetComponent<TMP_Text>();
+            ApplyHeaderStyle(generalHeader, "General Unlocks");
+
+            TMP_Text generalEmpty = generalSection.Find(GeneralUnlocksEmptyName)?.GetComponent<TMP_Text>();
+            ApplyEmptyStateStyle(generalEmpty);
         }
 
         if (minorPassiveContent != null)

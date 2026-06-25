@@ -2469,6 +2469,46 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
     }
 
+    public static void CollectGeneralUnlockRows(
+        SkillDefinition skill,
+        int currentLevel,
+        List<SkillUnlockDefinition> results)
+    {
+        results?.Clear();
+        if (skill?.unlocks == null || results == null)
+            return;
+
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = skill.unlocks[i];
+            if (u == null)
+                continue;
+
+            if (currentLevel < u.requiredLevel)
+                continue;
+
+            if (u.unlockType != SkillUnlockType.Unlock && u.unlockType != SkillUnlockType.MinorUnlock)
+                continue;
+
+            results.Add(u);
+        }
+
+        if (results.Count <= 1)
+            return;
+
+        results.Sort((a, b) =>
+        {
+            int c = a.requiredLevel.CompareTo(b.requiredLevel);
+            if (c != 0)
+                return c;
+
+            return string.Compare(
+                SkillsAbilityPresentationResolver.ResolveUnlockTitle(a),
+                SkillsAbilityPresentationResolver.ResolveUnlockTitle(b),
+                StringComparison.Ordinal);
+        });
+    }
+
     private static string BuildAdditionalUnlocksDisplay(SkillDefinition skill, int currentLevel)
     {
         if (skill?.unlocks == null || skill.unlocks.Count == 0)

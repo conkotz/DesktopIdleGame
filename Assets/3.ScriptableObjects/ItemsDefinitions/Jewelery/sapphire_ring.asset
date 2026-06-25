@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: sapphire_ring
   displayName: Ice Ring
   displayNameSingular: 
-  icon: {fileID: 647588772610573750, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: 982257782835586359, guid: e63c0e6b691c1d54db07e10dcfc1f4e7, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
