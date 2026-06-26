@@ -163,6 +163,9 @@ public static class WorldInteractRouter
         if (furnace != null)
         {
             ApplyCombatTargetWhenInteractingNonEnemy(player);
+            NPCInteractionSettings furnaceNpc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+            if (furnaceNpc != null)
+                furnaceNpc.Interact();
             furnace.Open();
             return;
         }

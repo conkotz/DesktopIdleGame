@@ -174,7 +174,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1301700847255990616}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
@@ -186,8 +186,9 @@ MonoBehaviour:
   dialogueFollowWorldAnchor: {fileID: 6567681578057083310}
   dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 5
-  onlyShowDialogueWhenNoQuestAvailable: 1
-  openDialogueOnFirstSighting: 0
+  onlyShowDialogueWhenNoQuestAvailable: 0
+  openDialogueOnFirstSighting: 1
+  firstSightingRequiresConditionalMatch: 1
   walkPlayerToNpcOnClick: 1
   openWhenWithinXDistance: 0.15
   requirePlayerProximityForAutoReopen: 1
@@ -197,17 +198,17 @@ MonoBehaviour:
   oneWayDialogueQueue: 0
   oneWayDialogueQueueSaveId: 
   additionalConditionalDialogues:
-  - condition: 0
+  - condition: 3
     completedQuestId: 
     acceptedQuestId: 
     afterDeathRespawnMapNodeId: 
-    dialogue: 
+    dialogue: Smelting in progress.
     onAcceptOutcome: 0
     teleportTargetNode: {fileID: 0}
     teleportMapNodeId: 
     buyAllItemId: 
     buyAllGoldPerItem: 0
-  questGiver: {fileID: 781000000000000001}
+  questGiver: {fileID: 0}
   debugLogPlainDialogueResolution: 0
 --- !u!114 &4181235982351577245
 MonoBehaviour:

@@ -52,6 +52,41 @@ public class FurnaceSmelter : MonoBehaviour, ISaveable
         return TryGetActiveRecipe(out SmeltingRecipe recipe) ? recipe.SecondsPerBar : 1f;
     }
 
+    /// <summary>
+    /// Estimated wall time to smelt all stored ore into bars (includes in-progress bar when smelting).
+    /// </summary>
+    public bool TryGetSmeltTimeEstimate(out float totalRemainingSeconds, out float secondsPerBar, out int barsRemaining)
+    {
+        totalRemainingSeconds = 0f;
+        secondsPerBar = 0f;
+        barsRemaining = 0;
+
+        string oreId = _isSmelting ? GetActiveOreItemId() : _storedOreItemId;
+        if (!SmeltingRecipes.TryGetForOre(oreId, out SmeltingRecipe recipe))
+            return false;
+
+        secondsPerBar = recipe.SecondsPerBar;
+        int ore = StoredOreAmount;
+        if (ore < recipe.OrePerBar)
+            return false;
+
+        barsRemaining = ore / recipe.OrePerBar;
+        if (barsRemaining <= 0)
+            return false;
+
+        if (_isSmelting)
+        {
+            float currentBarRemaining = Mathf.Max(0f, recipe.SecondsPerBar - _smeltProgressSeconds);
+            totalRemainingSeconds = currentBarRemaining + (barsRemaining - 1) * recipe.SecondsPerBar;
+        }
+        else
+        {
+            totalRemainingSeconds = barsRemaining * recipe.SecondsPerBar;
+        }
+
+        return true;
+    }
+
     public int GetOrePerBar()
     {
         return TryGetActiveRecipe(out SmeltingRecipe recipe) ? recipe.OrePerBar : SmeltingRecipes.DefaultOrePerBar;

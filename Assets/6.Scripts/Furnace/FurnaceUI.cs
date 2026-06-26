@@ -33,6 +33,7 @@ public class FurnaceUI : MonoBehaviour
     private Image _progressFill;
     private RectTransform _progressFillRt;
     private TMP_Text _progressText;
+    private TMP_Text _timeSummaryText;
     private TMP_Text _actionButtonText;
     private Button _actionButton;
     private Button _oresButton;
@@ -241,6 +242,64 @@ public class FurnaceUI : MonoBehaviour
         int shownCurrent = Mathf.FloorToInt(progress);
         int shownTotal = Mathf.CeilToInt(duration);
         _progressText.text = $"{shownCurrent} / {shownTotal} seconds";
+
+        RefreshTimeSummary();
+    }
+
+    private void RefreshTimeSummary()
+    {
+        if (_timeSummaryText == null || _smelter == null)
+            return;
+
+        if (!_smelter.TryGetSmeltTimeEstimate(
+                out float totalRemaining,
+                out float secondsPerBar,
+                out int barsRemaining))
+        {
+            _timeSummaryText.text = "";
+            return;
+        }
+
+        int ore = _smelter.StoredOreAmount;
+        int perBar = _smelter.GetOrePerBar();
+        string totalLabel = FormatSmeltDuration(totalRemaining);
+        string perBarLabel = FormatSmeltDuration(secondsPerBar);
+
+        if (_smelter.IsSmelting)
+        {
+            _timeSummaryText.text =
+                $"Total remaining: {totalLabel} ({barsRemaining} bar{(barsRemaining == 1 ? "" : "s")}, {ore} ore) · {perBarLabel} per bar ({perBar} ore)";
+        }
+        else
+        {
+            _timeSummaryText.text =
+                $"Smelting {ore} ore will take {totalLabel} ({barsRemaining} bar{(barsRemaining == 1 ? "" : "s")}) · {perBarLabel} per bar ({perBar} ore)";
+        }
+    }
+
+    private static string FormatSmeltDuration(float seconds)
+    {
+        int total = Mathf.Max(0, Mathf.CeilToInt(seconds));
+        if (total >= 3600)
+        {
+            int hours = total / 3600;
+            int minutes = (total % 3600) / 60;
+            int secs = total % 60;
+            if (minutes == 0 && secs == 0)
+                return $"{hours}h";
+            if (secs == 0)
+                return $"{hours}h {minutes}m";
+            return $"{hours}h {minutes}m {secs}s";
+        }
+
+        if (total >= 60)
+        {
+            int minutes = total / 60;
+            int secs = total % 60;
+            return secs == 0 ? $"{minutes}m" : $"{minutes}m {secs}s";
+        }
+
+        return $"{total}s";
     }
 
     private void RefreshActionButton()
@@ -585,7 +644,7 @@ public class FurnaceUI : MonoBehaviour
 
     private void BuildUi()
     {
-        if (_root != null && _progressText != null && _oreClearButton != null)
+        if (_root != null && _progressText != null && _timeSummaryText != null && _oreClearButton != null)
             return;
 
         if (_root != null)
@@ -594,6 +653,7 @@ public class FurnaceUI : MonoBehaviour
             _root = null;
             _orePickerRoot = null;
             _progressText = null;
+            _timeSummaryText = null;
             _progressFill = null;
             _progressFillRt = null;
             _actionButton = null;
@@ -628,7 +688,7 @@ public class FurnaceUI : MonoBehaviour
             DontDestroyOnLoad(es);
         }
 
-        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 300f));
+        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 320f));
         CreateHeader(_root, "Furnace");
 
         var slotsRow = CreateUiObject("SlotsRow", _root, typeof(RectTransform), typeof(HorizontalLayoutGroup));
@@ -686,7 +746,16 @@ public class FurnaceUI : MonoBehaviour
         StretchFull(_progressText.rectTransform);
         _progressText.text = "0 / 0 seconds";
 
-        _actionButton = CreateButton(_root, "ActionButton", "START", new Vector2(200f, 40f), new Vector2(0.5f, 0.14f));
+        _timeSummaryText = CreateTmpText("TimeSummary", _root, 12f, TextLight, TextAlignmentOptions.Center);
+        var summaryRt = _timeSummaryText.rectTransform;
+        summaryRt.anchorMin = new Vector2(0.5f, 0.24f);
+        summaryRt.anchorMax = new Vector2(0.5f, 0.24f);
+        summaryRt.pivot = new Vector2(0.5f, 0.5f);
+        summaryRt.sizeDelta = new Vector2(320f, 36f);
+        _timeSummaryText.enableWordWrapping = true;
+        _timeSummaryText.text = "";
+
+        _actionButton = CreateButton(_root, "ActionButton", "START", new Vector2(200f, 40f), new Vector2(0.5f, 0.12f));
         _actionButtonText = _actionButton.GetComponentInChildren<TMP_Text>();
         _actionButton.onClick.AddListener(OnActionClicked);
 

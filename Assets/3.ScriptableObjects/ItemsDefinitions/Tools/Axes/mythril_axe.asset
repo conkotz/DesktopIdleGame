@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: citrine_ring
+  m_Name: mythril_axe
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 4
+  itemKind: 2
   maxStack: 1
-  itemId: citrine_ring
-  displayName: Minion Ring
+  itemId: mythril_axe
+  displayName: Mythril Axe
   displayNameSingular: 
-  icon: {fileID: -8049167607937462275, guid: ac973c93083da51478234ecaea5660ca, type: 3}
+  icon: {fileID: 2669031087144982882, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,12 +25,12 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Tier 1 citrine ring.
-  rarity: 1
-  value: 800
-  equipSlot: 8
-  uniquelyEquipped: 1
-  handVisualKey: 0
+  description: A strong Mythril axe
+  rarity: 2
+  value: 3000
+  equipSlot: 1
+  uniquelyEquipped: 0
+  handVisualKey: 3
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
@@ -93,12 +93,12 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
     consumableOnSpell: 0
   toolStats:
-    toolType: 0
-    equipmentTier: 0
-    gatherSpeedMultiplier: 0
-    gatheringGrit: 0
-    bonusResourceFindChance: 0
-    staminaEfficiency: 0
+    toolType: 1
+    equipmentTier: 2
+    gatherSpeedMultiplier: 1.6
+    gatheringGrit: 0.05
+    bonusResourceFindChance: 0.05
+    staminaEfficiency: 0.2
   armourStats:
     equipmentTier: 0
     armourType: 0
@@ -116,7 +116,7 @@ MonoBehaviour:
     staminaEfficiency: 0
     armorType: 0
   bonusStats:
-    bonusHealth: 5
+    bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
     maxHealthPercent: 0
@@ -147,7 +147,7 @@ MonoBehaviour:
     attackSpeedPercent: 0
     abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
-    minionAttackSpeedPercent: 0.1
+    minionAttackSpeedPercent: 0
     minionCritChance: 0
     minionMaxLifePercent: 0
     critChanceBonus: 0
@@ -172,73 +172,9 @@ MonoBehaviour:
     maxThornsDamage: 0
     thornsDamagePercent: 0
     evadeChance: 0
-  randomStatPool:
-  - stat: 0
-    weight: 1
-    minValue: 5
-    maxValue: 10
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 29
-    weight: 1
-    minValue: 2
-    maxValue: 5
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 30
-    weight: 1
-    minValue: 2
-    maxValue: 5
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 31
-    weight: 1
-    minValue: 2
-    maxValue: 5
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 32
-    weight: 1
-    minValue: 2
-    maxValue: 5
-    valueKind: 3
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 4
-    weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 3
-    weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
-  - stat: 5
-    weight: 1
-    minValue: 3
-    maxValue: 6
-    valueKind: 0
-    rollSecondaryValue: 0
-    secondaryMinValue: 0
-    secondaryMaxValue: 0
+  randomStatPool: []
   jewelryEquipmentTier: 0
-  jewelryGemType: 4
+  jewelryGemType: 0
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

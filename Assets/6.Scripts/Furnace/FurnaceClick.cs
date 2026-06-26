@@ -133,7 +133,6 @@ public class FurnaceClick : MonoBehaviour
         CacheRefs();
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
-        NPCDialogueBoxUI.DismissAllActive();
 
         _active = this;
         FurnaceUI.EnsureInstance().Open(smelter, this);

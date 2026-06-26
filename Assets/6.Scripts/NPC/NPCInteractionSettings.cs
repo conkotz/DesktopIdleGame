@@ -17,6 +17,9 @@ public enum NpcDialogueConditionKind
 
     [Tooltip("True after the player has accepted the configured quest (reward need not be claimed).")]
     QuestAccepted = 2,
+
+    [Tooltip("True while a FurnaceSmelter on this NPC (same object or parent) has IsSmelting.")]
+    FurnaceSmeltingActive = 3,
 }
 
 public enum NpcDialogueOutcomeKind
@@ -98,6 +101,12 @@ public class NPCInteractionSettings : MonoBehaviour
     [SerializeField] private bool onlyShowDialogueWhenNoQuestAvailable;
     [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
+
+    [Tooltip(
+        "When enabled with Open Dialogue On First Sighting, auto-open only if a conditional dialogue row matched " +
+        "(base Dialogue alone is not enough). Useful for furnaces that should only pop smelting status on sight.")]
+    [ShowWhenTrue(nameof(openDialogueOnFirstSighting))]
+    [SerializeField] private bool firstSightingRequiresConditionalMatch;
 
     [Header("Click-to-walk arrival (dialogue + quest box)")]
     [Tooltip(
@@ -246,7 +255,8 @@ public class NPCInteractionSettings : MonoBehaviour
             {
                 // Do not set _hasOpenedOnFirstSighting here — only after a successful ShowAt inside ShowNormalDialogueOnly,
                 // otherwise one empty resolve (e.g. save / death-pending not hydrated yet) permanently skips auto dialogue.
-                ShowNormalDialogueOnly(false);
+                if (ShouldAutoOpenOnFirstSighting())
+                    ShowNormalDialogueOnly(false);
             }
         }
 
@@ -305,6 +315,22 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private bool HasConditionalDialogues() =>
         additionalConditionalDialogues != null && additionalConditionalDialogues.Count > 0;
+
+    private bool ShouldAutoOpenOnFirstSighting()
+    {
+        if (!firstSightingRequiresConditionalMatch)
+            return true;
+
+        TryGetResolvedPlainDialogue(
+            out string text,
+            out _,
+            out _,
+            out _,
+            out int winningConditionalIndex,
+            allowBaseWhenOneWayHasNoMatchingConditional: false);
+
+        return !string.IsNullOrWhiteSpace(text) && winningConditionalIndex >= 0;
+    }
 
     private bool IsOneWayQueueSaveHydratedForFirstSighting()
     {
@@ -532,7 +558,14 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!merchant)
             merchant = GetComponentInChildren<MerchantClick>(true);
 
-        return merchant != null && merchant.IsShopEngagedWithPlayer();
+        if (merchant != null && merchant.IsShopEngagedWithPlayer())
+            return true;
+
+        FurnaceClick furnace = GetComponent<FurnaceClick>();
+        if (furnace == null)
+            furnace = GetComponentInChildren<FurnaceClick>(true);
+
+        return furnace != null && furnace.IsEngagedWithPlayer();
     }
 
     public bool CanInteractImmediately(PlayerController player)
@@ -1290,7 +1323,7 @@ public class NPCInteractionSettings : MonoBehaviour
             if (skipAfterDeathWhileClaimReady &&
                 e.condition == NpcDialogueConditionKind.AfterDeathAndRespawn)
                 continue;
-            if (!EvaluateConditionalEntry(e, mgr))
+            if (!EvaluateConditionalEntry(e, mgr, this))
                 continue;
 
             text = e.dialogue.Trim();
@@ -1448,7 +1481,7 @@ public class NPCInteractionSettings : MonoBehaviour
 
         QuestProgressManager mgr = QuestProgressManager.Instance ??
             FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
-        if (!EvaluateConditionalEntry(entry, mgr))
+        if (!EvaluateConditionalEntry(entry, mgr, this))
             return false;
 
         text = entry.dialogue.Trim();
@@ -1531,7 +1564,10 @@ public class NPCInteractionSettings : MonoBehaviour
         return "";
     }
 
-    private static bool EvaluateConditionalEntry(NpcConditionalDialogueEntry e, QuestProgressManager mgr)
+    private static bool EvaluateConditionalEntry(
+        NpcConditionalDialogueEntry e,
+        QuestProgressManager mgr,
+        NPCInteractionSettings owner)
     {
         switch (e.condition)
         {
@@ -1562,6 +1598,15 @@ public class NPCInteractionSettings : MonoBehaviour
                 string cur = ResolveActiveMapNodeIdForNpcConditions();
                 return !string.IsNullOrEmpty(cur) &&
                        string.Equals(cur, need, StringComparison.OrdinalIgnoreCase);
+            case NpcDialogueConditionKind.FurnaceSmeltingActive:
+            {
+                if (owner == null)
+                    return false;
+                FurnaceSmelter smelter = owner.GetComponent<FurnaceSmelter>();
+                if (smelter == null)
+                    smelter = owner.GetComponentInParent<FurnaceSmelter>();
+                return smelter != null && smelter.IsSmelting;
+            }
             default:
                 return false;
         }
