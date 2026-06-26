@@ -15,6 +15,9 @@ public static class SaveDataIntegrity
         if (data == null)
             return;
 
+        if (data.furnaceSmelters == null)
+            data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
+
         RepairParallelLists(data);
 
         // Only treat non-finite and negative HP as corrupt (-1 is uninitialized / missing PlayerSave snapshot).
@@ -75,6 +78,9 @@ public static class SaveDataIntegrity
     {
         if (data == null)
             return;
+
+        if (data.furnaceSmelters == null)
+            data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
 
         RepairParallelLists(data);
 

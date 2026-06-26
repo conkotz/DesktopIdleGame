@@ -61,7 +61,7 @@ MonoBehaviour:
   requiredTool: 2
   missingToolMessage: No pickaxe found in toolbelt
   energyCostFlatPerSwing: 0
-  energyCostPercentOfMaxPerSwing: 19
+  energyCostPercentOfMaxPerSwing: 35
   depletionGatherCount: 15
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3

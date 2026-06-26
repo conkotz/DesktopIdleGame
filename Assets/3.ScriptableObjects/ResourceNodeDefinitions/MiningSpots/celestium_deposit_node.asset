@@ -17,7 +17,7 @@ MonoBehaviour:
   gatherPlayerAction: 2
   useLevelRequirement: 1
   requiredLevel: 40
-  xpPerTick: 238
+  xpPerTick: 105
   mainYieldEntries:
   - item: {fileID: 11400000, guid: af181b8567604b5bb08fcd8e97116c59, type: 2}
     itemRequiredLevel: 1
@@ -73,7 +73,7 @@ MonoBehaviour:
   requiredTool: 2
   missingToolMessage: No pickaxe found in toolbelt
   energyCostFlatPerSwing: 0
-  energyCostPercentOfMaxPerSwing: 30
+  energyCostPercentOfMaxPerSwing: 65
   depletionGatherCount: 15
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3

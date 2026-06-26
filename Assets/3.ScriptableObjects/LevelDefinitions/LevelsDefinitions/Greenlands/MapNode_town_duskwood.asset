@@ -231,6 +231,19 @@ MonoBehaviour:
       portalTargetMapNodeId: hunting_grounds
       teleporterLinkId: 
       teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint44
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1301700847255990616, guid: 7322c427b3f47be4392518eb077fc0aa, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
     shuffleSpawnPoints: 0
   - groupId: SideAreaSpawns
     spawns:

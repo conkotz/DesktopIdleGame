@@ -400,6 +400,7 @@ public class MainMenuWindowUI : MonoBehaviour
         {
             MerchantClick.ForceCloseMerchantMode();
             StorageClick.ForceCloseStorageMode();
+            FurnaceClick.ForceClose();
         }
 
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
@@ -460,6 +461,7 @@ public class MainMenuWindowUI : MonoBehaviour
         // Always clear it when user explicitly toggles a main menu tab.
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
+        FurnaceClick.ForceClose();
 
         if (!mainMenuWindow)
         {
@@ -564,6 +566,7 @@ public class MainMenuWindowUI : MonoBehaviour
         MapCombatScalingPopupUI.CancelIfOpen();
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
+        FurnaceClick.ForceClose();
 
         if (targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();

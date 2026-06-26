@@ -421,6 +421,13 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
+        if (FurnaceClick.IsFurnaceOpen && doubleClick)
+        {
+            TryDoubleClickDepositToFurnace();
+            eventData.Use();
+            return;
+        }
+
         if (doubleClick && !MerchantClick.MerchantModeOpen)
         {
             TryDoubleClickEquipFromThisSlot();
@@ -451,6 +458,21 @@ public class InventorySlotUI : MonoBehaviour,
 
         int moved = storage.TryDepositAllFromInventorySlot(_inventory, _slotIndex);
         return moved > 0;
+    }
+
+    private bool TryDoubleClickDepositToFurnace()
+    {
+        if (_inventory == null)
+            return false;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty)
+            return false;
+
+        if (!SmeltingRecipes.IsSmeltableOre(slot.itemId))
+            return false;
+
+        return FurnaceUI.TryDepositFromInventorySlot(_inventory, _slotIndex, 0);
     }
 
     private void TryDoubleClickEquipFromThisSlot()

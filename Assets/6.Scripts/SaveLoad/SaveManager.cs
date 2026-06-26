@@ -165,6 +165,7 @@ public class SaveManager : MonoBehaviour
         if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
         {
             HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
+            FurnaceClick.ForceClose();
             RepairBootstrapUiAfterReturningFromGameplay();
             SaveSlotManager.ResetGameplaySpawnSessionFlags();
             RefreshSaveSlots();
@@ -773,6 +774,7 @@ public class SaveManager : MonoBehaviour
         // Merchants only exist in the gameplay scene. Autosave / menu / world-map saves used to build an empty
         // merchantStocks list and wipe every vendor on disk. Seed from the last snapshot, then in-scene merchants overwrite.
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
+        SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
 
         ISaveable[] saveablesRaw = FindSaveables();
@@ -1233,6 +1235,7 @@ public class SaveManager : MonoBehaviour
         // skip tearing it down in HelperGameplayController.OnDestroy and clicks hit the dimmer instead of save-slot UI.
         HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
         MainMenuWindowUI.CancelPersistedOpenRestore();
+        FurnaceClick.ForceClose();
         DestroyDeathRespawnFullScreenFaderIfAny();
 
         SceneManager.LoadScene(scene, LoadSceneMode.Single);
@@ -1982,6 +1985,44 @@ public class SaveManager : MonoBehaviour
         {
             merchantId = row.merchantId,
             quantities = row.quantities != null ? (int[])row.quantities.Clone() : null
+        };
+    }
+
+    /// <summary>
+    /// Furnaces only exist in the gameplay scene. Menu / autosave without a loaded furnace used to wipe furnace state on disk.
+    /// </summary>
+    private static void SeedFurnaceSmeltersFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.furnaceSmelters == null || source.furnaceSmelters.Count == 0)
+            return;
+
+        dest.furnaceSmelters ??= new List<SaveData.FurnaceSmelterSave>();
+        dest.furnaceSmelters.Clear();
+
+        for (int i = 0; i < source.furnaceSmelters.Count; i++)
+        {
+            SaveData.FurnaceSmelterSave row = source.furnaceSmelters[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.furnaceId))
+                continue;
+
+            dest.furnaceSmelters.Add(CloneFurnaceSmelterRow(row));
+        }
+    }
+
+    private static SaveData.FurnaceSmelterSave CloneFurnaceSmelterRow(SaveData.FurnaceSmelterSave row)
+    {
+        return new SaveData.FurnaceSmelterSave
+        {
+            furnaceId = row.furnaceId,
+            storedOreItemId = row.storedOreItemId ?? "",
+            storedOreAmount = row.storedOreAmount,
+            readyBarAmount = row.readyBarAmount,
+            activeOreItemId = row.activeOreItemId ?? "",
+            readyBarItemId = row.readyBarItemId ?? "",
+            smeltProgressSeconds = row.smeltProgressSeconds,
+            isSmelting = row.isSmelting
         };
     }
 

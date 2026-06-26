@@ -159,6 +159,14 @@ public static class WorldInteractRouter
             return;
         }
 
+        FurnaceClick furnace = winnerCol.GetComponentInParent<FurnaceClick>();
+        if (furnace != null)
+        {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
+            furnace.Open();
+            return;
+        }
+
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {
@@ -232,7 +240,9 @@ public static class WorldInteractRouter
     {
         MerchantClick.ForceCloseMerchantMode();
         MerchantClick.CancelPendingOpen();
+        FurnaceClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
+        FurnaceClick.ForceClose();
 
         if (targetStorage == null || !StorageClick.IsActiveInstance(targetStorage))
             StorageClick.ForceCloseStorageMode();
@@ -289,6 +299,7 @@ public static class WorldInteractRouter
             return false;
 
         if (col.GetComponentInParent<StorageClick>()) return true;
+        if (col.GetComponentInParent<FurnaceClick>()) return true;
         if (col.GetComponentInParent<ItemDrop>()) return true;
         if (col.GetComponentInParent<ResourceNode>()) return true;
         if (col.GetComponentInParent<NPCInteractionSettings>()) return true;
@@ -338,6 +349,13 @@ public static class WorldInteractRouter
 
         PrepareForContextAction(col, player);
         ApplyCombatTargetWhenInteractingNonEnemy(player);
+
+        FurnaceClick furnace = col.GetComponentInParent<FurnaceClick>();
+        if (furnace != null)
+        {
+            furnace.Open();
+            return;
+        }
 
         NPCInteractionSettings npc = col.GetComponentInParent<NPCInteractionSettings>();
         if (npc != null)
@@ -427,6 +445,7 @@ public static class WorldInteractRouter
             return;
 
         MerchantClick.CancelPendingOpen();
+        FurnaceClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
         InMapTeleporter.CancelPendingApproachForPlayer(player);

@@ -22,6 +22,24 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
+    title: T1 Pickaxes
+    description: 'Can equip tier 1 pickaxes:
+
+      Stone Pickaxe'
+    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
     title: Stone
     description: Can mine stone deposits
     icon: {fileID: 21300000, guid: 1a2a5b7fb636e2643a41f61d0ff4f055, type: 3}
@@ -171,6 +189,40 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 30
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: T2 Pickaxes
+    description: 'Can equip tier 2 pickaxes:
+
+      Iron Pickaxe'
+    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: Iron
+    description: Can mine iron deposits
+    icon: {fileID: -5248713350725480015, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
@@ -339,6 +391,40 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
+    title: T3 Pickaxes
+    description: 'Can equip tier 3 pickaxes:
+
+      Mythrite Pickaxe'
+    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
+    title: Mythrite
+    description: Can mine mythrite deposits
+    icon: {fileID: 1041354706888159047, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
     title: Mining Efficiency 4
     description: +2% Mining Stamina Efficiency
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -483,6 +569,56 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 30
+    title: T4 Pickaxes
+    description: 'Can equip tier 4 pickaxes:
+
+      Runite Pickaxe'
+    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: Runite
+    description: Can mine runite deposits
+    icon: {fileID: -3694752190506741879, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: Gemstone
+    description: Can mine gemstone deposits
+    icon: {fileID: -2450355515067900020, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
     title: Gem Finder 3
     description: +3% Mining Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -619,6 +755,40 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 32
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: T5 Pickaxes
+    description: 'Can equip tier 5 pickaxes:
+
+      Celestium Pickaxe'
+    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: Celestium
+    description: Can mine celestium deposits
+    icon: {fileID: 4972051977966351520, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0

@@ -374,10 +374,15 @@ public class SharedTooltipUI : MonoBehaviour
         BindTooltipStats(def, itemIdForHighlights: itemIdForHighlights);
         BindEnhancementDisplay(def);
 
+        string itemDescription = ResolveItemDescription(def, itemIdForHighlights, showAdvancedDetails: false);
         if (descriptionText)
         {
-            descriptionText.text = "";
-            descriptionText.gameObject.SetActive(false);
+            bool hasDesc = !string.IsNullOrWhiteSpace(itemDescription);
+            descriptionText.text = hasDesc ? itemDescription : "";
+            descriptionText.margin = hasDesc
+                ? WithExtraBottomMargin(_marginBaseDescription, spacingAfterDescriptionPixels)
+                : _marginBaseDescription;
+            descriptionText.gameObject.SetActive(hasDesc);
         }
 
         if (customValueText)
@@ -1022,12 +1027,6 @@ public class SharedTooltipUI : MonoBehaviour
         {
             stackValueText.text = "";
             stackValueText.gameObject.SetActive(false);
-        }
-
-        if (descriptionText && compact)
-        {
-            descriptionText.text = "";
-            descriptionText.gameObject.SetActive(false);
         }
 
         if (customValueText)

@@ -273,6 +273,22 @@ public class SaveData
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();
 
+    [Header("Furnace smelting")]
+    public List<FurnaceSmelterSave> furnaceSmelters = new();
+
+    [Serializable]
+    public class FurnaceSmelterSave
+    {
+        public string furnaceId;
+        public string storedOreItemId;
+        public int storedOreAmount;
+        public int readyBarAmount;
+        public string activeOreItemId;
+        public string readyBarItemId;
+        public float smeltProgressSeconds;
+        public bool isSmelting;
+    }
+
     [Serializable]
     public class MerchantStockSave
     {
