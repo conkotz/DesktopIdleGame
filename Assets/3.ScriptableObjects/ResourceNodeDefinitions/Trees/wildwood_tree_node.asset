@@ -23,6 +23,8 @@ MonoBehaviour:
     itemRequiredLevel: 1
     chancePercent: 100
     xpPerTick: 0
+    amountMin: 1
+    amountMax: 1
   minInterval: 25
   maxInterval: 35
   bonusDrops:
@@ -33,11 +35,12 @@ MonoBehaviour:
   hiddenDrops:
   - item: {fileID: 11400000, guid: 1b5992d9e7642894e86332337394a6d5, type: 2}
     chance: 0
-    amountMin: 3
+    amountMin: 2
     amountMax: 3
   requiresTool: 1
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
+  energyCostFlatPerSwing: 0
   energyCostPercentOfMaxPerSwing: 65
   depletionGatherCount: 15
   depletionRegenSeconds: 60

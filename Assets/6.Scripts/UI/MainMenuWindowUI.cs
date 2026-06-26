@@ -582,6 +582,8 @@ public class MainMenuWindowUI : MonoBehaviour
         EnsureWindowInteractable();
         HideAllPages();
         targetPage.SetActive(true);
+        if (targetPage.TryGetComponent(out SkillsAbilityPageNewUI skillsPageUi) && !skillsPageUi.enabled)
+            skillsPageUi.enabled = true;
         currentPage = targetPage;
 
         if (!_hideWindowWithCanvasGroup &&

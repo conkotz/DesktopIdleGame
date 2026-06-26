@@ -102,6 +102,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
     private void Awake()
     {
+        if (!enabled)
+            enabled = true;
+
         PreferRuntimeSkillsManager();
         EnsureHierarchyReferences();
         EnsureHorizontalTimelineReference();
@@ -167,6 +170,14 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             StopCoroutine(_deferredActionBarRefresh);
             _deferredActionBarRefresh = null;
         }
+
+        RestoreTimelineOpenState();
+    }
+
+    private void RestoreTimelineOpenState()
+    {
+        EndTimelineScrollRestoreSession();
+        SetTimelineScrollViewportVisible(true);
     }
 
     private void OnDisable()
@@ -1231,7 +1242,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         yield return null;
         if (!isActiveAndEnabled)
         {
-            SetTimelineScrollViewportVisible(true);
+            RestoreTimelineOpenState();
             _deferredOpenRefresh = null;
             yield break;
         }
@@ -1239,58 +1250,47 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         BeginTimelineScrollRestoreSession(_selectedSkill);
         SetTimelineScrollViewportVisible(false);
 
-        WireSkillTabButtons();
-        RefreshSkillsList();
-        RefreshPageLabels();
-        RefreshTabSelectionVisuals();
-
-        yield return null;
-        if (!isActiveAndEnabled)
+        try
         {
-            EndTimelineScrollRestoreSession();
-            SetTimelineScrollViewportVisible(true);
-            _deferredOpenRefresh = null;
-            yield break;
+            WireSkillTabButtons();
+            RefreshSkillsList();
+            RefreshPageLabels();
+            RefreshTabSelectionVisuals();
+
+            yield return null;
+            if (!isActiveAndEnabled)
+                yield break;
+
+            SyncTimelineFromPageSelection();
+
+            yield return null;
+            if (!isActiveAndEnabled)
+                yield break;
+
+            RefreshActiveAbilitiesList();
+            RefreshActiveBonusesPanel();
+
+            EnsureHorizontalTimelineReference();
+            if (horizontalSkillTimeline != null)
+                yield return horizontalSkillTimeline.CoWaitForPendingTimelineLayout();
+
+            if (!isActiveAndEnabled)
+                yield break;
+
+            ReplayPendingGlowForVisibleUi();
+
+            if (_pendingAbilityPresetLabelRefresh)
+                _pendingAbilityPresetLabelRefresh = false;
+            RefreshAbilityPresetButtonLabels();
+
+            // Equipment/stats may have changed on Character tab; re-bind scaling/effects for the open node.
+            horizontalSkillTimeline?.RefreshOpenDetailsAfterDataChange();
         }
-
-        SyncTimelineFromPageSelection();
-
-        yield return null;
-        if (!isActiveAndEnabled)
+        finally
         {
-            EndTimelineScrollRestoreSession();
-            SetTimelineScrollViewportVisible(true);
+            RestoreTimelineOpenState();
             _deferredOpenRefresh = null;
-            yield break;
         }
-
-        RefreshActiveAbilitiesList();
-        RefreshActiveBonusesPanel();
-
-        EnsureHorizontalTimelineReference();
-        if (horizontalSkillTimeline != null)
-            yield return horizontalSkillTimeline.CoWaitForPendingTimelineLayout();
-
-        if (!isActiveAndEnabled)
-        {
-            EndTimelineScrollRestoreSession();
-            SetTimelineScrollViewportVisible(true);
-            _deferredOpenRefresh = null;
-            yield break;
-        }
-
-        EndTimelineScrollRestoreSession();
-        SetTimelineScrollViewportVisible(true);
-        ReplayPendingGlowForVisibleUi();
-
-        if (_pendingAbilityPresetLabelRefresh)
-            _pendingAbilityPresetLabelRefresh = false;
-        RefreshAbilityPresetButtonLabels();
-
-        // Equipment/stats may have changed on Character tab; re-bind scaling/effects for the open node.
-        horizontalSkillTimeline?.RefreshOpenDetailsAfterDataChange();
-
-        _deferredOpenRefresh = null;
     }
 
     private static string GetTimelineScrollPrefsKey(SkillType skillType) =>

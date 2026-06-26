@@ -1,10 +1,13 @@
 fileFormatVersion: 2
-guid: 5e5134584b229fe448fe55aa7182e889
+guid: 8386a5fe05670604ab939edaa09c2a51
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 9082801165128689192
-    second: WildwoodLogSprite_0
+      213: 8025565611991365312
+    second: HighTierLogsSprites_0
+  - first:
+      213: -1347025922908315872
+    second: HighTierLogsSprites_1
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -34,10 +37,10 @@ TextureImporter:
   cubemapConvolution: 0
   seamlessCubemap: 0
   textureFormat: 1
-  maxTextureSize: 256
+  maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -51,7 +54,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 1050
+  spritePixelsToUnits: 750
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -72,7 +75,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 512
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -85,7 +88,7 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   - serializedVersion: 4
     buildTarget: Standalone
-    maxTextureSize: 256
+    maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 1
@@ -100,23 +103,45 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: WildwoodLogSprite_0
+      name: HighTierLogsSprites_Spiritwood_Log
       rect:
         serializedVersion: 2
-        x: 228
-        y: 255
-        width: 1112
-        height: 537
-      alignment: 9
-      pivot: {x: 0.50774485, y: 0.5160378}
+        x: 260
+        y: 533
+        width: 1085
+        height: 429
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 826eff479879c0e70800000000000000
-      internalID: 9082801165128689192
+      spriteID: 0c6f5502769806f60800000000000000
+      internalID: 8025565611991365312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HighTierLogsSprites_Emberoak_Log
+      rect:
+        serializedVersion: 2
+        x: 266
+        y: 41
+        width: 1019
+        height: 477
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 02f9ec95f076e4de0800000000000000
+      internalID: -1347025922908315872
       vertices: []
       indices: 
       edges: []
@@ -125,7 +150,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: fce60e6477ab33744a9da7d23c9391ce
+    spriteID: 60bd550c29582874592480585fb7532e
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +160,8 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      WildwoodLogSprite_0: 9082801165128689192
+      HighTierLogsSprites_Emberoak_Log: -1347025922908315872
+      HighTierLogsSprites_Spiritwood_Log: 8025565611991365312
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

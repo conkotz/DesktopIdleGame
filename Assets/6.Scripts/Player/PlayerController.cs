@@ -335,6 +335,10 @@ public class PlayerController : MonoBehaviour
     public const int WoodcuttingLv35MajorPassiveSourceLevel = 35;
     /// <summary>Woodcutting skill level at which the capstone passive unlocks (see woodcutting skill tree).</summary>
     public const int WoodcuttingCapstonePassiveRequiredLevel = 50;
+    /// <summary>Mining skill level at which the capstone passive unlocks (see mining skill tree).</summary>
+    public const int MiningCapstonePassiveRequiredLevel = 50;
+    /// <summary>Fishing skill level at which the capstone passive unlocks (see fishing skill tree).</summary>
+    public const int FishingCapstonePassiveRequiredLevel = 50;
 
     /// <summary>Spine id segment for the Lv15 ability row pick (0–2) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
     public static string WoodcuttingLevel15ChoiceSpineId(int abilityRowPick) =>
@@ -2878,6 +2882,11 @@ public class PlayerController : MonoBehaviour
                     }
                 }
 
+                if (isMining && IsMiningCapstoneBonusOreUnlocked())
+                    TryApplyCapstoneBonusToFirstMainYield(syncFishingXp: false);
+                else if (isFishing && IsFishingCapstoneBonusFishUnlocked())
+                    TryApplyCapstoneBonusToFirstMainYield(syncFishingXp: true);
+
                 mainYieldEligibleForXp = NodeDefinition.SumMainYieldCounts(_mainYieldScratch) > 0;
 
                 foreach (var kv in _mainYieldScratch)
@@ -3965,10 +3974,40 @@ public class PlayerController : MonoBehaviour
     /// Woodcutting Lv50 capstone (Bountiful Chop): +1 main log on the player's primary gather tick only
     /// (see <see cref="DoOneGatherTick"/>). Not used by cleave secondaries or spectral axe gathers.
     /// </summary>
-    private static bool IsWoodcuttingCapstoneBonusLogUnlocked()
+    private static bool IsWoodcuttingCapstoneBonusLogUnlocked() =>
+        IsGatheringCapstoneBonusUnlocked(SkillType.Woodcutting, WoodcuttingCapstonePassiveRequiredLevel);
+
+    /// <summary>
+    /// Mining Lv50 capstone (Bountiful Strike): +1 main ore on the player's primary gather tick only.
+    /// </summary>
+    private static bool IsMiningCapstoneBonusOreUnlocked() =>
+        IsGatheringCapstoneBonusUnlocked(SkillType.Mining, MiningCapstonePassiveRequiredLevel);
+
+    /// <summary>
+    /// Fishing Lv50 capstone (Bountiful Catch): +1 main fish on the player's primary gather tick only.
+    /// </summary>
+    private static bool IsFishingCapstoneBonusFishUnlocked() =>
+        IsGatheringCapstoneBonusUnlocked(SkillType.Fishing, FishingCapstonePassiveRequiredLevel);
+
+    private static bool IsGatheringCapstoneBonusUnlocked(SkillType skillType, int requiredLevel)
     {
         SkillsManager sm = SkillsManager.Instance;
-        return sm != null && sm.IsLevelUnlocked(SkillType.Woodcutting, WoodcuttingCapstonePassiveRequiredLevel);
+        return sm != null && sm.IsLevelUnlocked(skillType, requiredLevel);
+    }
+
+    /// <summary>+1 to the first main-yield entry only (never bonus/hidden drops).</summary>
+    private void TryApplyCapstoneBonusToFirstMainYield(bool syncFishingXp)
+    {
+        foreach (var kv in _mainYieldScratch)
+        {
+            if (kv.Value <= 0 || string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+
+            _mainYieldScratch[kv.Key] = kv.Value + 1;
+            if (syncFishingXp && _fishingXpScratch.Count > 0)
+                _fishingXpScratch.Add(_fishingXpScratch[_fishingXpScratch.Count - 1]);
+            break;
+        }
     }
 
     /// <summary>Lv35 Forest's Favor / Rich Harvest adds +10% Bonus Find Chance to gather rolls.</summary>
