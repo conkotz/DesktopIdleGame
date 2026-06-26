@@ -205,7 +205,18 @@ public class SessionTrackerData : MonoBehaviour
     /// </summary>
     public void RegisterLootGain(string source, string itemId, int amount)
     {
-        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+        if (amount <= 0)
+            return;
+
+        RegisterLootChange(source, itemId, amount);
+    }
+
+    /// <summary>
+    /// Records a signed loot/value change (positive gains or negative losses such as furnace ore deposits).
+    /// </summary>
+    public void RegisterLootChange(string source, string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(itemId) || amount == 0)
             return;
 
         EnsureTimerStarted();

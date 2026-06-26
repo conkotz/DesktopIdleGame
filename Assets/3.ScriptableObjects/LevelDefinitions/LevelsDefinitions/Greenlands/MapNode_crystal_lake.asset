@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Crystal Lake
   description: A quiet fishing spot.
   nodeType: 1
+  gatheringSubtype: 3
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0

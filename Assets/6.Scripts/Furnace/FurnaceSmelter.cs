@@ -266,6 +266,7 @@ public class FurnaceSmelter : MonoBehaviour, ISaveable
             }
         }
 
+        SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreId, added);
         NotifyChanged();
         RequestSaveImmediate();
         return true;
@@ -316,6 +317,7 @@ public class FurnaceSmelter : MonoBehaviour, ISaveable
             }
         }
 
+        SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", barItemId, added);
         NotifyChanged();
         RequestSaveImmediate();
         return true;
@@ -376,6 +378,7 @@ public class FurnaceSmelter : MonoBehaviour, ISaveable
             _storedOreItemId = oreItemId.Trim().ToLowerInvariant();
 
         _storedOreAmount += deposited;
+        SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreItemId.Trim().ToLowerInvariant(), -deposited);
         NotifyChanged();
         RequestSaveImmediate();
     }

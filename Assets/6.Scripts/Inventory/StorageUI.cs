@@ -25,9 +25,8 @@ public class StorageUI : MonoBehaviour
         }
     }
 
-    /// <summary>Open() moves this panel to the top sibling, which blocks drops onto the inventory underneath.
-    /// While dragging <i>from</i> storage, we temporarily send the panel to the back so inventory slots receive the drop.</summary>
-    private int _savedSiblingIndexForDrag = -1;
+    /// <summary>While dragging from storage, the item grid stops blocking raycasts so inventory slots underneath can receive drops.</summary>
+    private bool _dragPassThroughActive;
 
     private void Awake()
     {
@@ -106,25 +105,19 @@ public class StorageUI : MonoBehaviour
 
     public void BeginDragFromStoragePanel()
     {
-        Transform t = panelRoot ? panelRoot.transform : transform;
-        if (_savedSiblingIndexForDrag >= 0) return;
+        if (_dragPassThroughActive)
+            return;
 
-        _savedSiblingIndexForDrag = t.GetSiblingIndex();
-        t.SetAsFirstSibling();
+        _dragPassThroughActive = true;
+        grid?.SetDragPassThrough(true);
     }
 
     public void EndDragFromStoragePanel()
     {
-        if (_savedSiblingIndexForDrag < 0) return;
+        if (!_dragPassThroughActive)
+            return;
 
-        Transform t = panelRoot ? panelRoot.transform : transform;
-        int idx = _savedSiblingIndexForDrag;
-        _savedSiblingIndexForDrag = -1;
-
-        var parent = t.parent;
-        if (parent == null) return;
-
-        idx = Mathf.Clamp(idx, 0, parent.childCount - 1);
-        t.SetSiblingIndex(idx);
+        _dragPassThroughActive = false;
+        grid?.SetDragPassThrough(false);
     }
 }

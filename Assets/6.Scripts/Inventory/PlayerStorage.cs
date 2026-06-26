@@ -242,6 +242,39 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         OnTabAffinityChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Moves items from Main into affinity-enabled tabs when they match that tab's filter and space exists.
+    /// </summary>
+    public void TryRedistributeMainTabAffinityItems()
+    {
+        int start = GetTabStartIndex(StorageTabKind.Main);
+        int end = GetTabEndIndexExclusive(StorageTabKind.Main);
+        if (start < 0 || end <= start)
+            return;
+
+        BeginBatchChanges();
+        try
+        {
+            for (int i = start; i < end && i < _slots.Count; i++)
+            {
+                var slot = _slots[i];
+                if (slot.IsEmpty)
+                    continue;
+
+                ItemDefinition def = GetItemDef(slot.itemId);
+                StorageTabKind inferred = StorageTabFilters.InferTabForItem(def);
+                if (inferred == StorageTabKind.Main || !IsTabAffinityEnabled(inferred))
+                    continue;
+
+                TryMoveFromStorageSlotToTab(i, inferred, slot.amount);
+            }
+        }
+        finally
+        {
+            EndBatchChanges();
+        }
+    }
+
     /// <summary>Tab used for automatic deposits (inventory deposit, unequip-to-storage, etc.).</summary>
     public StorageTabKind ResolveAutoDepositTab(ItemDefinition def)
     {

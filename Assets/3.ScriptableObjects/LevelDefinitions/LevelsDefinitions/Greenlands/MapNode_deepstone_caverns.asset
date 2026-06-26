@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Deepstone Caverns
   description: High-tier mining deposits.
   nodeType: 1
+  gatheringSubtype: 1
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0

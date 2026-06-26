@@ -58,6 +58,27 @@ public class StorageGridUI : MonoBehaviour
     public PlayerStorage PlayerStorage => storage;
     public StorageTabKind ActiveTab => _activeTab;
 
+    private CanvasGroup _dragPassThroughGroup;
+    private bool _dragPassThroughActive;
+
+    /// <summary>Lets pointer events reach UI behind the item grid (inventory) while keeping the storage window on top.</summary>
+    public void SetDragPassThrough(bool enabled)
+    {
+        if (enabled == _dragPassThroughActive)
+            return;
+
+        _dragPassThroughActive = enabled;
+        if (_dragPassThroughGroup == null)
+        {
+            Transform target = slotsGrid != null ? slotsGrid : transform;
+            _dragPassThroughGroup = target.GetComponent<CanvasGroup>();
+            if (_dragPassThroughGroup == null)
+                _dragPassThroughGroup = target.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        _dragPassThroughGroup.blocksRaycasts = !enabled;
+    }
+
     private void Awake()
     {
         ResolveStorageRef();

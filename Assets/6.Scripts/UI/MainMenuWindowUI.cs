@@ -39,6 +39,13 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public static void CaptureOpenStateForSceneChange()
     {
+        if (!UIWindowLockStore.IsLocked("MainMenuWindow"))
+        {
+            s_restoreOpen = false;
+            s_restorePage = PersistedPage.None;
+            return;
+        }
+
         MainMenuWindowUI menu = Resolve();
         if (menu == null || !menu.IsOpen)
         {
@@ -51,6 +58,19 @@ public class MainMenuWindowUI : MonoBehaviour
         s_restorePage = menu.GetPersistedPage(menu.currentPage);
         if (s_restorePage == PersistedPage.None)
             s_restorePage = PersistedPage.Character;
+    }
+
+    /// <summary>Reopens the menu shell and last page when the window lock is enabled (scene load / map travel).</summary>
+    public void RestoreLockedOpenState()
+    {
+        if (!UIWindowLockStore.IsLocked("MainMenuWindow"))
+            return;
+
+        GameObject page = ResolvePersistedPage(s_restorePage);
+        if (!page)
+            page = characterPage;
+        if (page)
+            OpenPage(page);
     }
 
     /// <summary>
@@ -725,6 +745,9 @@ public class MainMenuWindowUI : MonoBehaviour
 
     private void RememberOpenPage(GameObject page)
     {
+        if (!UIWindowLockStore.IsLocked("MainMenuWindow"))
+            return;
+
         s_restoreOpen = true;
         s_restorePage = GetPersistedPage(page);
     }

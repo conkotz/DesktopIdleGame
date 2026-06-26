@@ -225,7 +225,6 @@ public class StorageTabBarUI : MonoBehaviour
 
     public void HandleItemDroppedOnTab(StorageTabKind tab)
     {
-        SelectTab(tab);
         gridUi?.RefreshNow();
     }
 }

@@ -16,6 +16,15 @@ public enum MapNodeType
     EnduranceTrial
 }
 
+/// <summary>Primary gathering skill for a single-type gathering map (world map icon).</summary>
+public enum MapGatheringSubtype
+{
+    None,
+    Mining,
+    Woodcutting,
+    Fishing
+}
+
 /// <summary>
 /// How enemies react to the player on a map (<see cref="MapNodeDefinition.enemyAggroMode"/>).
 /// </summary>
@@ -444,6 +453,9 @@ public class MapNodeDefinition : ScriptableObject
     [Header("Gameplay")]
     [Tooltip("Category for map UI and GamePlay. Use Endurance Trial when this node uses endurance waves (wave director + UI). Recommended CP can still be computed from waves even if this is wrong, but gameplay expects Endurance Trial.")]
     public MapNodeType nodeType = MapNodeType.Combat;
+
+    [Tooltip("Gathering maps only. Shows the matching skill icon on the world map when not None (e.g. Stone Quarry = Mining). Leave None for mixed gathering areas.")]
+    public MapGatheringSubtype gatheringSubtype = MapGatheringSubtype.None;
 
     [Tooltip("Aggressive: normal proximity aggro. Calm: enemies only retaliate when hit. CalmUntilPlayerAggressive: starts calm, then first player hit enables proximity aggro for all active enemies.")]
     public LevelEnemyAggroMode enemyAggroMode = LevelEnemyAggroMode.Aggressive;

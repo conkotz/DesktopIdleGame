@@ -303,11 +303,18 @@ public class FurnaceUI : MonoBehaviour
             _actionButtonText.color = StopAccent;
             _actionButton.interactable = true;
         }
-        else
+        else if (_smelter.ReadyBarAmount > 0)
         {
             _actionButtonText.text = "SMELT";
             _actionButtonText.color = Accent;
-            _actionButton.interactable = _smelter.CanStartSmelting();
+            _actionButton.interactable = false;
+        }
+        else
+        {
+            _actionButtonText.text = "SMELT";
+            bool canSmelt = _smelter.CanStartSmelting();
+            _actionButtonText.color = canSmelt ? Accent : StopAccent;
+            _actionButton.interactable = true;
         }
     }
 
@@ -317,10 +324,24 @@ public class FurnaceUI : MonoBehaviour
             return;
 
         if (_smelter.IsSmelting)
+        {
             _smelter.StopSmelting();
-        else
-            _smelter.TryStartSmelting();
+            Refresh();
+            return;
+        }
 
+        if (_smelter.ReadyBarAmount > 0)
+            return;
+
+        if (!_smelter.CanStartSmelting())
+        {
+            if (_smelter.StoredOreAmount < _smelter.GetOrePerBar())
+                GameLog.Add("Requires at least 5 ores to smelt into bar", GameLog.CannotMessageColor);
+            Refresh();
+            return;
+        }
+
+        _smelter.TryStartSmelting();
         Refresh();
     }
 

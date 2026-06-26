@@ -680,7 +680,7 @@ public class TrackerWindowUI : MonoBehaviour
         {
             string itemId = entry.orderedItemIds[i];
             int amount = entry.itemAmounts.TryGetValue(itemId, out int v) ? v : 0;
-            if (amount <= 0)
+            if (amount == 0)
                 continue;
 
             ItemDefinition def = inv != null ? inv.GetItemDef(itemId) : null;
@@ -712,17 +712,13 @@ public class TrackerWindowUI : MonoBehaviour
         {
             string label = groupedOrder[i];
             int amount = grouped[label];
-            if (amount <= 0)
+            if (amount == 0)
                 continue;
 
             if (wroteAny)
                 sb.Append(", ");
             sb.Append(label);
-            if (amount > 1)
-            {
-                sb.Append(" x");
-                sb.Append(amount);
-            }
+            AppendLootAmountSuffix(sb, amount);
 
             wroteAny = true;
         }
@@ -732,16 +728,26 @@ public class TrackerWindowUI : MonoBehaviour
             if (wroteAny)
                 sb.Append(", ");
             sb.Append(ungrouped[i].label);
-            if (ungrouped[i].amount > 1)
-            {
-                sb.Append(" x");
-                sb.Append(ungrouped[i].amount);
-            }
+            AppendLootAmountSuffix(sb, ungrouped[i].amount);
 
             wroteAny = true;
         }
 
         return wroteAny ? sb.ToString() : "—";
+    }
+
+    private static void AppendLootAmountSuffix(StringBuilder sb, int amount)
+    {
+        if (amount == 1)
+            return;
+        if (amount == -1)
+        {
+            sb.Append(" x-1");
+            return;
+        }
+
+        sb.Append(" x");
+        sb.Append(amount);
     }
 
     private static string ResolveItemDisplayName(string itemId, ItemDefinition def)

@@ -32,10 +32,13 @@ public class InventorySortButton : MonoBehaviour
             }
 
             var grid = FindFirstObjectByType<StorageGridUI>(FindObjectsInactive.Include);
+            ps.TryRedistributeMainTabAffinityItems();
             if (grid != null)
                 ps.SortTabByDatabaseOrder(grid.ActiveTab);
             else
                 ps.SortByDatabaseOrder();
+
+            grid?.RefreshNow();
             return;
         }
 

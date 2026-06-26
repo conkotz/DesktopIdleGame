@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Timber Grove
   description: Grouped woodcutting trees.
   nodeType: 1
+  gatheringSubtype: 2
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
@@ -61,7 +62,7 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint1
+      spawnPointName: SpawnPoint-14
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
@@ -74,7 +75,7 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint2
+      spawnPointName: SpawnPoint-11
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
@@ -87,20 +88,7 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint3
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint4
+      spawnPointName: SpawnPoint8
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
@@ -126,74 +114,9 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint6
+      spawnPointName: SpawnPoint15
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint7
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint8
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint9
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint10
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint11
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
@@ -206,7 +129,7 @@ MonoBehaviour:
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint12
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
@@ -217,9 +140,9 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint13
+      spawnPointName: SpawnPoint21
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
@@ -230,9 +153,9 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint14
+      spawnPointName: SpawnPoint25
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
@@ -243,9 +166,61 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint15
+      spawnPointName: SpawnPoint29
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint33
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6546315298902043643, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint36
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint40
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint45
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6546315298902043643, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0

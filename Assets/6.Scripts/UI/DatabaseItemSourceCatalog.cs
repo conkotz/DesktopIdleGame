@@ -49,7 +49,10 @@ public static class DatabaseItemSourceCatalog
         QuestDatabase questDb = Resources.Load<QuestDatabase>(QuestDatabaseResourcePath);
 
         if (itemDb != null)
+        {
             ScanCookingAndOpenables(itemDb.GetAll());
+            ScanSmeltingBars(itemDb);
+        }
 
         if (enemyDb != null)
             ScanEnemyLoot(enemyDb.GetAllSortedByDisplayName(), worldMap);
@@ -61,6 +64,27 @@ public static class DatabaseItemSourceCatalog
             ScanQuestRewards(questDb.All);
 
         _built = true;
+    }
+
+    private static void ScanSmeltingBars(ItemDatabase itemDb)
+    {
+        if (itemDb == null)
+            return;
+
+        IReadOnlyList<SmeltingRecipe> recipes = SmeltingRecipes.All;
+        for (int i = 0; i < recipes.Count; i++)
+        {
+            SmeltingRecipe recipe = recipes[i];
+            if (string.IsNullOrWhiteSpace(recipe.BarItemId))
+                continue;
+
+            ItemDefinition ore = itemDb.Get(recipe.OreItemId);
+            string oreLabel = ore != null && !string.IsNullOrWhiteSpace(ore.displayName)
+                ? ore.displayName.Trim()
+                : HumanizeId(recipe.OreItemId);
+
+            Register(recipe.BarItemId, $"Smelt from {oreLabel} at furnace");
+        }
     }
 
     private static void ScanCookingAndOpenables(IReadOnlyList<ItemDefinition> items)

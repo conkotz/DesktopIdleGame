@@ -62,6 +62,23 @@ public sealed class MapNodeDefinitionEditor : Editor
             if (iterator.name == "m_Script")
                 continue;
 
+            if (iterator.name == "nodeType")
+            {
+                EditorGUILayout.PropertyField(iterator, true);
+                SerializedProperty gatheringSubtype = serializedObject.FindProperty("gatheringSubtype");
+                if (gatheringSubtype != null &&
+                    iterator.enumValueIndex == (int)MapNodeType.Gathering)
+                {
+                    EditorGUILayout.PropertyField(
+                        gatheringSubtype,
+                        new GUIContent("Gathering Subtype", gatheringSubtype.tooltip));
+                }
+                continue;
+            }
+
+            if (iterator.name == "gatheringSubtype")
+                continue;
+
             if (iterator.name == "mapCombatScalingEnabled")
             {
                 DrawMapScalingSection(iterator);

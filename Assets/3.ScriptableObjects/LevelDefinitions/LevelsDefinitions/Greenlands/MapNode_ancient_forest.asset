@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Ancient Forest
   description: High-tier woodcutting trees.
   nodeType: 1
+  gatheringSubtype: 2
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0

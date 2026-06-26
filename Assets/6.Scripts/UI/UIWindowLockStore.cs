@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -128,7 +129,7 @@ public static class UIWindowLockStore
 
     public static void ApplyToAllCloseButtonsInScene()
     {
-        UIWindowCloseButton[] closers = Object.FindObjectsByType<UIWindowCloseButton>(
+        UIWindowCloseButton[] closers = UnityEngine.Object.FindObjectsByType<UIWindowCloseButton>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
 
@@ -140,6 +141,20 @@ public static class UIWindowLockStore
     {
         if (string.IsNullOrWhiteSpace(windowId))
             return;
+
+        if (string.Equals(windowId, "MainMenuWindow", StringComparison.Ordinal))
+        {
+            MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+            if (menu != null)
+            {
+                GameObject root = menu.WindowRoot;
+                if (root != null && !root.activeSelf)
+                    root.SetActive(true);
+                menu.RestoreLockedOpenState();
+            }
+
+            return;
+        }
 
         GameObject window = FindWindowRoot(windowId.Trim());
         if (!window)

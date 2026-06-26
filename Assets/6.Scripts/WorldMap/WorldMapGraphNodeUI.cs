@@ -11,6 +11,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private RectTransform rectTransform;
     [SerializeField] private Image fillImage;
     [SerializeField] private Image iconImage;
+    [Tooltip("Optional skill icon for single-type gathering maps (child named Icon).")]
+    [SerializeField] private Image gatheringTypeIconImage;
     [SerializeField] private Button button;
     [SerializeField] private GameObject selectedBorder;
     [SerializeField] private GameObject lockedOverlay;
@@ -56,6 +58,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         }
         if (!mapScalingText)
             mapScalingText = transform.Find("MapScalingText")?.GetComponent<TMP_Text>();
+        if (!gatheringTypeIconImage)
+            gatheringTypeIconImage = transform.Find("Icon")?.GetComponent<Image>();
         if (button)
             button.onClick.AddListener(OnClick);
 
@@ -155,6 +159,7 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         }
 
         RefreshMapScalingLabel(node);
+        RefreshGatheringTypeIcon(node);
 
         if (currentLocationIcon)
             currentLocationIcon.SetActive(playerAtThisMap);
@@ -206,6 +211,49 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
 
         mapScalingText.gameObject.SetActive(true);
         mapScalingText.text = $"Map Scaling: {selectedTier}";
+    }
+
+    private void RefreshGatheringTypeIcon(MapNodeDefinition node)
+    {
+        if (!gatheringTypeIconImage)
+            return;
+
+        bool show = node != null &&
+                    node.nodeType == MapNodeType.Gathering &&
+                    node.gatheringSubtype != MapGatheringSubtype.None;
+
+        if (!show)
+        {
+            gatheringTypeIconImage.gameObject.SetActive(false);
+            return;
+        }
+
+        Sprite skillIcon = ResolveGatheringSubtypeIcon(node.gatheringSubtype);
+        gatheringTypeIconImage.sprite = skillIcon;
+        gatheringTypeIconImage.preserveAspect = true;
+        gatheringTypeIconImage.gameObject.SetActive(skillIcon != null);
+    }
+
+    private static SkillDatabase s_gatheringSkillDatabase;
+
+    private static Sprite ResolveGatheringSubtypeIcon(MapGatheringSubtype subtype)
+    {
+        if (subtype == MapGatheringSubtype.None)
+            return null;
+
+        SkillType skillType = subtype switch
+        {
+            MapGatheringSubtype.Mining => SkillType.Mining,
+            MapGatheringSubtype.Woodcutting => SkillType.Woodcutting,
+            MapGatheringSubtype.Fishing => SkillType.Fishing,
+            _ => SkillType.Mining
+        };
+
+        if (s_gatheringSkillDatabase == null)
+            s_gatheringSkillDatabase = SkillDatabase.LoadDefault();
+
+        SkillDefinition def = s_gatheringSkillDatabase != null ? s_gatheringSkillDatabase.Get(skillType) : null;
+        return def != null ? def.icon : null;
     }
 
     private void RefreshVisuals(bool selected)
