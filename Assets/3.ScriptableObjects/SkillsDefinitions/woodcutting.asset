@@ -215,6 +215,22 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 10
+    title: Hardwood Trees
+    description: Can chop Hardwood Trees
+    icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
     title: Chopping Grit 2
     description: +2% Woodcutting Grit Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -470,9 +486,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
-    title: Hardwood Trees
-    description: Can chop Hardwood Trees
-    icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
+    title: Wildwood Trees
+    description: Can chop Wildwood Trees
+    icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -708,6 +724,22 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 30
+    title: Ember Oak Trees
+    description: Can chop Ember Oak Trees
+    icon: {fileID: -1347025922908315872, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
     title: Chopping Bonus Find 5
     description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
@@ -927,25 +959,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 40
-    title: Wildwood Trees
-    description: Can chop Wildwood Trees
-    icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 48
-    title: Ember Oak Trees
-    description: Can chop Ember Oak Trees
-    icon: {fileID: -1347025922908315872, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
+    title: Spiritwood Trees
+    description: Can chop Spiritwood Trees
+    icon: {fileID: 8025565611991365312, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -1126,22 +1142,6 @@ MonoBehaviour:
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 13
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 50
-    title: Spiritwood Trees
-    description: Can chop Spiritwood Trees
-    icon: {fileID: 8025565611991365312, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
-    unlockType: 2
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0

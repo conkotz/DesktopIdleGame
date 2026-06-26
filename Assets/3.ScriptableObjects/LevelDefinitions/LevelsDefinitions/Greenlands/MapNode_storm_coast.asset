@@ -1,0 +1,108 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
+  m_Name: MapNode_storm_coast
+  m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
+  nodeId: storm_coast
+  displayName: Storm Coast
+  description: Coastal fishing spot.
+  nodeType: 1
+  enemyAggroMode: 1
+  ignoreAggroRange: 0
+  respawnHereIfDied: 0
+  mapCombatScalingEnabled: 0
+  mapCombatScalingSpecialDropsByLevel: []
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
+  eliteSpawnChance: 0
+  fallbackRecommendedCombatPower: 1
+  isRepeatable: 1
+  markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 0
+  requiresMapUnlock: 0
+  icon: {fileID: 0}
+  requiredSkillLevels:
+  - skill: 2
+    requiredLevel: 30
+  gatheringSkillGateMode: 0
+  gatheringRequiredLevel: 1
+  combatSkillGateMode: 0
+  combatSingleSkill: 0
+  combatRequiredLevel: 1
+  unlockRequirementNotes: Fishing rod recommended
+  connectedNodeIds: []
+  nextNodeIds: []
+  biome: 4
+  spawnGroupPlans:
+  - groupId: AllSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-27
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: 1d359e69b63b58e4a94ec38646014fa6, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 10
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: verdant_vale
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint20_Middle
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint26
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    shuffleSpawnPoints: 0
+  enabledSidePlayAreaIds: []
+  useDefaultSpawnOnMapTeleport: 0
+  defaultPlayerSpawnPointName: 
+  inMapTeleporters: []
+  requiredPreviousMapCompletions: []
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 1
+  enduranceWaves: []
+  enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
+  enduranceCompletionLootInterval: 0.5
+  contentDesignerNotes: 
+  sceneNamePlaceholder: 
+  encounterIdPlaceholder: 

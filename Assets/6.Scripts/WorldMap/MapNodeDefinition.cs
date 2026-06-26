@@ -364,6 +364,17 @@ public class EnduranceTrialLootByTier
 }
 
 /// <summary>
+/// How gathering skill levels gate entry for resource maps.
+/// </summary>
+public enum GatheringSkillGateMode
+{
+    [Tooltip("No gathering skill check beyond Required Skill Levels.")]
+    None,
+    [Tooltip("At least one of Mining, Woodcutting, or Fishing must meet Gathering Required Level (OR).")]
+    AnyGatheringSkill
+}
+
+/// <summary>
 /// How combat skill levels gate entry for bosses/dungeons etc.
 /// </summary>
 public enum CombatSkillGateMode
@@ -503,6 +514,13 @@ public class MapNodeDefinition : ScriptableObject
     [Header("Unlock — Skill levels")]
     [Tooltip("All listed skills must meet their levels (AND). Use for Fishing, Mining, Woodcutting, or any skill.")]
     public List<SkillLevelRequirement> requiredSkillLevels = new();
+
+    [Tooltip("Optional gathering gate in addition to Required Skill Levels.")]
+    public GatheringSkillGateMode gatheringSkillGateMode = GatheringSkillGateMode.None;
+
+    [Min(1)]
+    [Tooltip("Level threshold when Gathering Skill Gate Mode is Any Gathering Skill.")]
+    public int gatheringRequiredLevel = 1;
 
     [Tooltip("Optional combat gate in addition to Required Skill Levels. Use for dungeons/bosses.")]
     public CombatSkillGateMode combatSkillGateMode = CombatSkillGateMode.None;
@@ -656,6 +674,9 @@ public class MapNodeDefinition : ScriptableObject
             }
         }
 
+        if (gatheringSkillGateMode != GatheringSkillGateMode.None && gatheringRequiredLevel > 0)
+            return true;
+
         if (combatSkillGateMode != CombatSkillGateMode.None && combatRequiredLevel > 0)
             return true;
 
@@ -707,6 +728,9 @@ public class MapNodeDefinition : ScriptableObject
             }
         }
 
+        if (gatheringSkillGateMode != GatheringSkillGateMode.None && gatheringRequiredLevel > 0)
+            return true;
+
         return combatSkillGateMode != CombatSkillGateMode.None && combatRequiredLevel > 0;
     }
 
@@ -727,6 +751,14 @@ public class MapNodeDefinition : ScriptableObject
                 if (!skills.IsLevelUnlocked(req.skill, req.requiredLevel))
                     return false;
             }
+        }
+
+        if (gatheringSkillGateMode == GatheringSkillGateMode.AnyGatheringSkill && gatheringRequiredLevel > 0)
+        {
+            if (!skills.IsLevelUnlocked(SkillType.Mining, gatheringRequiredLevel) &&
+                !skills.IsLevelUnlocked(SkillType.Woodcutting, gatheringRequiredLevel) &&
+                !skills.IsLevelUnlocked(SkillType.Fishing, gatheringRequiredLevel))
+                return false;
         }
 
         switch (combatSkillGateMode)
@@ -1037,6 +1069,9 @@ public class MapNodeDefinition : ScriptableObject
                 sb.AppendLine($"{r.skill}: level {r.requiredLevel}");
             }
         }
+
+        if (gatheringSkillGateMode == GatheringSkillGateMode.AnyGatheringSkill && gatheringRequiredLevel > 0)
+            sb.AppendLine($"Any of Mining, Woodcutting, or Fishing: level {gatheringRequiredLevel}");
 
         switch (combatSkillGateMode)
         {

@@ -25,8 +25,8 @@ MonoBehaviour:
     xpPerTick: 0
     amountMin: 1
     amountMax: 1
-  minInterval: 70
-  maxInterval: 90
+  minInterval: 35
+  maxInterval: 45
   bonusDrops:
   - item: {fileID: 11400000, guid: 8ba0be660a4597348907cc3ea2ad0c33, type: 2}
     chance: 0.1

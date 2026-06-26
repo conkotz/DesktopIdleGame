@@ -14,7 +14,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_Size.y
-      value: 5.4273825
+      value: 5.0761037
       objectReference: {fileID: 0}
     - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_Offset.x
@@ -22,15 +22,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_Offset.y
-      value: 0.16264725
+      value: 0.33828664
       objectReference: {fileID: 0}
     - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_SpriteTilingProperty.oldSize.x
-      value: 6.5266666
+      value: 5.7588234
       objectReference: {fileID: 0}
     - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_SpriteTilingProperty.oldSize.y
-      value: 6.1
+      value: 5.382353
       objectReference: {fileID: 0}
     - target: {fileID: 1191926700076863400, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -44,6 +44,10 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: -4694980200145558752, guid: e22b024b19a10a74a8a5eaf5d31a4a3a, type: 3}
+    - target: {fileID: 1282701325059826826, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d3e4f5a6b7c8478990abcdef1234567b, type: 2}
     - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -108,29 +112,25 @@ PrefabInstance:
       propertyPath: m_Name
       value: WildwoodTree
       objectReference: {fileID: 0}
-    - target: {fileID: 7958210842296509233, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: m_text
-      value: Wildwood Tree
-      objectReference: {fileID: 0}
-    - target: {fileID: 1282701325059826826, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: m_Materials.Array.data[0]
-      value: 
-      objectReference: {fileID: 2100000, guid: d3e4f5a6b7c8478990abcdef1234567b, type: 2}
-    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: windStrength
-      value: 0.13
-      objectReference: {fileID: 0}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: windSpeed
       value: 0.3
       objectReference: {fileID: 0}
     - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: phaseOffset
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windStrength
+      value: 0.13
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: baseAnchorHeight
       value: 0.15
       objectReference: {fileID: 0}
-    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      propertyPath: phaseOffset
-      value: 1.2
+    - target: {fileID: 7958210842296509233, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_text
+      value: Wildwood Tree
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
