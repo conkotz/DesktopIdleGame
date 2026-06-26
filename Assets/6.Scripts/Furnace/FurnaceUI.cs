@@ -40,8 +40,26 @@ public class FurnaceUI : MonoBehaviour
     private Button _barsButton;
     private Button _oreClearButton;
 
+    private float _nextPendingBarsLogTime;
+
+    private const int DefaultCanvasSortingOrder = 12000;
+    private const float FurnaceBlockedLogCooldownSeconds = 2f;
+
     public static FurnaceUI Instance => _instance;
     public static bool IsOpen => _instance != null && _instance._root != null && _instance._root.gameObject.activeSelf;
+
+    public static int CanvasSortingOrder =>
+        _instance != null && _instance._canvas != null
+            ? _instance._canvas.sortingOrder
+            : DefaultCanvasSortingOrder;
+
+    public static bool ContainsScreenPoint(Vector2 screenPoint, Camera eventCamera)
+    {
+        if (!IsOpen || _instance._root == null)
+            return false;
+
+        return RectTransformUtility.RectangleContainsScreenPoint(_instance._root, screenPoint, eventCamera);
+    }
 
     public static FurnaceSmelter ActiveSmelter => _instance != null ? _instance._smelter : null;
 
@@ -104,6 +122,7 @@ public class FurnaceUI : MonoBehaviour
             return;
 
         RefreshProgressOnly();
+        RefreshActionButton();
     }
 
     public void Open(FurnaceSmelter smelter, FurnaceClick clickSource)
@@ -131,6 +150,9 @@ public class FurnaceUI : MonoBehaviour
         HideOrePicker();
         _root.gameObject.SetActive(true);
         Refresh();
+
+        if (_smelter.ReadyBarAmount > 0 && !_smelter.IsSmelting)
+            LogFurnaceBlocked("Collect furnace bars before smelting.");
     }
 
     public void Close()
@@ -181,24 +203,48 @@ public class FurnaceUI : MonoBehaviour
         if (_oreClearButton == null)
             return;
 
-        _oreClearButton.gameObject.SetActive(true);
+        bool hasOre = _smelter != null && _smelter.StoredOreAmount > 0;
+        _oreClearButton.gameObject.SetActive(hasOre);
+        _oreClearButton.interactable = hasOre;
     }
 
     private void RefreshSlotVisuals()
     {
-        string oreId = _smelter.StoredOreItemId;
         int oreAmt = _smelter.StoredOreAmount;
+        string oreId = oreAmt > 0 ? _smelter.StoredOreItemId : "";
         ApplySlot(_oreIcon, _oreAmountText, oreId, oreAmt, "Ores", _itemDb);
 
-        string barId = _smelter.ReadyBarItemId;
-        if (string.IsNullOrWhiteSpace(barId))
+        int barAmt = _smelter.ReadyBarAmount;
+        string barId = ResolveBarSlotItemId(oreAmt, barAmt);
+        ApplySlot(_barIcon, _barAmountText, barId, barAmt, "Bars", _itemDb);
+    }
+
+    private string ResolveBarSlotItemId(int oreAmt, int barAmt)
+    {
+        if (barAmt > 0)
         {
-            if (SmeltingRecipes.TryGetForOre(oreId, out SmeltingRecipe recipe) ||
-                _smelter.TryGetActiveRecipe(out recipe))
-                barId = recipe.BarItemId;
+            if (!string.IsNullOrWhiteSpace(_smelter.ReadyBarItemId))
+                return _smelter.ReadyBarItemId;
+
+            if (_smelter.TryGetActiveRecipe(out SmeltingRecipe recipe))
+                return recipe.BarItemId;
+
+            if (oreAmt > 0 && SmeltingRecipes.TryGetForOre(_smelter.StoredOreItemId, out recipe))
+                return recipe.BarItemId;
+
+            return "";
         }
 
-        ApplySlot(_barIcon, _barAmountText, barId, _smelter.ReadyBarAmount, "Bars", _itemDb);
+        if (oreAmt > 0 || _smelter.IsSmelting)
+        {
+            if (oreAmt > 0 && SmeltingRecipes.TryGetForOre(_smelter.StoredOreItemId, out SmeltingRecipe recipe))
+                return recipe.BarItemId;
+
+            if (_smelter.TryGetActiveRecipe(out SmeltingRecipe activeRecipe))
+                return activeRecipe.BarItemId;
+        }
+
+        return "";
     }
 
     private static void ApplySlot(Image icon, TMP_Text amountText, string itemId, int amount, string emptyLabel, ItemDatabase itemDb)
@@ -305,9 +351,9 @@ public class FurnaceUI : MonoBehaviour
         }
         else if (_smelter.ReadyBarAmount > 0)
         {
-            _actionButtonText.text = "SMELT";
+            _actionButtonText.text = "COLLECT";
             _actionButtonText.color = Accent;
-            _actionButton.interactable = false;
+            _actionButton.interactable = true;
         }
         else
         {
@@ -331,12 +377,19 @@ public class FurnaceUI : MonoBehaviour
         }
 
         if (_smelter.ReadyBarAmount > 0)
+        {
+            CollectBars(_smelter.ReadyBarAmount);
             return;
+        }
 
         if (!_smelter.CanStartSmelting())
         {
             if (_smelter.StoredOreAmount < _smelter.GetOrePerBar())
-                GameLog.Add("Requires at least 5 ores to smelt into bar", GameLog.CannotMessageColor);
+            {
+                int orePerBar = _smelter.GetOrePerBar();
+                LogFurnaceBlocked($"Requires at least {orePerBar} ores to smelt into a bar.");
+            }
+
             Refresh();
             return;
         }
@@ -583,7 +636,7 @@ public class FurnaceUI : MonoBehaviour
         if (!_smelter.TryWithdrawAllOre(out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason) && reason != "No ore stored.")
-                GameLog.Add(reason, GameLog.CannotMessageColor);
+                LogFurnaceBlocked(reason);
             return;
         }
 
@@ -646,11 +699,23 @@ public class FurnaceUI : MonoBehaviour
         if (!_smelter.TryCollectBars(amount, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+                LogFurnaceBlocked(reason);
             return;
         }
 
         Refresh();
+    }
+
+    private void LogFurnaceBlocked(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        if (Time.unscaledTime < _nextPendingBarsLogTime)
+            return;
+
+        _nextPendingBarsLogTime = Time.unscaledTime + FurnaceBlockedLogCooldownSeconds;
+        GameLog.Add(message, GameLog.CannotMessageColor);
     }
 
     private void BuildUi()
@@ -682,7 +747,7 @@ public class FurnaceUI : MonoBehaviour
         if (_canvas == null)
             _canvas = gameObject.AddComponent<Canvas>();
         _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.sortingOrder = 12000;
+        _canvas.sortingOrder = DefaultCanvasSortingOrder;
 
         CanvasScaler scaler = gameObject.GetComponent<CanvasScaler>();
         if (scaler == null)

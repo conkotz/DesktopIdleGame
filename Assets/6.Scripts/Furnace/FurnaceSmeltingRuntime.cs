@@ -13,9 +13,6 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
     private readonly Dictionary<string, FurnaceRow> _rows =
         new Dictionary<string, FurnaceRow>(StringComparer.OrdinalIgnoreCase);
 
-    private float _nextPeriodicSaveUnscaled;
-    private const float PeriodicSaveIntervalSeconds = 5f;
-
     public static FurnaceSmeltingRuntime Instance => _instance;
 
     public static FurnaceSmeltingRuntime EnsureInstance()
@@ -59,7 +56,6 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
     private void Update()
     {
-        bool anySmelting = false;
         bool structuralChange = false;
 
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
@@ -68,16 +64,12 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (row == null || !row.IsSmelting)
                 continue;
 
-            anySmelting = true;
             if (row.TickSmelting(Time.deltaTime))
                 structuralChange = true;
         }
 
         if (structuralChange)
-            RequestSaveImmediate();
-
-        if (anySmelting)
-            MaybePeriodicSave();
+            RequestSaveDebounced();
     }
 
     private void OnApplicationQuit()
@@ -87,7 +79,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             FurnaceRow row = kv.Value;
             if (row != null && (row.IsSmelting || row.StoredOreAmount > 0 || row.ReadyBarAmount > 0))
             {
-                RequestSaveImmediate();
+                if (SaveManager.Instance != null)
+                    SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.AppQuit, immediate: true);
                 return;
             }
         }
@@ -138,19 +131,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         }
     }
 
-    private void MaybePeriodicSave()
-    {
-        if (Time.unscaledTime < _nextPeriodicSaveUnscaled)
-            return;
-
-        _nextPeriodicSaveUnscaled = Time.unscaledTime + PeriodicSaveIntervalSeconds;
-        RequestSaveImmediate();
-    }
-
-    private static void RequestSaveImmediate()
+    private static void RequestSaveDebounced()
     {
         if (SaveManager.Instance != null)
-            SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
     }
 
     private static string NormalizeFurnaceId(string furnaceId) =>
@@ -212,7 +196,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _activeOreItemId = _storedOreItemId;
             _isSmelting = true;
             NotifyChanged();
-            RequestSaveImmediate();
+            RequestSaveDebounced();
             return true;
         }
 
@@ -223,7 +207,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             _isSmelting = false;
             NotifyChanged();
-            RequestSaveImmediate();
+            RequestSaveDebounced();
         }
 
         public bool TryGetSmeltTimeEstimate(out float totalRemainingSeconds, out float secondsPerBar, out int barsRemaining)
@@ -398,7 +382,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreId, added);
             NotifyChanged();
-            RequestSaveImmediate();
+            RequestSaveDebounced();
             return true;
         }
 
@@ -436,20 +420,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             _readyBarAmount -= added;
-            if (_readyBarAmount <= 0)
-            {
-                _readyBarAmount = 0;
-                _readyBarItemId = "";
-                if (!_isSmelting && _storedOreAmount <= 0)
-                {
-                    _activeOreItemId = "";
-                    _smeltProgressSeconds = 0f;
-                }
-            }
+            ClearStaleIdsWhenEmpty();
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", barItemId, added);
             NotifyChanged();
-            RequestSaveImmediate();
+            RequestSaveDebounced();
             return true;
         }
 
@@ -497,7 +472,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             if (structuralChange)
+            {
+                ClearStaleIdsWhenEmpty();
                 NotifyChanged();
+            }
 
             return structuralChange;
         }
@@ -544,11 +522,34 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 }
             }
 
-            if (!_isSmelting)
-                return;
-
-            if (!TryGetActiveRecipe(out SmeltingRecipe activeRecipe) || _storedOreAmount < activeRecipe.OrePerBar)
+            if (_isSmelting &&
+                (!TryGetActiveRecipe(out SmeltingRecipe activeRecipe) || _storedOreAmount < activeRecipe.OrePerBar))
+            {
                 _isSmelting = false;
+            }
+
+            ClearStaleIdsWhenEmpty();
+        }
+
+        private void ClearStaleIdsWhenEmpty()
+        {
+            if (_storedOreAmount <= 0)
+            {
+                _storedOreAmount = 0;
+                _storedOreItemId = "";
+            }
+
+            if (_readyBarAmount <= 0)
+            {
+                _readyBarAmount = 0;
+                _readyBarItemId = "";
+            }
+
+            if (!_isSmelting && _storedOreAmount <= 0 && _readyBarAmount <= 0)
+            {
+                _activeOreItemId = "";
+                _smeltProgressSeconds = 0f;
+            }
         }
 
         private string GetReadyBarItemId()
@@ -608,7 +609,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _storedOreAmount += deposited;
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreItemId.Trim().ToLowerInvariant(), -deposited);
             NotifyChanged();
-            RequestSaveImmediate();
+            RequestSaveDebounced();
         }
 
         private void NotifyChanged() => StateChanged?.Invoke();
