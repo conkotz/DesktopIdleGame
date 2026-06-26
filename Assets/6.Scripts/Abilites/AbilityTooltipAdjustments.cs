@@ -122,7 +122,7 @@ public static class AbilityTooltipAdjustments
                 break;
         }
 
-        if (stats != null)
+        if (stats != null && !def.IsNonCombatGatheringAbility())
             cooldownSeconds *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
     }
 

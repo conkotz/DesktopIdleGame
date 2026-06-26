@@ -301,6 +301,10 @@ public class PlayerController : MonoBehaviour
     private float _fishingContinuousGatherSeconds;
     private float _fishingFrenzyUntil;
 
+    private MiningRuntimeBonuses _miningBonuses;
+    private float _miningContinuousGatherSeconds;
+    private float _miningMomentumUntil;
+
     /// <summary>Lv15 Calm Waters (major): stacks built every 4s while fishing; +2% speed / +1% bonus find per stack.</summary>
     private int _fishingCalmWatersMajorStacks;
     private float _fishingCalmWatersMajorStackTimer;
@@ -315,6 +319,7 @@ public class PlayerController : MonoBehaviour
 
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
     private const float FishingCalmWatersContinuousSecondsThreshold = 15f;
+    private const float MiningDeepFocusContinuousSecondsThreshold = 15f;
     private const float FishingGritFrenzyDurationSeconds = 7f;
     private static float FishingCalmWatersMajorStackIntervalSeconds =>
         GatheringPassiveTooltipText.FishingCalmWatersMajorStackIntervalSeconds;
@@ -343,6 +348,7 @@ public class PlayerController : MonoBehaviour
     public static string WoodcuttingLevel35ChoiceSpineId(int abilityRowPick) =>
         $"Lv{WoodcuttingLv35MajorPassiveSourceLevel}_{Mathf.Clamp(abilityRowPick, 0, 1)}";
     private const float WoodcuttingFrenzyDurationSeconds = 7f;
+    private const float MiningMomentumDurationSeconds = 7f;
 
     private struct WoodcuttingRuntimeBonuses
     {
@@ -360,6 +366,16 @@ public class PlayerController : MonoBehaviour
     {
         public int calmWatersStacks;
         public int frenzyStacks;
+    }
+
+    private struct MiningRuntimeBonuses
+    {
+        public int gritRestoreFlatStamina;
+        public float bonusXpChance;
+        public float noStaminaSwingChance;
+        public int momentumStacks;
+        public int deepFocusStacks;
+        public float masteryDoubleGritChance;
     }
 
     [Header("Future Stamina Integration")]
@@ -1633,6 +1649,7 @@ public class PlayerController : MonoBehaviour
         _activeFishingBaitSpeedBonusFraction = 0f;
         ResetWoodcuttingRuntimeState(clearBonuses: true);
         ResetFishingRuntimeState(clearBonuses: true);
+        ResetMiningRuntimeState(clearBonuses: true);
         if (node.ActionType != NodeAction.Woodcutting)
             _woodcuttingFlowLingerUntil = 0f;
 
@@ -1706,6 +1723,7 @@ public class PlayerController : MonoBehaviour
         targetNode = node;
         ApplyWoodcuttingSkillRuntimeBonusesIfNeeded(node);
         ApplyFishingSkillRuntimeBonusesIfNeeded(node);
+        ApplyMiningSkillRuntimeBonusesIfNeeded(node);
         // Lasting Focus: if Flow State was active when the previous gather stopped and we're still inside
         // the 5s linger window, seed continuous time on this new tree so Flow stays active through the
         // entire resumed gather instead of dropping in the gap between linger expiry and the next 15s ramp.
@@ -1906,6 +1924,7 @@ public class PlayerController : MonoBehaviour
         CaptureWoodcuttingFlowLingerOnGatherStop();
         CaptureFishingCalmWatersOnGatherStop();
         ResetFishingRuntimeState(clearBonuses: true);
+        ResetMiningRuntimeState(clearBonuses: true);
 
         _gatherSpeedMultiplier = 1f;
         OnGatherDebuffChanged?.Invoke(false, 1f);
@@ -2049,6 +2068,7 @@ public class PlayerController : MonoBehaviour
             CaptureWoodcuttingFlowLingerOnGatherStop();
             CaptureFishingCalmWatersOnGatherStop();
             ResetFishingRuntimeState(clearBonuses: true);
+            ResetMiningRuntimeState(clearBonuses: true);
             targetNode = null;
             _pickupTarget = null;
 
@@ -2166,6 +2186,7 @@ public class PlayerController : MonoBehaviour
         CaptureWoodcuttingFlowLingerOnGatherStop();
         CaptureFishingCalmWatersOnGatherStop();
         ResetFishingRuntimeState(clearBonuses: true);
+        ResetMiningRuntimeState(clearBonuses: true);
 
         targetNode = null;
         _pickupTarget = null;
@@ -2284,6 +2305,7 @@ public class PlayerController : MonoBehaviour
         CaptureWoodcuttingFlowLingerOnGatherStop();
         CaptureFishingCalmWatersOnGatherStop();
         ResetFishingRuntimeState(clearBonuses: true);
+        ResetMiningRuntimeState(clearBonuses: true);
 
         targetNode = null;
         _pickupTarget = null;
@@ -2611,6 +2633,9 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        if (targetNode.ActionType == NodeAction.Mining)
+            _miningContinuousGatherSeconds += Time.deltaTime;
+
         // Only “swing” the gather animation once every N seconds while gathering
         if (animator && Time.time >= _nextGatherAnimTime)
         {
@@ -2666,6 +2691,7 @@ public class PlayerController : MonoBehaviour
         _ = GetEffectiveGatherStaminaCostPerTick(); // Reserved for stamina spend integration.
         bool isWoodcutting = targetNode.ActionType == NodeAction.Woodcutting;
         bool isFishing = targetNode.ActionType == NodeAction.Fishing;
+        bool isMining = targetNode.ActionType == NodeAction.Mining;
         bool gritProc = false;
         int fishingMajorPick = GetFishingLevel15RowPick();
         int fishingMajorEnhancement = GetFishingLevel15EnhancementIndex(fishingMajorPick);
@@ -2701,6 +2727,12 @@ public class PlayerController : MonoBehaviour
                             skipP += 0.10f;
                         skipP = Mathf.Clamp01(skipP);
                     }
+                    if (skipP > 0f && UnityEngine.Random.value < skipP)
+                        countTowardDepletion = false;
+                }
+                else if (isMining)
+                {
+                    float skipP = Mathf.Clamp01(characterStats.PickaxeMiningChanceNotToCountTowardOreDepletion);
                     if (skipP > 0f && UnityEngine.Random.value < skipP)
                         countTowardDepletion = false;
                 }
@@ -2763,6 +2795,9 @@ public class PlayerController : MonoBehaviour
                     gritProc = true;
                 }
 
+                if (isMining && gritProc)
+                    TryApplyMiningMasteryDoubleGrit(ref mainAmt);
+
                 if (isWoodcutting && gritProc && woodcuttingMajorPick == 1)
                 {
                     float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.20f : 0.15f;
@@ -2803,6 +2838,9 @@ public class PlayerController : MonoBehaviour
                         for (int xi = 0; xi < nXp; xi++)
                             _fishingXpScratch.Add(_fishingXpScratch[xi]);
                     }
+
+                    if (isMining)
+                        TryApplyMiningMasteryDoubleGritMulti();
                 }
 
                 if (isFishing && gritProc && fishingMajorPick == 1)
@@ -2875,6 +2913,9 @@ public class PlayerController : MonoBehaviour
                         if (isWoodcutting && _woodcuttingBonuses.bonusXpChance > 0f &&
                             UnityEngine.Random.value < _woodcuttingBonuses.bonusXpChance)
                             sm.AddXp(skill, def.xpPerTick, def.displayName);
+                        if (isMining && _miningBonuses.bonusXpChance > 0f &&
+                            UnityEngine.Random.value < _miningBonuses.bonusXpChance)
+                            sm.AddXp(skill, def.xpPerTick, def.displayName);
                     }
                 }
 
@@ -2885,8 +2926,14 @@ public class PlayerController : MonoBehaviour
                     characterStats.AddEnergy(restore);
                 }
 
+                if (isMining && gritProc && characterStats != null && _miningBonuses.gritRestoreFlatStamina > 0)
+                    characterStats.AddEnergy(_miningBonuses.gritRestoreFlatStamina);
+
                 if (isWoodcutting && gritProc && _woodcuttingBonuses.frenzyStacks > 0)
                     _woodcuttingFrenzyUntil = Time.time + WoodcuttingFrenzyDurationSeconds;
+
+                if (isMining && gritProc && _miningBonuses.momentumStacks > 0)
+                    _miningMomentumUntil = Time.time + MiningMomentumDurationSeconds;
 
                 if (isFishing && gritProc && characterStats != null && characterStats.RodFishingFrenzyStacks > 0)
                     _fishingFrenzyUntil = Time.time + FishingGritFrenzyDurationSeconds;
@@ -2911,6 +2958,8 @@ public class PlayerController : MonoBehaviour
         if (isWoodcutting && abilityController != null)
             bonusFindForRoll *= abilityController.GetAvatarOfTheForestBonusFindFinalMultiplier();
         var dropCtx = isWoodcutting ? BuildWoodcuttingLevel35DropContext() : default;
+        if (isMining && characterStats != null)
+            dropCtx.miningRareGemUpgradeChance = characterStats.PickaxeRareGemUpgradeChance;
         def.PreviewDrops(_drops, bonusFindForRoll, dropCtx, GetGatherSkillLevel(def.actionType));
 
         // PreviewDrops includes main too, so we must ignore index 0 main OR skip matching itemId
@@ -3258,6 +3307,7 @@ public class PlayerController : MonoBehaviour
         _activeFishingBaitSpeedBonusFraction = 0f;
         ResetWoodcuttingRuntimeState(clearBonuses: true);
         ResetFishingRuntimeState(clearBonuses: true);
+        ResetMiningRuntimeState(clearBonuses: true);
         ClearCleavingSecondaryTimers();
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
@@ -3349,11 +3399,21 @@ public class PlayerController : MonoBehaviour
             _fishingContinuousGatherSeconds >= FishingCalmWatersContinuousSecondsThreshold)
             staminaEfficiency = Mathf.Clamp01(staminaEfficiency + 0.03f * _fishingBonuses.calmWatersStacks);
 
+        if (targetNode && targetNode.ActionType == NodeAction.Mining &&
+            _miningBonuses.deepFocusStacks > 0 &&
+            _miningContinuousGatherSeconds >= MiningDeepFocusContinuousSecondsThreshold)
+            staminaEfficiency = Mathf.Clamp01(staminaEfficiency + 0.03f * _miningBonuses.deepFocusStacks);
+
         float spendPerSwing = Mathf.Max(0f, baseCostPerSwing * (1f - staminaEfficiency));
 
         if (targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
             _woodcuttingBonuses.noStaminaSwingChance > 0f &&
             UnityEngine.Random.value < _woodcuttingBonuses.noStaminaSwingChance)
+            spendPerSwing = 0f;
+
+        if (targetNode && targetNode.ActionType == NodeAction.Mining &&
+            _miningBonuses.noStaminaSwingChance > 0f &&
+            UnityEngine.Random.value < _miningBonuses.noStaminaSwingChance)
             spendPerSwing = 0f;
 
         if (spendPerSwing <= 0f) return true;
@@ -3382,6 +3442,17 @@ public class PlayerController : MonoBehaviour
             if (_fishingBonuses.frenzyStacks > 0 && Time.time < _fishingFrenzyUntil)
                 fishBonus += 0.05f * _fishingBonuses.frenzyStacks;
             return Mathf.Max(0.05f, fishMult * (1f + fishBonus));
+        }
+
+        if (targetNode.ActionType == NodeAction.Mining)
+        {
+            float mineBonus = 0f;
+            if (_miningBonuses.deepFocusStacks > 0 &&
+                _miningContinuousGatherSeconds >= MiningDeepFocusContinuousSecondsThreshold)
+                mineBonus += 0.03f * _miningBonuses.deepFocusStacks;
+            if (_miningBonuses.momentumStacks > 0 && Time.time < _miningMomentumUntil)
+                mineBonus += 0.05f * _miningBonuses.momentumStacks;
+            return Mathf.Max(0.05f, mult * (1f + mineBonus));
         }
 
         if (targetNode.ActionType != NodeAction.Woodcutting)
@@ -3958,6 +4029,94 @@ public class PlayerController : MonoBehaviour
                 frenzyStacks = characterStats.RodFishingFrenzyStacks
             };
         }
+    }
+
+    private void ResetMiningRuntimeState(bool clearBonuses)
+    {
+        if (clearBonuses)
+            _miningBonuses = default;
+        _miningContinuousGatherSeconds = 0f;
+        _miningMomentumUntil = 0f;
+    }
+
+    private void ApplyMiningSkillRuntimeBonusesIfNeeded(ResourceNode node)
+    {
+        ResetMiningRuntimeState(clearBonuses: true);
+        if (node == null || node.ActionType != NodeAction.Mining)
+            return;
+
+        if (characterStats != null)
+        {
+            _miningBonuses = new MiningRuntimeBonuses
+            {
+                gritRestoreFlatStamina = characterStats.PickaxeMiningGritRestoreStacks * 10,
+                bonusXpChance = characterStats.PickaxeMiningBonusXpChance,
+                noStaminaSwingChance = characterStats.PickaxeMiningNoStaminaSwingChance,
+                momentumStacks = characterStats.PickaxeMiningMomentumStacks,
+                deepFocusStacks = characterStats.PickaxeMiningDeepFocusStacks,
+                masteryDoubleGritChance = characterStats.PickaxeMiningMasteryDoubleGritChance
+            };
+        }
+    }
+
+    private void TryApplyMiningMasteryDoubleGrit(ref int mainAmt)
+    {
+        if (mainAmt <= 0 || _miningBonuses.masteryDoubleGritChance <= 0f)
+            return;
+        if (UnityEngine.Random.value >= _miningBonuses.masteryDoubleGritChance)
+            return;
+        mainAmt *= 2;
+    }
+
+    private void TryApplyMiningMasteryDoubleGritMulti()
+    {
+        if (_miningBonuses.masteryDoubleGritChance <= 0f || _mainYieldScratch.Count == 0)
+            return;
+        if (UnityEngine.Random.value >= _miningBonuses.masteryDoubleGritChance)
+            return;
+
+        string[] keys = new string[_mainYieldScratch.Count];
+        int ki = 0;
+        foreach (var k in _mainYieldScratch.Keys)
+            keys[ki++] = k;
+        for (int gi = 0; gi < keys.Length; gi++)
+        {
+            string k = keys[gi];
+            _mainYieldScratch[k] *= 2;
+        }
+    }
+
+    /// <summary>Deep Focus / Mining Momentum fractions for stats panel live display.</summary>
+    public bool TryGetMiningLiveBuffInfo(
+        out float momentumSpeedFraction,
+        out float deepFocusSpeedFraction,
+        out float deepFocusStaminaEfficiencyAddFraction)
+    {
+        momentumSpeedFraction = 0f;
+        deepFocusSpeedFraction = 0f;
+        deepFocusStaminaEfficiencyAddFraction = 0f;
+
+        bool inMineGather = state == State.Gather && targetNode != null && targetNode.ActionType == NodeAction.Mining;
+        bool any = false;
+        if (inMineGather)
+        {
+            if (_miningBonuses.deepFocusStacks > 0 &&
+                _miningContinuousGatherSeconds >= MiningDeepFocusContinuousSecondsThreshold)
+            {
+                float df = 0.03f * _miningBonuses.deepFocusStacks;
+                deepFocusSpeedFraction = df;
+                deepFocusStaminaEfficiencyAddFraction = df;
+                any = true;
+            }
+        }
+
+        if (_miningBonuses.momentumStacks > 0 && Time.time < _miningMomentumUntil)
+        {
+            momentumSpeedFraction = 0.05f * _miningBonuses.momentumStacks;
+            any = true;
+        }
+
+        return any;
     }
 
     private void ApplyGatherCoreStatsFromCharacterAndTool(NodeAction actionType, ItemDefinition toolDef)

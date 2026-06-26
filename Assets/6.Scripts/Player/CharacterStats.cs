@@ -438,6 +438,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
         /// <summary>Chance (0–1) per tick that woodcutting does not increment depletion on the node.</summary>
         public float woodcuttingChanceNotToCountTowardTreeDepletion;
 
+        /// <summary>When a gem bonus drop succeeds while mining, chance (0–1) to upgrade to a rare gem.</summary>
+        public float miningRareGemUpgradeChance;
+        public int miningGritRestoreStacks;
+        public float miningBonusXpChance;
+        public float miningNoStaminaSwingChance;
+        public int miningMomentumStacks;
+        public int miningDeepFocusStacks;
+        /// <summary>Chance (0–1) per tick that mining does not increment depletion on the node.</summary>
+        public float miningChanceNotToCountTowardOreDepletion;
+        /// <summary>Chance (0–1) that a Mining Grit proc immediately triggers a second grit on the same tick.</summary>
+        public float miningMasteryDoubleGritChance;
+
         public float enduranceArmourFlat;
         public float enduranceMagicResistFlat;
         public float enduranceCorruptionResistFlat;
@@ -1950,20 +1962,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetToolSpeedMult(ToolType.Axe)
         * (1f + Mathf.Max(0f, bonusAxeSpeedMult))
         * (1f + GetLumberFrenzyChoppingSpeedBonus());
-    public float PickaxeSpeedMult => GetToolSpeedMult(ToolType.Pickaxe) * (1f + Mathf.Max(0f, bonusPickaxeSpeedMult));
+    public float PickaxeSpeedMult =>
+        GetToolSpeedMult(ToolType.Pickaxe)
+        * (1f + Mathf.Max(0f, bonusPickaxeSpeedMult))
+        * (1f + GetMinersFrenzySpeedBonus());
     public float RodSpeedMult =>
         GetToolSpeedMult(ToolType.FishingRod)
         * (1f + Mathf.Max(0f, bonusRodSpeedMult))
         * (1f + GetFishingFrenzySpeedBonus());
     public float AxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Axe) + GetLumberFrenzyGritChanceBonus());
-    public float PickaxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Pickaxe));
+    public float PickaxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Pickaxe) + GetMinersFrenzyGritChanceBonus());
     public float RodGrit => Mathf.Clamp01(GetToolGrit(ToolType.FishingRod) + GetFishingFrenzyGritChanceBonus());
     public float AxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Axe));
     public float PickaxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Pickaxe));
     public float RodBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.FishingRod));
     public float AxeStaminaEfficiency =>
         Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Axe) + GetLumberFrenzyStaminaEfficiencyBonus());
-    public float PickaxeStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Pickaxe));
+    public float PickaxeStaminaEfficiency =>
+        Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Pickaxe) + GetMinersFrenzyStaminaEfficiencyBonus());
     public float RodStaminaEfficiency =>
         Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.FishingRod) + GetFishingFrenzyStaminaEfficiencyBonus());
 
@@ -2016,6 +2032,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
         PlayerAbilityController ac = GetAbilityControllerLazy();
         return ac ? ac.GetFishingFrenzyStaminaEfficiencyBonus() : 0f;
     }
+
+    private float GetMinersFrenzySpeedBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetMinersFrenzySpeedBonus() : 0f;
+    }
+
+    private float GetMinersFrenzyGritChanceBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetMinersFrenzyGritChanceBonus() : 0f;
+    }
+
+    private float GetMinersFrenzyStaminaEfficiencyBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetMinersFrenzyStaminaEfficiencyBonus() : 0f;
+    }
+
     /// <summary>Woodcutting skill nodes: chance per successful gather to add +1 main resource (before grit).</summary>
     public float AxeWoodcuttingExtraMainRollChance => Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingExtraMainRollChance);
     /// <summary>Woodcutting skill nodes: multiplier bonus applied to rolled main yield amount.</summary>
@@ -2030,6 +2065,23 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AxeWoodcuttingNoStaminaSwingChance => Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingNoStaminaSwingChance));
     public float AxeWoodcuttingChanceNotToCountTowardTreeDepletion =>
         Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingChanceNotToCountTowardTreeDepletion);
+    /// <summary>When a gem bonus drop succeeds while mining, chance to upgrade it to a rare gem.</summary>
+    public float PickaxeRareGemUpgradeChance =>
+        Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Mining).miningRareGemUpgradeChance);
+    public int PickaxeMiningGritRestoreStacks =>
+        Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Mining).miningGritRestoreStacks);
+    public float PickaxeMiningBonusXpChance =>
+        Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Mining).miningBonusXpChance));
+    public float PickaxeMiningNoStaminaSwingChance =>
+        Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Mining).miningNoStaminaSwingChance));
+    public int PickaxeMiningMomentumStacks =>
+        Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Mining).miningMomentumStacks);
+    public int PickaxeMiningDeepFocusStacks =>
+        Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Mining).miningDeepFocusStacks);
+    public float PickaxeMiningChanceNotToCountTowardOreDepletion =>
+        Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Mining).miningChanceNotToCountTowardOreDepletion);
+    public float PickaxeMiningMasteryDoubleGritChance =>
+        Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Mining).miningMasteryDoubleGritChance);
 
     // -------------------------
     // Combat Power
@@ -5162,6 +5214,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     case MiningMinorNodeStatOption.MiningGritPercent2: total.gatherGrit += 0.02f; break;
                     case MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
                     case MiningMinorNodeStatOption.MiningBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent2: total.gatherSpeedFlat += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent3: total.gatherSpeedFlat += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent4: total.gatherSpeedFlat += 0.04f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent1: total.gatherEnergyEfficiency += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent3: total.gatherEnergyEfficiency += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent1: total.gatherGrit += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent2Skill: total.gatherGrit += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent3: total.gatherGrit += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent1: total.gatherBonusItemChance += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent2: total.gatherBonusItemChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent3: total.gatherBonusItemChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent5: total.gatherBonusItemChance += 0.05f; break;
+                    case MiningMinorNodeStatOption.MiningGritRestoreStaminaFlat10: total.miningGritRestoreStacks += 1; break;
+                    case MiningMinorNodeStatOption.MiningDoubleXpChancePercent3: total.miningBonusXpChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningNoStaminaSwingChancePercent3: total.miningNoStaminaSwingChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningMomentumAfterGritSpeedPercent5Duration7s: total.miningMomentumStacks += 1; break;
+                    case MiningMinorNodeStatOption.MiningDeepFocusContinuousSpeedPercent3EfficiencyPercent3: total.miningDeepFocusStacks += 1; break;
+                    case MiningMinorNodeStatOption.MiningChanceNotToCountTowardOreDepletionPercent10:
+                        total.miningChanceNotToCountTowardOreDepletion += 0.10f;
+                        break;
+                    case MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent2: total.miningRareGemUpgradeChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent4: total.miningRareGemUpgradeChance += 0.04f; break;
+                    case MiningMinorNodeStatOption.MiningMasteryDoubleGritChancePercent5: total.miningMasteryDoubleGritChance += 0.05f; break;
                 }
                 break;
 

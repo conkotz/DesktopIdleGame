@@ -204,10 +204,34 @@ public static class PassiveUnlocksLineHighlight
     {
         key = opt switch
         {
-            MiningMinorNodeStatOption.MiningGatherSpeedFlat01 => "Gathering Speed",
-            MiningMinorNodeStatOption.MiningGritPercent2 => "Grit",
-            MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2 => "Energy Efficiency",
-            MiningMinorNodeStatOption.MiningBonusItemChancePercent2 => "Bonus Item Chance",
+            MiningMinorNodeStatOption.MiningGatherSpeedFlat01
+                or MiningMinorNodeStatOption.MiningSpeedPercent2
+                or MiningMinorNodeStatOption.MiningSpeedPercent3
+                or MiningMinorNodeStatOption.MiningSpeedPercent4 => "Mining Speed",
+            MiningMinorNodeStatOption.MiningGritPercent2
+                or MiningMinorNodeStatOption.MiningGritPercent1
+                or MiningMinorNodeStatOption.MiningGritPercent2Skill
+                or MiningMinorNodeStatOption.MiningGritPercent3 => "Mining Grit Chance",
+            MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2
+                or MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent1
+                or MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent2
+                or MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent3 => "Mining Stamina Efficiency",
+            MiningMinorNodeStatOption.MiningBonusItemChancePercent2
+                or MiningMinorNodeStatOption.MiningBonusFindPercent1
+                or MiningMinorNodeStatOption.MiningBonusFindPercent2
+                or MiningMinorNodeStatOption.MiningBonusFindPercent3
+                or MiningMinorNodeStatOption.MiningBonusFindPercent5 => "Mining Bonus Find Chance",
+            MiningMinorNodeStatOption.MiningGritRestoreStaminaFlat10 => "Mining Grit procs restore",
+            MiningMinorNodeStatOption.MiningDoubleXpChancePercent3 => "chance to gain double Mining XP",
+            MiningMinorNodeStatOption.MiningNoStaminaSwingChancePercent3 => "Mining No-Stamina Swing Chance",
+            MiningMinorNodeStatOption.MiningMomentumAfterGritSpeedPercent5Duration7s => "After a Mining Grit proc",
+            MiningMinorNodeStatOption.MiningDeepFocusContinuousSpeedPercent3EfficiencyPercent3 => "While continuously mining",
+            MiningMinorNodeStatOption.MiningChanceNotToCountTowardOreDepletionPercent10 =>
+                "Mining chance not to count toward ore depletion",
+            MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent2
+                or MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent4 => "Rare Gem Discovery Chance",
+            MiningMinorNodeStatOption.MiningMasteryDoubleGritChancePercent5 =>
+                "chance a Mining Grit proc immediately triggers a second grit",
             _ => null
         };
         return key != null;

@@ -58,6 +58,14 @@ public static class GatheringPassiveTooltipText
     public const int LumberFrenzyStaminaEfficiencyEnhancementPercent = 15;
     public const int LumberFrenzyExtraGritEnhancementPercent = 5;
 
+    // ---- Mining Lv5 ability — Miners Frenzy ----
+    public const float MinersFrenzyDurationSeconds = 20f;
+    public const int MinersFrenzySpeedPercent = 20;
+    public const int MinersFrenzyGritPercent = 10;
+    public const int MinersFrenzyStaminaEfficiencyEnhancementPercent = 15;
+    public const int MinersFrenzyExtraGritEnhancementPercent = 5;
+    public const int MinersFrenzyChoiceSourceLevel = 5;
+
     public const string CalmWatersMajorTitle = "Calm Waters";
     public const string FlowStateTitle = "Flow State";
 
@@ -217,6 +225,36 @@ public static class GatheringPassiveTooltipText
         var sb = new StringBuilder();
         AppendLumberFrenzyEffectLines(sb, skillsManager);
         return sb.ToString();
+    }
+
+    public static string BuildMinersFrenzyHudBody(SkillsManager skillsManager)
+    {
+        var sb = new StringBuilder();
+        AppendMinersFrenzyEffectLines(sb, skillsManager);
+        sb.AppendLine();
+        sb.Append("Duration: ");
+        sb.Append(MinersFrenzyDurationSeconds.ToString("0.#"));
+        sb.Append('s');
+        return sb.ToString();
+    }
+
+    public static void AppendMinersFrenzyEffectLines(StringBuilder sb, SkillsManager skillsManager)
+    {
+        int choice = GetMinersFrenzyChoice(skillsManager);
+        float gritTotal = MinersFrenzyGritPercent + (choice == 1 ? MinersFrenzyExtraGritEnhancementPercent : 0);
+
+        sb.Append('+');
+        sb.Append(MinersFrenzySpeedPercent);
+        sb.AppendLine("% Mining Speed");
+        sb.Append('+');
+        sb.Append(gritTotal.ToString("0.#"));
+        sb.AppendLine("% Mining Grit Chance");
+        if (choice == 0)
+        {
+            sb.Append('+');
+            sb.Append(MinersFrenzyStaminaEfficiencyEnhancementPercent);
+            sb.AppendLine("% Mining Stamina Efficiency");
+        }
     }
 
     public static void AppendFishingFrenzyEffectLines(StringBuilder sb, SkillsManager skillsManager)
@@ -498,6 +536,9 @@ public static class GatheringPassiveTooltipText
 
     private static int GetLumberFrenzyChoice(SkillsManager sm) =>
         sm != null ? sm.GetSkillChoiceSelection(SkillType.Woodcutting, LumberFrenzyChoiceSourceLevel, -1) : -1;
+
+    private static int GetMinersFrenzyChoice(SkillsManager sm) =>
+        sm != null ? sm.GetSkillChoiceSelection(SkillType.Mining, MinersFrenzyChoiceSourceLevel, -1) : -1;
 
     private static bool HasFishingLv15Enhancement(SkillsManager sm, int rowPick, int choiceIndex)
     {

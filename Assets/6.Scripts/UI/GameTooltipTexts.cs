@@ -132,9 +132,7 @@ public static class GameTooltipTexts
 
             case "CooldownReductionText":
                 title = "Cooldown reduction";
-                description =
-                    "Reduces ability cooldowns by the listed percentage.\n\n" +
-                    "Stacks additively from gear and passives.";
+                description = "Reduces the cooldown rate of all combat abilities and spells.";
                 return true;
 
             case "ConditionalMinionDmgText":

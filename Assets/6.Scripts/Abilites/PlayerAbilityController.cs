@@ -109,6 +109,16 @@ public partial class PlayerAbilityController : MonoBehaviour
     private const int FishingFrenzyStaminaEnhancementChoiceIndex = 0;
     private const int FishingFrenzyExtraGritEnhancementChoiceIndex = 1;
 
+    private const string MinersFrenzyId = "miners_frenzy";
+    private const float MinersFrenzyDurationSeconds = 20f;
+    private const float MinersFrenzySpeedBonus = 0.20f;
+    private const float MinersFrenzyGritChanceBonus = 0.10f;
+    private const float MinersFrenzyStaminaEfficiencyEnhancementBonus = 0.15f;
+    private const float MinersFrenzyExtraGritEnhancementBonus = 0.05f;
+    private const int MinersFrenzyChoiceSourceLevel = 5;
+    private const int MinersFrenzyStaminaEnhancementChoiceIndex = 0;
+    private const int MinersFrenzyExtraGritEnhancementChoiceIndex = 1;
+
     private const string SpectralAxeId = "spectral_axe";
     /// <summary>Spectral Axe stays out for this long before returning. Cooldown starts after the return finishes.</summary>
     private const float SpectralAxeBaseDurationSeconds = 60f;
@@ -257,6 +267,13 @@ public partial class PlayerAbilityController : MonoBehaviour
     private float _lastSyncedFishingFrenzyHudEnd = float.NaN;
     /// <summary>When the Fishing Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _fishingFrenzyCooldownAbilityDef;
+
+    private bool _minersFrenzyActive;
+    private float _minersFrenzyEndsAt;
+    private float _minersFrenzyDuration;
+    private float _lastSyncedMinersFrenzyHudEnd = float.NaN;
+    /// <summary>When the Miners Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _minersFrenzyCooldownAbilityDef;
 
     private bool _cleavingChopActive;
     private float _cleavingChopEndsAt;
@@ -724,7 +741,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             return true;
         if (IsHammerTempestActive)
             return true;
-        if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive)
+        if (_energyInfusionActive || _lumberFrenzyActive || _fishingFrenzyActive || _minersFrenzyActive)
             return true;
         if (_avatarOfForestActive || _cleavingChopActive || _spectralAxeActive)
             return true;
@@ -743,7 +760,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
     private bool HasLingeringAbilityRuntimeState()
     {
-        if (_cleavingBuffActive || _lumberFrenzyActive || _fishingFrenzyActive)
+        if (_cleavingBuffActive || _lumberFrenzyActive || _fishingFrenzyActive || _minersFrenzyActive)
             return true;
         if (_cleavingChopActive || _spectralAxeActive || _avatarOfForestActive)
             return true;
@@ -778,8 +795,10 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncStaticArrowsHudBuff();
         CleanupLumberFrenzyIfExpired();
         CleanupFishingFrenzyIfExpired();
+        CleanupMinersFrenzyIfExpired();
         SyncLumberFrenzyHudBuff();
         SyncFishingFrenzyHudBuff();
+        SyncMinersFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
         CleanupAvatarOfTheForestIfExpired();
@@ -824,9 +843,11 @@ public partial class PlayerAbilityController : MonoBehaviour
         SyncStaticArrowsHudBuff();
         CleanupLumberFrenzyIfExpired();
         CleanupFishingFrenzyIfExpired();
-        abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive, _fishingFrenzyActive);
+        CleanupMinersFrenzyIfExpired();
+        abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive, _fishingFrenzyActive, _minersFrenzyActive);
         SyncLumberFrenzyHudBuff();
         SyncFishingFrenzyHudBuff();
+        SyncMinersFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
         ResourceNode cleavingOriginNode = player != null ? player.CurrentTarget : null;
@@ -1108,6 +1129,8 @@ public partial class PlayerAbilityController : MonoBehaviour
             return IsLumberFrenzyActive;
         if (string.Equals(abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase))
             return IsFishingFrenzyActive;
+        if (string.Equals(abilityId, MinersFrenzyId, StringComparison.OrdinalIgnoreCase))
+            return IsMinersFrenzyActive;
         if (string.Equals(abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
             return IsCleavingChopActive;
         if (string.Equals(abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
@@ -1227,6 +1250,12 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndFishingFrenzyEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, MinersFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndMinersFrenzyEarly();
             return;
         }
 
@@ -1363,6 +1392,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         TryEndLingeringIfRemovedFromActionBar(StaticArrowsId);
         TryEndLingeringIfRemovedFromActionBar(LumberFrenzyId);
         TryEndLingeringIfRemovedFromActionBar(FishingFrenzyId);
+        TryEndLingeringIfRemovedFromActionBar(MinersFrenzyId);
         TryEndLingeringIfRemovedFromActionBar(CleavingChopId);
         TryEndLingeringIfRemovedFromActionBar(AvatarOfTheForestId);
         TryEndLingeringIfRemovedFromActionBar(EnergyInfusionId);
@@ -1657,7 +1687,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyEndsAt = 0f;
         _lumberFrenzyDuration = 0f;
 
-        if (!_fishingFrenzyActive)
+        if (!_fishingFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         if (_lumberFrenzyCooldownAbilityDef)
@@ -1666,6 +1696,27 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         _lastSyncedLumberFrenzyHudEnd = float.NaN;
         SyncLumberFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void ForceEndMinersFrenzyEarly()
+    {
+        if (!_minersFrenzyActive)
+            return;
+
+        _minersFrenzyActive = false;
+        _minersFrenzyEndsAt = 0f;
+        _minersFrenzyDuration = 0f;
+
+        if (!_lumberFrenzyActive && !_fishingFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+
+        if (_minersFrenzyCooldownAbilityDef)
+            StartCooldown(_minersFrenzyCooldownAbilityDef);
+        _minersFrenzyCooldownAbilityDef = null;
+
+        _lastSyncedMinersFrenzyHudEnd = float.NaN;
+        SyncMinersFrenzyHudBuff();
         stats?.NotifyStatsChanged();
     }
 
@@ -2261,6 +2312,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         return !string.Equals(id, StaticArrowsId, StringComparison.OrdinalIgnoreCase)
                && !string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase)
                && !string.Equals(id, FishingFrenzyId, StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(id, MinersFrenzyId, StringComparison.OrdinalIgnoreCase)
                && !string.Equals(id, CleavingChopId, StringComparison.OrdinalIgnoreCase)
                && !string.Equals(id, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase);
     }
@@ -3706,6 +3758,9 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase) && _fishingFrenzyActive)
             return false;
 
+        if (string.Equals(def.abilityId, MinersFrenzyId, StringComparison.OrdinalIgnoreCase) && _minersFrenzyActive)
+            return false;
+
         // Cleaving Chop: same deferred-cooldown contract as Lumber Frenzy.
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
             return false;
@@ -3988,6 +4043,15 @@ public partial class PlayerAbilityController : MonoBehaviour
         {
             ActivateFishingFrenzyBuff();
             _fishingFrenzyCooldownAbilityDef = def;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (string.Equals(def.abilityId, MinersFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateMinersFrenzyBuff();
+            _minersFrenzyCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -7891,7 +7955,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyDuration = dur;
         _lumberFrenzyEndsAt = Time.time + _lumberFrenzyDuration;
         _lastSyncedLumberFrenzyHudEnd = float.NaN;
-        if (!_fishingFrenzyActive)
+        if (!_fishingFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.SpawnLumberFrenzyOrbitVfx(isFishingFrenzy: false);
         SyncLumberFrenzyHudBuff();
         stats?.NotifyStatsChanged();
@@ -7908,7 +7972,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyEndsAt = 0f;
         _lumberFrenzyDuration = 0f;
 
-        if (!_fishingFrenzyActive)
+        if (!_fishingFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         // Cooldown begins now (not on cast) so the player gets a 60s
@@ -7957,7 +8021,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _fishingFrenzyDuration = dur;
         _fishingFrenzyEndsAt = Time.time + _fishingFrenzyDuration;
         _lastSyncedFishingFrenzyHudEnd = float.NaN;
-        if (!_lumberFrenzyActive)
+        if (!_lumberFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.SpawnLumberFrenzyOrbitVfx(isFishingFrenzy: true);
         SyncFishingFrenzyHudBuff();
         stats?.NotifyStatsChanged();
@@ -7974,7 +8038,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _fishingFrenzyEndsAt = 0f;
         _fishingFrenzyDuration = 0f;
 
-        if (!_lumberFrenzyActive)
+        if (!_lumberFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         if (_fishingFrenzyCooldownAbilityDef)
@@ -8011,6 +8075,70 @@ public partial class PlayerAbilityController : MonoBehaviour
         buffController.SetHudAbilityBuff(FishingFrenzyId, 1, _fishingFrenzyEndsAt, _fishingFrenzyDuration);
     }
 
+    private void ActivateMinersFrenzyBuff()
+    {
+        _minersFrenzyActive = true;
+        float dur = MinersFrenzyDurationSeconds;
+        AbilityDefinition minersDef = GetAbilityDefinition(MinersFrenzyId);
+        if (minersDef != null && minersDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            dur = minersDef.tooltipBuffMinionDurationSeconds;
+        _minersFrenzyDuration = dur;
+        _minersFrenzyEndsAt = Time.time + _minersFrenzyDuration;
+        _lastSyncedMinersFrenzyHudEnd = float.NaN;
+        if (!_lumberFrenzyActive && !_fishingFrenzyActive)
+            abilityVfx?.SpawnLumberFrenzyOrbitVfx(isFishingFrenzy: false, isMiningFrenzy: true);
+        SyncMinersFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void CleanupMinersFrenzyIfExpired()
+    {
+        if (!_minersFrenzyActive)
+            return;
+        if (Time.time < _minersFrenzyEndsAt)
+            return;
+
+        _minersFrenzyActive = false;
+        _minersFrenzyEndsAt = 0f;
+        _minersFrenzyDuration = 0f;
+
+        if (!_lumberFrenzyActive && !_fishingFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+
+        if (_minersFrenzyCooldownAbilityDef)
+            StartCooldown(_minersFrenzyCooldownAbilityDef);
+        _minersFrenzyCooldownAbilityDef = null;
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void SyncMinersFrenzyHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_minersFrenzyActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(MinersFrenzyId))
+                buffController.ClearHudAbilityBuff(MinersFrenzyId);
+            _lastSyncedMinersFrenzyHudEnd = float.NaN;
+            return;
+        }
+
+        if (IsOnCooldown(MinersFrenzyId, out _))
+        {
+            buffController.ClearHudAbilityBuff(MinersFrenzyId);
+            _lastSyncedMinersFrenzyHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedMinersFrenzyHudEnd, _minersFrenzyEndsAt))
+            return;
+
+        _lastSyncedMinersFrenzyHudEnd = _minersFrenzyEndsAt;
+        buffController.SetHudAbilityBuff(MinersFrenzyId, 1, _minersFrenzyEndsAt, _minersFrenzyDuration);
+    }
+
     private void ForceEndFishingFrenzyEarly()
     {
         if (!_fishingFrenzyActive)
@@ -8020,7 +8148,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         _fishingFrenzyEndsAt = 0f;
         _fishingFrenzyDuration = 0f;
 
-        if (!_lumberFrenzyActive)
+        if (!_lumberFrenzyActive && !_minersFrenzyActive)
             abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         if (_fishingFrenzyCooldownAbilityDef)
@@ -8266,6 +8394,52 @@ public partial class PlayerAbilityController : MonoBehaviour
             return -1;
 
         return skillsManager.GetSkillChoiceSelection(SkillType.Fishing, FishingFrenzyChoiceSourceLevel, -1);
+    }
+
+    public bool IsMinersFrenzyActive
+    {
+        get
+        {
+            if (!_minersFrenzyActive)
+                return false;
+            return Time.time < _minersFrenzyEndsAt;
+        }
+    }
+
+    /// <summary>Additive mining speed bonus from active Miners Frenzy buff (0 when inactive).</summary>
+    public float GetMinersFrenzySpeedBonus() =>
+        IsMinersFrenzyActive ? MinersFrenzySpeedBonus : 0f;
+
+    /// <summary>Additive mining grit chance bonus from active Miners Frenzy buff, including Iron Grit enhancement (0 when inactive).</summary>
+    public float GetMinersFrenzyGritChanceBonus()
+    {
+        if (!IsMinersFrenzyActive)
+            return 0f;
+
+        float bonus = MinersFrenzyGritChanceBonus;
+        if (GetMinersFrenzySelectedChoice() == MinersFrenzyExtraGritEnhancementChoiceIndex)
+            bonus += MinersFrenzyExtraGritEnhancementBonus;
+        return bonus;
+    }
+
+    /// <summary>Additive mining stamina efficiency bonus from active Miners Frenzy buff, only when Sturdy Grip enhancement is selected (0 otherwise).</summary>
+    public float GetMinersFrenzyStaminaEfficiencyBonus()
+    {
+        if (!IsMinersFrenzyActive)
+            return 0f;
+        return GetMinersFrenzySelectedChoice() == MinersFrenzyStaminaEnhancementChoiceIndex
+            ? MinersFrenzyStaminaEfficiencyEnhancementBonus
+            : 0f;
+    }
+
+    private int GetMinersFrenzySelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Mining, MinersFrenzyChoiceSourceLevel, -1);
     }
 
     private void ActivateCleavingChopBuff()
@@ -9212,7 +9386,7 @@ public partial class PlayerAbilityController : MonoBehaviour
             _lumberFrenzyActive = false;
             _lumberFrenzyEndsAt = 0f;
             _lumberFrenzyDuration = 0f;
-            if (!_fishingFrenzyActive)
+            if (!_fishingFrenzyActive && !_minersFrenzyActive)
                 abilityVfx?.DestroyLumberFrenzyOrbitVfx();
             _lumberFrenzyCooldownAbilityDef = null;
             _lastSyncedLumberFrenzyHudEnd = float.NaN;
@@ -9226,11 +9400,25 @@ public partial class PlayerAbilityController : MonoBehaviour
             _fishingFrenzyActive = false;
             _fishingFrenzyEndsAt = 0f;
             _fishingFrenzyDuration = 0f;
-            if (!_lumberFrenzyActive)
+            if (!_lumberFrenzyActive && !_minersFrenzyActive)
                 abilityVfx?.DestroyLumberFrenzyOrbitVfx();
             _fishingFrenzyCooldownAbilityDef = null;
             _lastSyncedFishingFrenzyHudEnd = float.NaN;
             buffController?.ClearHudAbilityBuff(FishingFrenzyId);
+            stats?.NotifyStatsChanged();
+            return;
+        }
+
+        if (string.Equals(id, MinersFrenzyId, StringComparison.OrdinalIgnoreCase) && _minersFrenzyActive)
+        {
+            _minersFrenzyActive = false;
+            _minersFrenzyEndsAt = 0f;
+            _minersFrenzyDuration = 0f;
+            if (!_lumberFrenzyActive && !_fishingFrenzyActive)
+                abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+            _minersFrenzyCooldownAbilityDef = null;
+            _lastSyncedMinersFrenzyHudEnd = float.NaN;
+            buffController?.ClearHudAbilityBuff(MinersFrenzyId);
             stats?.NotifyStatsChanged();
             return;
         }
@@ -9304,7 +9492,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
             cd = Mathf.Max(cd, MagicStarterSpellRules.GetCooldownSecondsForAbilityId(def.abilityId));
         cd = Mathf.Max(0f, cd - GetPowerSlashCooldownReduction(def) - GetTripleShotCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
-        if (stats != null)
+        if (stats != null && !def.IsNonCombatGatheringAbility())
             cd *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
         if (cd <= 0f) return;
 

@@ -1660,6 +1660,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         int woodcuttingFrenzyStacks = 0;
         int woodcuttingForestFlowStacks = 0;
         float woodcuttingChanceNotToCountTowardTreeDepletion = 0f;
+        float miningRareGemUpgradeChance = 0f;
+        int miningGritRestoreStacks = 0;
+        float miningBonusXpChance = 0f;
+        float miningNoStaminaSwingChance = 0f;
+        int miningMomentumStacks = 0;
+        int miningDeepFocusStacks = 0;
+        float miningChanceNotToCountTowardOreDepletion = 0f;
+        float miningMasteryDoubleGritChance = 0f;
         int fishingGritRestoreStacks = 0;
         float fishingDoubleXpChance = 0f;
         float fishingNoStaminaSwingChance = 0f;
@@ -1884,6 +1892,30 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case MiningMinorNodeStatOption.MiningGritPercent2: gatherGrit += 0.02f; break;
                     case MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
                     case MiningMinorNodeStatOption.MiningBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent2: gatherSpeedFlat += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent3: gatherSpeedFlat += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningSpeedPercent4: gatherSpeedFlat += 0.04f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent1: gatherEnergyEfficiency += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningStaminaEfficiencyPercent3: gatherEnergyEfficiency += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent1: gatherGrit += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent2Skill: gatherGrit += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent3: gatherGrit += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent1: gatherBonusItemChance += 0.01f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent2: gatherBonusItemChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent3: gatherBonusItemChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningBonusFindPercent5: gatherBonusItemChance += 0.05f; break;
+                    case MiningMinorNodeStatOption.MiningGritRestoreStaminaFlat10: miningGritRestoreStacks++; break;
+                    case MiningMinorNodeStatOption.MiningDoubleXpChancePercent3: miningBonusXpChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningNoStaminaSwingChancePercent3: miningNoStaminaSwingChance += 0.03f; break;
+                    case MiningMinorNodeStatOption.MiningMomentumAfterGritSpeedPercent5Duration7s: miningMomentumStacks++; break;
+                    case MiningMinorNodeStatOption.MiningDeepFocusContinuousSpeedPercent3EfficiencyPercent3: miningDeepFocusStacks++; break;
+                    case MiningMinorNodeStatOption.MiningChanceNotToCountTowardOreDepletionPercent10:
+                        miningChanceNotToCountTowardOreDepletion += 0.10f;
+                        break;
+                    case MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent2: miningRareGemUpgradeChance += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningRareGemUpgradeChancePercent4: miningRareGemUpgradeChance += 0.04f; break;
+                    case MiningMinorNodeStatOption.MiningMasteryDoubleGritChancePercent5: miningMasteryDoubleGritChance += 0.05f; break;
                 }
             }
             else if (skill.skillType == SkillType.Fishing)
@@ -2096,12 +2128,15 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             bool isWoodcuttingSkill = skill.skillType == SkillType.Woodcutting;
             bool isFishingSkill = skill.skillType == SkillType.Fishing;
+            bool isMiningSkill = skill.skillType == SkillType.Mining;
             if (gatherSpeedFlat > 0f)
             {
                 if (isWoodcuttingSkill)
                     Pct(gatherSpeedFlat, "Woodcutting Speed");
                 else if (isFishingSkill)
                     Pct(gatherSpeedFlat, "Fishing Speed");
+                else if (isMiningSkill)
+                    Pct(gatherSpeedFlat, "Mining Speed");
                 else
                 {
                     Line("• +" + gatherSpeedFlat.ToString("0.##") + " Gathering Speed");
@@ -2141,9 +2176,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                         + "% Woodcutting Speed, +" + se + "% Woodcutting Stamina Efficiency");
                 }
             }
-            else
-            {
-                if (isFishingSkill)
+            else if (isFishingSkill)
                 {
                     Pct(gatherGrit, "Fishing Grit Chance");
                     Pct(gatherEnergyEfficiency, "Fishing Stamina Efficiency");
@@ -2177,13 +2210,50 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     if (fishingTreasureMinorStacks > 0)
                         Line("• Small chance to catch treasure while fishing");
                 }
+                else if (isMiningSkill)
+                {
+                    Pct(gatherGrit, "Mining Grit Chance");
+                    Pct(gatherEnergyEfficiency, "Mining Stamina Efficiency");
+                    Pct(gatherBonusItemChance, "Mining Bonus Find Chance");
+                    Pct(miningRareGemUpgradeChance, "Rare Gem Discovery Chance when finding a Gem");
+                    if (miningGritRestoreStacks > 0)
+                    {
+                        int stamina = 10 * miningGritRestoreStacks;
+                        Line("• Mining Grit procs restore +" + stamina + " stamina");
+                    }
+                    if (miningBonusXpChance > 0f)
+                    {
+                        Line("• +"
+                            + Mathf.RoundToInt(miningBonusXpChance * 100f)
+                            + "% chance to gain double Mining XP");
+                    }
+                    Pct(miningNoStaminaSwingChance, "Mining No-Stamina Swing Chance");
+                    Pct(miningChanceNotToCountTowardOreDepletion, "Mining chance not to count toward ore depletion");
+                    if (miningMomentumStacks > 0)
+                    {
+                        int pct = 5 * miningMomentumStacks;
+                        Line("• After a Mining Grit proc: +" + pct + "% Mining Speed for 7 seconds");
+                    }
+                    if (miningDeepFocusStacks > 0)
+                    {
+                        int sp = 3 * miningDeepFocusStacks;
+                        int se = 3 * miningDeepFocusStacks;
+                        Line("• While continuously mining (after 15 seconds): +" + sp
+                            + "% Mining Speed, +" + se + "% Mining Stamina Efficiency");
+                    }
+                    if (miningMasteryDoubleGritChance > 0f)
+                    {
+                        Line("• +"
+                            + Mathf.RoundToInt(miningMasteryDoubleGritChance * 100f)
+                            + "% chance a Mining Grit proc immediately triggers a second grit");
+                    }
+                }
                 else
                 {
                     Pct(gatherGrit, "Grit");
                     Pct(gatherEnergyEfficiency, "Energy Efficiency");
                     Pct(gatherBonusItemChance, "Bonus Item Chance");
                 }
-            }
         }
 
         int levelsPastCap = Mathf.Max(0, currentLevel - CharacterStats.SkillPostCapThresholdLevel);

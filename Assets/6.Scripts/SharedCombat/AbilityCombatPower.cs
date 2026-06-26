@@ -377,6 +377,7 @@ public static class AbilityCombatPower
     public const float SoulforgedWeaponExtendedDurationSeconds = 90f;
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
     public const string FishingFrenzyAbilityId = "fishing_frenzy";
+    public const string MinersFrenzyAbilityId = "miners_frenzy";
     public const string CleavingChopAbilityId = "cleaving_chop";
     public const string SpectralAxeAbilityId = "spectral_axe";
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";

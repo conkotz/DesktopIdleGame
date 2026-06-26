@@ -140,6 +140,7 @@ MonoBehaviour:
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+  jewelryGemType: 2
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:

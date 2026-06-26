@@ -320,6 +320,12 @@ public static class SkillTreeNodeTooltipFormatter
             return StripWoodcuttingLumberFrenzyTreeDescriptionDuration(desc);
         }
 
+        if (skill.skillType == SkillType.Mining &&
+            string.Equals(aid, AbilityCombatPower.MinersFrenzyAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            return StripWoodcuttingLumberFrenzyTreeDescriptionDuration(desc);
+        }
+
         return desc;
     }
 

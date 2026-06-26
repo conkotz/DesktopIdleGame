@@ -63,7 +63,36 @@ public enum MiningMinorNodeStatOption
     MiningGatherSpeedFlat01 = 1,
     MiningGritPercent2 = 2,
     MiningEnergyEfficiencyPercent2 = 3,
-    MiningBonusItemChancePercent2 = 4
+    MiningBonusItemChancePercent2 = 4,
+
+    MiningSpeedPercent2 = 10,
+    MiningSpeedPercent3 = 11,
+    MiningSpeedPercent4 = 12,
+    MiningStaminaEfficiencyPercent1 = 13,
+    MiningStaminaEfficiencyPercent2 = 14,
+    MiningStaminaEfficiencyPercent3 = 15,
+    MiningGritPercent1 = 16,
+    /// <summary>+2% Mining Grit Chance (skill-tree nodes; legacy <see cref="MiningGritPercent2"/> remains value 2).</summary>
+    MiningGritPercent2Skill = 17,
+    MiningGritPercent3 = 18,
+    MiningBonusFindPercent1 = 19,
+    MiningBonusFindPercent2 = 20,
+    MiningBonusFindPercent3 = 21,
+    MiningBonusFindPercent5 = 22,
+
+    MiningGritRestoreStaminaFlat10 = 30,
+    MiningDoubleXpChancePercent3 = 31,
+    MiningNoStaminaSwingChancePercent3 = 32,
+    MiningMomentumAfterGritSpeedPercent5Duration7s = 33,
+    MiningDeepFocusContinuousSpeedPercent3EfficiencyPercent3 = 34,
+    MiningChanceNotToCountTowardOreDepletionPercent10 = 35,
+
+    /// <summary>When a gem bonus drop succeeds, +2% chance to upgrade it to a rare gem.</summary>
+    MiningRareGemUpgradeChancePercent2 = 50,
+    /// <summary>When a gem bonus drop succeeds, +4% chance to upgrade it to a rare gem.</summary>
+    MiningRareGemUpgradeChancePercent4 = 51,
+    /// <summary>5% chance a Mining Grit proc immediately triggers a second grit on the same tick.</summary>
+    MiningMasteryDoubleGritChancePercent5 = 52
 }
 
 public enum FishingMinorNodeStatOption

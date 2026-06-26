@@ -698,10 +698,33 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             return;
 
         if (pickaxeTitleText) pickaxeTitleText.text = "Pickaxe";
-        if (pickaxeSpeedText) pickaxeSpeedText.text = $"Mining Speed: {stats.PickaxeSpeedMult:0.##}x";
+        float basePickaxeSpeed = stats.PickaxeSpeedMult;
+        if (pickaxeSpeedText)
+        {
+            float displayPickaxeSpeed = basePickaxeSpeed;
+            if (player != null &&
+                player.TryGetMiningLiveBuffInfo(out float momSpd, out float dfSpd, out _) &&
+                (momSpd > 0f || dfSpd > 0f))
+                displayPickaxeSpeed = basePickaxeSpeed * (1f + momSpd + dfSpd);
+
+            pickaxeSpeedText.richText = false;
+            pickaxeSpeedText.text = $"Mining Speed: {displayPickaxeSpeed:0.##}x";
+        }
         if (pickaxeGritText) pickaxeGritText.text = $"Mining Grit: {stats.PickaxeGrit * 100f:0.#}%";
-        if (pickaxeBonusFindText) pickaxeBonusFindText.text = $"Bonus Find: +{stats.PickaxeBonusFindChance * 100f:0.#}%";
-        if (pickaxeStaminaEfficiencyText) pickaxeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.PickaxeStaminaEfficiency * 100f:0.#}%";
+        if (pickaxeBonusFindText) pickaxeBonusFindText.text = $"Mining Bonus Find: +{stats.PickaxeBonusFindChance * 100f:0.#}%";
+
+        float basePickaxeStam = stats.PickaxeStaminaEfficiency;
+        if (pickaxeStaminaEfficiencyText)
+        {
+            float displayPickaxeStam = basePickaxeStam;
+            if (player != null &&
+                player.TryGetMiningLiveBuffInfo(out _, out _, out float dfStam) &&
+                dfStam > 0f)
+                displayPickaxeStam = Mathf.Clamp01(basePickaxeStam + dfStam);
+
+            pickaxeStaminaEfficiencyText.richText = false;
+            pickaxeStaminaEfficiencyText.text = $"Mining Stamina Efficiency: +{displayPickaxeStam * 100f:0.#}%";
+        }
 
         if (axeTitleText) axeTitleText.text = "Axe";
 

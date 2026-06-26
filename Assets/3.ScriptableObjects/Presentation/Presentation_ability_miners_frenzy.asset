@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
+  m_Name: Presentation_ability_miners_frenzy
+  m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
+  notes: Presentation for miners_frenzy
+  displayNameOverride: Miners Frenzy
+  icon: {fileID: -7398982564601289243, guid: 5ccfea8603f5b2c4999727f178d4b82e, type: 3}
+  shortDescription: Enter a focused mining state.
+  primaryDescriptionOverride: 
+  flavourText: 
+  tooltipCategoryTagOverride: 

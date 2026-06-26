@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: gem_ruby
+  m_Name: gem_citrine
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 99
-  itemId: gem_ruby
-  displayName: Ruby
+  itemId: gem_citrine
+  displayName: Citrine
   displayNameSingular: 
-  icon: {fileID: -6945001556013784561, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
+  icon: {fileID: 7922862648527838064, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A sapphire gem. Obtained with a small chance from mining stone chunks.
-  rarity: 1
-  value: 300
+  description: A citrine gem. A rare find while mining.
+  rarity: 2
+  value: 500
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -140,6 +140,7 @@ MonoBehaviour:
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+  jewelryGemType: 4
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
@@ -153,6 +154,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openRequiredAmount: 0
     openableLoot: []
   enhancementScrollStats:
     successChance: 0

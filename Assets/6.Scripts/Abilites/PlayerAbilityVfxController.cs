@@ -206,6 +206,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0f)] private float gatheringFrenzyBehindDistance = 0.38f;
     [SerializeField] private Color lumberFrenzyOrbitVfxColor = new Color(0.35f, 1f, 0.45f, 1f);
     [SerializeField] private Color fishingFrenzyOrbitVfxColor = new Color(0.32f, 0.62f, 1f, 0.95f);
+    [SerializeField] private Color miningFrenzyOrbitVfxColor = new Color(0.92f, 0.55f, 0.22f, 0.95f);
 
     [Header("Soulforged Weapon Minion VFX")]
     [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
@@ -2556,7 +2557,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         return null;
     }
 
-    public void SpawnLumberFrenzyOrbitVfx(bool isFishingFrenzy = false)
+    public void SpawnLumberFrenzyOrbitVfx(bool isFishingFrenzy = false, bool isMiningFrenzy = false)
     {
         DestroyLumberFrenzyOrbitVfx();
 
@@ -2564,9 +2565,15 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (followRoot == null)
             return;
 
-        Color vfxColor = isFishingFrenzy ? fishingFrenzyOrbitVfxColor : lumberFrenzyOrbitVfxColor;
+        Color vfxColor = isMiningFrenzy ? miningFrenzyOrbitVfxColor
+            : isFishingFrenzy ? fishingFrenzyOrbitVfxColor
+            : lumberFrenzyOrbitVfxColor;
 
-        _lumberFrenzyAnchorRoot = new GameObject(isFishingFrenzy ? "FishingFrenzyVfxAnchor" : "LumberFrenzyVfxAnchor");
+        string anchorName = isMiningFrenzy ? "MinersFrenzyVfxAnchor"
+            : isFishingFrenzy ? "FishingFrenzyVfxAnchor"
+            : "LumberFrenzyVfxAnchor";
+
+        _lumberFrenzyAnchorRoot = new GameObject(anchorName);
         _lumberFrenzyAnchorRoot.transform.SetParent(followRoot, false);
         _lumberFrenzyAnchorRoot.transform.localRotation = Quaternion.identity;
         _lumberFrenzyAnchorRoot.transform.localScale = Vector3.one;
@@ -2575,7 +2582,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (lumberFrenzyOrbitVfxPrefab != null)
         {
             _lumberFrenzyOrbitVfxRoot = Instantiate(lumberFrenzyOrbitVfxPrefab, _lumberFrenzyAnchorRoot.transform);
-            _lumberFrenzyOrbitVfxRoot.name = isFishingFrenzy ? "FishingFrenzyOrbitVfx" : "LumberFrenzyOrbitVfx";
+            _lumberFrenzyOrbitVfxRoot.name = isMiningFrenzy ? "MinersFrenzyOrbitVfx"
+                : isFishingFrenzy ? "FishingFrenzyOrbitVfx"
+                : "LumberFrenzyOrbitVfx";
             Transform t = _lumberFrenzyOrbitVfxRoot.transform;
             t.localPosition = Vector3.zero;
             t.localRotation = Quaternion.identity;
@@ -2715,17 +2724,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
             ApplyGatheringFrenzyColorToHierarchy(_lumberFrenzyOrbitVfxRoot.transform, vfxColor);
     }
 
-    public void UpdateLumberFrenzyOrbitVfx(bool lumberFrenzyActive, bool fishingFrenzyActive)
+    public void UpdateLumberFrenzyOrbitVfx(bool lumberFrenzyActive, bool fishingFrenzyActive, bool miningFrenzyActive = false)
     {
-        if (!lumberFrenzyActive && !fishingFrenzyActive)
+        if (!lumberFrenzyActive && !fishingFrenzyActive && !miningFrenzyActive)
             return;
         if (_lumberFrenzyAnchorRoot == null)
             return;
 
         SyncGatheringFrenzyAnchorLocalPosition();
 
-        bool useFishingColor = fishingFrenzyActive && !lumberFrenzyActive;
-        Color vfxColor = useFishingColor ? fishingFrenzyOrbitVfxColor : lumberFrenzyOrbitVfxColor;
+        Color vfxColor = lumberFrenzyActive ? lumberFrenzyOrbitVfxColor
+            : fishingFrenzyActive ? fishingFrenzyOrbitVfxColor
+            : miningFrenzyOrbitVfxColor;
         ApplyGatheringFrenzyOrbitColor(vfxColor);
     }
 

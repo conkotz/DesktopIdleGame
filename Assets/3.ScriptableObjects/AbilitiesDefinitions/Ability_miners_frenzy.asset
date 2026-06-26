@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_miners_frenzy
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: miners_frenzy
+  displayName: Miners Frenzy
+  tag: 3
+  tooltipBuffMinionDurationSeconds: 20
+  presentation: {fileID: 11400000, guid: e3a5b602cac84d6f84db30449063deb0, type: 2}
+  cooldown: 45
+  energyCost: 0
+  weaponDamageMultiplier: 0
+  allDamageMultiplier: 0
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 0
+  sourceSkill: 0
+  unlockLevel: 5
+  minionSpawnDefinition: {fileID: 0}
+  requireRangeCheckToActivate: 0

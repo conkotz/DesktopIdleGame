@@ -217,7 +217,7 @@ TextureImporter:
       name: GemSpriteSheet_3DIAMOND
       rect:
         serializedVersion: 2
-        x: 929
+        x: 930
         y: 550
         width: 293
         height: 320
@@ -236,7 +236,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: GemSpriteSheet_4
+      name: GemSpriteSheet_OBSIDIAN
       rect:
         serializedVersion: 2
         x: 1216
@@ -324,7 +324,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: GemSpriteSheet_10
+      name: GemSpriteSheet_CRYSTAL
       rect:
         serializedVersion: 2
         x: 643
@@ -384,17 +384,17 @@ TextureImporter:
         value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":320.0,"y":320.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       GemSpriteSheet_0RUBY: -6945001556013784561
-      GemSpriteSheet_10: -9217452676276758142
       GemSpriteSheet_11: -4981822539528456497
       GemSpriteSheet_1SAPPHIRE: -7534516496587888937
       GemSpriteSheet_2EMERALD: -2176379822362671368
       GemSpriteSheet_3DIAMOND: 296317598895340505
-      GemSpriteSheet_4: -8415265752551835511
       GemSpriteSheet_5: 5074798424891137574
       GemSpriteSheet_6: 3786729618274709733
       GemSpriteSheet_7AMETHYST: 1573605905543863225
       GemSpriteSheet_8CITRINE: 7922862648527838064
       GemSpriteSheet_9QUARTZ: 6824777452842450503
+      GemSpriteSheet_CRYSTAL: -9217452676276758142
+      GemSpriteSheet_OBSIDIAN: -8415265752551835511
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

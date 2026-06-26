@@ -348,7 +348,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsRend(def) || IsEnvenom(def) || IsCleavingStrikes(def))
             return false;
-        if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
+        if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsMinersFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
         if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def) || IsTripleShot(def) || IsStaticArrows(def) || IsSnipe(def) || IsPenetratingShot(def))
             return false;
@@ -689,8 +689,12 @@ public static class AbilityTooltipDamagePreview
     private static bool IsFishingFrenzy(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.FishingFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsMinersFrenzy(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.MinersFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private const float LumberFrenzyBuffDurationSecondsTooltip = 20f;
     private static float FishingFrenzyBuffDurationSecondsTooltip => GatheringPassiveTooltipText.FishingFrenzyDurationSeconds;
+    private static float MinersFrenzyBuffDurationSecondsTooltip => GatheringPassiveTooltipText.MinersFrenzyDurationSeconds;
 
     /// <summary>
     /// Blue "Deals X% of your hit damage" (and minion scaling) lines — placed after flavor description, before Effects.
@@ -1053,6 +1057,17 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             float fishingDur = GetTooltipBuffMinionDisplayDurationSeconds(def, FishingFrenzyBuffDurationSecondsTooltip, 0f);
             body.AppendLine(O($"Duration: {fishingDur:0.#}s"));
+            body.AppendLine(string.Empty);
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsMinersFrenzy(def))
+        {
+            AppendMinersFrenzyTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            float minersDur = GetTooltipBuffMinionDisplayDurationSeconds(def, MinersFrenzyBuffDurationSecondsTooltip, 0f);
+            body.AppendLine(O($"Duration: {minersDur:0.#}s"));
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -1745,7 +1760,7 @@ public static class AbilityTooltipDamagePreview
             return true;
         if (def.tag == AbilityTag.ToggleBuff)
             return false;
-        return IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def) ||
+        return IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsMinersFrenzy(def) || IsAvatarOfTheForest(def) ||
                IsCleavingChop(def) || IsSpectralAxe(def) || IsCleavingStrikes(def) ||
                IsSoulforgedWeapon(def) || IsSoulforgedWarrior(def) || IsHawkCompanion(def);
     }
@@ -1873,6 +1888,17 @@ public static class AbilityTooltipDamagePreview
     {
         var scratch = new StringBuilder();
         GatheringPassiveTooltipText.AppendFishingFrenzyEffectLines(scratch, skillsManager);
+        foreach (string line in scratch.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            body.AppendLine(O(line));
+    }
+
+    private static void AppendMinersFrenzyTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        var scratch = new StringBuilder();
+        GatheringPassiveTooltipText.AppendMinersFrenzyEffectLines(scratch, skillsManager);
         foreach (string line in scratch.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             body.AppendLine(O(line));
     }

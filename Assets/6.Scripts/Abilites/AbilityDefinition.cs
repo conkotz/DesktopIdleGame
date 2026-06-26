@@ -197,6 +197,14 @@ public class AbilityDefinition : ScriptableObject
             return true;
         return equipped == requiredChargedRuneElement;
     }
+
+    /// <summary>
+    /// Woodcutting, mining, and fishing abilities are non-combat (e.g. frenzies) — combat cooldown reduction does not apply.
+    /// </summary>
+    public bool IsNonCombatGatheringAbility() =>
+        sourceSkill == SkillType.Woodcutting ||
+        sourceSkill == SkillType.Mining ||
+        sourceSkill == SkillType.Fishing;
 }
 
 public enum AbilityResourceCostType

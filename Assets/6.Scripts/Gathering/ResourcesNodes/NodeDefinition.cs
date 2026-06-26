@@ -401,7 +401,10 @@ public class NodeDefinition : ScriptableObject
                     int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
                     if (ctx.bonusDropExtraOneChance > 0f && UnityEngine.Random.value < ctx.bonusDropExtraOneChance)
                         amt += 1;
-                    outDrops.Add(new Drop(b.item.itemId, amt));
+                    string itemId = b.item.itemId;
+                    if (ctx.miningRareGemUpgradeChance > 0f)
+                        MiningGemDropRules.TryRollRareGemUpgrade(ref itemId, ctx.miningRareGemUpgradeChance);
+                    outDrops.Add(new Drop(itemId, amt));
                 }
             }
         }
@@ -470,6 +473,12 @@ public class NodeDefinition : ScriptableObject
 
         /// <summary>Chance to add +1 to each successful bonus drop's amount (Forest's Favor / Hidden Riches).</summary>
         public float bonusDropExtraOneChance;
+
+        /// <summary>
+        /// When a gem bonus drop succeeds, chance (0–1) to upgrade the gem to its rare variant
+        /// (Mining Rare Gem Discovery passives). Does not affect non-gem bonus drops.
+        /// </summary>
+        public float miningRareGemUpgradeChance;
     }
 
     /// <summary>

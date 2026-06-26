@@ -44,6 +44,8 @@ public enum JewelryGemType
     Diamond = 6,
     Amethyst = 7,
     Topaz = 8,
+    Crystal = 9,
+    Obsidian = 10,
 }
 
 public enum ItemKind
@@ -2825,8 +2827,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         int minInt = Mathf.RoundToInt(min);
         int maxInt = Mathf.RoundToInt(max);
         if (minInt == maxInt)
-            return $"Flat added {elementLabel}: {minInt}";
-        return $"Flat added {elementLabel}: {minInt} - {maxInt}";
+            return $"Added {elementLabel} damage: {minInt}";
+        return $"Added {elementLabel} damage: {minInt} - {maxInt}";
     }
 
     private static string FormatSignedNumber(float value)
