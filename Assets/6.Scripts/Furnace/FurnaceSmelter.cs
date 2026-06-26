@@ -230,6 +230,12 @@ public class FurnaceSmelter : MonoBehaviour, ISaveable
             return false;
         }
 
+        if (_readyBarAmount > 0)
+        {
+            failureReason = "Must remove bars first.";
+            return false;
+        }
+
         Inventory inv = ResolveInventory();
         if (!inv)
         {

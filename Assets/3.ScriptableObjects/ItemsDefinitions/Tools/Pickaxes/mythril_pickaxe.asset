@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: stone_pickaxe
+  m_Name: mythril_pickaxe
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 2
   maxStack: 1
-  itemId: stone_pickaxe
-  displayName: Stone Pickaxe
+  itemId: mythril_pickaxe
+  displayName: Mythril Pickaxe
   displayNameSingular: 
-  icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+  icon: {fileID: -2836156551219916195, guid: 8e33506b144aa58489f4700c77ee487d, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic stone pickaxe
-  rarity: 0
-  value: 80
+  description: A strong mythril pickaxe
+  rarity: 2
+  value: 3000
   equipSlot: 1
   uniquelyEquipped: 0
   handVisualKey: 2
@@ -94,11 +94,11 @@ MonoBehaviour:
     consumableOnSpell: 0
   toolStats:
     toolType: 2
-    equipmentTier: 0
-    gatherSpeedMultiplier: 1
-    gatheringGrit: 0
-    bonusResourceFindChance: 0
-    staminaEfficiency: 0
+    equipmentTier: 2
+    gatherSpeedMultiplier: 1.6
+    gatheringGrit: 0.1
+    bonusResourceFindChance: 0.1
+    staminaEfficiency: 0.2
   armourStats:
     equipmentTier: 0
     armourType: 0

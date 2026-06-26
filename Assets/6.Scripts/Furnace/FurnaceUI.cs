@@ -178,11 +178,10 @@ public class FurnaceUI : MonoBehaviour
 
     private void RefreshOreClearButton()
     {
-        if (_oreClearButton == null || _smelter == null)
+        if (_oreClearButton == null)
             return;
 
-        bool show = _smelter.StoredOreAmount > 0 && !_smelter.IsSmelting;
-        _oreClearButton.gameObject.SetActive(show);
+        _oreClearButton.gameObject.SetActive(true);
     }
 
     private void RefreshSlotVisuals()
@@ -253,7 +252,7 @@ public class FurnaceUI : MonoBehaviour
 
         if (!_smelter.TryGetSmeltTimeEstimate(
                 out float totalRemaining,
-                out float secondsPerBar,
+                out _,
                 out int barsRemaining))
         {
             _timeSummaryText.text = "";
@@ -261,20 +260,11 @@ public class FurnaceUI : MonoBehaviour
         }
 
         int ore = _smelter.StoredOreAmount;
-        int perBar = _smelter.GetOrePerBar();
         string totalLabel = FormatSmeltDuration(totalRemaining);
-        string perBarLabel = FormatSmeltDuration(secondsPerBar);
+        string barWord = barsRemaining == 1 ? "bar" : "bars";
 
-        if (_smelter.IsSmelting)
-        {
-            _timeSummaryText.text =
-                $"Total remaining: {totalLabel} ({barsRemaining} bar{(barsRemaining == 1 ? "" : "s")}, {ore} ore) · {perBarLabel} per bar ({perBar} ore)";
-        }
-        else
-        {
-            _timeSummaryText.text =
-                $"Smelting {ore} ore will take {totalLabel} ({barsRemaining} bar{(barsRemaining == 1 ? "" : "s")}) · {perBarLabel} per bar ({perBar} ore)";
-        }
+        _timeSummaryText.text =
+            $"Smelting time: {ore} ore ({barsRemaining} {barWord}) - {totalLabel}";
     }
 
     private static string FormatSmeltDuration(float seconds)
@@ -571,8 +561,8 @@ public class FurnaceUI : MonoBehaviour
 
         if (!_smelter.TryWithdrawAllOre(out string reason))
         {
-            if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+            if (!string.IsNullOrWhiteSpace(reason) && reason != "No ore stored.")
+                GameLog.Add(reason, GameLog.CannotMessageColor);
             return;
         }
 
@@ -712,7 +702,7 @@ public class FurnaceUI : MonoBehaviour
         clearRt.anchoredPosition = new Vector2(-4f, -4f);
         _oreClearButton.onClick.AddListener(OnOreClearClicked);
         _oreClearButton.transform.SetAsLastSibling();
-        _oreClearButton.gameObject.SetActive(false);
+        _oreClearButton.gameObject.SetActive(true);
 
         TextMeshProUGUI arrowText = CreateTmpText("Arrow", slotsRow.transform, 28f, Accent, TextAlignmentOptions.Center);
         arrowText.text = "→";
