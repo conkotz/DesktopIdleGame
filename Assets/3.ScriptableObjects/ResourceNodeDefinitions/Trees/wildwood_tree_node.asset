@@ -16,7 +16,7 @@ MonoBehaviour:
   actionType: 1
   gatherPlayerAction: 3
   useLevelRequirement: 1
-  requiredLevel: 40
+  requiredLevel: 20
   xpPerTick: 25
   mainYieldEntries:
   - item: {fileID: 11400000, guid: e6c90b8c9528e9346aee2d5529ecdcc7, type: 2}

@@ -111,7 +111,7 @@ MonoBehaviour:
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint-5
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 6546315298902043643, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
+      prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
