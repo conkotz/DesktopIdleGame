@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: mythrite_ore
+  m_Name: runite_axe
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
-  maxStack: 999
-  itemId: mythrite_ore
-  displayName: Mythrite Ore
+  itemKind: 2
+  maxStack: 1
+  itemId: runite_axe
+  displayName: Runite Axe
   displayNameSingular: 
-  icon: {fileID: -8182864516769833960, guid: 5ad45366897be304fa783e82de378f70, type: 3}
+  icon: {fileID: 7780209216702488159, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,12 +25,12 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Raw mythrite ore from a mythrite deposit.
-  rarity: 2
-  value: 110
-  equipSlot: 0
+  description: A refined runite axe
+  rarity: 3
+  value: 6000
+  equipSlot: 1
   uniquelyEquipped: 0
-  handVisualKey: 0
+  handVisualKey: 3
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
@@ -93,12 +93,12 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
     consumableOnSpell: 0
   toolStats:
-    toolType: 0
-    equipmentTier: 0
-    gatherSpeedMultiplier: 0
-    gatheringGrit: 0
-    bonusResourceFindChance: 0
-    staminaEfficiency: 0
+    toolType: 1
+    equipmentTier: 3
+    gatherSpeedMultiplier: 1.9
+    gatheringGrit: 0.15
+    bonusResourceFindChance: 0.15
+    staminaEfficiency: 0.3
   armourStats:
     equipmentTier: 0
     armourType: 0

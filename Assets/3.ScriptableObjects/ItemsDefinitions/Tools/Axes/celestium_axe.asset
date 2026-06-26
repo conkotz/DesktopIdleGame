@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: mythrite_bar
+  m_Name: celestium_axe
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
-  maxStack: 999
-  itemId: mythrite_bar
-  displayName: Mythrite Bar
+  itemKind: 2
+  maxStack: 1
+  itemId: celestium_axe
+  displayName: Celestium Axe
   displayNameSingular: 
-  icon: {fileID: -1446843033, guid: 5ad45366897be304fa783e82de378f70, type: 3}
+  icon: {fileID: 3505568085921964069, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,12 +25,12 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A smelted mythrite bar.
-  rarity: 2
-  value: 300
-  equipSlot: 0
+  description: A celestial celestium axe
+  rarity: 4
+  value: 10000
+  equipSlot: 1
   uniquelyEquipped: 0
-  handVisualKey: 0
+  handVisualKey: 3
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
@@ -93,12 +93,12 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
     consumableOnSpell: 0
   toolStats:
-    toolType: 0
-    equipmentTier: 0
-    gatherSpeedMultiplier: 0
-    gatheringGrit: 0
-    bonusResourceFindChance: 0
-    staminaEfficiency: 0
+    toolType: 1
+    equipmentTier: 4
+    gatherSpeedMultiplier: 2.2
+    gatheringGrit: 0.2
+    bonusResourceFindChance: 0.2
+    staminaEfficiency: 0.4
   armourStats:
     equipmentTier: 0
     armourType: 0

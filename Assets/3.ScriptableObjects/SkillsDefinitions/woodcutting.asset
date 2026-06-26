@@ -455,7 +455,7 @@ MonoBehaviour:
     title: T3 Axes
     description: 'Can equip tier 3 axes:
 
-      Steel Axe'
+      Mythril Axe'
     icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -693,7 +693,7 @@ MonoBehaviour:
     title: T4 Axes
     description: 'Can equip tier 4 axes:
 
-      Gold Axe'
+      Runite Axe'
     icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -912,7 +912,7 @@ MonoBehaviour:
     title: T5 Axes
     description: 'Can equip tier 5 axes:
 
-      ??'
+      Celestium Axe'
     icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0

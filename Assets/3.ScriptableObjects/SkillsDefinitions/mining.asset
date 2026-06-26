@@ -394,7 +394,7 @@ MonoBehaviour:
     title: T3 Pickaxes
     description: 'Can equip tier 3 pickaxes:
 
-      Mythrite Pickaxe'
+      Mythril Pickaxe'
     icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -409,8 +409,8 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
-    title: Mythrite
-    description: Can mine mythrite deposits
+    title: Mythril
+    description: Can mine mythril deposits
     icon: {fileID: 1041354706888159047, guid: 0d6b2f4bf40a49f449d77dbbbc76145e, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0

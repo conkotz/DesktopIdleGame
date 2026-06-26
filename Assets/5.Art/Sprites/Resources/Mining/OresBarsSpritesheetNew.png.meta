@@ -208,7 +208,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: OresBarsSpritesheetNew_Mythrite_Ore
+      name: OresBarsSpritesheetNew_Mythril_Ore
       rect:
         serializedVersion: 2
         x: 945
@@ -274,7 +274,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: OresBarsSpritesheetNew_Mythrite_bar
+      name: OresBarsSpritesheetNew_Mythril_bar
       rect:
         serializedVersion: 2
         x: 641
@@ -379,8 +379,8 @@ TextureImporter:
       OresBarsSpritesheetNew_Celestium_bar: -1218338670
       OresBarsSpritesheetNew_Iron_Bar: 950266229
       OresBarsSpritesheetNew_Iron_Ore: 811745016679173300
-      OresBarsSpritesheetNew_Mythrite_Ore: -8182864516769833960
-      OresBarsSpritesheetNew_Mythrite_bar: -1446843033
+      OresBarsSpritesheetNew_Mythril_Ore: -8182864516769833960
+      OresBarsSpritesheetNew_Mythril_bar: -1446843033
       OresBarsSpritesheetNew_Runeite_bar: -516466324
       OresBarsSpritesheetNew_Runite_Ore: -5739646596214114644
       OresBarsSpritesheetNew_StoneChunk: -8502448224913434890

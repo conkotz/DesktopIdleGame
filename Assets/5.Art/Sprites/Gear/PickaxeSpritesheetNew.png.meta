@@ -131,7 +131,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: PickaxeSpritesheetNew_Mythrite_Pickaxe
+      name: PickaxeSpritesheetNew_Mythril_Pickaxe
       rect:
         serializedVersion: 2
         x: 375
@@ -212,7 +212,7 @@ TextureImporter:
     nameFileIdTable:
       PickaxeSpritesheetNew_Celestium_Pickaxe: -7563374199076520471
       PickaxeSpritesheetNew_Iron_Pickaxe: 2316100792636525266
-      PickaxeSpritesheetNew_Mythrite_Pickaxe: -2836156551219916195
+      PickaxeSpritesheetNew_Mythril_Pickaxe: -2836156551219916195
       PickaxeSpritesheetNew_Runite_pickaxe: 339987843382538123
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0

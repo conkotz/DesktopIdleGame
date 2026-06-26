@@ -26,7 +26,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_Name
-      value: MythriteDeposit
+      value: MythrilDeposit
       objectReference: {fileID: 0}
     - target: {fileID: 2353321014339349072, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -74,7 +74,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6990838090764201582, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_text
-      value: 'Mythrite
+      value: 'Mythril
 
         Deposit'
       objectReference: {fileID: 0}

@@ -26,7 +26,7 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: A sturdy iron axe
-  rarity: 2
+  rarity: 1
   value: 800
   equipSlot: 1
   uniquelyEquipped: 0
@@ -98,7 +98,7 @@ MonoBehaviour:
     gatherSpeedMultiplier: 1.3
     gatheringGrit: 0.05
     bonusResourceFindChance: 0.05
-    staminaEfficiency: 0.2
+    staminaEfficiency: 0.1
   armourStats:
     equipmentTier: 0
     armourType: 0

@@ -231,7 +231,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: ResourceStonesSpritesheetNew_MythriteNode
+      name: ResourceStonesSpritesheetNew_MythrilNode
       rect:
         serializedVersion: 2
         x: 16
@@ -316,7 +316,7 @@ TextureImporter:
       ResourceStonesSpritesheetNew_CelestiumNode: 4972051977966351520
       ResourceStonesSpritesheetNew_GemstoneNode: -2450355515067900020
       ResourceStonesSpritesheetNew_IronNode: -5248713350725480015
-      ResourceStonesSpritesheetNew_MythriteNode: 1041354706888159047
+      ResourceStonesSpritesheetNew_MythrilNode: 1041354706888159047
       ResourceStonesSpritesheetNew_RuniteNode: -3694752190506741879
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0

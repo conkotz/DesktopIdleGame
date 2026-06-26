@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: stone_axe
+  m_Name: mythril_bar
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 2
-  maxStack: 1
-  itemId: stone_axe
-  displayName: Stone Axe
+  itemKind: 0
+  maxStack: 999
+  itemId: mythril_bar
+  displayName: Mythril Bar
   displayNameSingular: 
-  icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+  icon: {fileID: -1446843033, guid: 5ad45366897be304fa783e82de378f70, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,12 +25,12 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic stone pick
-  rarity: 0
-  value: 80
-  equipSlot: 1
+  description: A smelted mythril bar.
+  rarity: 2
+  value: 300
+  equipSlot: 0
   uniquelyEquipped: 0
-  handVisualKey: 3
+  handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   enhancementScrollHistory: []
@@ -93,9 +93,9 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
     consumableOnSpell: 0
   toolStats:
-    toolType: 1
+    toolType: 0
     equipmentTier: 0
-    gatherSpeedMultiplier: 1
+    gatherSpeedMultiplier: 0
     gatheringGrit: 0
     bonusResourceFindChance: 0
     staminaEfficiency: 0

@@ -137,7 +137,7 @@ $G = @{
 
 $stoneBonus = @(@{ guid = $G.sapphire; chance = "0.1" })
 $ironBonus = $stoneBonus
-$mythriteBonus = @(
+$mythrilBonus = @(
     @{ guid = $G.quartz; chance = "0.08" },
     @{ guid = $G.amethyst; chance = "0.08" },
     @{ guid = $G.citrine; chance = "0.08" },
@@ -146,7 +146,7 @@ $mythriteBonus = @(
     @{ guid = $G.ruby; chance = "0.05" },
     @{ guid = $G.emerald; chance = "0.05" }
 )
-$runiteBonus = $mythriteBonus + @(
+$runiteBonus = $mythrilBonus + @(
     @{ guid = $G.crystal; chance = "0.03" },
     @{ guid = $G.diamond; chance = "0.03" }
 )
@@ -166,8 +166,8 @@ $gemstoneBonus = @(
 $items = @(
     @{ id = "iron_ore"; name = "Iron Ore"; desc = "Raw iron ore from an iron deposit."; fileId = "811745016679173300"; rarity = 1; value = 45; guid = (New-Guid32) },
     @{ id = "iron_bar"; name = "Iron Bar"; desc = "A smelted iron bar."; fileId = "950266229"; rarity = 1; value = 120; guid = (New-Guid32) },
-    @{ id = "mythrite_ore"; name = "Mythrite Ore"; desc = "Raw mythrite ore from a mythrite deposit."; fileId = "-8182864516769833960"; rarity = 2; value = 110; guid = (New-Guid32) },
-    @{ id = "mythrite_bar"; name = "Mythrite Bar"; desc = "A smelted mythrite bar."; fileId = "-1446843033"; rarity = 2; value = 300; guid = (New-Guid32) },
+    @{ id = "mythril_ore"; name = "Mythril Ore"; desc = "Raw mythril ore from a mythril deposit."; fileId = "-8182864516769833960"; rarity = 2; value = 110; guid = (New-Guid32) },
+    @{ id = "mythril_bar"; name = "Mythril Bar"; desc = "A smelted mythril bar."; fileId = "-1446843033"; rarity = 2; value = 300; guid = (New-Guid32) },
     @{ id = "runite_ore"; name = "Runite Ore"; desc = "Raw runite ore from a runite deposit."; fileId = "-5739646596214114644"; rarity = 3; value = 275; guid = (New-Guid32) },
     @{ id = "runite_bar"; name = "Runite Bar"; desc = "A smelted runite bar."; fileId = "-516466324"; rarity = 3; value = 750; guid = (New-Guid32) },
     @{ id = "celestium_ore"; name = "Celestium Ore"; desc = "Raw celestium ore from a celestium deposit."; fileId = "-7875622402969895686"; rarity = 4; value = 690; guid = (New-Guid32) },
@@ -191,10 +191,10 @@ $nodes = @(
         bonus = (Build-BonusLines $ironBonus); guid = (New-Guid32); prefabGuid = (New-Guid32)
     },
     @{
-        asset = "mythrite_deposit_node"; display = "Mythrite Deposit"; prefab = "MythriteDeposit"
-        label = "Mythrite`r`n`r`n        Deposit"; level = 20; xp = 38; ore = "mythrite_ore"
+        asset = "mythril_deposit_node"; display = "Mythril Deposit"; prefab = "MythrilDeposit"
+        label = "Mythril`r`n`r`n        Deposit"; level = 20; xp = 38; ore = "mythril_ore"
         min = 25; max = 50; energy = 19; sprite = "1041354706888159047"
-        bonus = (Build-BonusLines $mythriteBonus); guid = (New-Guid32); prefabGuid = (New-Guid32)
+        bonus = (Build-BonusLines $mythrilBonus); guid = (New-Guid32); prefabGuid = (New-Guid32)
     },
     @{
         asset = "runite_deposit_node"; display = "Runite Deposit"; prefab = "RuniteDeposit"

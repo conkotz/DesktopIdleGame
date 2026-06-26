@@ -96,8 +96,8 @@ MonoBehaviour:
     toolType: 1
     equipmentTier: 2
     gatherSpeedMultiplier: 1.6
-    gatheringGrit: 0.05
-    bonusResourceFindChance: 0.05
+    gatheringGrit: 0.1
+    bonusResourceFindChance: 0.1
     staminaEfficiency: 0.2
   armourStats:
     equipmentTier: 0

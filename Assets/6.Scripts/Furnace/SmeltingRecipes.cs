@@ -25,7 +25,7 @@ public static class SmeltingRecipes
     private static readonly SmeltingRecipe[] Recipes =
     {
         new("iron_ore", "iron_bar", DefaultOrePerBar, 20f),
-        new("mythrite_ore", "mythrite_bar", DefaultOrePerBar, 40f),
+        new("mythril_ore", "mythril_bar", DefaultOrePerBar, 40f),
         new("runite_ore", "runite_bar", DefaultOrePerBar, 60f),
         new("celestium_ore", "celestium_bar", DefaultOrePerBar, 90f),
     };

@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
-  m_Name: mythrite_deposit_node
+  m_Name: mythril_deposit_node
   m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
-  displayName: Mythrite Deposit
+  displayName: Mythril Deposit
   actionType: 0
   gatherPlayerAction: 2
   useLevelRequirement: 1

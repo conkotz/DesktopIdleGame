@@ -137,7 +137,7 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: AxesSpritesheetNew_Mythrite_axe
+      name: AxesSpritesheetNew_Mythril_axe
       rect:
         serializedVersion: 2
         x: 464
@@ -220,7 +220,7 @@ TextureImporter:
       AxesSpritesheetNew_4: -4926952827874740572
       AxesSpritesheetNew_Celestium_axe: 3505568085921964069
       AxesSpritesheetNew_Iron_axe: 6213697026280047418
-      AxesSpritesheetNew_Mythrite_axe: 2669031087144982882
+      AxesSpritesheetNew_Mythril_axe: 2669031087144982882
       AxesSpritesheetNew_Runite_axe: 7780209216702488159
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
