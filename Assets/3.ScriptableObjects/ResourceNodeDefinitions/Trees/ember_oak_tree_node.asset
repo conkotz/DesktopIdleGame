@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
+  m_Name: ember_oak_tree_node
+  m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
+  displayName: Ember Oak Tree
+  actionType: 1
+  gatherPlayerAction: 3
+  useLevelRequirement: 1
+  requiredLevel: 48
+  xpPerTick: 50
+  mainYieldEntries:
+  - item: {fileID: 11400000, guid: a9c8e7f6123456789ab4cdef12345601, type: 2}
+    itemRequiredLevel: 1
+    chancePercent: 100
+    xpPerTick: 0
+    amountMin: 1
+    amountMax: 1
+  minInterval: 40
+  maxInterval: 60
+  bonusDrops:
+  - item: {fileID: 11400000, guid: 8ba0be660a4597348907cc3ea2ad0c33, type: 2}
+    chance: 0.08
+    amountMin: 1
+    amountMax: 1
+  hiddenDrops:
+  - item: {fileID: 11400000, guid: 1b5992d9e7642894e86332337394a6d5, type: 2}
+    chance: 0
+    amountMin: 2
+    amountMax: 4
+  requiresTool: 1
+  requiredTool: 3
+  missingToolMessage: No axe found in toolbelt
+  energyCostFlatPerSwing: 0
+  energyCostPercentOfMaxPerSwing: 75
+  depletionGatherCount: 15
+  depletionRegenSeconds: 60
+  depletedYieldMultiplier: 0.3

@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &4052836938812845829
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Size.x
+      value: 3.7070613
+      objectReference: {fileID: 0}
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Size.y
+      value: 4.609841
+      objectReference: {fileID: 0}
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Offset.x
+      value: 0.14565873
+      objectReference: {fileID: 0}
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.08531213
+      objectReference: {fileID: 0}
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_SpriteTilingProperty.oldSize.x
+      value: 3.9611113
+      objectReference: {fileID: 0}
+    - target: {fileID: 925674071698451390, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_SpriteTilingProperty.oldSize.y
+      value: 4.907951
+      objectReference: {fileID: 0}
+    - target: {fileID: 1191926700076863400, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1191926700076863400, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1282701325059826826, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: -7047005660116801892, guid: b73553204a9ca47408b5e334a0cd4d23, type: 3}
+    - target: {fileID: 1282701325059826826, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: d3e4f5a6b7c8478990abcdef1234567b, type: 2}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2658333117554675620, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5812554202437325912, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: definition
+      value: 
+      objectReference: {fileID: 11400000, guid: d2f1a0b945678901cdef3a456789014a, type: 2}
+    - target: {fileID: 6300920550991281722, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 6300920550991281722, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 6659287007320831912, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.36
+      objectReference: {fileID: 0}
+    - target: {fileID: 6659287007320831912, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_Name
+      value: SpiritwoodTree
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windSpeed
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: phaseOffset
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: windStrength
+      value: 0.13
+      objectReference: {fileID: 0}
+    - target: {fileID: 7182736450918273645, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: baseAnchorHeight
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 7958210842296509233, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_text
+      value: Spiritwood Tree
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
