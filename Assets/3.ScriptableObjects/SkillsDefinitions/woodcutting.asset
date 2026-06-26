@@ -201,7 +201,7 @@ MonoBehaviour:
     description: 'Can equip tier 2 axes:
 
       Iron Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    icon: {fileID: 6213697026280047418, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -472,7 +472,7 @@ MonoBehaviour:
     description: 'Can equip tier 3 axes:
 
       Mythril Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    icon: {fileID: 2669031087144982882, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -710,7 +710,7 @@ MonoBehaviour:
     description: 'Can equip tier 4 axes:
 
       Runite Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    icon: {fileID: 7780209216702488159, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -945,7 +945,7 @@ MonoBehaviour:
     description: 'Can equip tier 5 axes:
 
       Celestium Axe'
-    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    icon: {fileID: 3505568085921964069, guid: bc7e462736fc7504ba2a1e46ec3c138f, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

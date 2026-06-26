@@ -109,6 +109,8 @@ public class SaveManager : MonoBehaviour
         Instance = this;
         // Must target a scene root; SaveManager may live under a child (e.g. _GameSystems on Bootstrap).
         DontDestroyOnLoad(transform.root.gameObject);
+        FurnaceSmeltingRuntime.EnsureInstance();
+        MerchantStockRuntime.EnsureInstance();
         LoadAllSaveMetadata();
         FireSaveSystemReady("Awake");
     }
@@ -1462,6 +1464,7 @@ public class SaveManager : MonoBehaviour
         SaveDataIntegrity.RepairAfterJsonLoad(data, "Load");
 
         _lastLoadedData = data;
+        MerchantStockRuntime.EnsureInstance().LoadFrom(data);
         _hasPendingLoad = true;
         _didFinalApplyForCurrentLoad = false;
 
@@ -1666,7 +1669,7 @@ public class SaveManager : MonoBehaviour
     public void MarkLevelItemPickupOnceClaimed(string key) => LevelItemPickupSaveStore.MarkClaimed(key);
 
     /// <summary>
-    /// After scene reload, <see cref="Merchant"/> Awake resets stock from assets. Rehydrate from the active save file.
+    /// After scene reload, refresh scene merchants from <see cref="MerchantStockRuntime"/> (and disk when runtime is empty).
     /// </summary>
     private void RehydrateMerchantStocksFromSaveCore()
     {
@@ -1692,26 +1695,11 @@ public class SaveManager : MonoBehaviour
         if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0)
             data = _lastLoadedData;
 
-        if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0)
-            return;
+        MerchantStockRuntime runtime = MerchantStockRuntime.EnsureInstance();
+        if (data?.merchantStocks != null && data.merchantStocks.Count > 0)
+            runtime.LoadFromSaveIfEmpty(data);
 
-        var merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        if (merchants == null || merchants.Length == 0)
-            return;
-
-        _isApplyingSaveData = true;
-        try
-        {
-            for (int i = 0; i < merchants.Length; i++)
-            {
-                if (merchants[i] != null)
-                    merchants[i].LoadFrom(data);
-            }
-        }
-        finally
-        {
-            _isApplyingSaveData = false;
-        }
+        runtime.NotifyAllMerchantsStockChanged();
     }
 
     private IEnumerator DeferredApplyPlayerStorageLoad()

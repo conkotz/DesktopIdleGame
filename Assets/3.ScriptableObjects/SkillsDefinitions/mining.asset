@@ -201,7 +201,7 @@ MonoBehaviour:
     description: 'Can equip tier 2 pickaxes:
 
       Iron Pickaxe'
-    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    icon: {fileID: 2316100792636525266, guid: 8e33506b144aa58489f4700c77ee487d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -395,7 +395,7 @@ MonoBehaviour:
     description: 'Can equip tier 3 pickaxes:
 
       Mythril Pickaxe'
-    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    icon: {fileID: -2836156551219916195, guid: 8e33506b144aa58489f4700c77ee487d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -573,7 +573,7 @@ MonoBehaviour:
     description: 'Can equip tier 4 pickaxes:
 
       Runite Pickaxe'
-    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    icon: {fileID: 339987843382538123, guid: 8e33506b144aa58489f4700c77ee487d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -767,7 +767,7 @@ MonoBehaviour:
     description: 'Can equip tier 5 pickaxes:
 
       Celestium Pickaxe'
-    icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
+    icon: {fileID: -7563374199076520471, guid: 8e33506b144aa58489f4700c77ee487d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

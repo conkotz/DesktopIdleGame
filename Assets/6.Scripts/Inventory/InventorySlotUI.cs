@@ -1081,6 +1081,7 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (_dragIconRT == null) return;
         UpdateDragIconPosition(eventData);
+        InventoryDragIconPool.UpdateDragSortOverlay(eventData.position, eventData.pressEventCamera);
     }
 
     public void OnEndDrag(PointerEventData eventData)

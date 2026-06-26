@@ -24,10 +24,10 @@ public static class SmeltingRecipes
 
     private static readonly SmeltingRecipe[] Recipes =
     {
-        new("iron_ore", "iron_bar", DefaultOrePerBar, 30f),
-        new("mythril_ore", "mythril_bar", DefaultOrePerBar, 40f),
-        new("runite_ore", "runite_bar", DefaultOrePerBar, 50f),
-        new("celestium_ore", "celestium_bar", DefaultOrePerBar, 60f),
+        new("iron_ore", "iron_bar", DefaultOrePerBar, 10f),
+        new("mythril_ore", "mythril_bar", DefaultOrePerBar, 15f),
+        new("runite_ore", "runite_bar", DefaultOrePerBar, 20f),
+        new("celestium_ore", "celestium_bar", DefaultOrePerBar, 25f),
     };
 
     private static readonly Dictionary<string, SmeltingRecipe> ByOre = BuildMap();

@@ -152,7 +152,7 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.LabelField("Upgrades", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(
                 usedUpgradeSlots,
-                new GUIContent("Used Upgrade Slots", "Current filled slots. Max slots are derived from item type and equipment tier."));
+                new GUIContent("Used Upgrade Slots", "Current filled slots. Max slots are derived from item type and rarity (weapons/armour) or fixed at 3 for tools."));
             if (usedUpgradeSlots.intValue < 0)
                 usedUpgradeSlots.intValue = 0;
         }

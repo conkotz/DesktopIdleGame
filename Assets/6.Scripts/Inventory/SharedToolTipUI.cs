@@ -252,6 +252,7 @@ public class SharedTooltipUI : MonoBehaviour
         BindUniquelyEquippedTag(def);
 
         bool isEquip = def.equipSlot != EquipSlot.None;
+        bool showStackValue = !isEquip || def.maxStack > 1;
         bool showMaxStackSize =
             def.itemKind != ItemKind.Weapon &&
             def.itemKind != ItemKind.Armour &&
@@ -317,7 +318,7 @@ public class SharedTooltipUI : MonoBehaviour
 
             if (stackValueText)
             {
-                if (!isEquip)
+                if (showStackValue)
                 {
                     stackAmount = Mathf.Max(0, stackAmount);
                     int stackValue = each * stackAmount;

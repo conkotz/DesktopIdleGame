@@ -92,7 +92,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         if (SaveManager.Instance != null)
         {
             SaveManager.Instance.RehydrateMerchantStocksFromSave();
-            SaveManager.Instance.ScheduleMerchantRehydrateFrames(2);
+            SaveManager.Instance.ScheduleMerchantRehydrateFrames(4);
             SaveManager.Instance.RehydrateNpcDialogueStoresFromDiskPreferFile();
             // Saving here runs before default-order components' Start() (e.g. ActionBarUI). A save would snapshot an
             // empty action bar and overwrite SaveManager's in-memory payload, so food/potion slots never rehydrate.

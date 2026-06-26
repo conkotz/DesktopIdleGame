@@ -1549,7 +1549,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         get
         {
             if (IsWeapon || IsArmour)
-                return 5 + (int)GetEquipmentTierRank();
+            {
+                return rarity switch
+                {
+                    ItemRarity.Epic => 6,
+                    ItemRarity.Legendary => 7,
+                    _ => 5
+                };
+            }
+
             if (IsTool)
                 return 3;
             return 0;

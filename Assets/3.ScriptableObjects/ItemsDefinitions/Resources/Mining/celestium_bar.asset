@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A smelted celestium bar.
   rarity: 4
-  value: 1900
+  value: 900
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

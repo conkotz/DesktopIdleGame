@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: Raw mythril ore from a mythril deposit.
   rarity: 2
-  value: 110
+  value: 60
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

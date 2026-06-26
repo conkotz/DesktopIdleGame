@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: Raw iron ore from an iron deposit.
   rarity: 1
-  value: 45
+  value: 25
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: Raw celestium ore from a celestium deposit.
   rarity: 4
-  value: 690
+  value: 150
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

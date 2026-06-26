@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A smelted iron bar.
   rarity: 1
-  value: 120
+  value: 140
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

@@ -93,9 +93,14 @@ public class ItemSelectionPanel : MonoBehaviour
 
         ResolveCosts(entry, out int goldAmount, out bool hasGoldCost, out string resourceCostLine);
 
+        int stockQty = merchant != null ? merchant.GetQuantity(entry) : entry.defaultQuantity;
+        bool showBulkCost = ShopCostFormatter.ShouldShowBulkCost(stockQty);
+
         if (goldCostText)
         {
-            goldCostText.text = hasGoldCost ? $"{goldAmount}g" : "Free";
+            goldCostText.text = hasGoldCost
+                ? ShopCostFormatter.FormatCompactGold(goldAmount, showBulkCost)
+                : "Free";
             goldCostText.color = CanAffordGold(goldAmount, hasGoldCost) ? canAffordColor : cannotAffordColor;
         }
 
@@ -107,7 +112,7 @@ public class ItemSelectionPanel : MonoBehaviour
             resourceRow.SetActive(hasResourceCost);
         if (hasResourceCost && resourceCostText)
         {
-            resourceCostText.text = resourceCostLine;
+            resourceCostText.text = FormatResourceCostLine(entry, showBulkCost);
             resourceCostText.color = CanAffordResources(entry) ? canAffordColor : cannotAffordColor;
         }
 
@@ -209,6 +214,30 @@ public class ItemSelectionPanel : MonoBehaviour
 
         if (resourceParts.Length > 0)
             resourceCostLine = resourceParts.ToString();
+    }
+
+    private string FormatResourceCostLine(MerchantStock.Entry entry, bool showBulkCost)
+    {
+        if (entry?.costs == null || entry.costs.Count == 0)
+            return "";
+
+        var parts = new StringBuilder();
+        for (int i = 0; i < entry.costs.Count; i++)
+        {
+            MerchantStock.Cost cost = entry.costs[i];
+            if (cost == null || cost.amount <= 0 || cost.type != MerchantStock.CostType.Item)
+                continue;
+
+            if (parts.Length > 0)
+                parts.Append(", ");
+
+            parts.Append(ShopCostFormatter.FormatItemCost(
+                cost.amount,
+                ResolveItemCostName(cost.itemId),
+                showBulkCost));
+        }
+
+        return parts.ToString();
     }
 
     private string ResolveItemCostName(string itemId)

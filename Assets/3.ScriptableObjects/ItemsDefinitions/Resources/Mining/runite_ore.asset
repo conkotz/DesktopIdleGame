@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: Raw runite ore from a runite deposit.
   rarity: 3
-  value: 275
+  value: 90
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

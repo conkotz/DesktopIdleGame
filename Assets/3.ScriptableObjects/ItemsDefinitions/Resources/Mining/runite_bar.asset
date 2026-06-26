@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A smelted runite bar.
   rarity: 3
-  value: 750
+  value: 500
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0

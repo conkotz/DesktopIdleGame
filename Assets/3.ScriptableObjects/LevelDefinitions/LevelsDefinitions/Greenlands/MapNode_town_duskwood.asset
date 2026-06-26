@@ -19,6 +19,7 @@ MonoBehaviour:
     valuables, and training grounds fitted with target dummies to test your strength
     and sharpen your skills."
   nodeType: 5
+  gatheringSubtype: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
@@ -36,6 +37,8 @@ MonoBehaviour:
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
+  gatheringSkillGateMode: 0
+  gatheringRequiredLevel: 1
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
@@ -60,6 +63,58 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: green_grove
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-8
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-5
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint1
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1301700847255990616, guid: 7322c427b3f47be4392518eb077fc0aa, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint4
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 6cb99a9702e798e4f9f4e802dd9284e9, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
@@ -115,6 +170,19 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint28
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: e7c1a4b29d3f5e8a1c6b0d4f7e2a9531, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
       spawnPointName: SpawnPoint30
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
@@ -131,58 +199,6 @@ MonoBehaviour:
       spawnPointName: SpawnPoint32
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint36
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint38
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint40
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: 6cb99a9702e798e4f9f4e802dd9284e9, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint42
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: e7c1a4b29d3f5e8a1c6b0d4f7e2a9531, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0
@@ -229,19 +245,6 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: hunting_grounds
-      teleporterLinkId: 
-      teleporterDestinationLabel: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint44
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 1301700847255990616, guid: 7322c427b3f47be4392518eb077fc0aa, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
       teleporterLinkId: 
       teleporterDestinationLabel: 
     shuffleSpawnPoints: 0

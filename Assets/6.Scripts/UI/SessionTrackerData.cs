@@ -316,7 +316,7 @@ public class SessionTrackerData : MonoBehaviour
     public float ComputePerHour(int total)
     {
         float elapsed = ElapsedSeconds;
-        if (elapsed < 0.001f || total <= 0)
+        if (elapsed < 0.001f || total == 0)
             return 0f;
         return total * 3600f / elapsed;
     }
