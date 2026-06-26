@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: gem_diamond
+  m_Name: iron_bar
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
-  maxStack: 99
-  itemId: gem_diamond
-  displayName: Diamond
+  maxStack: 999
+  itemId: iron_bar
+  displayName: Iron Bar
   displayNameSingular: 
-  icon: {fileID: 296317598895340505, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
+  icon: {fileID: 950266229, guid: 5ad45366897be304fa783e82de378f70, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A diamond gem. An epic find while mining.
-  rarity: 3
-  value: 1800
+  description: A smelted iron bar.
+  rarity: 1
+  value: 120
   equipSlot: 0
   uniquelyEquipped: 0
   handVisualKey: 0
@@ -174,7 +174,7 @@ MonoBehaviour:
     evadeChance: 0
   randomStatPool: []
   jewelryEquipmentTier: 0
-  jewelryGemType: 6
+  jewelryGemType: 0
   useDefaultRandomStatPoolPackage: 1
   extraRandomStatPoolPackages: 0
   miscEffects:

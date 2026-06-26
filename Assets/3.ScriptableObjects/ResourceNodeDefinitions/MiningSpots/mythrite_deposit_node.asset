@@ -10,33 +10,49 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
-  m_Name: stone_deposit_node
+  m_Name: mythrite_deposit_node
   m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
-  displayName: Stone Deposit
+  displayName: Mythrite Deposit
   actionType: 0
   gatherPlayerAction: 2
   useLevelRequirement: 1
-  requiredLevel: 1
-  xpPerTick: 6
+  requiredLevel: 20
+  xpPerTick: 38
   mainYieldEntries:
-  - item: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
+  - item: {fileID: 11400000, guid: cf5eeab4100b4a71aecae5e759c42ab1, type: 2}
     itemRequiredLevel: 1
     chancePercent: 100
     xpPerTick: 0
     amountMin: 1
     amountMax: 1
-  minInterval: 4
-  maxInterval: 8
+  minInterval: 15
+  maxInterval: 25
   bonusDrops:
+  - item: {fileID: 11400000, guid: 0679f085e3db4718b1e26f9a5f3d7027, type: 2}
+    chance: 0.08
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: 1018484d9d9649bb858c783bc64917ad, type: 2}
+    chance: 0.08
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: f16afa89917c4dc69b26df39e9b7d941, type: 2}
+    chance: 0.08
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: ded6deb4923b40578382181cd24dad80, type: 2}
+    chance: 0.08
+    amountMin: 1
+    amountMax: 1
   - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
     chance: 0.05
     amountMin: 1
     amountMax: 1
-  - item: {fileID: 11400000, guid: 78978cfc548432a4ea84da872ae16b2f, type: 2}
+  - item: {fileID: 11400000, guid: 212768177bfc68f44aec2e779670e552, type: 2}
     chance: 0.05
     amountMin: 1
     amountMax: 1
-  - item: {fileID: 11400000, guid: 212768177bfc68f44aec2e779670e552, type: 2}
+  - item: {fileID: 11400000, guid: 78978cfc548432a4ea84da872ae16b2f, type: 2}
     chance: 0.05
     amountMin: 1
     amountMax: 1
@@ -45,7 +61,7 @@ MonoBehaviour:
   requiredTool: 2
   missingToolMessage: No pickaxe found in toolbelt
   energyCostFlatPerSwing: 0
-  energyCostPercentOfMaxPerSwing: 10
+  energyCostPercentOfMaxPerSwing: 19
   depletionGatherCount: 15
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3
