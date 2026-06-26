@@ -110,6 +110,11 @@ public class ResourceNode : MonoBehaviour
     private readonly List<GameObject> _runtimeDepletionOverlays = new();
     private SpriteWindSway[] _cachedWindSways;
     private static Material _depletionOverlayMaterial;
+    private Canvas _depletionTimerCanvas;
+    private SpriteRenderer _depletionTimerSortReference;
+
+    /// <summary>Draw timer above world name labels (<see cref="WorldNameLabelStyle"/> uses +3).</summary>
+    private const int DepletionTimerSortingOrderOffset = 4;
 
     private void Awake()
     {
@@ -119,10 +124,7 @@ public class ResourceNode : MonoBehaviour
             nameLabelRoots = new List<GameObject>();
         if (nameLabelRoots.Count == 0)
             AutoCollectNameLabelRoots();
-        if (depletionTimerRoots == null)
-            depletionTimerRoots = new List<GameObject>();
-        if (depletionTimerRoots.Count == 0)
-            AutoCollectDepletionTimerRoots();
+        EnsureDepletionTimerRoots();
         if (depletionOverlaySpriteSources == null)
             depletionOverlaySpriteSources = new List<SpriteRenderer>();
 
@@ -130,6 +132,7 @@ public class ResourceNode : MonoBehaviour
 
         CacheLabelComponents();
         CacheDepletionTimerVisuals();
+        CacheDepletionTimerCanvas();
         SetRuntimeDepletionOverlaysActive(false);
         RefreshDepletionTimerDisplay();
     }
@@ -572,6 +575,13 @@ public class ResourceNode : MonoBehaviour
                 ? $"{Mathf.CeilToInt(remain)}s"
                 : "—";
 
+        if (show)
+        {
+            if (_depletionTimerCanvas)
+                _depletionTimerCanvas.gameObject.SetActive(true);
+            ApplyDepletionTimerCanvasSorting();
+        }
+
         for (int i = 0; i < depletionTimerRoots.Count; i++)
         {
             GameObject go = depletionTimerRoots[i];
@@ -598,6 +608,74 @@ public class ResourceNode : MonoBehaviour
             if (img.type == Image.Type.Filled)
                 img.fillAmount = fill01;
         }
+    }
+
+    private void EnsureDepletionTimerRoots()
+    {
+        if (depletionTimerRoots == null)
+            depletionTimerRoots = new List<GameObject>();
+
+        for (int i = depletionTimerRoots.Count - 1; i >= 0; i--)
+        {
+            if (depletionTimerRoots[i] == null)
+                depletionTimerRoots.RemoveAt(i);
+        }
+
+        if (depletionTimerRoots.Count == 0)
+            AutoCollectDepletionTimerRoots();
+    }
+
+    private void CacheDepletionTimerCanvas()
+    {
+        _depletionTimerCanvas = null;
+        for (int i = 0; i < depletionTimerRoots.Count; i++)
+        {
+            GameObject go = depletionTimerRoots[i];
+            if (!go)
+                continue;
+
+            _depletionTimerCanvas = go.GetComponentInParent<Canvas>();
+            if (_depletionTimerCanvas)
+                break;
+        }
+    }
+
+    private SpriteRenderer GetDepletionTimerSortReference()
+    {
+        if (_depletionTimerSortReference)
+            return _depletionTimerSortReference;
+
+        if (depletionOverlaySpriteSources != null)
+        {
+            for (int i = 0; i < depletionOverlaySpriteSources.Count; i++)
+            {
+                SpriteRenderer sr = depletionOverlaySpriteSources[i];
+                if (sr)
+                {
+                    _depletionTimerSortReference = sr;
+                    break;
+                }
+            }
+        }
+
+        if (!_depletionTimerSortReference)
+            _depletionTimerSortReference = GetComponent<SpriteRenderer>();
+
+        return _depletionTimerSortReference;
+    }
+
+    private void ApplyDepletionTimerCanvasSorting()
+    {
+        if (!_depletionTimerCanvas)
+            return;
+
+        SpriteRenderer reference = GetDepletionTimerSortReference();
+        if (!reference)
+            return;
+
+        _depletionTimerCanvas.overrideSorting = true;
+        _depletionTimerCanvas.sortingLayerID = reference.sortingLayerID;
+        _depletionTimerCanvas.sortingOrder = reference.sortingOrder + DepletionTimerSortingOrderOffset;
     }
 
     private void AutoCollectDepletionTimerRoots()

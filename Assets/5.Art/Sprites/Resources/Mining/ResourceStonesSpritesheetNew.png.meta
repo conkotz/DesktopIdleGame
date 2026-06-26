@@ -1,0 +1,325 @@
+fileFormatVersion: 2
+guid: 0d6b2f4bf40a49f449d77dbbbc76145e
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5008057431743684983
+    second: ResourceStonesSpritesheetNew_0
+  - first:
+      213: -5248713350725480015
+    second: ResourceStonesSpritesheetNew_1
+  - first:
+      213: -3694752190506741879
+    second: ResourceStonesSpritesheetNew_2
+  - first:
+      213: 1041354706888159047
+    second: ResourceStonesSpritesheetNew_3
+  - first:
+      213: 4972051977966351520
+    second: ResourceStonesSpritesheetNew_4
+  - first:
+      213: -2450355515067900020
+    second: ResourceStonesSpritesheetNew_5
+  - first:
+      213: -7752122857613285116
+    second: ResourceStonesSpritesheetNew_6
+  - first:
+      213: 3544927831237597077
+    second: ResourceStonesSpritesheetNew_7
+  - first:
+      213: -6522888179870798873
+    second: ResourceStonesSpritesheetNew_8
+  - first:
+      213: 2782537194687709344
+    second: ResourceStonesSpritesheetNew_9
+  - first:
+      213: 2201461531988787090
+    second: ResourceStonesSpritesheetNew_10
+  - first:
+      213: -6794320988407901319
+    second: ResourceStonesSpritesheetNew_11
+  - first:
+      213: -298170778208187749
+    second: ResourceStonesSpritesheetNew_12
+  - first:
+      213: -7681657702891749499
+    second: ResourceStonesSpritesheetNew_13
+  - first:
+      213: 8962314512614402195
+    second: ResourceStonesSpritesheetNew_14
+  - first:
+      213: -946150171815559133
+    second: ResourceStonesSpritesheetNew_15
+  - first:
+      213: -2254242820528757027
+    second: ResourceStonesSpritesheetNew_16
+  - first:
+      213: -1415934312122904961
+    second: ResourceStonesSpritesheetNew_17
+  - first:
+      213: 7637788929720696821
+    second: ResourceStonesSpritesheetNew_18
+  - first:
+      213: -5876533514360311699
+    second: ResourceStonesSpritesheetNew_19
+  - first:
+      213: -8736444475337932845
+    second: ResourceStonesSpritesheetNew_20
+  - first:
+      213: 146128379159101036
+    second: ResourceStonesSpritesheetNew_21
+  - first:
+      213: 4600537838566824264
+    second: ResourceStonesSpritesheetNew_22
+  - first:
+      213: 4128500679650166997
+    second: ResourceStonesSpritesheetNew_23
+  - first:
+      213: -5961356841072717935
+    second: ResourceStonesSpritesheetNew_24
+  - first:
+      213: 6931654624249115393
+    second: ResourceStonesSpritesheetNew_25
+  - first:
+      213: 1730801502385781265
+    second: ResourceStonesSpritesheetNew_26
+  - first:
+      213: -515671175418521236
+    second: ResourceStonesSpritesheetNew_27
+  - first:
+      213: 2874087006188585114
+    second: ResourceStonesSpritesheetNew_28
+  - first:
+      213: 3790322981068339956
+    second: ResourceStonesSpritesheetNew_29
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 450
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 512
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ResourceStonesSpritesheetNew_IronNode
+      rect:
+        serializedVersion: 2
+        x: 519
+        y: 607
+        width: 512
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1b158223403d827b0800000000000000
+      internalID: -5248713350725480015
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ResourceStonesSpritesheetNew_RuniteNode
+      rect:
+        serializedVersion: 2
+        x: 1040
+        y: 604
+        width: 474
+        height: 327
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98fcfb7557a99bcc0800000000000000
+      internalID: -3694752190506741879
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ResourceStonesSpritesheetNew_MythriteNode
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 153
+        width: 512
+        height: 326
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 74fef3da692a37e00800000000000000
+      internalID: 1041354706888159047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ResourceStonesSpritesheetNew_CelestiumNode
+      rect:
+        serializedVersion: 2
+        x: 566
+        y: 156
+        width: 512
+        height: 352
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0a4767f4ee6400540800000000000000
+      internalID: 4972051977966351520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ResourceStonesSpritesheetNew_GemstoneNode
+      rect:
+        serializedVersion: 2
+        x: 1094
+        y: 148
+        width: 442
+        height: 224
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c8f55fe34a69efdd0800000000000000
+      internalID: -2450355515067900020
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 2271778541b0cfe499af7648d66f77a3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":512.0,"y":400.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      ResourceStonesSpritesheetNew_0: -5008057431743684983
+      ResourceStonesSpritesheetNew_CelestiumNode: 4972051977966351520
+      ResourceStonesSpritesheetNew_GemstoneNode: -2450355515067900020
+      ResourceStonesSpritesheetNew_IronNode: -5248713350725480015
+      ResourceStonesSpritesheetNew_MythriteNode: 1041354706888159047
+      ResourceStonesSpritesheetNew_RuniteNode: -3694752190506741879
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

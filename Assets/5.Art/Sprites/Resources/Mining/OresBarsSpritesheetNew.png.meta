@@ -1,0 +1,391 @@
+fileFormatVersion: 2
+guid: 5ad45366897be304fa783e82de378f70
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7908223038902945277
+    second: OresBarsSpritesheetNew_0
+  - first:
+      213: 7350313953612365707
+    second: OresBarsSpritesheetNew_1
+  - first:
+      213: -522698956418351419
+    second: OresBarsSpritesheetNew_2
+  - first:
+      213: 8006408389095079774
+    second: OresBarsSpritesheetNew_3
+  - first:
+      213: -5845219319547741302
+    second: OresBarsSpritesheetNew_4
+  - first:
+      213: -5921857183569505911
+    second: OresBarsSpritesheetNew_5
+  - first:
+      213: -8502448224913434890
+    second: OresBarsSpritesheetNew_6
+  - first:
+      213: 811745016679173300
+    second: OresBarsSpritesheetNew_7
+  - first:
+      213: -5739646596214114644
+    second: OresBarsSpritesheetNew_8
+  - first:
+      213: 6278678278650234109
+    second: OresBarsSpritesheetNew_9
+  - first:
+      213: -8182864516769833960
+    second: OresBarsSpritesheetNew_10
+  - first:
+      213: -7875622402969895686
+    second: OresBarsSpritesheetNew_11
+  - first:
+      213: 4154657385480495551
+    second: OresBarsSpritesheetNew_12
+  - first:
+      213: 1218152315921796427
+    second: OresBarsSpritesheetNew_13
+  - first:
+      213: 1422392416533688165
+    second: OresBarsSpritesheetNew_14
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 500
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 512
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_StoneChunk
+      rect:
+        serializedVersion: 2
+        x: 65
+        y: 680
+        width: 256
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f652e8236c310a80800000000000000
+      internalID: -8502448224913434890
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Iron_Ore
+      rect:
+        serializedVersion: 2
+        x: 375
+        y: 680
+        width: 256
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4bc0b57bac5e34b00800000000000000
+      internalID: 811745016679173300
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Runite_Ore
+      rect:
+        serializedVersion: 2
+        x: 665
+        y: 681
+        width: 256
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca6b068a4dda850b0800000000000000
+      internalID: -5739646596214114644
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Mythrite_Ore
+      rect:
+        serializedVersion: 2
+        x: 945
+        y: 684
+        width: 256
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 81c19c0a310a07e80800000000000000
+      internalID: -8182864516769833960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Celestium_Ore
+      rect:
+        serializedVersion: 2
+        x: 1227
+        y: 684
+        width: 256
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: afcfeddb62b24b290800000000000000
+      internalID: -7875622402969895686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Iron_Bar
+      rect:
+        serializedVersion: 2
+        x: 352
+        y: 460
+        width: 262
+        height: 125
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3a02557f50307ab4cb3b1208b53d6d3c
+      internalID: 950266229
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Mythrite_bar
+      rect:
+        serializedVersion: 2
+        x: 641
+        y: 462
+        width: 275
+        height: 129
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 49a485d2be418a049bcc6a165bc5f384
+      internalID: -1446843033
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Runeite_bar
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 460
+        width: 276
+        height: 132
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 18a2106e1121a7c48ae08da28914cb31
+      internalID: -516466324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: OresBarsSpritesheetNew_Celestium_bar
+      rect:
+        serializedVersion: 2
+        x: 1236
+        y: 454
+        width: 258
+        height: 142
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1f72ec933984d9c4a9a4f27fecd269d7
+      internalID: -1218338670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5b4d80ac4c63d7d49a0f227e62fb1a2f
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":256.0,"y":180.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      OresBarsSpritesheetNew_0: -7908223038902945277
+      OresBarsSpritesheetNew_1: 7350313953612365707
+      OresBarsSpritesheetNew_12: 4154657385480495551
+      OresBarsSpritesheetNew_13: 1218152315921796427
+      OresBarsSpritesheetNew_14: 1422392416533688165
+      OresBarsSpritesheetNew_15: 1921311049
+      OresBarsSpritesheetNew_16: 1904055490
+      OresBarsSpritesheetNew_17: -2007865173
+      OresBarsSpritesheetNew_18: -1267646938
+      OresBarsSpritesheetNew_23: 1454668147
+      OresBarsSpritesheetNew_24: -364507948
+      OresBarsSpritesheetNew_25: -158632932
+      OresBarsSpritesheetNew_26: 420110970
+      OresBarsSpritesheetNew_27: -234172209
+      OresBarsSpritesheetNew_28: -1463582893
+      OresBarsSpritesheetNew_29: -1904696950
+      OresBarsSpritesheetNew_3: 8006408389095079774
+      OresBarsSpritesheetNew_4: -5845219319547741302
+      OresBarsSpritesheetNew_5: -5921857183569505911
+      OresBarsSpritesheetNew_9: 6278678278650234109
+      OresBarsSpritesheetNew_Celestium_Ore: -7875622402969895686
+      OresBarsSpritesheetNew_Celestium_bar: -1218338670
+      OresBarsSpritesheetNew_Iron_Bar: 950266229
+      OresBarsSpritesheetNew_Iron_Ore: 811745016679173300
+      OresBarsSpritesheetNew_Mythrite_Ore: -8182864516769833960
+      OresBarsSpritesheetNew_Mythrite_bar: -1446843033
+      OresBarsSpritesheetNew_Runeite_bar: -516466324
+      OresBarsSpritesheetNew_Runite_Ore: -5739646596214114644
+      OresBarsSpritesheetNew_StoneChunk: -8502448224913434890
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
