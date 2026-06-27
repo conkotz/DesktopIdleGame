@@ -1,0 +1,670 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Persistent cooking range processing — keeps ticking while the player is on other map nodes (scene cooking ranges unload).
+/// </summary>
+[DisallowMultipleComponent]
+public sealed class CookingRuntime : MonoBehaviour, ISaveable
+{
+    private static CookingRuntime _instance;
+
+    private readonly Dictionary<string, CookingRow> _rows =
+        new Dictionary<string, CookingRow>(StringComparer.OrdinalIgnoreCase);
+
+    public static CookingRuntime Instance => _instance;
+
+    public static CookingRuntime EnsureInstance()
+    {
+        if (_instance != null)
+            return _instance;
+
+        var existing = FindFirstObjectByType<CookingRuntime>(FindObjectsInactive.Include);
+        if (existing != null)
+        {
+            _instance = existing;
+            return _instance;
+        }
+
+        var host = new GameObject(nameof(CookingRuntime));
+        _instance = host.AddComponent<CookingRuntime>();
+        DontDestroyOnLoad(host);
+        return _instance;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => _instance = null;
+
+    private void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
+    private void Update()
+    {
+        bool structuralChange = false;
+
+        foreach (KeyValuePair<string, CookingRow> kv in _rows)
+        {
+            CookingRow row = kv.Value;
+            if (row == null || !row.IsCooking)
+                continue;
+
+            if (row.TickCooking(Time.deltaTime))
+                structuralChange = true;
+        }
+
+        if (structuralChange)
+            RequestSaveDebounced();
+    }
+
+    private void OnApplicationQuit()
+    {
+        foreach (KeyValuePair<string, CookingRow> kv in _rows)
+        {
+            CookingRow row = kv.Value;
+            if (row != null && (row.IsCooking || row.StoredRawAmount > 0 || row.ReadyCookedAmount > 0))
+            {
+                if (SaveManager.Instance != null)
+                    SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.AppQuit, immediate: true);
+                return;
+            }
+        }
+    }
+
+    public CookingRow GetOrCreateRow(string stationId)
+    {
+        EnsureInstance();
+        string key = NormalizeStationId(stationId);
+        if (!_rows.TryGetValue(key, out CookingRow row) || row == null)
+        {
+            row = new CookingRow(key);
+            _rows[key] = row;
+        }
+
+        return row;
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.cookingStations ??= new List<SaveData.CookingStationSave>();
+        data.cookingStations.Clear();
+
+        foreach (KeyValuePair<string, CookingRow> kv in _rows)
+            kv.Value?.WriteInto(data.cookingStations);
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        _rows.Clear();
+
+        if (data?.cookingStations == null)
+            return;
+
+        for (int i = 0; i < data.cookingStations.Count; i++)
+        {
+            SaveData.CookingStationSave row = data.cookingStations[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+                continue;
+
+            string key = NormalizeStationId(row.stationId);
+            var furnaceRow = new CookingRow(key);
+            furnaceRow.ReadFrom(row);
+            _rows[key] = furnaceRow;
+        }
+    }
+
+    private static void RequestSaveDebounced()
+    {
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
+    }
+
+    private static string NormalizeStationId(string stationId) =>
+        string.IsNullOrWhiteSpace(stationId) ? "cooking_range" : stationId.Trim();
+
+    public sealed class CookingRow
+    {
+        public event Action StateChanged;
+
+        private readonly string _stationId;
+        private string _storedRawItemId = "";
+        private int _storedRawAmount;
+        private int _readyCookedAmount;
+        private string _readyCookedItemId = "";
+        private string _activeRawItemId = "";
+        private float _cookProgressSeconds;
+        private bool _isCooking;
+
+        public CookingRow(string stationId) => _stationId = NormalizeStationId(stationId);
+
+        public string StationId => _stationId;
+        public string StoredRawItemId => _storedRawItemId ?? "";
+        public int StoredRawAmount => Mathf.Max(0, _storedRawAmount);
+        public int ReadyCookedAmount => Mathf.Max(0, _readyCookedAmount);
+        public string ReadyCookedItemId => _readyCookedItemId ?? "";
+        public bool IsCooking => _isCooking;
+        public float CookProgressSeconds => Mathf.Max(0f, _cookProgressSeconds);
+
+        public string GetActiveRawItemId()
+        {
+            if (!string.IsNullOrWhiteSpace(_activeRawItemId))
+                return _activeRawItemId;
+            return _storedRawItemId ?? "";
+        }
+
+        public bool TryGetActiveRecipe(out CookingRecipe recipe) =>
+            CookingRecipes.TryGetForRaw(GetActiveRawItemId(), out recipe);
+
+        public float GetActiveDurationSeconds() => GetEffectiveDurationSeconds();
+
+        public float GetEffectiveDurationSeconds()
+        {
+            if (!TryGetActiveRecipe(out CookingRecipe recipe))
+                return 1f;
+
+            float speedBonus = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses().SpeedBonusPercent;
+            return recipe.SecondsPerCooked / (1f + speedBonus / 100f);
+        }
+
+        public int GetRawPerCooked() =>
+            TryGetActiveRecipe(out CookingRecipe recipe) ? recipe.RawPerCooked : CookingRecipes.DefaultRawPerCooked;
+
+        public bool CanStartCooking()
+        {
+            if (_isCooking || _readyCookedAmount > 0)
+                return false;
+            if (!TryGetActiveRecipe(out CookingRecipe recipe))
+                return false;
+            return _storedRawAmount >= recipe.RawPerCooked;
+        }
+
+        public bool TryStartCooking()
+        {
+            if (!CanStartCooking())
+                return false;
+
+            _activeRawItemId = _storedRawItemId;
+            _isCooking = true;
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
+        public void StopCooking()
+        {
+            if (!_isCooking)
+                return;
+
+            _isCooking = false;
+            NotifyChanged();
+            RequestSaveDebounced();
+        }
+
+        public bool TryGetCookTimeEstimate(out float totalRemainingSeconds, out float secondsPerCooked, out int portionsRemaining)
+        {
+            totalRemainingSeconds = 0f;
+            secondsPerCooked = 0f;
+            portionsRemaining = 0;
+
+            string fishId = _isCooking ? GetActiveRawItemId() : _storedRawItemId;
+            if (!CookingRecipes.TryGetForRaw(fishId, out CookingRecipe recipe))
+                return false;
+
+            secondsPerCooked = GetEffectiveDurationSeconds();
+            int fish = StoredRawAmount;
+            if (fish < recipe.RawPerCooked)
+                return false;
+
+            portionsRemaining = fish / recipe.RawPerCooked;
+            if (portionsRemaining <= 0)
+                return false;
+
+            if (_isCooking)
+            {
+                float currentPortionRemaining = Mathf.Max(0f, secondsPerCooked - _cookProgressSeconds);
+                totalRemainingSeconds = currentPortionRemaining + (portionsRemaining - 1) * secondsPerCooked;
+            }
+            else
+            {
+                totalRemainingSeconds = portionsRemaining * secondsPerCooked;
+            }
+
+            return true;
+        }
+
+        public bool TryActiveWork(out string failureReason) =>
+            ProcessingProficiencyRuntime.EnsureInstance().TryApplyCookingActiveWork(this, out failureReason);
+
+        public bool TryDepositRawFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (inv == null || slotIndex < 0)
+            {
+                failureReason = "Invalid slot.";
+                return false;
+            }
+
+            var slot = inv.GetSlot(slotIndex);
+            if (slot.IsEmpty)
+            {
+                failureReason = "Empty slot.";
+                return false;
+            }
+
+            int deposit = amount <= 0 ? slot.amount : Mathf.Min(amount, slot.amount);
+            if (deposit <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateRawDeposit(slot.itemId, out failureReason))
+                return false;
+
+            int removed = inv.RemoveAmountAtSlot(slotIndex, deposit);
+            if (removed <= 0)
+            {
+                failureReason = "Could not remove fish from inventory.";
+                return false;
+            }
+
+            ApplyRawDeposit(slot.itemId, removed);
+            return true;
+        }
+
+        public bool TryDepositRaw(string rawItemId, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(rawItemId) || amount <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateRawDeposit(rawItemId, out failureReason))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(rawItemId);
+            if (available <= 0)
+            {
+                failureReason = "You do not have that fish.";
+                return false;
+            }
+
+            int deposit = Mathf.Min(amount, available);
+            if (!inv.Remove(rawItemId, deposit))
+            {
+                failureReason = "Could not remove fish from inventory.";
+                return false;
+            }
+
+            ApplyRawDeposit(rawItemId, deposit);
+            return true;
+        }
+
+        public bool TryDepositAllRawFromInventory(string rawItemId, out string failureReason)
+        {
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(rawItemId);
+            return TryDepositRaw(rawItemId, available, out failureReason);
+        }
+
+        public bool TryWithdrawAllRaw(out string failureReason)
+        {
+            failureReason = null;
+            if (_storedRawAmount <= 0)
+            {
+                failureReason = "No fish stored.";
+                return false;
+            }
+
+            if (_isCooking)
+            {
+                failureReason = "Stop cooking before removing fish.";
+                return false;
+            }
+
+            if (_readyCookedAmount > 0)
+            {
+                failureReason = "Must collect cooked food first.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            string fishId = _storedRawItemId;
+            int toReturn = _storedRawAmount;
+            int before = inv.GetTotalAmount(fishId);
+            inv.Add(fishId, toReturn, notifyItemGainPopup: false);
+            int added = inv.GetTotalAmount(fishId) - before;
+            if (added <= 0)
+            {
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            _storedRawAmount -= added;
+            if (_storedRawAmount <= 0)
+            {
+                _storedRawAmount = 0;
+                _storedRawItemId = "";
+                if (!_isCooking && _readyCookedAmount <= 0)
+                {
+                    _activeRawItemId = "";
+                    _cookProgressSeconds = 0f;
+                }
+            }
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", fishId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
+        public bool TryCollectCooked(int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (amount <= 0 || _readyCookedAmount <= 0)
+            {
+                failureReason = "Nothing ready to collect.";
+                return false;
+            }
+
+            string cookedItemId = GetReadyCookedItemId();
+            if (string.IsNullOrWhiteSpace(cookedItemId))
+            {
+                failureReason = "No cooked result configured.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int collect = Mathf.Min(amount, _readyCookedAmount);
+            int before = inv.GetTotalAmount(cookedItemId);
+            inv.Add(cookedItemId, collect, notifyItemGainPopup: true);
+            int added = inv.GetTotalAmount(cookedItemId) - before;
+            if (added <= 0)
+            {
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            _readyCookedAmount -= added;
+            ClearStaleIdsWhenEmpty();
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", cookedItemId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
+        public bool TickCooking(float deltaSeconds)
+        {
+            if (deltaSeconds <= 0f || !_isCooking)
+                return false;
+
+            if (!TryGetActiveRecipe(out CookingRecipe recipe))
+            {
+                _isCooking = false;
+                NotifyChanged();
+                return true;
+            }
+
+            bool wasCooking = _isCooking;
+            bool structuralChange = false;
+            float remaining = deltaSeconds;
+            while (remaining > 0f && _isCooking)
+            {
+                if (_storedRawAmount < recipe.RawPerCooked)
+                {
+                    _isCooking = false;
+                    structuralChange = true;
+                    break;
+                }
+
+                float portionDuration = GetEffectiveDurationSeconds();
+                float needed = portionDuration - _cookProgressSeconds;
+                if (remaining >= needed)
+                {
+                    remaining -= needed;
+                    _cookProgressSeconds = 0f;
+                    _storedRawAmount -= recipe.RawPerCooked;
+                    structuralChange = true;
+
+                    if (TryRollBurn(recipe))
+                    {
+                        if (_storedRawAmount < recipe.RawPerCooked)
+                            _isCooking = false;
+                        continue;
+                    }
+
+                    ProcessingProficiencyRuntime.EnsureInstance().AddCookingFishXp(recipe);
+                    _readyCookedAmount++;
+                    _readyCookedItemId = recipe.CookedItemId;
+
+                    if (_storedRawAmount < recipe.RawPerCooked)
+                        _isCooking = false;
+                }
+                else
+                {
+                    _cookProgressSeconds += remaining;
+                    remaining = 0f;
+                }
+            }
+
+            if (structuralChange)
+            {
+                if (wasCooking && !_isCooking && _readyCookedAmount > 0)
+                    LogCookingBatchComplete();
+
+                ClearStaleIdsWhenEmpty();
+                NotifyChanged();
+            }
+
+            return structuralChange;
+        }
+
+        private void LogCookingBatchComplete()
+        {
+            string cookedItemId = GetReadyCookedItemId();
+            if (string.IsNullOrWhiteSpace(cookedItemId))
+                return;
+
+            int amount = _readyCookedAmount;
+            string cookedLabel = ItemGainPopupNotifier.ResolveDisplayLabel(cookedItemId, amount);
+            GameLog.Add(
+                $"Cooking finished: {amount} {cookedLabel} ready to collect.",
+                GameLog.QuestCompleteColor);
+        }
+
+        public void WriteInto(List<SaveData.CookingStationSave> target)
+        {
+            if (target == null)
+                return;
+
+            target.Add(new SaveData.CookingStationSave
+            {
+                stationId = _stationId,
+                storedRawItemId = _storedRawItemId ?? "",
+                storedRawAmount = Mathf.Max(0, _storedRawAmount),
+                readyCookedAmount = Mathf.Max(0, _readyCookedAmount),
+                readyCookedItemId = GetReadyCookedItemId(),
+                activeRawItemId = _activeRawItemId ?? "",
+                cookProgressSeconds = Mathf.Max(0f, _cookProgressSeconds),
+                isCooking = _isCooking
+            });
+        }
+
+        public void ReadFrom(SaveData.CookingStationSave row)
+        {
+            _storedRawItemId = row.storedRawItemId ?? "";
+            _storedRawAmount = Mathf.Max(0, row.storedRawAmount);
+            _readyCookedAmount = Mathf.Max(0, row.readyCookedAmount);
+            _readyCookedItemId = row.readyCookedItemId ?? "";
+            _activeRawItemId = row.activeRawItemId ?? "";
+            _cookProgressSeconds = Mathf.Max(0f, row.cookProgressSeconds);
+            _isCooking = row.isCooking;
+            NormalizeStateAfterLoad();
+            NotifyChanged();
+        }
+
+        private void NormalizeStateAfterLoad()
+        {
+            if (_readyCookedAmount > 0 && string.IsNullOrWhiteSpace(_readyCookedItemId))
+            {
+                if (CookingRecipes.TryGetForRaw(_activeRawItemId, out CookingRecipe recipe) ||
+                    CookingRecipes.TryGetForRaw(_storedRawItemId, out recipe))
+                {
+                    _readyCookedItemId = recipe.CookedItemId;
+                }
+            }
+
+            if (_isCooking &&
+                (!TryGetActiveRecipe(out CookingRecipe activeRecipe) || _storedRawAmount < activeRecipe.RawPerCooked))
+            {
+                _isCooking = false;
+            }
+
+            ClearStaleIdsWhenEmpty();
+        }
+
+        private void ClearStaleIdsWhenEmpty()
+        {
+            if (_storedRawAmount <= 0)
+            {
+                _storedRawAmount = 0;
+                _storedRawItemId = "";
+            }
+
+            if (_readyCookedAmount <= 0)
+            {
+                _readyCookedAmount = 0;
+                _readyCookedItemId = "";
+            }
+
+            if (!_isCooking && _storedRawAmount <= 0 && _readyCookedAmount <= 0)
+            {
+                _activeRawItemId = "";
+                _cookProgressSeconds = 0f;
+            }
+        }
+
+        private string GetReadyCookedItemId()
+        {
+            if (!string.IsNullOrWhiteSpace(_readyCookedItemId))
+                return _readyCookedItemId;
+
+            if (TryGetActiveRecipe(out CookingRecipe recipe))
+                return recipe.CookedItemId;
+
+            if (CookingRecipes.TryGetForRaw(_storedRawItemId, out recipe))
+                return recipe.CookedItemId;
+
+            return "";
+        }
+
+        private bool ValidateRawDeposit(string rawItemId, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(rawItemId))
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!CookingRecipes.TryGetForRaw(rawItemId, out _))
+            {
+                failureReason = "That fish cannot be cooked here.";
+                return false;
+            }
+
+            if (_readyCookedAmount > 0)
+            {
+                failureReason = "Collect cooked food before adding fish.";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_storedRawItemId) &&
+                !string.Equals(_storedRawItemId, rawItemId, StringComparison.OrdinalIgnoreCase) &&
+                _storedRawAmount > 0)
+            {
+                failureReason = "This range already holds a different fish type.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ApplyRawDeposit(string rawItemId, int deposited)
+        {
+            if (deposited <= 0)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_storedRawItemId))
+                _storedRawItemId = rawItemId.Trim().ToLowerInvariant();
+
+            _storedRawAmount += deposited;
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", rawItemId.Trim().ToLowerInvariant(), -deposited);
+            NotifyChanged();
+            RequestSaveDebounced();
+        }
+
+        private bool TryRollBurn(CookingRecipe recipe)
+        {
+            CookingProficiencyBonuses bonuses = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses();
+            float burnChance = bonuses.EffectiveBurnChancePercent;
+            if (burnChance <= 0f)
+                return false;
+
+            if (UnityEngine.Random.value * 100f >= burnChance)
+                return false;
+
+            string fishLabel = ItemGainPopupNotifier.ResolveDisplayLabel(recipe.RawItemId, 1);
+            GameLog.Add($"Burned {fishLabel}.", GameLog.ItemLostColor);
+            return true;
+        }
+
+        private void NotifyChanged() => StateChanged?.Invoke();
+    }
+}

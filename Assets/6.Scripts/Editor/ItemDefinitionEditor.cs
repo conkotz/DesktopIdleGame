@@ -1370,6 +1370,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty cookedResultAmount = cookableStats.FindPropertyRelative("cookedResultAmount");
         SerializedProperty requiredCookingLevel = cookableStats.FindPropertyRelative("requiredCookingLevel");
         SerializedProperty cookingXp = cookableStats.FindPropertyRelative("cookingXp");
+        SerializedProperty cookingTimeSeconds = cookableStats.FindPropertyRelative("cookingTimeSeconds");
 
         EditorGUILayout.PropertyField(
             isCookable,
@@ -1381,6 +1382,7 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.PropertyField(cookedResultAmount);
             EditorGUILayout.PropertyField(requiredCookingLevel);
             EditorGUILayout.PropertyField(cookingXp);
+            EditorGUILayout.PropertyField(cookingTimeSeconds);
 
             if (cookedResultAmount != null && cookedResultAmount.intValue < 1)
                 cookedResultAmount.intValue = 1;
@@ -1390,6 +1392,9 @@ public class ItemDefinitionEditor : Editor
 
             if (cookingXp != null && cookingXp.intValue < 0)
                 cookingXp.intValue = 0;
+
+            if (cookingTimeSeconds != null && cookingTimeSeconds.floatValue < 0.1f)
+                cookingTimeSeconds.floatValue = 0.1f;
 
             if (cookedResultItemId != null && string.IsNullOrWhiteSpace(cookedResultItemId.stringValue))
             {
@@ -1401,10 +1406,8 @@ public class ItemDefinitionEditor : Editor
         }
 
         EditorGUILayout.HelpBox(
-            "Cookable data is a future hook for your cooking system.\n\n" +
-            "Example:\n" +
-            "- Raw Fish -> Cooked Fish\n" +
-            "- Raw Meat -> Cooked Meat",
+            "Cookable items can be processed at a cooking range.\n\n" +
+            "Cooking Time is the base seconds per portion before speed bonuses.",
             MessageType.None
         );
     }

@@ -1409,6 +1409,7 @@ public class PlayerController : MonoBehaviour
         NPCInteractionSettings.CancelPendingInteract();
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(this);
         InMapTeleporter.CancelPendingApproachForPlayer(this);
         PlayerWorldInteractFocus.ClearForPlayer(this);
@@ -2098,6 +2099,7 @@ public class PlayerController : MonoBehaviour
         NPCInteractionSettings.CancelPendingInteract();
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
     }
 
     private static bool IsScriptedHorizontalDashActive =>
@@ -2185,6 +2187,7 @@ public class PlayerController : MonoBehaviour
         NPCInteractionSettings.CancelPendingInteract();
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
 
         float x = PlayAreaBounds.TryGetClampXForWorldX(worldX, WorldBoundsXPadding, out float min, out float max)
             ? Mathf.Clamp(worldX, min, max)
@@ -2279,6 +2282,7 @@ public class PlayerController : MonoBehaviour
         NPCInteractionSettings.CancelPendingInteract();
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
     }
 
     public void MoveToPointX(float x, bool fromPlayerInput = false)

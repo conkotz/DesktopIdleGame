@@ -5,7 +5,8 @@ using UnityEngine;
 public sealed class SpawnPrefabCountDrawer : PropertyDrawer
 {
     private const float RemoveButtonWidth = 72f;
-    private const float MoveButtonWidth = 24f;
+    private const float MoveButtonWidth = 36f;
+    private const float ButtonGap = 2f;
 
     public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
     {
@@ -57,9 +58,9 @@ public sealed class SpawnPrefabCountDrawer : PropertyDrawer
 
         float trailingWidth = 0f;
         if (canRemove)
-            trailingWidth += RemoveButtonWidth + 4f;
+            trailingWidth += RemoveButtonWidth + ButtonGap;
         if (canMove)
-            trailingWidth += MoveButtonWidth * 2f + 4f;
+            trailingWidth += MoveButtonWidth * 4f + ButtonGap * 3f;
 
         Rect foldoutRect = new Rect(row.x, row.y, Mathf.Max(0f, row.width - trailingWidth), line);
         property.isExpanded = EditorGUI.Foldout(foldoutRect, property.isExpanded, label, true);
@@ -73,32 +74,31 @@ public sealed class SpawnPrefabCountDrawer : PropertyDrawer
                 SpawnEditorArrayUtility.ScheduleRemoveElement(property);
                 GUIUtility.ExitGUI();
             }
+
+            buttonX -= ButtonGap;
         }
 
         if (canMove)
         {
-            buttonX -= MoveButtonWidth + 2f;
-            using (new EditorGUI.DisabledScope(rowIndex >= parentArray.arraySize - 1))
-            {
-                if (GUI.Button(new Rect(buttonX, row.y, MoveButtonWidth, line), "Down") &&
-                    rowIndex < parentArray.arraySize - 1)
-                {
-                    parentArray.MoveArrayElement(rowIndex, rowIndex + 1);
-                    parentArray.serializedObject.ApplyModifiedProperties();
-                    GUIUtility.ExitGUI();
-                }
-            }
+            buttonX = DrawMoveButton(
+                buttonX, row.y, line, parentArray, rowIndex, "Bottom",
+                rowIndex < parentArray.arraySize - 1,
+                () => parentArray.MoveArrayElement(rowIndex, parentArray.arraySize - 1));
 
-            buttonX -= MoveButtonWidth + 2f;
-            using (new EditorGUI.DisabledScope(rowIndex <= 0))
-            {
-                if (GUI.Button(new Rect(buttonX, row.y, MoveButtonWidth, line), "Up") && rowIndex > 0)
-                {
-                    parentArray.MoveArrayElement(rowIndex, rowIndex - 1);
-                    parentArray.serializedObject.ApplyModifiedProperties();
-                    GUIUtility.ExitGUI();
-                }
-            }
+            buttonX = DrawMoveButton(
+                buttonX, row.y, line, parentArray, rowIndex, "Top",
+                rowIndex > 0,
+                () => parentArray.MoveArrayElement(rowIndex, 0));
+
+            buttonX = DrawMoveButton(
+                buttonX, row.y, line, parentArray, rowIndex, "Down",
+                rowIndex < parentArray.arraySize - 1,
+                () => parentArray.MoveArrayElement(rowIndex, rowIndex + 1));
+
+            DrawMoveButton(
+                buttonX, row.y, line, parentArray, rowIndex, "Up",
+                rowIndex > 0,
+                () => parentArray.MoveArrayElement(rowIndex, rowIndex - 1));
         }
 
         if (!property.isExpanded)
@@ -358,6 +358,27 @@ public sealed class SpawnPrefabCountDrawer : PropertyDrawer
     private static bool CanRemoveRow(SerializedProperty property) =>
         SpawnEditorArrayUtility.TryGetParentArray(property, out _, out _);
 
-    private static bool TryGetParentArray(SerializedProperty element, out SerializedProperty array, out int index) =>
-        SpawnEditorArrayUtility.TryGetParentArray(element, out array, out index);
+    private static float DrawMoveButton(
+        float rightEdgeX,
+        float y,
+        float height,
+        SerializedProperty parentArray,
+        int rowIndex,
+        string label,
+        bool enabled,
+        System.Action move)
+    {
+        rightEdgeX -= MoveButtonWidth;
+        using (new EditorGUI.DisabledScope(!enabled))
+        {
+            if (GUI.Button(new Rect(rightEdgeX, y, MoveButtonWidth, height), label) && enabled)
+            {
+                move();
+                parentArray.serializedObject.ApplyModifiedProperties();
+                GUIUtility.ExitGUI();
+            }
+        }
+
+        return rightEdgeX - ButtonGap;
+    }
 }

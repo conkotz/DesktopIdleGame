@@ -170,6 +170,17 @@ public static class WorldInteractRouter
             return;
         }
 
+        CookingClick cooking = winnerCol.GetComponentInParent<CookingClick>();
+        if (cooking != null)
+        {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
+            NPCInteractionSettings cookingNpc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+            if (cookingNpc != null)
+                cookingNpc.Interact();
+            cooking.Open();
+            return;
+        }
+
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {
@@ -244,8 +255,10 @@ public static class WorldInteractRouter
         MerchantClick.ForceCloseMerchantMode();
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         FurnaceClick.ForceClose();
+        CookingClick.ForceClose();
 
         if (targetStorage == null || !StorageClick.IsActiveInstance(targetStorage))
             StorageClick.ForceCloseStorageMode();
@@ -303,6 +316,7 @@ public static class WorldInteractRouter
 
         if (col.GetComponentInParent<StorageClick>()) return true;
         if (col.GetComponentInParent<FurnaceClick>()) return true;
+        if (col.GetComponentInParent<CookingClick>()) return true;
         if (col.GetComponentInParent<ItemDrop>()) return true;
         if (col.GetComponentInParent<ResourceNode>()) return true;
         if (col.GetComponentInParent<NPCInteractionSettings>()) return true;
@@ -357,6 +371,13 @@ public static class WorldInteractRouter
         if (furnace != null)
         {
             furnace.Open();
+            return;
+        }
+
+        CookingClick cooking = col.GetComponentInParent<CookingClick>();
+        if (cooking != null)
+        {
+            cooking.Open();
             return;
         }
 
@@ -449,6 +470,7 @@ public static class WorldInteractRouter
 
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
+        CookingClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
         InMapTeleporter.CancelPendingApproachForPlayer(player);

@@ -15,6 +15,9 @@ GameObject:
   - component: {fileID: 781000000000000002}
   - component: {fileID: 4181235982351577245}
   - component: {fileID: -3861232571764350438}
+  - component: {fileID: 991000000000000001}
+  - component: {fileID: 991000000000000002}
+  - component: {fileID: 991000000000000003}
   m_Layer: 7
   m_Name: cookingRange
   m_TagString: NoticeBoard
@@ -156,7 +159,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 057b23ef544f434baada2bf6cb93395a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
-  locationId: furnace
+  locationId: cooking_range
   questId: 
   additionalQuestIds: []
   exclamationMarkPrefab: {fileID: 0}
@@ -233,9 +236,56 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8f4e2c91d0b4e6f8a1b3c5d7e9f0a2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NpcIdentity
-  characterName: Furnace
+  characterName: Cooking Range
   role: 
   nameLabel: {fileID: 3979667164614100145}
+--- !u!114 &991000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1301700847255990616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6478990abcdef12345613, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CookingStation
+  stationId: cooking_range
+--- !u!114 &991000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1301700847255990616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6478990abcdef12345614, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CookingClick
+  station: {fileID: 991000000000000001}
+  player: {fileID: 0}
+  rangeCollider: {fileID: 0}
+  openWhenWithinXDistance: 0.15
+  closeWhenBeyondDistance: 5
+--- !u!114 &991000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1301700847255990616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6478990abcdef12345615, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CookingStageVisual
+  station: {fileID: 991000000000000001}
+  spriteRenderer: {fileID: 4644976816631653098}
+  inactiveSprite: {fileID: -6006124163787852173, guid: ee4c77152986c324f821275810d1be78, type: 3}
+  activeSprite: {fileID: 4488637885592289042, guid: ee4c77152986c324f821275810d1be78, type: 3}
+  readySprite: {fileID: -6037347392039840378, guid: ee4c77152986c324f821275810d1be78, type: 3}
 --- !u!1 &2690790343970341782
 GameObject:
   m_ObjectHideFlags: 0

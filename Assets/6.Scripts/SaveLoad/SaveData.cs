@@ -276,6 +276,9 @@ public class SaveData
     [Header("Furnace smelting")]
     public List<FurnaceSmelterSave> furnaceSmelters = new();
 
+    [Header("Cooking stations")]
+    public List<CookingStationSave> cookingStations = new();
+
     [Header("Processing proficiencies")]
     public List<ProcessingProficiencySave> processingProficiency = new();
 
@@ -298,6 +301,19 @@ public class SaveData
         public string readyBarItemId;
         public float smeltProgressSeconds;
         public bool isSmelting;
+    }
+
+    [Serializable]
+    public class CookingStationSave
+    {
+        public string stationId;
+        public string storedRawItemId;
+        public int storedRawAmount;
+        public int readyCookedAmount;
+        public string activeRawItemId;
+        public string readyCookedItemId;
+        public float cookProgressSeconds;
+        public bool isCooking;
     }
 
     [Serializable]

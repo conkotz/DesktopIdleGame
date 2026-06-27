@@ -2,46 +2,46 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
-public class FurnaceClick : MonoBehaviour
+public class CookingClick : MonoBehaviour
 {
-    [SerializeField] private FurnaceSmelter smelter;
+    [SerializeField] private CookingStation station;
     [SerializeField] private PlayerController player;
-    [SerializeField] private Collider2D furnaceCollider;
+    [SerializeField] private Collider2D rangeCollider;
     [SerializeField] private float openWhenWithinXDistance = 0.15f;
     [SerializeField] private float closeWhenBeyondDistance = 5f;
 
-    private static FurnaceClick _active;
-    private static FurnaceClick _pendingOpen;
+    private static CookingClick _active;
+    private static CookingClick _pendingOpen;
     private Coroutine _openWhenArrivedRoutine;
 
-    public static FurnaceClick PendingOpen => _pendingOpen;
-    public static bool IsFurnaceOpen => _active != null && FurnaceUI.IsOpen;
+    public static CookingClick PendingOpen => _pendingOpen;
+    public static bool IsCookingOpen => _active != null && CookingUI.IsOpen;
 
-    public bool IsEngagedWithPlayer() => _active == this && FurnaceUI.IsOpen;
+    public bool IsEngagedWithPlayer() => _active == this && CookingUI.IsOpen;
 
     private void Awake()
     {
         CacheRefs();
         if (!GetComponent<Collider2D>())
-            Debug.LogError("[FurnaceClick] Missing Collider2D.", this);
+            Debug.LogError("[CookingClick] Missing Collider2D.", this);
     }
 
     private void CacheRefs()
     {
-        if (!smelter)
-            smelter = GetComponent<FurnaceSmelter>();
+        if (!station)
+            station = GetComponent<CookingStation>();
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (!furnaceCollider)
-            furnaceCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>(true);
+        if (!rangeCollider)
+            rangeCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>(true);
     }
 
     private void OnDisable()
     {
         if (_active == this)
         {
-            if (FurnaceUI.IsOpen && FurnaceUI.Instance != null)
-                FurnaceUI.Instance.Close();
+            if (CookingUI.IsOpen && CookingUI.Instance != null)
+                CookingUI.Instance.Close();
             _active = null;
         }
 
@@ -51,7 +51,7 @@ public class FurnaceClick : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (_active != this || !FurnaceUI.IsOpen)
+        if (_active != this || !CookingUI.IsOpen)
             return;
 
         CacheRefs();
@@ -70,8 +70,8 @@ public class FurnaceClick : MonoBehaviour
         if (player == null)
             return float.MaxValue;
 
-        Vector2 furnacePos = furnaceCollider != null
-            ? furnaceCollider.bounds.center
+        Vector2 furnacePos = rangeCollider != null
+            ? rangeCollider.bounds.center
             : transform.position;
         return Vector2.Distance(player.transform.position, furnacePos);
     }
@@ -79,13 +79,13 @@ public class FurnaceClick : MonoBehaviour
     public void Open()
     {
         CacheRefs();
-        if (!smelter)
+        if (!station)
         {
-            Debug.LogError("[FurnaceClick] FurnaceSmelter not found.", this);
+            Debug.LogError("[CookingClick] CookingStation not found.", this);
             return;
         }
 
-        if (_active == this && FurnaceUI.IsOpen)
+        if (_active == this && CookingUI.IsOpen)
             return;
 
         CancelPendingOpen();
@@ -132,17 +132,17 @@ public class FurnaceClick : MonoBehaviour
     {
         CacheRefs();
         MerchantClick.ForceCloseMerchantMode();
-        CookingClick.ForceClose();
+        FurnaceClick.ForceClose();
         StorageClick.ForceCloseStorageMode();
 
         _active = this;
-        FurnaceUI.EnsureInstance().Open(smelter, this);
+        CookingUI.EnsureInstance().Open(station, this);
     }
 
     public static void ForceClose()
     {
-        FurnaceUI ui = FurnaceUI.Instance;
-        if (ui != null && FurnaceUI.IsOpen)
+        CookingUI ui = CookingUI.Instance;
+        if (ui != null && CookingUI.IsOpen)
             ui.Close();
 
         _active = null;
@@ -154,7 +154,7 @@ public class FurnaceClick : MonoBehaviour
         if (_pendingOpen == null)
             return;
 
-        FurnaceClick pending = _pendingOpen;
+        CookingClick pending = _pendingOpen;
         _pendingOpen = null;
         if (pending != null && pending._openWhenArrivedRoutine != null)
         {
@@ -175,7 +175,7 @@ public class FurnaceClick : MonoBehaviour
             return false;
 
         if (IsPlayerWithinArrivalRange() ||
-            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(p, furnaceCollider))
+            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(p, rangeCollider))
             return true;
 
         NPCInteractionSettings npc = GetComponent<NPCInteractionSettings>();
@@ -187,13 +187,13 @@ public class FurnaceClick : MonoBehaviour
         if (player == null)
             return false;
 
-        if (furnaceCollider == null)
+        if (rangeCollider == null)
         {
             float dx = Mathf.Abs(player.transform.position.x - transform.position.x);
             return dx <= Mathf.Max(0.01f, openWhenWithinXDistance);
         }
 
-        Bounds b = furnaceCollider.bounds;
+        Bounds b = rangeCollider.bounds;
         float playerX = player.transform.position.x;
         float edgeX = playerX <= b.center.x ? b.min.x : b.max.x;
         float playerHalfWidth = ResolvePlayerColliderHalfWidth(player);
@@ -203,10 +203,10 @@ public class FurnaceClick : MonoBehaviour
 
     private float ComputeApproachTargetX(PlayerController p)
     {
-        if (furnaceCollider == null)
+        if (rangeCollider == null)
             return transform.position.x;
 
-        Bounds b = furnaceCollider.bounds;
+        Bounds b = rangeCollider.bounds;
         float playerX = p.transform.position.x;
         bool fromLeft = playerX <= b.center.x;
         float edgeX = fromLeft ? b.min.x : b.max.x;

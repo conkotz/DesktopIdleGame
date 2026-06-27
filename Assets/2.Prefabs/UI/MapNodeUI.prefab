@@ -149,7 +149,7 @@ GameObject:
   - component: {fileID: 8188714550790151714}
   - component: {fileID: 3367884800453102371}
   m_Layer: 5
-  m_Name: Icon
+  m_Name: TypeIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -609,7 +609,6 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 8252307826350592530}
   - {fileID: 503882820748185616}
   - {fileID: 7699315574350702108}
   - {fileID: 8648324228998704109}
@@ -617,6 +616,7 @@ RectTransform:
   - {fileID: 8441530680381810069}
   - {fileID: 8423776725563938692}
   - {fileID: 8802353237849932977}
+  - {fileID: 8252307826350592530}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}

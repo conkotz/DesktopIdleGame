@@ -421,6 +421,8 @@ public class MainMenuWindowUI : MonoBehaviour
             MerchantClick.ForceCloseMerchantMode();
             StorageClick.ForceCloseStorageMode();
             FurnaceClick.ForceClose();
+        CookingClick.ForceClose();
+            CookingClick.ForceClose();
         }
 
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
@@ -482,6 +484,7 @@ public class MainMenuWindowUI : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
         FurnaceClick.ForceClose();
+        CookingClick.ForceClose();
 
         if (!mainMenuWindow)
         {
@@ -587,6 +590,7 @@ public class MainMenuWindowUI : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
         FurnaceClick.ForceClose();
+        CookingClick.ForceClose();
 
         if (targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();

@@ -24,4 +24,20 @@ public static class ProcessingSkillCurves
             _ => 10
         };
     }
+
+    /// <summary>Cooking proficiency XP granted when a portion finishes.</summary>
+    public static int GetCookingFishXp(CookingRecipe recipe)
+    {
+        string rawId = recipe.RawItemId;
+        if (string.IsNullOrWhiteSpace(rawId))
+            return 10;
+
+        return rawId.ToLowerInvariant() switch
+        {
+            "raw_fish" => 10,
+            "raw_perch" => 12,
+            "raw_pike" => 15,
+            _ => 10
+        };
+    }
 }

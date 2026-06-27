@@ -178,8 +178,9 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 0
-    cookedResultItemId: 
+    isCookable: 1
+    cookedResultItemId: cooked_perch
     cookedResultAmount: 1
     requiredCookingLevel: 0
-    cookingXp: 0
+    cookingXp: 12
+    cookingTimeSeconds: 7

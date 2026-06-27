@@ -428,6 +428,13 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
+        if (CookingClick.IsCookingOpen && doubleClick)
+        {
+            TryDoubleClickDepositToCookingRange();
+            eventData.Use();
+            return;
+        }
+
         if (doubleClick && !MerchantClick.MerchantModeOpen)
         {
             TryDoubleClickEquipFromThisSlot();
@@ -473,6 +480,21 @@ public class InventorySlotUI : MonoBehaviour,
             return false;
 
         return FurnaceUI.TryDepositFromInventorySlot(_inventory, _slotIndex, 0);
+    }
+
+    private bool TryDoubleClickDepositToCookingRange()
+    {
+        if (_inventory == null)
+            return false;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty)
+            return false;
+
+        if (!CookingRecipes.IsCookableRaw(slot.itemId))
+            return false;
+
+        return CookingUI.TryDepositFromInventorySlot(_inventory, _slotIndex, 0);
     }
 
     private void TryDoubleClickEquipFromThisSlot()

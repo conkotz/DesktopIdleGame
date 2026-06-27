@@ -565,7 +565,14 @@ public class NPCInteractionSettings : MonoBehaviour
         if (furnace == null)
             furnace = GetComponentInChildren<FurnaceClick>(true);
 
-        return furnace != null && furnace.IsEngagedWithPlayer();
+        if (furnace != null && furnace.IsEngagedWithPlayer())
+            return true;
+
+        CookingClick cooking = GetComponent<CookingClick>();
+        if (cooking == null)
+            cooking = GetComponentInChildren<CookingClick>(true);
+
+        return cooking != null && cooking.IsEngagedWithPlayer();
     }
 
     public bool CanInteractImmediately(PlayerController player)

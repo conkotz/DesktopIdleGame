@@ -180,7 +180,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: No smelting in progress.
+  dialogue: 
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   useDialogueLocalOffsetOverride: 0
   dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
@@ -198,17 +198,7 @@ MonoBehaviour:
   openDialogueAfterQuestAcceptedQuestId: 
   oneWayDialogueQueue: 0
   oneWayDialogueQueueSaveId: 
-  additionalConditionalDialogues:
-  - condition: 3
-    completedQuestId: 
-    acceptedQuestId: 
-    afterDeathRespawnMapNodeId: 
-    dialogue: Smelting in progress.
-    onAcceptOutcome: 0
-    teleportTargetNode: {fileID: 0}
-    teleportMapNodeId: 
-    buyAllItemId: 
-    buyAllGoldPerItem: 0
+  additionalConditionalDialogues: []
   questGiver: {fileID: 0}
   debugLogPlainDialogueResolution: 0
 --- !u!114 &4181235982351577245

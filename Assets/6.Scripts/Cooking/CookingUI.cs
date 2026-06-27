@@ -5,9 +5,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
-public class FurnaceUI : MonoBehaviour
+public class CookingUI : MonoBehaviour
 {
-    private static FurnaceUI _instance;
+    private static CookingUI _instance;
 
     private static readonly Color PanelBg = new Color32(28, 30, 34, 245);
     private static readonly Color SlotBg = new Color32(42, 44, 50, 255);
@@ -18,32 +18,33 @@ public class FurnaceUI : MonoBehaviour
     private static readonly Color PickerRowBg = new Color32(52, 54, 60, 255);
     private static readonly Color StopAccent = new Color32(220, 80, 80, 255);
 
-    private FurnaceSmelter _smelter;
-    private FurnaceClick _clickSource;
+    private CookingStation _station;
+    private CookingClick _clickSource;
     private Inventory _inventory;
     private ItemDatabase _itemDb;
 
     private Canvas _canvas;
     private RectTransform _root;
-    private RectTransform _orePickerRoot;
-    private Image _oreIcon;
-    private Image _barIcon;
-    private TMP_Text _oreAmountText;
-    private TMP_Text _barAmountText;
+    private RectTransform _fishPickerRoot;
+    private Image _fishIcon;
+    private Image _cookedIcon;
+    private TMP_Text _fishAmountText;
+    private TMP_Text _cookedAmountText;
     private Image _progressFill;
     private RectTransform _progressFillRt;
     private TMP_Text _progressText;
     private TMP_Text _timeSummaryText;
+    private TMP_Text _burnChanceText;
     private TMP_Text _actionButtonText;
     private Button _actionButton;
-    private Button _oresButton;
-    private Button _barsButton;
-    private Button _oreClearButton;
+    private Button _fishButton;
+    private Button _cookedButton;
+    private Button _fishClearButton;
     private Button _helpButton;
-    private Button _smeltingLevelButton;
-    private TMP_Text _smeltingLevelButtonText;
-    private Image _smeltingXpFill;
-    private RectTransform _smeltingXpFillRt;
+    private Button _cookingLevelButton;
+    private TMP_Text _cookingLevelButtonText;
+    private Image _cookingXpFill;
+    private RectTransform _cookingXpFillRt;
     private Button _activeWorkButton;
     private TMP_Text _activeWorkButtonText;
 
@@ -52,20 +53,21 @@ public class FurnaceUI : MonoBehaviour
     private RectTransform _proficiencyScrollContent;
     private TMP_Text _proficiencyFooterText;
 
-    private float _nextPendingBarsLogTime;
+    private float _nextPendingCookedLogTime;
     private bool _proficiencySubscribed;
 
     private const string HelpBodyText =
-        "The furnace converts ore into metal bars over time.\n\n" +
-        "Deposit ore, press Smelt, and wait for bars to finish. Collect bars before adding new ore or starting another batch.\n\n" +
-        "Higher-tier ores take longer to smelt but grant more Smelting proficiency.\n\n" +
-        "Speed Up trims time from the current bar while smelting (3s cooldown).";
+        "The cooking range turns raw fish into cooked food over time.\n\n" +
+        "Deposit fish, press Cook, and wait for food to finish. Collect cooked food before adding new fish or starting another batch.\n\n" +
+        "Better fish take longer to cook but grant more Cooking proficiency.\n\n" +
+        "Each portion can burn while cooking. Higher Cooking level reduces burn chance.\n\n" +
+        "Speed Up trims time from the current portion while cooking (3s cooldown).";
 
     private const int DefaultCanvasSortingOrder = 12000;
     private const float SidePanelGap = 10f;
-    private const float FurnaceBlockedLogCooldownSeconds = 2f;
+    private const float CookingBlockedLogCooldownSeconds = 2f;
 
-    public static FurnaceUI Instance => _instance;
+    public static CookingUI Instance => _instance;
     public static bool IsOpen => _instance != null && _instance._root != null && _instance._root.gameObject.activeSelf;
 
     public static int CanvasSortingOrder =>
@@ -81,18 +83,18 @@ public class FurnaceUI : MonoBehaviour
         return RectTransformUtility.RectangleContainsScreenPoint(_instance._root, screenPoint, eventCamera);
     }
 
-    public static FurnaceSmelter ActiveSmelter => _instance != null ? _instance._smelter : null;
+    public static CookingStation ActiveStation => _instance != null ? _instance._station : null;
 
-    /// <summary>Deposit ore from an inventory slot while the furnace UI is open (drag-drop / double-click).</summary>
+    /// <summary>Deposit fish from an inventory slot while the cooking UI is open (drag-drop / double-click).</summary>
     public static bool TryDepositFromInventorySlot(Inventory inv, int slotIndex, int amount = 0)
     {
-        if (!IsOpen || _instance._smelter == null || inv == null || slotIndex < 0)
+        if (!IsOpen || _instance._station == null || inv == null || slotIndex < 0)
             return false;
 
-        if (!_instance._smelter.TryDepositOreFromInventorySlot(inv, slotIndex, amount, out string reason))
+        if (!_instance._station.TryDepositRawFromInventorySlot(inv, slotIndex, amount, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+                Debug.Log($"[Cooking] {reason}");
             return false;
         }
 
@@ -100,14 +102,14 @@ public class FurnaceUI : MonoBehaviour
         return true;
     }
 
-    public static FurnaceUI EnsureInstance()
+    public static CookingUI EnsureInstance()
     {
         if (_instance != null)
             return _instance;
 
-        var host = new GameObject("FurnaceUI", typeof(FurnaceUI));
+        var host = new GameObject("CookingUI", typeof(CookingUI));
         DontDestroyOnLoad(host);
-        _instance = host.GetComponent<FurnaceUI>();
+        _instance = host.GetComponent<CookingUI>();
         _instance.BuildUi();
         return _instance;
     }
@@ -129,8 +131,8 @@ public class FurnaceUI : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_smelter != null)
-            _smelter.StateChanged -= Refresh;
+        if (_station != null)
+            _station.StateChanged -= Refresh;
 
         UnsubscribeProficiency();
 
@@ -140,7 +142,7 @@ public class FurnaceUI : MonoBehaviour
 
     private void Update()
     {
-        if (!IsOpen || _smelter == null)
+        if (!IsOpen || _station == null)
             return;
 
         RefreshProgressOnly();
@@ -148,9 +150,9 @@ public class FurnaceUI : MonoBehaviour
         RefreshActiveWorkButton();
     }
 
-    public void Open(FurnaceSmelter smelter, FurnaceClick clickSource)
+    public void Open(CookingStation station, CookingClick clickSource)
     {
-        if (smelter == null)
+        if (station == null)
             return;
 
         if (_root == null)
@@ -158,46 +160,46 @@ public class FurnaceUI : MonoBehaviour
 
         if (_root == null || _progressText == null)
         {
-            Debug.LogError("[FurnaceUI] Failed to build furnace interface.");
+            Debug.LogError("[CookingUI] Failed to build cooking interface.");
             return;
         }
 
-        if (_smelter != null)
-            _smelter.StateChanged -= Refresh;
+        if (_station != null)
+            _station.StateChanged -= Refresh;
 
-        _smelter = smelter;
+        _station = station;
         _clickSource = clickSource;
-        _smelter.StateChanged += Refresh;
+        _station.StateChanged += Refresh;
 
         CacheRefs();
-        HideOrePicker();
+        HideFishPicker();
         HideHelpPanel();
         HideProficiencyPanel();
         SubscribeProficiency();
         _root.gameObject.SetActive(true);
         Refresh();
 
-        if (_smelter.ReadyBarAmount > 0 && !_smelter.IsSmelting)
-            LogFurnaceBlocked("Collect furnace bars before smelting.");
+        if (_station.ReadyCookedAmount > 0 && !_station.IsCooking)
+            LogCookingBlocked("Collect cooked food before cooking again.");
     }
 
     public void Close()
     {
-        HideOrePicker();
+        HideFishPicker();
         HideHelpPanel();
         HideProficiencyPanel();
         UnsubscribeProficiency();
-        if (_smelter != null && SaveManager.Instance != null)
+        if (_station != null && SaveManager.Instance != null)
             SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
 
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;
 
-        if (_smelter != null)
+        if (_station != null)
         {
-            _smelter.StateChanged -= Refresh;
-            _smelter = null;
+            _station.StateChanged -= Refresh;
+            _station = null;
         }
     }
 
@@ -217,63 +219,64 @@ public class FurnaceUI : MonoBehaviour
 
     private void Refresh()
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
         CacheRefs();
         RefreshSlotVisuals();
         RefreshProgressOnly();
         RefreshActionButton();
-        RefreshOreClearButton();
-        RefreshSmeltingLevelButton();
-        RefreshSmeltingXpBar();
+        RefreshFishClearButton();
+        RefreshCookingLevelButton();
+        RefreshCookingXpBar();
         RefreshActiveWorkButton();
+        RefreshBurnChanceText();
     }
 
-    private void RefreshOreClearButton()
+    private void RefreshFishClearButton()
     {
-        if (_oreClearButton == null)
+        if (_fishClearButton == null)
             return;
 
-        bool hasOre = _smelter != null && _smelter.StoredOreAmount > 0;
-        _oreClearButton.gameObject.SetActive(hasOre);
-        _oreClearButton.interactable = hasOre;
+        bool hasFish = _station != null && _station.StoredRawAmount > 0;
+        _fishClearButton.gameObject.SetActive(hasFish);
+        _fishClearButton.interactable = hasFish;
     }
 
     private void RefreshSlotVisuals()
     {
-        int oreAmt = _smelter.StoredOreAmount;
-        string oreId = oreAmt > 0 ? _smelter.StoredOreItemId : "";
-        ApplySlot(_oreIcon, _oreAmountText, oreId, oreAmt, "Ores", _itemDb);
+        int fishAmt = _station.StoredRawAmount;
+        string fishId = fishAmt > 0 ? _station.StoredRawItemId : "";
+        ApplySlot(_fishIcon, _fishAmountText, fishId, fishAmt, "Fish", _itemDb);
 
-        int barAmt = _smelter.ReadyBarAmount;
-        string barId = ResolveBarSlotItemId(oreAmt, barAmt);
-        ApplySlot(_barIcon, _barAmountText, barId, barAmt, "Bars", _itemDb);
+        int cookedAmt = _station.ReadyCookedAmount;
+        string cookedId = ResolveCookedSlotItemId(fishAmt, cookedAmt);
+        ApplySlot(_cookedIcon, _cookedAmountText, cookedId, cookedAmt, "Cooked", _itemDb);
     }
 
-    private string ResolveBarSlotItemId(int oreAmt, int barAmt)
+    private string ResolveCookedSlotItemId(int fishAmt, int cookedAmt)
     {
-        if (barAmt > 0)
+        if (cookedAmt > 0)
         {
-            if (!string.IsNullOrWhiteSpace(_smelter.ReadyBarItemId))
-                return _smelter.ReadyBarItemId;
+            if (!string.IsNullOrWhiteSpace(_station.ReadyCookedItemId))
+                return _station.ReadyCookedItemId;
 
-            if (_smelter.TryGetActiveRecipe(out SmeltingRecipe recipe))
-                return recipe.BarItemId;
+            if (_station.TryGetActiveRecipe(out CookingRecipe recipe))
+                return recipe.CookedItemId;
 
-            if (oreAmt > 0 && SmeltingRecipes.TryGetForOre(_smelter.StoredOreItemId, out recipe))
-                return recipe.BarItemId;
+            if (fishAmt > 0 && CookingRecipes.TryGetForRaw(_station.StoredRawItemId, out recipe))
+                return recipe.CookedItemId;
 
             return "";
         }
 
-        if (oreAmt > 0 || _smelter.IsSmelting)
+        if (fishAmt > 0 || _station.IsCooking)
         {
-            if (oreAmt > 0 && SmeltingRecipes.TryGetForOre(_smelter.StoredOreItemId, out SmeltingRecipe recipe))
-                return recipe.BarItemId;
+            if (fishAmt > 0 && CookingRecipes.TryGetForRaw(_station.StoredRawItemId, out CookingRecipe recipe))
+                return recipe.CookedItemId;
 
-            if (_smelter.TryGetActiveRecipe(out SmeltingRecipe activeRecipe))
-                return activeRecipe.BarItemId;
+            if (_station.TryGetActiveRecipe(out CookingRecipe activeRecipe))
+                return activeRecipe.CookedItemId;
         }
 
         return "";
@@ -305,11 +308,11 @@ public class FurnaceUI : MonoBehaviour
 
     private void RefreshProgressOnly()
     {
-        if (_smelter == null || _progressFill == null || _progressText == null)
+        if (_station == null || _progressFill == null || _progressText == null)
             return;
 
-        float duration = _smelter.GetActiveDurationSeconds();
-        float progress = _smelter.IsSmelting ? _smelter.SmeltProgressSeconds : 0f;
+        float duration = _station.GetActiveDurationSeconds();
+        float progress = _station.IsCooking ? _station.CookProgressSeconds : 0f;
         float t = duration > 0f ? Mathf.Clamp01(progress / duration) : 0f;
         if (_progressFillRt != null)
             _progressFillRt.anchorMax = new Vector2(t, 1f);
@@ -325,27 +328,27 @@ public class FurnaceUI : MonoBehaviour
 
     private void RefreshTimeSummary()
     {
-        if (_timeSummaryText == null || _smelter == null)
+        if (_timeSummaryText == null || _station == null)
             return;
 
-        if (!_smelter.TryGetSmeltTimeEstimate(
+        if (!_station.TryGetCookTimeEstimate(
                 out float totalRemaining,
                 out _,
-                out int barsRemaining))
+                out int portionsRemaining))
         {
             _timeSummaryText.text = "";
             return;
         }
 
-        int ore = _smelter.StoredOreAmount;
-        string totalLabel = FormatSmeltDuration(totalRemaining);
-        string barWord = barsRemaining == 1 ? "bar" : "bars";
+        int fish = _station.StoredRawAmount;
+        string totalLabel = FormatCookDuration(totalRemaining);
+        string portionWord = portionsRemaining == 1 ? "portion" : "portions";
 
         _timeSummaryText.text =
-            $"Smelting time: {ore} ore ({barsRemaining} {barWord}) - {totalLabel}";
+            $"Cooking time: {fish} fish ({portionsRemaining} {portionWord}) - {totalLabel}";
     }
 
-    private static string FormatSmeltDuration(float seconds)
+    private static string FormatCookDuration(float seconds)
     {
         int total = Mathf.Max(0, Mathf.CeilToInt(seconds));
         if (total >= 3600)
@@ -372,16 +375,16 @@ public class FurnaceUI : MonoBehaviour
 
     private void RefreshActionButton()
     {
-        if (_actionButton == null || _actionButtonText == null || _smelter == null)
+        if (_actionButton == null || _actionButtonText == null || _station == null)
             return;
 
-        if (_smelter.IsSmelting)
+        if (_station.IsCooking)
         {
             _actionButtonText.text = "STOP";
             _actionButtonText.color = StopAccent;
             _actionButton.interactable = true;
         }
-        else if (_smelter.ReadyBarAmount > 0)
+        else if (_station.ReadyCookedAmount > 0)
         {
             _actionButtonText.text = "COLLECT";
             _actionButtonText.color = Accent;
@@ -389,67 +392,67 @@ public class FurnaceUI : MonoBehaviour
         }
         else
         {
-            _actionButtonText.text = "SMELT";
-            bool canSmelt = _smelter.CanStartSmelting();
-            _actionButtonText.color = canSmelt ? Accent : StopAccent;
+            _actionButtonText.text = "COOK";
+            bool canCook = _station.CanStartCooking();
+            _actionButtonText.color = canCook ? Accent : StopAccent;
             _actionButton.interactable = true;
         }
     }
 
     private void OnActionClicked()
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (_smelter.IsSmelting)
+        if (_station.IsCooking)
         {
-            _smelter.StopSmelting();
+            _station.StopCooking();
             Refresh();
             return;
         }
 
-        if (_smelter.ReadyBarAmount > 0)
+        if (_station.ReadyCookedAmount > 0)
         {
-            CollectBars(_smelter.ReadyBarAmount);
+            CollectCooked(_station.ReadyCookedAmount);
             return;
         }
 
-        if (!_smelter.CanStartSmelting())
+        if (!_station.CanStartCooking())
         {
-            if (_smelter.StoredOreAmount < _smelter.GetOrePerBar())
+            if (_station.StoredRawAmount < _station.GetRawPerCooked())
             {
-                int orePerBar = _smelter.GetOrePerBar();
-                LogFurnaceBlocked($"Requires at least {orePerBar} ores to smelt into a bar.");
+                int rawPerCooked = _station.GetRawPerCooked();
+                LogCookingBlocked($"Requires at least {rawPerCooked} fish to cook one portion.");
             }
 
             Refresh();
             return;
         }
 
-        _smelter.TryStartSmelting();
+        _station.TryStartCooking();
         Refresh();
     }
 
-    private void OnOreClearClicked()
+    private void OnFishClearClicked()
     {
-        RemoveAllOre();
+        RemoveAllFish();
     }
 
-    private void OnOresClicked()
+    private void OnFishClicked()
     {
-        if (_orePickerRoot == null)
+        if (_fishPickerRoot == null)
             return;
 
-        bool show = !_orePickerRoot.gameObject.activeSelf;
+        bool show = !_fishPickerRoot.gameObject.activeSelf;
         if (!show)
         {
-            HideOrePicker();
+            HideFishPicker();
             return;
         }
 
         HideHelpPanel();
-        RebuildOrePicker();
-        _orePickerRoot.gameObject.SetActive(true);
+        RebuildFishPicker();
+        _fishPickerRoot.gameObject.SetActive(true);
     }
 
     private void OnHelpClicked()
@@ -464,11 +467,11 @@ public class FurnaceUI : MonoBehaviour
             return;
         }
 
-        HideOrePicker();
+        HideFishPicker();
         _helpPanelRoot.gameObject.SetActive(true);
     }
 
-    private void OnSmeltingLevelClicked()
+    private void OnCookingLevelClicked()
     {
         if (_proficiencyPanelRoot == null)
             return;
@@ -486,13 +489,13 @@ public class FurnaceUI : MonoBehaviour
 
     private void OnActiveWorkClicked()
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryActiveWork(out string reason))
+        if (!_station.TryActiveWork(out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                LogFurnaceBlocked(reason);
+                LogCookingBlocked(reason);
             RefreshActiveWorkButton();
             return;
         }
@@ -537,31 +540,31 @@ public class FurnaceUI : MonoBehaviour
         if (!IsOpen)
             return;
 
-        RefreshSmeltingLevelButton();
-        RefreshSmeltingXpBar();
+        RefreshCookingLevelButton();
+        RefreshCookingXpBar();
         RefreshActiveWorkButton();
         if (_proficiencyPanelRoot != null && _proficiencyPanelRoot.gameObject.activeSelf)
             RebuildProficiencyPanel();
     }
 
-    private void RefreshSmeltingLevelButton()
+    private void RefreshCookingLevelButton()
     {
-        if (_smeltingLevelButtonText == null)
+        if (_cookingLevelButtonText == null)
             return;
 
-        int level = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Smelting);
-        _smeltingLevelButtonText.text = $"< Smelting: Lv {level} >";
+        int level = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Cooking);
+        _cookingLevelButtonText.text = $"< Cooking: Lv {level} >";
     }
 
-    private void RefreshSmeltingXpBar()
+    private void RefreshCookingXpBar()
     {
-        if (_smeltingXpFillRt == null)
+        if (_cookingXpFillRt == null)
             return;
 
         ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
-        int level = runtime.GetLevel(ProcessingSkillType.Smelting);
-        float t = runtime.GetProgress01(ProcessingSkillType.Smelting);
-        _smeltingXpFillRt.anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
+        int level = runtime.GetLevel(ProcessingSkillType.Cooking);
+        float t = runtime.GetProgress01(ProcessingSkillType.Cooking);
+        _cookingXpFillRt.anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
     }
 
     private void RefreshActiveWorkButton()
@@ -569,12 +572,12 @@ public class FurnaceUI : MonoBehaviour
         if (_activeWorkButton == null || _activeWorkButtonText == null)
             return;
 
-        bool smelting = _smelter != null && _smelter.IsSmelting;
+        bool cooking = _station != null && _station.IsCooking;
         float cooldown = ProcessingProficiencyRuntime.EnsureInstance().GetActiveWorkCooldownRemaining();
         bool onCooldown = cooldown > 0.01f;
 
-        _activeWorkButton.interactable = smelting && !onCooldown;
-        if (!smelting)
+        _activeWorkButton.interactable = cooking && !onCooldown;
+        if (!cooking)
             _activeWorkButtonText.text = "Speed Up";
         else if (onCooldown)
             _activeWorkButtonText.text = $"Speed Up ({Mathf.CeilToInt(cooldown)}s)";
@@ -593,15 +596,15 @@ public class FurnaceUI : MonoBehaviour
             Destroy(_proficiencyScrollContent.GetChild(i).gameObject);
 
         ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
-        int level = runtime.GetLevel(ProcessingSkillType.Smelting);
-        SmeltingProficiencyBonuses bonuses = runtime.GetSmeltingBonuses();
+        int level = runtime.GetLevel(ProcessingSkillType.Cooking);
+        CookingProficiencyBonuses bonuses = runtime.GetCookingBonuses();
 
-        CreateProficiencyLine($"Smelting — Lv {level}", Accent, 16f, FontStyles.Bold);
+        CreateProficiencyLine($"Cooking — Lv {level}", Accent, 16f, FontStyles.Bold);
 
         if (level < ProcessingSkillCurves.MaxLevel)
         {
-            int xp = runtime.GetXp(ProcessingSkillType.Smelting);
-            int needed = runtime.GetXpToNextLevel(ProcessingSkillType.Smelting);
+            int xp = runtime.GetXp(ProcessingSkillType.Cooking);
+            int needed = runtime.GetXpToNextLevel(ProcessingSkillType.Cooking);
             CreateProficiencyLine(
                 $"Next level: {xp}/{needed} XP",
                 TextLight,
@@ -615,10 +618,10 @@ public class FurnaceUI : MonoBehaviour
 
         CreateProficiencyLine("", TextLight, 6f, FontStyles.Normal);
 
-        IReadOnlyList<string> unlockLines = SmeltingProficiencyBonuses.BuildUnlockLines();
-        for (int i = 0; i < SmeltingProficiencyBonuses.UnlockRows.Length; i++)
+        IReadOnlyList<string> unlockLines = CookingProficiencyBonuses.BuildUnlockLines();
+        for (int i = 0; i < CookingProficiencyBonuses.UnlockRows.Length; i++)
         {
-            SmeltingProficiencyBonuses.UnlockRow row = SmeltingProficiencyBonuses.UnlockRows[i];
+            CookingProficiencyBonuses.UnlockRow row = CookingProficiencyBonuses.UnlockRows[i];
             bool unlocked = level >= row.Level;
             Color color = unlocked ? Accent : new Color32(150, 150, 150, 255);
             CreateProficiencyLine(unlockLines[i], color, 13f, FontStyles.Normal);
@@ -627,11 +630,21 @@ public class FurnaceUI : MonoBehaviour
         float activeWorkBonusPercent = (bonuses.ActiveWorkSecondsPerClick - 1f) * 100f;
         _proficiencyFooterText.text =
             "Total bonuses granted:\n" +
-            $"{FormatPercent(bonuses.SpeedBonusPercent)} increased smelting speed\n" +
-            $"{FormatPercent(bonuses.DoubleBarChancePercent)} chance to make 2 instead of 1 bar\n" +
+            $"{FormatPercent(bonuses.SpeedBonusPercent)} increased cooking speed\n" +
+            $"{FormatPercent(bonuses.BurnRateReductionPercent)} reduced burn chance\n" +
+            $"Burn chance: {FormatPercent(bonuses.EffectiveBurnChancePercent)}\n" +
             (activeWorkBonusPercent > 0.01f
                 ? $"{FormatPercent(activeWorkBonusPercent)} Speed Up effectiveness"
                 : "Standard Speed Up effectiveness");
+    }
+
+    private void RefreshBurnChanceText()
+    {
+        if (_burnChanceText == null)
+            return;
+
+        CookingProficiencyBonuses bonuses = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses();
+        _burnChanceText.text = $"Burn chance: {FormatPercent(bonuses.EffectiveBurnChancePercent)}";
     }
 
     private void CreateProficiencyLine(string text, Color color, float fontSize, FontStyles style)
@@ -647,54 +660,54 @@ public class FurnaceUI : MonoBehaviour
 
     private static string FormatPercent(float value) => $"{value:0.#}%";
 
-    private void HideOrePicker()
+    private void HideFishPicker()
     {
-        if (_orePickerRoot != null)
-            _orePickerRoot.gameObject.SetActive(false);
+        if (_fishPickerRoot != null)
+            _fishPickerRoot.gameObject.SetActive(false);
     }
 
-    private void RebuildOrePicker()
+    private void RebuildFishPicker()
     {
-        if (_orePickerRoot == null)
+        if (_fishPickerRoot == null)
             return;
 
         CacheRefs();
-        for (int i = _orePickerRoot.childCount - 1; i >= 0; i--)
-            Destroy(_orePickerRoot.GetChild(i).gameObject);
+        for (int i = _fishPickerRoot.childCount - 1; i >= 0; i--)
+            Destroy(_fishPickerRoot.GetChild(i).gameObject);
 
-        IReadOnlyList<SmeltingRecipe> recipes = SmeltingRecipes.All;
+        IReadOnlyList<CookingRecipe> recipes = CookingRecipes.All;
         bool any = false;
         for (int i = 0; i < recipes.Count; i++)
         {
-            SmeltingRecipe recipe = recipes[i];
-            int count = _inventory != null ? _inventory.GetTotalAmount(recipe.OreItemId) : 0;
+            CookingRecipe recipe = recipes[i];
+            int count = _inventory != null ? _inventory.GetTotalAmount(recipe.RawItemId) : 0;
             if (count <= 0)
                 continue;
 
             any = true;
-            CreateOrePickerRow(recipe, count);
+            CreateFishPickerRow(recipe, count);
         }
 
         if (!any)
-            CreateOrePickerMessage("No smeltable ore in inventory.");
+            CreateFishPickerMessage("No cookable fish in inventory.");
     }
 
-    private void CreateOrePickerMessage(string message)
+    private void CreateFishPickerMessage(string message)
     {
-        var row = CreateUiObject("Msg", _orePickerRoot, typeof(RectTransform), typeof(LayoutElement));
+        var row = CreateUiObject("Msg", _fishPickerRoot, typeof(RectTransform), typeof(LayoutElement));
         row.GetComponent<LayoutElement>().preferredHeight = 28f;
         var text = CreateTmpText("Label", row.transform, 14f, TextLight, TextAlignmentOptions.MidlineLeft);
         StretchFull(text.rectTransform);
         text.text = message;
     }
 
-    private void CreateOrePickerRow(SmeltingRecipe recipe, int playerCount)
+    private void CreateFishPickerRow(CookingRecipe recipe, int playerCount)
     {
-        ItemDefinition def = _itemDb != null ? _itemDb.Get(recipe.OreItemId) : null;
-        string label = def != null ? def.displayName : recipe.OreItemId;
-        string oreId = recipe.OreItemId;
+        ItemDefinition def = _itemDb != null ? _itemDb.Get(recipe.RawItemId) : null;
+        string label = def != null ? def.displayName : recipe.RawItemId;
+        string fishId = recipe.RawItemId;
 
-        var row = CreateUiObject("OreRow", _orePickerRoot, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
+        var row = CreateUiObject("FishRow", _fishPickerRoot, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
         var rowLe = row.GetComponent<LayoutElement>();
         rowLe.preferredHeight = 40f;
         rowLe.minHeight = 40f;
@@ -730,34 +743,34 @@ public class FurnaceUI : MonoBehaviour
         labelText.alignment = TextAlignmentOptions.MidlineLeft;
         labelText.text = $"{label}  x{playerCount}";
 
-        CreateCompactPickerButton(row.transform, "x5", 42f, () => DepositOreFromPicker(oreId, 5));
-        CreateCompactPickerButton(row.transform, "xAll", 48f, () => DepositAllOreFromPicker(oreId));
+        CreateCompactPickerButton(row.transform, "x5", 42f, () => DepositFishFromPicker(fishId, 5));
+        CreateCompactPickerButton(row.transform, "xAll", 48f, () => DepositAllFishFromPicker(fishId));
     }
 
-    private void DepositOreFromPicker(string oreId, int amount)
+    private void DepositFishFromPicker(string fishId, int amount)
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryDepositOre(oreId, amount, out string reason))
+        if (!_station.TryDepositRaw(fishId, amount, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+                Debug.Log($"[Cooking] {reason}");
             return;
         }
 
         RefreshPickerAfterDeposit();
     }
 
-    private void DepositAllOreFromPicker(string oreId)
+    private void DepositAllFishFromPicker(string fishId)
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryDepositAllOreFromInventory(oreId, out string reason))
+        if (!_station.TryDepositAllRawFromInventory(fishId, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+                Debug.Log($"[Cooking] {reason}");
             return;
         }
 
@@ -767,8 +780,8 @@ public class FurnaceUI : MonoBehaviour
     private void RefreshPickerAfterDeposit()
     {
         Refresh();
-        if (_orePickerRoot != null && _orePickerRoot.gameObject.activeSelf)
-            RebuildOrePicker();
+        if (_fishPickerRoot != null && _fishPickerRoot.gameObject.activeSelf)
+            RebuildFishPicker();
     }
 
     private Button CreateCompactPickerButton(Transform parent, string label, float width, UnityEngine.Events.UnityAction onClick)
@@ -789,122 +802,122 @@ public class FurnaceUI : MonoBehaviour
         return button;
     }
 
-    private void OnOresRightClicked(BaseEventData eventData)
+    private void OnFishRightClicked(BaseEventData eventData)
     {
         if (eventData is PointerEventData pointer && pointer.button != PointerEventData.InputButton.Right)
             return;
-        if (_smelter == null)
+        if (_station == null)
             return;
 
         CacheRefs();
-        string oreId = _smelter.StoredOreItemId;
-        int stored = _smelter.StoredOreAmount;
+        string fishId = _station.StoredRawItemId;
+        int stored = _station.StoredRawAmount;
         var entries = new List<ContextMenuEntry>();
 
         if (stored > 0)
         {
-            string oreName = GetItemDisplayName(oreId, "Ore");
-            int invCount = _inventory != null ? _inventory.GetTotalAmount(oreId) : 0;
+            string fishName = GetItemDisplayName(fishId, "Fish");
+            int invCount = _inventory != null ? _inventory.GetTotalAmount(fishId) : 0;
             if (invCount > 0)
             {
                 entries.Add(new ContextMenuEntry(
-                    $"Add all {invCount} {oreName}",
-                    () => AddAllOre(oreId)));
+                    $"Add all {invCount} {fishName}",
+                    () => AddAllFish(fishId)));
             }
 
             entries.Add(new ContextMenuEntry(
-                $"Remove all {stored} {oreName}",
-                () => RemoveAllOre()));
+                $"Remove all {stored} {fishName}",
+                () => RemoveAllFish()));
         }
         else
         {
-            IReadOnlyList<SmeltingRecipe> recipes = SmeltingRecipes.All;
+            IReadOnlyList<CookingRecipe> recipes = CookingRecipes.All;
             for (int i = 0; i < recipes.Count; i++)
             {
-                SmeltingRecipe recipe = recipes[i];
-                int invCount = _inventory != null ? _inventory.GetTotalAmount(recipe.OreItemId) : 0;
+                CookingRecipe recipe = recipes[i];
+                int invCount = _inventory != null ? _inventory.GetTotalAmount(recipe.RawItemId) : 0;
                 if (invCount <= 0)
                     continue;
 
-                string oreName = GetItemDisplayName(recipe.OreItemId, "Ore");
-                string capturedOreId = recipe.OreItemId;
+                string fishName = GetItemDisplayName(recipe.RawItemId, "Fish");
+                string capturedFishId = recipe.RawItemId;
                 entries.Add(new ContextMenuEntry(
-                    $"Add all {invCount} {oreName}",
-                    () => AddAllOre(capturedOreId)));
+                    $"Add all {invCount} {fishName}",
+                    () => AddAllFish(capturedFishId)));
             }
         }
 
         if (entries.Count == 0)
             return;
 
-        string menuTitle = stored > 0 ? GetItemDisplayName(oreId, "Ore") : "Ores";
+        string menuTitle = stored > 0 ? GetItemDisplayName(fishId, "Fish") : "Fish";
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition, menuTitle);
     }
 
-    private void AddAllOre(string oreId)
+    private void AddAllFish(string fishId)
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryDepositAllOreFromInventory(oreId, out string reason))
+        if (!_station.TryDepositAllRawFromInventory(fishId, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                Debug.Log($"[Furnace] {reason}");
+                Debug.Log($"[Cooking] {reason}");
             return;
         }
 
         Refresh();
     }
 
-    private void RemoveAllOre()
+    private void RemoveAllFish()
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryWithdrawAllOre(out string reason))
+        if (!_station.TryWithdrawAllFish(out string reason))
         {
-            if (!string.IsNullOrWhiteSpace(reason) && reason != "No ore stored.")
-                LogFurnaceBlocked(reason);
+            if (!string.IsNullOrWhiteSpace(reason) && reason != "No fish stored.")
+                LogCookingBlocked(reason);
             return;
         }
 
         Refresh();
     }
 
-    private void OnBarsRightClicked(BaseEventData eventData)
+    private void OnCookedRightClicked(BaseEventData eventData)
     {
         if (eventData is PointerEventData pointer && pointer.button != PointerEventData.InputButton.Right)
             return;
-        if (_smelter == null || _smelter.ReadyBarAmount <= 0)
+        if (_station == null || _station.ReadyCookedAmount <= 0)
             return;
 
         CacheRefs();
-        string barId = ResolveBarItemId();
-        string barName = GetItemDisplayName(barId, "Bar");
-        int ready = _smelter.ReadyBarAmount;
+        string cookedId = ResolveCookedItemId();
+        string barName = GetItemDisplayName(cookedId, "Cooked");
+        int ready = _station.ReadyCookedAmount;
 
         var entries = new List<ContextMenuEntry>
         {
-            new($"Collect 1 {barName}", () => CollectBars(1), ready < 1),
-            new($"Collect all {ready} {barName}", () => CollectBars(ready), ready <= 0)
+            new($"Collect 1 {barName}", () => CollectCooked(1), ready < 1),
+            new($"Collect all {ready} {barName}", () => CollectCooked(ready), ready <= 0)
         };
 
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition, barName);
     }
 
-    private string ResolveBarItemId()
+    private string ResolveCookedItemId()
     {
-        if (_smelter == null)
+        if (_station == null)
             return "";
 
-        if (!string.IsNullOrWhiteSpace(_smelter.ReadyBarItemId))
-            return _smelter.ReadyBarItemId;
+        if (!string.IsNullOrWhiteSpace(_station.ReadyCookedItemId))
+            return _station.ReadyCookedItemId;
 
-        if (_smelter.TryGetActiveRecipe(out SmeltingRecipe recipe))
-            return recipe.BarItemId;
+        if (_station.TryGetActiveRecipe(out CookingRecipe recipe))
+            return recipe.CookedItemId;
 
-        if (SmeltingRecipes.TryGetForOre(_smelter.StoredOreItemId, out recipe))
-            return recipe.BarItemId;
+        if (CookingRecipes.TryGetForRaw(_station.StoredRawItemId, out recipe))
+            return recipe.CookedItemId;
 
         return "";
     }
@@ -919,45 +932,45 @@ public class FurnaceUI : MonoBehaviour
         return def != null && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId;
     }
 
-    private void CollectBars(int amount)
+    private void CollectCooked(int amount)
     {
-        if (_smelter == null)
+        if (_station == null)
             return;
 
-        if (!_smelter.TryCollectBars(amount, out string reason))
+        if (!_station.TryCollectCooked(amount, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
-                LogFurnaceBlocked(reason);
+                LogCookingBlocked(reason);
             return;
         }
 
         Refresh();
     }
 
-    private void LogFurnaceBlocked(string message)
+    private void LogCookingBlocked(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        if (Time.unscaledTime < _nextPendingBarsLogTime)
+        if (Time.unscaledTime < _nextPendingCookedLogTime)
             return;
 
-        _nextPendingBarsLogTime = Time.unscaledTime + FurnaceBlockedLogCooldownSeconds;
+        _nextPendingCookedLogTime = Time.unscaledTime + CookingBlockedLogCooldownSeconds;
         GameLog.Add(message, GameLog.CannotMessageColor);
     }
 
     private void BuildUi()
     {
-        if (_root != null && _progressText != null && _timeSummaryText != null && _oreClearButton != null &&
-            _smeltingLevelButton != null && _helpButton != null && _activeWorkButton != null &&
-            _smeltingXpFillRt != null)
+        if (_root != null && _progressText != null && _timeSummaryText != null && _fishClearButton != null &&
+            _cookingLevelButton != null && _helpButton != null && _activeWorkButton != null &&
+            _cookingXpFillRt != null)
             return;
 
         if (_root != null)
         {
             Destroy(_root.gameObject);
             _root = null;
-            _orePickerRoot = null;
+            _fishPickerRoot = null;
             _helpPanelRoot = null;
             _proficiencyPanelRoot = null;
             _proficiencyScrollContent = null;
@@ -968,20 +981,20 @@ public class FurnaceUI : MonoBehaviour
             _progressFillRt = null;
             _actionButton = null;
             _actionButtonText = null;
-            _oresButton = null;
-            _barsButton = null;
-            _oreClearButton = null;
+            _fishButton = null;
+            _cookedButton = null;
+            _fishClearButton = null;
             _helpButton = null;
-            _smeltingLevelButton = null;
-            _smeltingLevelButtonText = null;
-            _smeltingXpFill = null;
-            _smeltingXpFillRt = null;
+            _cookingLevelButton = null;
+            _cookingLevelButtonText = null;
+            _cookingXpFill = null;
+            _cookingXpFillRt = null;
             _activeWorkButton = null;
             _activeWorkButtonText = null;
-            _oreIcon = null;
-            _barIcon = null;
-            _oreAmountText = null;
-            _barAmountText = null;
+            _fishIcon = null;
+            _cookedIcon = null;
+            _fishAmountText = null;
+            _cookedAmountText = null;
         }
 
         _canvas = gameObject.GetComponent<Canvas>();
@@ -1005,8 +1018,8 @@ public class FurnaceUI : MonoBehaviour
             DontDestroyOnLoad(es);
         }
 
-        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 340f));
-        CreateHeader(_root, "Furnace");
+        _root = CreatePanel("CookingPanel", transform, new Vector2(360f, 340f));
+        CreateHeader(_root, "Cooking Range");
 
         _helpButton = CreateButton(_root, "HelpButton", "?", new Vector2(28f, 28f), new Vector2(0f, 1f));
         var helpRt = _helpButton.GetComponent<RectTransform>();
@@ -1014,15 +1027,15 @@ public class FurnaceUI : MonoBehaviour
         helpRt.anchoredPosition = new Vector2(12f, -12f);
         _helpButton.onClick.AddListener(OnHelpClicked);
 
-        _smeltingLevelButton = CreateButton(_root, "SmeltingLevelButton", "< Smelting: Lv 1 >", new Vector2(220f, 24f), new Vector2(0.5f, 1f));
-        var smeltBtnRt = _smeltingLevelButton.GetComponent<RectTransform>();
+        _cookingLevelButton = CreateButton(_root, "CookingLevelButton", "< Cooking: Lv 1 >", new Vector2(220f, 24f), new Vector2(0.5f, 1f));
+        var smeltBtnRt = _cookingLevelButton.GetComponent<RectTransform>();
         smeltBtnRt.pivot = new Vector2(0.5f, 1f);
         smeltBtnRt.anchoredPosition = new Vector2(0f, -42f);
-        _smeltingLevelButtonText = _smeltingLevelButton.GetComponentInChildren<TMP_Text>();
-        _smeltingLevelButtonText.fontSize = 13f;
-        _smeltingLevelButton.onClick.AddListener(OnSmeltingLevelClicked);
+        _cookingLevelButtonText = _cookingLevelButton.GetComponentInChildren<TMP_Text>();
+        _cookingLevelButtonText.fontSize = 13f;
+        _cookingLevelButton.onClick.AddListener(OnCookingLevelClicked);
 
-        BuildSmeltingXpBar(_root);
+        BuildCookingXpBar(_root);
 
         var slotsRow = CreateUiObject("SlotsRow", _root, typeof(RectTransform), typeof(HorizontalLayoutGroup));
         var slotsRt = slotsRow.GetComponent<RectTransform>();
@@ -1036,26 +1049,26 @@ public class FurnaceUI : MonoBehaviour
         hlg.childControlWidth = false;
         hlg.childControlHeight = false;
 
-        _oresButton = CreateSlotButton(slotsRow.transform, "Ores", out _oreIcon, out _oreAmountText, OnOresClicked);
-        var oresTrigger = _oresButton.gameObject.AddComponent<FurnaceOreSlotInteractions>();
+        _fishButton = CreateSlotButton(slotsRow.transform, "Fish", out _fishIcon, out _fishAmountText, OnFishClicked);
+        var oresTrigger = _fishButton.gameObject.AddComponent<CookingFishSlotInteractions>();
         oresTrigger.Initialize(this);
 
-        _oreClearButton = CreateButton(_oresButton.transform, "OreClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
-        var clearRt = _oreClearButton.GetComponent<RectTransform>();
+        _fishClearButton = CreateButton(_fishButton.transform, "OreClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
+        var clearRt = _fishClearButton.GetComponent<RectTransform>();
         clearRt.anchoredPosition = new Vector2(-4f, -4f);
-        _oreClearButton.onClick.AddListener(OnOreClearClicked);
-        _oreClearButton.transform.SetAsLastSibling();
-        _oreClearButton.gameObject.SetActive(true);
+        _fishClearButton.onClick.AddListener(OnFishClearClicked);
+        _fishClearButton.transform.SetAsLastSibling();
+        _fishClearButton.gameObject.SetActive(true);
 
         TextMeshProUGUI arrowText = CreateTmpText("Arrow", slotsRow.transform, 28f, Accent, TextAlignmentOptions.Center);
         arrowText.text = "→";
         arrowText.rectTransform.sizeDelta = new Vector2(28f, 88f);
 
-        _barsButton = CreateSlotButton(slotsRow.transform, "Bars", out _barIcon, out _barAmountText, null);
-        var barsTrigger = _barsButton.gameObject.AddComponent<FurnaceBarsContextTrigger>();
+        _cookedButton = CreateSlotButton(slotsRow.transform, "Cooked", out _cookedIcon, out _cookedAmountText, null);
+        var barsTrigger = _cookedButton.gameObject.AddComponent<CookingFoodContextTrigger>();
         barsTrigger.Initialize(this);
 
-        _activeWorkButton = CreateButton(_barsButton.transform, "ActiveWorkButton", "Speed Up", new Vector2(76f, 18f), new Vector2(0.5f, 1f));
+        _activeWorkButton = CreateButton(_cookedButton.transform, "ActiveWorkButton", "Speed Up", new Vector2(76f, 18f), new Vector2(0.5f, 1f));
         var activeRt = _activeWorkButton.GetComponent<RectTransform>();
         activeRt.pivot = new Vector2(0.5f, 0f);
         activeRt.anchoredPosition = new Vector2(0f, 6f);
@@ -1063,6 +1076,14 @@ public class FurnaceUI : MonoBehaviour
         _activeWorkButtonText.fontSize = 10f;
         _activeWorkButton.onClick.AddListener(OnActiveWorkClicked);
         _activeWorkButton.transform.SetAsLastSibling();
+
+        _burnChanceText = CreateTmpText("BurnChance", _root, 13f, StopAccent, TextAlignmentOptions.Center);
+        var burnRt = _burnChanceText.rectTransform;
+        burnRt.anchorMin = new Vector2(0.5f, 0.405f);
+        burnRt.anchorMax = new Vector2(0.5f, 0.405f);
+        burnRt.pivot = new Vector2(0.5f, 0.5f);
+        burnRt.sizeDelta = new Vector2(320f, 20f);
+        _burnChanceText.text = "Burn chance: 50%";
 
         var progressBg = CreateUiObject("ProgressBg", _root, typeof(RectTransform), typeof(Image));
         var progressBgRt = progressBg.GetComponent<RectTransform>();
@@ -1109,26 +1130,26 @@ public class FurnaceUI : MonoBehaviour
         BuildHelpPanelContent(_helpPanelRoot);
         _helpPanelRoot.gameObject.SetActive(false);
 
-        _orePickerRoot = CreateSidePanel("OrePicker", _root, new Vector2(280f, 200f), leftSide: true);
-        var pickerLayout = _orePickerRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        _fishPickerRoot = CreateSidePanel("FishPicker", _root, new Vector2(280f, 200f), leftSide: true);
+        var pickerLayout = _fishPickerRoot.gameObject.AddComponent<VerticalLayoutGroup>();
         pickerLayout.padding = new RectOffset(8, 8, 8, 8);
         pickerLayout.spacing = 6f;
         pickerLayout.childControlHeight = true;
         pickerLayout.childForceExpandHeight = false;
-        _orePickerRoot.gameObject.SetActive(false);
+        _fishPickerRoot.gameObject.SetActive(false);
 
         _proficiencyPanelRoot = CreateSidePanel("ProficiencyPanel", _root, new Vector2(300f, 320f), leftSide: false);
         BuildProficiencyPanelContent(_proficiencyPanelRoot);
         _proficiencyPanelRoot.gameObject.SetActive(false);
 
-        RefreshSmeltingLevelButton();
-        RefreshSmeltingXpBar();
+        RefreshCookingLevelButton();
+        RefreshCookingXpBar();
         RefreshActiveWorkButton();
     }
 
-    private void BuildSmeltingXpBar(RectTransform parent)
+    private void BuildCookingXpBar(RectTransform parent)
     {
-        var xpBg = CreateUiObject("SmeltingXpBg", parent, typeof(RectTransform), typeof(Image));
+        var xpBg = CreateUiObject("CookingXpBg", parent, typeof(RectTransform), typeof(Image));
         var xpBgRt = xpBg.GetComponent<RectTransform>();
         xpBgRt.anchorMin = new Vector2(0.5f, 1f);
         xpBgRt.anchorMax = new Vector2(0.5f, 1f);
@@ -1139,14 +1160,14 @@ public class FurnaceUI : MonoBehaviour
         xpBg.GetComponent<Image>().raycastTarget = false;
 
         var xpFillGo = CreateUiObject("Fill", xpBg.transform, typeof(RectTransform), typeof(Image));
-        _smeltingXpFillRt = xpFillGo.GetComponent<RectTransform>();
-        _smeltingXpFillRt.anchorMin = Vector2.zero;
-        _smeltingXpFillRt.anchorMax = Vector2.zero;
-        _smeltingXpFillRt.offsetMin = Vector2.zero;
-        _smeltingXpFillRt.offsetMax = Vector2.zero;
-        _smeltingXpFill = xpFillGo.GetComponent<Image>();
-        _smeltingXpFill.color = Accent;
-        _smeltingXpFill.raycastTarget = false;
+        _cookingXpFillRt = xpFillGo.GetComponent<RectTransform>();
+        _cookingXpFillRt.anchorMin = Vector2.zero;
+        _cookingXpFillRt.anchorMax = Vector2.zero;
+        _cookingXpFillRt.offsetMin = Vector2.zero;
+        _cookingXpFillRt.offsetMax = Vector2.zero;
+        _cookingXpFill = xpFillGo.GetComponent<Image>();
+        _cookingXpFill.color = Accent;
+        _cookingXpFill.raycastTarget = false;
     }
 
     private RectTransform CreateSidePanel(string name, Transform parent, Vector2 size, bool leftSide)
@@ -1173,7 +1194,7 @@ public class FurnaceUI : MonoBehaviour
         var headerText = CreateTmpText("Title", headerRow.transform, 16f, Accent, TextAlignmentOptions.MidlineLeft);
         StretchFull(headerText.rectTransform);
         headerText.fontStyle = FontStyles.Bold;
-        headerText.text = "Smelting";
+        headerText.text = "Cooking";
 
         var bodyRow = CreateUiObject("Body", panel, typeof(RectTransform), typeof(LayoutElement));
         bodyRow.GetComponent<LayoutElement>().preferredHeight = 180f;
@@ -1338,11 +1359,11 @@ public class FurnaceUI : MonoBehaviour
         return go;
     }
 
-    private sealed class FurnaceOreSlotInteractions : MonoBehaviour, IPointerClickHandler, IDropHandler
+    private sealed class CookingFishSlotInteractions : MonoBehaviour, IPointerClickHandler, IDropHandler
     {
-        private FurnaceUI _owner;
+        private CookingUI _owner;
 
-        public void Initialize(FurnaceUI owner) => _owner = owner;
+        public void Initialize(CookingUI owner) => _owner = owner;
 
         public void OnPointerClick(PointerEventData eventData)
         {
@@ -1350,7 +1371,7 @@ public class FurnaceUI : MonoBehaviour
                 return;
 
             if (eventData.button == PointerEventData.InputButton.Right)
-                _owner.OnOresRightClicked(eventData);
+                _owner.OnFishRightClicked(eventData);
         }
 
         public void OnDrop(PointerEventData eventData)
@@ -1367,16 +1388,16 @@ public class FurnaceUI : MonoBehaviour
 
             int fromSlot = InventoryDragState.FromSlotIndex;
             int amount = InventoryDragState.IsSplit ? InventoryDragState.CarriedAmount : 0;
-            if (FurnaceUI.TryDepositFromInventorySlot(inv, fromSlot, amount))
+            if (CookingUI.TryDepositFromInventorySlot(inv, fromSlot, amount))
                 InventoryDragState.EndDrag();
         }
     }
 
-    private sealed class FurnaceBarsContextTrigger : MonoBehaviour, IPointerClickHandler
+    private sealed class CookingFoodContextTrigger : MonoBehaviour, IPointerClickHandler
     {
-        private FurnaceUI _owner;
+        private CookingUI _owner;
 
-        public void Initialize(FurnaceUI owner) => _owner = owner;
+        public void Initialize(CookingUI owner) => _owner = owner;
 
         public void OnPointerClick(PointerEventData eventData)
         {
@@ -1384,7 +1405,7 @@ public class FurnaceUI : MonoBehaviour
                 return;
 
             if (eventData.button == PointerEventData.InputButton.Right)
-                _owner.OnBarsRightClicked(eventData);
+                _owner.OnCookedRightClicked(eventData);
         }
     }
 }

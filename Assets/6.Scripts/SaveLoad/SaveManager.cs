@@ -110,6 +110,7 @@ public class SaveManager : MonoBehaviour
         // Must target a scene root; SaveManager may live under a child (e.g. _GameSystems on Bootstrap).
         DontDestroyOnLoad(transform.root.gameObject);
         FurnaceSmeltingRuntime.EnsureInstance();
+        CookingRuntime.EnsureInstance();
         ProcessingProficiencyRuntime.EnsureInstance();
         MerchantStockRuntime.EnsureInstance();
         LoadAllSaveMetadata();
@@ -169,6 +170,7 @@ public class SaveManager : MonoBehaviour
         {
             HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
             FurnaceClick.ForceClose();
+            CookingClick.ForceClose();
             RepairBootstrapUiAfterReturningFromGameplay();
             SaveSlotManager.ResetGameplaySpawnSessionFlags();
             RefreshSaveSlots();
@@ -1239,6 +1241,7 @@ public class SaveManager : MonoBehaviour
         HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
         MainMenuWindowUI.CancelPersistedOpenRestore();
         FurnaceClick.ForceClose();
+        CookingClick.ForceClose();
         DestroyDeathRespawnFullScreenFaderIfAny();
 
         SceneManager.LoadScene(scene, LoadSceneMode.Single);

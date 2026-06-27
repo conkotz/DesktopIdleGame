@@ -982,6 +982,9 @@ public struct CookableStats
 
     [Tooltip("Optional future XP reward for cooking this item.")]
     public int cookingXp;
+
+    [Tooltip("Seconds to cook one portion at a cooking range.")]
+    [Min(0.1f)] public float cookingTimeSeconds;
 }
 
 [CreateAssetMenu(menuName = "Desktop Idle Game/Item Definition", fileName = "NewItem")]
@@ -2242,6 +2245,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public int CookingXp =>
         IsCookable ? Mathf.Max(0, cookableStats.cookingXp) : 0;
 
+    public float CookingTimeSeconds =>
+        IsCookable && cookableStats.cookingTimeSeconds > 0f
+            ? Mathf.Max(0.1f, cookableStats.cookingTimeSeconds)
+            : 0f;
+
     /// <summary>Seconds subtracted from enemy respawn delay while this item is equipped (see <see cref="ItemMiscEffects"/>).</summary>
     public float EnemyRespawnTimeReductionSeconds => Mathf.Max(0f, miscEffects.enemyRespawnTimeReductionSeconds);
 
@@ -2802,6 +2810,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (CookingXp > 0)
                 s += $"\nCooking XP: {CookingXp}";
+
+            if (CookingTimeSeconds > 0f)
+                s += $"\nCooking Time: {CookingTimeSeconds:0.#}s";
 
             return s;
         }

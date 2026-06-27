@@ -83,6 +83,9 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
     public SmeltingProficiencyBonuses GetSmeltingBonuses() =>
         SmeltingProficiencyBonuses.ForLevel(GetLevel(ProcessingSkillType.Smelting));
 
+    public CookingProficiencyBonuses GetCookingBonuses() =>
+        CookingProficiencyBonuses.ForLevel(GetLevel(ProcessingSkillType.Cooking));
+
     public float GetActiveWorkCooldownRemaining() =>
         Mathf.Max(0f, _nextActiveWorkUnscaledTime - Time.unscaledTime);
 
@@ -110,8 +113,35 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
         return true;
     }
 
+    public bool TryApplyCookingActiveWork(CookingRuntime.CookingRow row, out string failureReason)
+    {
+        failureReason = null;
+        if (row == null || !row.IsCooking)
+        {
+            failureReason = "No cooking in progress.";
+            return false;
+        }
+
+        if (Time.unscaledTime < _nextActiveWorkUnscaledTime)
+        {
+            failureReason = "Speed Up on cooldown.";
+            return false;
+        }
+
+        float reduction = GetCookingBonuses().ActiveWorkSecondsPerClick;
+        if (row.TickCooking(reduction))
+            RequestSaveDebounced();
+
+        _nextActiveWorkUnscaledTime = Time.unscaledTime + ActiveWorkCooldownSeconds;
+        Changed?.Invoke();
+        return true;
+    }
+
     public void AddSmeltingBarXp(SmeltingRecipe recipe) =>
         AddXp(ProcessingSkillType.Smelting, ProcessingSkillCurves.GetSmeltingBarXp(recipe));
+
+    public void AddCookingFishXp(CookingRecipe recipe) =>
+        AddXp(ProcessingSkillType.Cooking, ProcessingSkillCurves.GetCookingFishXp(recipe));
 
     public void AddXp(ProcessingSkillType type, int amount)
     {
@@ -137,6 +167,8 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
 
             if (type == ProcessingSkillType.Smelting)
                 GameLog.Add($"Smelting level {state.Level}!", GameLog.LevelAvailableColor);
+            else if (type == ProcessingSkillType.Cooking)
+                GameLog.Add($"Cooking level {state.Level}!", GameLog.LevelAvailableColor);
         }
 
         if (state.Level >= ProcessingSkillCurves.MaxLevel)
