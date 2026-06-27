@@ -1135,8 +1135,7 @@ public class FurnaceUI : MonoBehaviour
 
         var entries = new List<ContextMenuEntry>
         {
-            new($"Collect 1 {barName}", () => CollectBars(1), ready < 1),
-            new($"Collect all {ready} {barName}", () => CollectBars(ready), ready <= 0)
+            new("Collect all", () => CollectBars(ready), ready <= 0)
         };
 
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition, barName);

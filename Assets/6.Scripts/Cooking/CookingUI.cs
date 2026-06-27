@@ -62,7 +62,7 @@ public class CookingUI : MonoBehaviour
     }
 
     private SidePickerMode _pickerMode;
-    private const int UiLayoutVersion = 4;
+    private const int UiLayoutVersion = 5;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -1169,8 +1169,7 @@ public class CookingUI : MonoBehaviour
 
         var entries = new List<ContextMenuEntry>
         {
-            new($"Collect 1 {barName}", () => CollectCooked(1), ready < 1),
-            new($"Collect all {ready} {barName}", () => CollectCooked(ready), ready <= 0)
+            new("Collect all", () => CollectCooked(ready), ready <= 0)
         };
 
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition, barName);
@@ -1508,24 +1507,30 @@ public class CookingUI : MonoBehaviour
         var viewport = CreateUiObject("Viewport", scrollHost.transform, typeof(RectTransform), typeof(RectMask2D));
         StretchFull(viewport.GetComponent<RectTransform>());
 
-        var content = CreatePanel("Content", viewport.transform, new Vector2(0f, 0f));
+        RectTransform content = CreatePanel("Content", viewport.transform, new Vector2(0f, 0f));
         content.anchorMin = new Vector2(0f, 1f);
         content.anchorMax = new Vector2(1f, 1f);
         content.pivot = new Vector2(0.5f, 1f);
         content.sizeDelta = new Vector2(0f, 0f);
         content.GetComponent<Image>().color = Color.clear;
+        var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        contentLayout.padding = new RectOffset(6, 6, 6, 6);
+        contentLayout.spacing = 0f;
+        contentLayout.childControlHeight = true;
+        contentLayout.childControlWidth = true;
+        contentLayout.childForceExpandHeight = false;
+        contentLayout.childForceExpandWidth = true;
         content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        var bodyText = CreateTmpText("Body", content.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
-        var bodyRt = bodyText.rectTransform;
-        bodyRt.anchorMin = new Vector2(0f, 1f);
-        bodyRt.anchorMax = new Vector2(1f, 1f);
-        bodyRt.pivot = new Vector2(0.5f, 1f);
-        bodyRt.sizeDelta = new Vector2(-12f, 0f);
+        var bodyRow = CreateUiObject("BodyRow", content, typeof(RectTransform), typeof(LayoutElement));
+        bodyRow.GetComponent<LayoutElement>().flexibleWidth = 1f;
+        var bodyText = CreateTmpText("Body", bodyRow.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
+        StretchFull(bodyText.rectTransform);
         bodyText.textWrappingMode = TextWrappingModes.Normal;
         bodyText.text = HelpBodyText;
-        bodyText.ForceMeshUpdate();
-        bodyRt.sizeDelta = new Vector2(-12f, bodyText.preferredHeight + 8f);
+        var bodyFitter = bodyText.gameObject.AddComponent<ContentSizeFitter>();
+        bodyFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        bodyFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         ScrollRect scroll = scrollHost.GetComponent<ScrollRect>();
         scroll.viewport = viewport.GetComponent<RectTransform>();

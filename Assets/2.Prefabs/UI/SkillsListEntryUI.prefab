@@ -102,8 +102,10 @@ MonoBehaviour:
   icon: {fileID: 1456797547111959962}
   nameText: {fileID: 5804614624586841359}
   levelText: {fileID: 5044961649373136060}
+  xpText: {fileID: 6522080497344802385}
   xpBarFill: {fileID: 9047969769091969781}
   button: {fileID: 33629708032292795}
+  hideNameText: 1
   selectionBackground: {fileID: 926332158969883065}
   normalColor: {r: 0.3132075, g: 0.3132075, b: 0.3132075, a: 0.87058824}
   selectedColor: {r: 0.6377357, g: 0.50375307, b: 0.10468489, a: 0.8352941}

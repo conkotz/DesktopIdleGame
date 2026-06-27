@@ -21,12 +21,19 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     [Tooltip("Level line (e.g. Lv 12).")]
     [SerializeField] private TMP_Text levelText;
 
+    [Tooltip("Current XP line (e.g. 450 XP).")]
+    [SerializeField] private TMP_Text xpText;
+
     [Header("XP Bar")]
     [Tooltip("XP bar fill image (uses Image.fillAmount).")]
     [SerializeField] private Image xpBarFill;
 
     [Tooltip("Whole-row click target.")]
     [SerializeField] private Button button;
+
+    [Header("Display")]
+    [Tooltip("Square skill icons include the name; hide the separate name line.")]
+    [SerializeField] private bool hideNameText = true;
 
     [Header("Selection")]
     [FormerlySerializedAs("background")]
@@ -56,6 +63,9 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     {
         if (!button)
             button = GetComponent<Button>();
+
+        if (!xpText)
+            xpText = transform.Find("XpBar/ExpText")?.GetComponent<TMP_Text>();
 
         // Keep Button clicks/hover/press, but stop EventSystem "selected" focus from tinting only one row
         // (Selected Color on a list of Buttons). Selection visuals use selectionBackground + SetSelected instead.
@@ -165,16 +175,23 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 
         if (icon)
         {
-            icon.sprite = _definition.icon;
-            icon.enabled = _definition.icon != null;
+            ApplyIcon(_definition.icon);
         }
 
         if (nameText)
         {
-            string name = SkillsAbilityPresentationResolver.ResolveSkillDisplayName(_definition);
-            nameText.text = string.IsNullOrWhiteSpace(name)
-                ? _definition.skillType.ToString()
-                : name;
+            if (hideNameText)
+            {
+                nameText.gameObject.SetActive(false);
+            }
+            else
+            {
+                string name = SkillsAbilityPresentationResolver.ResolveSkillDisplayName(_definition);
+                nameText.text = string.IsNullOrWhiteSpace(name)
+                    ? _definition.skillType.ToString()
+                    : name;
+                nameText.gameObject.SetActive(true);
+            }
         }
 
         SetLevel(level);
@@ -185,13 +202,91 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         {
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(HandleClicked);
+            button.interactable = true;
         }
+    }
+
+    /// <summary>Display-only row (processing placeholders) or rows without a skill tree binding.</summary>
+    public void SetupDisplay(
+        Sprite iconSprite,
+        int level,
+        float progress01,
+        int currentXp,
+        bool selected,
+        bool interactable)
+    {
+        _definition = null;
+        _onClicked = null;
+        _onHoverAcknowledge = null;
+
+        ApplyIcon(iconSprite);
+
+        if (nameText)
+            nameText.gameObject.SetActive(false);
+
+        SetLevel(level);
+        SetProgress(progress01);
+        SetXp(currentXp);
+        SetSelected(selected);
+
+        if (button)
+        {
+            button.onClick.RemoveAllListeners();
+            button.interactable = interactable;
+        }
+    }
+
+    public void SetupWithXp(
+        SkillDefinition definition,
+        int level,
+        float progress01,
+        int currentXp,
+        bool selected,
+        Action<SkillDefinition> onClicked,
+        Action<SkillDefinition> onHoverAcknowledge = null)
+    {
+        Setup(definition, level, progress01, selected, onClicked, onHoverAcknowledge);
+        SetXp(currentXp);
+    }
+
+    private void ApplyIcon(Sprite iconSprite)
+    {
+        if (!icon)
+            return;
+
+        bool show = ShouldShowIcon(iconSprite);
+        icon.sprite = show ? iconSprite : null;
+        icon.enabled = show;
+    }
+
+    private static bool ShouldShowIcon(Sprite iconSprite)
+    {
+        if (iconSprite == null)
+            return false;
+
+        Texture2D tex = iconSprite.texture;
+        return tex != null;
+    }
+
+    public void SetInteractable(bool interactable)
+    {
+        if (button)
+            button.interactable = interactable;
     }
 
     public void SetLevel(int level)
     {
         if (levelText)
             levelText.text = $"Lv {Mathf.Max(1, level)}";
+    }
+
+    public void SetXp(int currentXp)
+    {
+        if (!xpText)
+            return;
+
+        xpText.gameObject.SetActive(true);
+        xpText.text = $"{Mathf.Max(0, currentXp)} XP";
     }
 
     public void SetProgress(float progress01)
