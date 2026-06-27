@@ -38,6 +38,8 @@ public class SaveManager : MonoBehaviour
     [SerializeField] private float autosaveIntervalSeconds = 30f;
 
     [Header("Debug")]
+    [Tooltip("Turn on to silence save request / disk-write logs in the Console.")]
+    [SerializeField] private bool disableSaveEventLogs;
     [Tooltip("Logs non-critical save flow messages (staged load, ApplyToPlayer summary, slot metadata, force-apply). Warnings for real problems stay on.")]
     [SerializeField] private bool verboseInfoLogs;
 
@@ -572,12 +574,14 @@ public class SaveManager : MonoBehaviour
         if (_inventorySaveDueUnscaled >= 0f && Time.unscaledTime >= _inventorySaveDueUnscaled)
         {
             _inventorySaveDueUnscaled = -1f;
+            LogSaveFlow("Debounced inventory change -> save");
             RequestSave(SaveRequestKind.InventoryChanged);
         }
 
         if (_storageSaveDueUnscaled >= 0f && Time.unscaledTime >= _storageSaveDueUnscaled)
         {
             _storageSaveDueUnscaled = -1f;
+            LogSaveFlow("Debounced storage change -> save");
             RequestSave(SaveRequestKind.StorageChanged);
         }
 
@@ -711,10 +715,14 @@ public class SaveManager : MonoBehaviour
     public void RequestSave(SaveRequestKind kind, bool immediate = false)
     {
         if (_isApplyingSaveData)
+        {
+            LogSaveFlow($"Save ignored ({kind}) — still applying loaded save data");
             return;
+        }
 
         if (immediate)
         {
+            LogSaveFlow($"Save executing now ({kind})");
             ExecuteSave(kind);
             return;
         }
@@ -724,12 +732,16 @@ public class SaveManager : MonoBehaviour
             _saveRequestPending = true;
             _pendingSaveKind = kind;
             _saveRequestFrame = Time.frameCount;
+            LogSaveFlow($"Save queued ({kind}) — runs next frame");
             return;
         }
 
         // Coalesce bursty requests by keeping the highest-priority pending reason.
         if (GetSaveRequestPriority(kind) > GetSaveRequestPriority(_pendingSaveKind))
+        {
+            LogSaveFlow($"Save coalesced ({kind}) replaces pending ({_pendingSaveKind})");
             _pendingSaveKind = kind;
+        }
     }
 
     private static int GetSaveRequestPriority(SaveRequestKind kind)
@@ -763,8 +775,13 @@ public class SaveManager : MonoBehaviour
             return;
         }
 #endif
+        var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
         if (!IsRuntimeReadyForSave(out string readinessReason))
+        {
+            LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, readinessReason);
             return;
+        }
 
         SaveData previousSnapshot = _lastLoadedData;
 
@@ -814,10 +831,14 @@ public class SaveManager : MonoBehaviour
 
         SaveDataIntegrity.SanitizeBeforeWrite(data, "Save");
         if (!IsCriticalSnapshotValid(data, out string snapshotReason))
+        {
+            LogSaveEvent(kind, "aborted", saveStopwatch.ElapsedMilliseconds, snapshotReason);
             return;
+        }
         if (IsSuspiciousProgressWipe(data, previousSnapshot, kind, out string suspiciousReason))
         {
             Debug.LogWarning($"[SaveManager] Skipping save ({kind}) because {suspiciousReason}");
+            LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, suspiciousReason);
             return;
         }
 
@@ -844,6 +865,35 @@ public class SaveManager : MonoBehaviour
         );
         SaveSlotManager.WriteHeader(header);
         _lastLoadedData = data;
+
+        LogSaveEvent(
+            kind,
+            "completed",
+            saveStopwatch.ElapsedMilliseconds,
+            $"slot={slot} scene={SceneManager.GetActiveScene().name}");
+    }
+
+    private void LogSaveFlow(string message)
+    {
+        if (disableSaveEventLogs)
+            return;
+
+        Debug.Log($"[SaveManager] {message} (frame={Time.frameCount}, scene={SceneManager.GetActiveScene().name})");
+    }
+
+    private void LogSaveEvent(SaveRequestKind kind, string result, long elapsedMs, string detail = null)
+    {
+        if (disableSaveEventLogs)
+            return;
+
+        string message = $"[SaveManager] Save {result} ({kind}) {elapsedMs}ms frame={Time.frameCount}";
+        if (!string.IsNullOrEmpty(detail))
+            message += $" — {detail}";
+
+        if (result == "completed")
+            Debug.LogWarning(message);
+        else
+            Debug.Log(message);
     }
 
     private bool IsRuntimeReadyForSave(out string reason)
@@ -1737,6 +1787,7 @@ public class SaveManager : MonoBehaviour
             return;
 
         _inventorySaveDueUnscaled = Time.unscaledTime + InventorySaveDebounceSeconds;
+        LogSaveFlow($"Inventory change — save scheduled in {InventorySaveDebounceSeconds:0.#}s");
     }
 
     private void TryBindInventory()

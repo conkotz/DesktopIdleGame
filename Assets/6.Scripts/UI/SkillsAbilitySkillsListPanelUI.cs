@@ -49,6 +49,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     [SerializeField] private SkillListEntryUI processingMagicCrafting;
     [SerializeField] private SkillListEntryUI processingRangerCrafting;
     [SerializeField] private SkillListEntryUI processingAlchemy;
+    [SerializeField] private SkillListEntryUI processingJewelCrafting;
 
     private SkillDatabase _skillDatabase;
     private SkillsManager _skillsManager;
@@ -122,6 +123,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         WireProcessingPlaceholder(processingMagicCrafting);
         WireProcessingPlaceholder(processingRangerCrafting);
         WireProcessingPlaceholder(processingAlchemy);
+        WireProcessingPlaceholder(processingJewelCrafting);
 
         ScheduleLayoutRefresh();
     }
@@ -276,6 +278,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         WireProcessingPlaceholder(processingMagicCrafting);
         WireProcessingPlaceholder(processingRangerCrafting);
         WireProcessingPlaceholder(processingAlchemy);
+        WireProcessingPlaceholder(processingJewelCrafting);
     }
 
     private SkillDefinition FindSkill(SkillType skillType)
@@ -642,6 +645,20 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
             gatheringSkillsHeader = listContent != null ? listContent.Find("GatheringSkillsHeader") as RectTransform : null;
         if (processingSkillsHeader == null)
             processingSkillsHeader = listContent != null ? listContent.Find("ProcessingSkillsHeader") as RectTransform : null;
+
+        ResolveProcessingEntry(ref processingJewelCrafting, "SkillsListEntryUIJewel");
+    }
+
+    private void ResolveProcessingEntry(ref SkillListEntryUI entry, string objectName)
+    {
+        if (entry != null)
+            return;
+
+        if (processingSkillsContent != null)
+            entry = processingSkillsContent.Find(objectName)?.GetComponent<SkillListEntryUI>();
+
+        if (entry == null && listContent != null)
+            entry = listContent.Find(objectName)?.GetComponent<SkillListEntryUI>();
     }
 
     private RectTransform FindScrollContent()

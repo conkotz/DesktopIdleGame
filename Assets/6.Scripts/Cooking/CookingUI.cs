@@ -73,6 +73,12 @@ public class CookingUI : MonoBehaviour
     private float _nextPendingCookedLogTime;
     private bool _proficiencySubscribed;
 
+    private string _cachedProgressText = "";
+    private float _cachedProgressFill = -1f;
+    private string _cachedActiveWorkText = "";
+    private bool _cachedActiveWorkInteractable;
+    private Color _cachedActiveWorkColor;
+
     private const string HelpBodyText =
         "The cooking range turns raw fish into cooked food over time.\n\n" +
         "Deposit fish, press Cook, and wait for food to finish. Collect cooked food before adding new fish or starting another batch.\n\n" +
@@ -182,11 +188,10 @@ public class CookingUI : MonoBehaviour
 
     private void Update()
     {
-        if (!IsOpen || _station == null)
+        if (!IsOpen || _station == null || !_station.IsCooking)
             return;
 
         RefreshProgressOnly();
-        RefreshActionButton();
         RefreshActiveWorkButton();
     }
 
@@ -262,10 +267,20 @@ public class CookingUI : MonoBehaviour
 
     private void Refresh()
     {
+        ResetUiRefreshCache();
         RefreshOnStationChange();
         RefreshCookingLevelButton();
         RefreshCookingXpBar();
         RefreshBurnChanceText();
+    }
+
+    private void ResetUiRefreshCache()
+    {
+        _cachedProgressText = "";
+        _cachedProgressFill = -1f;
+        _cachedActiveWorkText = "";
+        _cachedActiveWorkInteractable = false;
+        _cachedActiveWorkColor = default;
     }
 
     private void RefreshOnStationChange()
@@ -385,17 +400,32 @@ public class CookingUI : MonoBehaviour
         float duration = _station.GetActiveDurationSeconds();
         float progress = _station.IsCooking ? _station.CookProgressSeconds : 0f;
         float t = duration > 0f ? Mathf.Clamp01(progress / duration) : 0f;
-        if (_progressFillRt != null)
-            _progressFillRt.anchorMax = new Vector2(t, 1f);
-        else if (_progressFill != null)
-            _progressFill.fillAmount = t;
+        if (!Mathf.Approximately(t, _cachedProgressFill))
+        {
+            _cachedProgressFill = t;
+            if (_progressFillRt != null)
+                _progressFillRt.anchorMax = new Vector2(t, 1f);
+            else if (_progressFill != null)
+                _progressFill.fillAmount = t;
+        }
 
         int shownCurrent = Mathf.FloorToInt(progress);
+        string progressLabel;
         if (_station.IsCooking && duration < 60f)
-            _progressText.text =
+        {
+            progressLabel =
                 $"{FormatPortionDurationSeconds(progress, useFloor: true)} / {FormatPortionDurationSeconds(duration)} seconds";
+        }
         else
-            _progressText.text = $"{shownCurrent} / {FormatPortionDurationSeconds(duration)} seconds";
+        {
+            progressLabel = $"{shownCurrent} / {FormatPortionDurationSeconds(duration)} seconds";
+        }
+
+        if (progressLabel != _cachedProgressText)
+        {
+            _cachedProgressText = progressLabel;
+            _progressText.text = progressLabel;
+        }
     }
 
     private static string FormatPortionDurationSeconds(float seconds, bool useFloor = false)
@@ -736,15 +766,29 @@ public class CookingUI : MonoBehaviour
         float cooldown = ProcessingProficiencyRuntime.EnsureInstance().GetActiveWorkCooldownRemaining();
         bool onCooldown = cooldown > 0.01f;
 
-        _activeWorkButton.interactable = cooking && !onCooldown;
+        bool interactable = cooking && !onCooldown;
+        string label;
         if (!cooking)
-            _activeWorkButtonText.text = "Speed Up";
+            label = "Speed Up";
         else if (onCooldown)
-            _activeWorkButtonText.text = $"Speed Up ({Mathf.CeilToInt(cooldown)}s)";
+            label = $"Speed Up ({Mathf.CeilToInt(cooldown)}s)";
         else
-            _activeWorkButtonText.text = "Speed Up";
+            label = "Speed Up";
 
-        _activeWorkButtonText.color = _activeWorkButton.interactable ? Accent : StopAccent;
+        Color color = interactable ? Accent : StopAccent;
+        if (label == _cachedActiveWorkText &&
+            interactable == _cachedActiveWorkInteractable &&
+            color == _cachedActiveWorkColor)
+        {
+            return;
+        }
+
+        _cachedActiveWorkText = label;
+        _cachedActiveWorkInteractable = interactable;
+        _cachedActiveWorkColor = color;
+        _activeWorkButton.interactable = interactable;
+        _activeWorkButtonText.text = label;
+        _activeWorkButtonText.color = color;
     }
 
     private void RebuildProficiencyPanel()
