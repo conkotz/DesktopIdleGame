@@ -145,6 +145,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         public event Action StateChanged;
 
         private readonly string _stationId;
+        private string _storedEnhancementItemId = "";
+        private int _storedEnhancementAmount;
         private string _storedRawItemId = "";
         private int _storedRawAmount;
         private int _readyCookedAmount;
@@ -152,10 +154,15 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         private string _activeRawItemId = "";
         private float _cookProgressSeconds;
         private bool _isCooking;
+        private float _lockedPortionDurationSeconds;
+        private float _lockedPortionBurnChancePercent;
+        private bool _hasLockedPortionModifiers;
 
         public CookingRow(string stationId) => _stationId = NormalizeStationId(stationId);
 
         public string StationId => _stationId;
+        public string StoredEnhancementItemId => _storedEnhancementItemId ?? "";
+        public int StoredEnhancementAmount => Mathf.Max(0, _storedEnhancementAmount);
         public string StoredRawItemId => _storedRawItemId ?? "";
         public int StoredRawAmount => Mathf.Max(0, _storedRawAmount);
         public int ReadyCookedAmount => Mathf.Max(0, _readyCookedAmount);
@@ -173,7 +180,12 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         public bool TryGetActiveRecipe(out CookingRecipe recipe) =>
             CookingRecipes.TryGetForRaw(GetActiveRawItemId(), out recipe);
 
-        public float GetActiveDurationSeconds() => GetEffectiveDurationSeconds();
+        public float GetActiveDurationSeconds()
+        {
+            if (_isCooking && _hasLockedPortionModifiers)
+                return _lockedPortionDurationSeconds;
+            return GetEffectiveDurationSeconds();
+        }
 
         public float GetEffectiveDurationSeconds()
         {
@@ -181,7 +193,16 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 return 1f;
 
             float speedBonus = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses().SpeedBonusPercent;
-            return recipe.SecondsPerCooked / (1f + speedBonus / 100f);
+            float duration = recipe.SecondsPerCooked / (1f + speedBonus / 100f);
+            duration -= GetEnhancementFlatSecondsReduction();
+            return Mathf.Max(0.1f, duration);
+        }
+
+        public float GetEffectiveBurnChancePercent()
+        {
+            CookingProficiencyBonuses bonuses = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses();
+            float burnChance = bonuses.EffectiveBurnChancePercent - GetEnhancementBurnChanceReductionPercent();
+            return Mathf.Max(0f, burnChance);
         }
 
         public int GetRawPerCooked() =>
@@ -203,6 +224,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
             _activeRawItemId = _storedRawItemId;
             _isCooking = true;
+            _cookProgressSeconds = 0f;
+            LockPortionModifiers();
             NotifyChanged();
             RequestSaveDebounced();
             return true;
@@ -214,6 +237,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 return;
 
             _isCooking = false;
+            ClearPortionModifiers();
             NotifyChanged();
             RequestSaveDebounced();
         }
@@ -340,6 +364,133 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             return TryDepositRaw(rawItemId, available, out failureReason);
         }
 
+        public bool TryDepositEnhancementFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (inv == null || slotIndex < 0)
+            {
+                failureReason = "Invalid slot.";
+                return false;
+            }
+
+            var slot = inv.GetSlot(slotIndex);
+            if (slot.IsEmpty)
+            {
+                failureReason = "Empty slot.";
+                return false;
+            }
+
+            int deposit = amount <= 0 ? slot.amount : Mathf.Min(amount, slot.amount);
+            if (deposit <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateEnhancementDeposit(slot.itemId, out failureReason))
+                return false;
+
+            int removed = inv.RemoveAmountAtSlot(slotIndex, deposit);
+            if (removed <= 0)
+            {
+                failureReason = "Could not remove item from inventory.";
+                return false;
+            }
+
+            ApplyEnhancementDeposit(slot.itemId, removed);
+            return true;
+        }
+
+        public bool TryDepositEnhancement(string itemId, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateEnhancementDeposit(itemId, out failureReason))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            if (available <= 0)
+            {
+                failureReason = "You do not have that enhancement.";
+                return false;
+            }
+
+            int deposit = Mathf.Min(amount, available);
+            if (!inv.Remove(itemId, deposit))
+            {
+                failureReason = "Could not remove enhancement from inventory.";
+                return false;
+            }
+
+            ApplyEnhancementDeposit(itemId, deposit);
+            return true;
+        }
+
+        public bool TryDepositAllEnhancementFromInventory(string itemId, out string failureReason)
+        {
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            return TryDepositEnhancement(itemId, available, out failureReason);
+        }
+
+        public bool TryWithdrawAllEnhancement(out string failureReason)
+        {
+            failureReason = null;
+            if (_storedEnhancementAmount <= 0)
+            {
+                failureReason = "No enhancement loaded.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            string itemId = _storedEnhancementItemId;
+            int toReturn = _storedEnhancementAmount;
+            int before = inv.GetTotalAmount(itemId);
+            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
+            int added = inv.GetTotalAmount(itemId) - before;
+            if (added <= 0)
+            {
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            _storedEnhancementAmount -= added;
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
+            }
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
         public bool TryWithdrawAllRaw(out string failureReason)
         {
             failureReason = null;
@@ -447,6 +598,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             if (!TryGetActiveRecipe(out CookingRecipe recipe))
             {
                 _isCooking = false;
+                ClearPortionModifiers();
                 NotifyChanged();
                 return true;
             }
@@ -454,16 +606,22 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             bool wasCooking = _isCooking;
             bool structuralChange = false;
             float remaining = deltaSeconds;
-            while (remaining > 0f && _isCooking)
+            int burnsThisTick = 0;
+            const int maxPortionsPerTick = 50;
+            int portionsProcessed = 0;
+            while (remaining > 0f && _isCooking && portionsProcessed < maxPortionsPerTick)
             {
                 if (_storedRawAmount < recipe.RawPerCooked)
                 {
                     _isCooking = false;
+                    ClearPortionModifiers();
                     structuralChange = true;
                     break;
                 }
 
-                float portionDuration = GetEffectiveDurationSeconds();
+                float portionDuration = _hasLockedPortionModifiers
+                    ? _lockedPortionDurationSeconds
+                    : GetEffectiveDurationSeconds();
                 float needed = portionDuration - _cookProgressSeconds;
                 if (remaining >= needed)
                 {
@@ -471,11 +629,20 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                     _cookProgressSeconds = 0f;
                     _storedRawAmount -= recipe.RawPerCooked;
                     structuralChange = true;
+                    portionsProcessed++;
+                    ConsumeEnhancementForPortionAttempt();
 
                     if (TryRollBurn(recipe))
                     {
+                        burnsThisTick++;
                         if (_storedRawAmount < recipe.RawPerCooked)
+                        {
                             _isCooking = false;
+                            ClearPortionModifiers();
+                        }
+                        else
+                            LockPortionModifiers();
+
                         continue;
                     }
 
@@ -484,7 +651,12 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                     _readyCookedItemId = recipe.CookedItemId;
 
                     if (_storedRawAmount < recipe.RawPerCooked)
+                    {
                         _isCooking = false;
+                        ClearPortionModifiers();
+                    }
+                    else
+                        LockPortionModifiers();
                 }
                 else
                 {
@@ -495,6 +667,9 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
             if (structuralChange)
             {
+                if (burnsThisTick > 0)
+                    LogBurnedFish(recipe, burnsThisTick);
+
                 if (wasCooking && !_isCooking && _readyCookedAmount > 0)
                     LogCookingBatchComplete();
 
@@ -530,6 +705,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 storedRawAmount = Mathf.Max(0, _storedRawAmount),
                 readyCookedAmount = Mathf.Max(0, _readyCookedAmount),
                 readyCookedItemId = GetReadyCookedItemId(),
+                storedEnhancementItemId = _storedEnhancementItemId ?? "",
+                storedEnhancementAmount = Mathf.Max(0, _storedEnhancementAmount),
                 activeRawItemId = _activeRawItemId ?? "",
                 cookProgressSeconds = Mathf.Max(0f, _cookProgressSeconds),
                 isCooking = _isCooking
@@ -542,6 +719,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             _storedRawAmount = Mathf.Max(0, row.storedRawAmount);
             _readyCookedAmount = Mathf.Max(0, row.readyCookedAmount);
             _readyCookedItemId = row.readyCookedItemId ?? "";
+            _storedEnhancementItemId = row.storedEnhancementItemId ?? "";
+            _storedEnhancementAmount = Mathf.Max(0, row.storedEnhancementAmount);
             _activeRawItemId = row.activeRawItemId ?? "";
             _cookProgressSeconds = Mathf.Max(0f, row.cookProgressSeconds);
             _isCooking = row.isCooking;
@@ -583,6 +762,12 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 _readyCookedItemId = "";
             }
 
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
+            }
+
             if (!_isCooking && _storedRawAmount <= 0 && _readyCookedAmount <= 0)
             {
                 _activeRawItemId = "";
@@ -602,6 +787,98 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 return recipe.CookedItemId;
 
             return "";
+        }
+
+        private bool ValidateEnhancementDeposit(string itemId, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            ItemDefinition def = ResolveItemDefinition(itemId);
+            if (def == null || !def.IsProcessingSkillEnhancement)
+            {
+                failureReason = "That item is not a processing enhancement.";
+                return false;
+            }
+
+            if (def.ProcessingSkillTarget != ProcessingSkillTarget.Cooking)
+            {
+                failureReason = "That enhancement is for smelting, not cooking.";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_storedEnhancementItemId) &&
+                !string.Equals(_storedEnhancementItemId, itemId, StringComparison.OrdinalIgnoreCase) &&
+                _storedEnhancementAmount > 0)
+            {
+                failureReason = "This range already holds a different enhancement.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ApplyEnhancementDeposit(string itemId, int deposited)
+        {
+            if (deposited <= 0)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                _storedEnhancementItemId = itemId.Trim().ToLowerInvariant();
+
+            _storedEnhancementAmount += deposited;
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange(
+                "Cooking",
+                itemId.Trim().ToLowerInvariant(),
+                -deposited);
+            NotifyChanged();
+            RequestSaveDebounced();
+        }
+
+        private void ConsumeEnhancementForPortionAttempt()
+        {
+            if (_storedEnhancementAmount <= 0 || string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                return;
+
+            _storedEnhancementAmount--;
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
+            }
+        }
+
+        private float GetEnhancementFlatSecondsReduction()
+        {
+            ItemDefinition def = ResolveStoredEnhancementDefinition();
+            return def != null ? def.ProcessingFlatSecondsReduction : 0f;
+        }
+
+        private float GetEnhancementBurnChanceReductionPercent()
+        {
+            ItemDefinition def = ResolveStoredEnhancementDefinition();
+            return def != null ? def.ProcessingBurnChanceReductionPercent : 0f;
+        }
+
+        private ItemDefinition ResolveStoredEnhancementDefinition()
+        {
+            if (_storedEnhancementAmount <= 0 || string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                return null;
+
+            return ResolveItemDefinition(_storedEnhancementItemId);
+        }
+
+        private static ItemDefinition ResolveItemDefinition(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+                return null;
+
+            ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+            return db != null ? db.Get(itemId) : null;
         }
 
         private bool ValidateRawDeposit(string rawItemId, out string failureReason)
@@ -652,17 +929,34 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
         private bool TryRollBurn(CookingRecipe recipe)
         {
-            CookingProficiencyBonuses bonuses = ProcessingProficiencyRuntime.EnsureInstance().GetCookingBonuses();
-            float burnChance = bonuses.EffectiveBurnChancePercent;
+            float burnChance = _hasLockedPortionModifiers
+                ? _lockedPortionBurnChancePercent
+                : GetEffectiveBurnChancePercent();
             if (burnChance <= 0f)
                 return false;
 
-            if (UnityEngine.Random.value * 100f >= burnChance)
-                return false;
+            return UnityEngine.Random.value * 100f < burnChance;
+        }
 
-            string fishLabel = ItemGainPopupNotifier.ResolveDisplayLabel(recipe.RawItemId, 1);
-            GameLog.Add($"Burned {fishLabel}.", GameLog.ItemLostColor);
-            return true;
+        private void LockPortionModifiers()
+        {
+            _lockedPortionDurationSeconds = GetEffectiveDurationSeconds();
+            _lockedPortionBurnChancePercent = GetEffectiveBurnChancePercent();
+            _hasLockedPortionModifiers = true;
+        }
+
+        private void ClearPortionModifiers() => _hasLockedPortionModifiers = false;
+
+        private static void LogBurnedFish(CookingRecipe recipe, int amount)
+        {
+            if (amount <= 0 || !CookingUI.ShouldLogBurnMessages)
+                return;
+
+            string fishLabel = ItemGainPopupNotifier.ResolveDisplayLabel(recipe.RawItemId, amount);
+            string message = amount == 1
+                ? $"Burned {fishLabel}."
+                : $"Burned {amount} {fishLabel}.";
+            GameLog.Add(message, GameLog.ItemLostColor);
         }
 
         private void NotifyChanged() => StateChanged?.Invoke();

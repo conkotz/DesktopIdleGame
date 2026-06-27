@@ -17,6 +17,8 @@ public class FurnaceSmelter : MonoBehaviour
     public string FurnaceId => string.IsNullOrWhiteSpace(furnaceId) ? "furnace" : furnaceId.Trim();
     public string StoredOreItemId => _row != null ? _row.StoredOreItemId : "";
     public int StoredOreAmount => _row != null ? _row.StoredOreAmount : 0;
+    public string StoredEnhancementItemId => _row != null ? _row.StoredEnhancementItemId : "";
+    public int StoredEnhancementAmount => _row != null ? _row.StoredEnhancementAmount : 0;
     public int ReadyBarAmount => _row != null ? _row.ReadyBarAmount : 0;
     public string ReadyBarItemId => _row != null ? _row.ReadyBarItemId : "";
     public bool IsSmelting => _row != null && _row.IsSmelting;
@@ -69,6 +71,26 @@ public class FurnaceSmelter : MonoBehaviour
     public bool TryDepositAllOreFromInventory(string oreItemId, out string failureReason) =>
         _row != null
             ? _row.TryDepositAllOreFromInventory(oreItemId, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositEnhancementFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositEnhancementFromInventorySlot(inv, slotIndex, amount, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositEnhancement(string itemId, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositEnhancement(itemId, amount, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositAllEnhancementFromInventory(string itemId, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositAllEnhancementFromInventory(itemId, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryWithdrawAllEnhancement(out string failureReason) =>
+        _row != null
+            ? _row.TryWithdrawAllEnhancement(out failureReason)
             : Fail(out failureReason, "Furnace not ready.");
 
     public bool TryWithdrawAllOre(out string failureReason) =>

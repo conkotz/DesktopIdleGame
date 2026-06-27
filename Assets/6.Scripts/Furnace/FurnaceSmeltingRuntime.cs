@@ -77,7 +77,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
         {
             FurnaceRow row = kv.Value;
-            if (row != null && (row.IsSmelting || row.StoredOreAmount > 0 || row.ReadyBarAmount > 0))
+            if (row != null && (row.IsSmelting || row.StoredOreAmount > 0 || row.ReadyBarAmount > 0 || row.StoredEnhancementAmount > 0))
             {
                 if (SaveManager.Instance != null)
                     SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.AppQuit, immediate: true);
@@ -145,6 +145,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public event Action StateChanged;
 
         private readonly string _furnaceId;
+        private string _storedEnhancementItemId = "";
+        private int _storedEnhancementAmount;
         private string _storedOreItemId = "";
         private int _storedOreAmount;
         private int _readyBarAmount;
@@ -152,10 +154,14 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         private string _activeOreItemId = "";
         private float _smeltProgressSeconds;
         private bool _isSmelting;
+        private float _lockedBarDurationSeconds;
+        private bool _hasLockedBarModifiers;
 
         public FurnaceRow(string furnaceId) => _furnaceId = NormalizeFurnaceId(furnaceId);
 
         public string FurnaceId => _furnaceId;
+        public string StoredEnhancementItemId => _storedEnhancementItemId ?? "";
+        public int StoredEnhancementAmount => Mathf.Max(0, _storedEnhancementAmount);
         public string StoredOreItemId => _storedOreItemId ?? "";
         public int StoredOreAmount => Mathf.Max(0, _storedOreAmount);
         public int ReadyBarAmount => Mathf.Max(0, _readyBarAmount);
@@ -173,7 +179,12 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public bool TryGetActiveRecipe(out SmeltingRecipe recipe) =>
             SmeltingRecipes.TryGetForOre(GetActiveOreItemId(), out recipe);
 
-        public float GetActiveDurationSeconds() => GetEffectiveDurationSeconds();
+        public float GetActiveDurationSeconds()
+        {
+            if (_isSmelting && _hasLockedBarModifiers)
+                return _lockedBarDurationSeconds;
+            return GetEffectiveDurationSeconds();
+        }
 
         public float GetEffectiveDurationSeconds()
         {
@@ -181,7 +192,9 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return 1f;
 
             float speedBonus = ProcessingProficiencyRuntime.EnsureInstance().GetSmeltingBonuses().SpeedBonusPercent;
-            return recipe.SecondsPerBar / (1f + speedBonus / 100f);
+            float duration = recipe.SecondsPerBar / (1f + speedBonus / 100f);
+            duration -= GetEnhancementFlatSecondsReduction();
+            return Mathf.Max(0.1f, duration);
         }
 
         public int GetOrePerBar() =>
@@ -203,6 +216,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             _activeOreItemId = _storedOreItemId;
             _isSmelting = true;
+            _smeltProgressSeconds = 0f;
+            LockBarModifiers();
             NotifyChanged();
             RequestSaveDebounced();
             return true;
@@ -214,6 +229,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return;
 
             _isSmelting = false;
+            ClearBarModifiers();
             NotifyChanged();
             RequestSaveDebounced();
         }
@@ -340,6 +356,133 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return TryDepositOre(oreItemId, available, out failureReason);
         }
 
+        public bool TryDepositEnhancementFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (inv == null || slotIndex < 0)
+            {
+                failureReason = "Invalid slot.";
+                return false;
+            }
+
+            var slot = inv.GetSlot(slotIndex);
+            if (slot.IsEmpty)
+            {
+                failureReason = "Empty slot.";
+                return false;
+            }
+
+            int deposit = amount <= 0 ? slot.amount : Mathf.Min(amount, slot.amount);
+            if (deposit <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateEnhancementDeposit(slot.itemId, out failureReason))
+                return false;
+
+            int removed = inv.RemoveAmountAtSlot(slotIndex, deposit);
+            if (removed <= 0)
+            {
+                failureReason = "Could not remove item from inventory.";
+                return false;
+            }
+
+            ApplyEnhancementDeposit(slot.itemId, removed);
+            return true;
+        }
+
+        public bool TryDepositEnhancement(string itemId, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateEnhancementDeposit(itemId, out failureReason))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            if (available <= 0)
+            {
+                failureReason = "You do not have that enhancement.";
+                return false;
+            }
+
+            int deposit = Mathf.Min(amount, available);
+            if (!inv.Remove(itemId, deposit))
+            {
+                failureReason = "Could not remove enhancement from inventory.";
+                return false;
+            }
+
+            ApplyEnhancementDeposit(itemId, deposit);
+            return true;
+        }
+
+        public bool TryDepositAllEnhancementFromInventory(string itemId, out string failureReason)
+        {
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            return TryDepositEnhancement(itemId, available, out failureReason);
+        }
+
+        public bool TryWithdrawAllEnhancement(out string failureReason)
+        {
+            failureReason = null;
+            if (_storedEnhancementAmount <= 0)
+            {
+                failureReason = "No enhancement loaded.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            string itemId = _storedEnhancementItemId;
+            int toReturn = _storedEnhancementAmount;
+            int before = inv.GetTotalAmount(itemId);
+            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
+            int added = inv.GetTotalAmount(itemId) - before;
+            if (added <= 0)
+            {
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            _storedEnhancementAmount -= added;
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
+            }
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
         public bool TryWithdrawAllOre(out string failureReason)
         {
             failureReason = null;
@@ -447,6 +590,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
             {
                 _isSmelting = false;
+                ClearBarModifiers();
                 NotifyChanged();
                 return true;
             }
@@ -454,16 +598,21 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             bool wasSmelting = _isSmelting;
             bool structuralChange = false;
             float remaining = deltaSeconds;
-            while (remaining > 0f && _isSmelting)
+            const int maxBarsPerTick = 50;
+            int barsProcessed = 0;
+            while (remaining > 0f && _isSmelting && barsProcessed < maxBarsPerTick)
             {
                 if (_storedOreAmount < recipe.OrePerBar)
                 {
                     _isSmelting = false;
+                    ClearBarModifiers();
                     structuralChange = true;
                     break;
                 }
 
-                float barDuration = GetEffectiveDurationSeconds();
+                float barDuration = _hasLockedBarModifiers
+                    ? _lockedBarDurationSeconds
+                    : GetEffectiveDurationSeconds();
                 float needed = barDuration - _smeltProgressSeconds;
                 if (remaining >= needed)
                 {
@@ -473,12 +622,19 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                     _readyBarAmount++;
                     _readyBarItemId = recipe.BarItemId;
                     structuralChange = true;
+                    barsProcessed++;
+                    ConsumeEnhancementForBarAttempt();
 
                     ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
                     TryRollBonusBar(recipe);
 
                     if (_storedOreAmount < recipe.OrePerBar)
+                    {
                         _isSmelting = false;
+                        ClearBarModifiers();
+                    }
+                    else
+                        LockBarModifiers();
                 }
                 else
                 {
@@ -524,6 +680,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 storedOreAmount = Mathf.Max(0, _storedOreAmount),
                 readyBarAmount = Mathf.Max(0, _readyBarAmount),
                 readyBarItemId = GetReadyBarItemId(),
+                storedEnhancementItemId = _storedEnhancementItemId ?? "",
+                storedEnhancementAmount = Mathf.Max(0, _storedEnhancementAmount),
                 activeOreItemId = _activeOreItemId ?? "",
                 smeltProgressSeconds = Mathf.Max(0f, _smeltProgressSeconds),
                 isSmelting = _isSmelting
@@ -536,6 +694,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _storedOreAmount = Mathf.Max(0, row.storedOreAmount);
             _readyBarAmount = Mathf.Max(0, row.readyBarAmount);
             _readyBarItemId = row.readyBarItemId ?? "";
+            _storedEnhancementItemId = row.storedEnhancementItemId ?? "";
+            _storedEnhancementAmount = Mathf.Max(0, row.storedEnhancementAmount);
             _activeOreItemId = row.activeOreItemId ?? "";
             _smeltProgressSeconds = Mathf.Max(0f, row.smeltProgressSeconds);
             _isSmelting = row.isSmelting;
@@ -558,7 +718,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 (!TryGetActiveRecipe(out SmeltingRecipe activeRecipe) || _storedOreAmount < activeRecipe.OrePerBar))
             {
                 _isSmelting = false;
+                ClearBarModifiers();
             }
+            else if (_isSmelting)
+                LockBarModifiers();
 
             ClearStaleIdsWhenEmpty();
         }
@@ -575,6 +738,12 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             {
                 _readyBarAmount = 0;
                 _readyBarItemId = "";
+            }
+
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
             }
 
             if (!_isSmelting && _storedOreAmount <= 0 && _readyBarAmount <= 0)
@@ -656,6 +825,100 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _readyBarAmount++;
             _readyBarItemId = recipe.BarItemId;
         }
+
+        private bool ValidateEnhancementDeposit(string itemId, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            ItemDefinition def = ResolveItemDefinition(itemId);
+            if (def == null || !def.IsProcessingSkillEnhancement)
+            {
+                failureReason = "That item is not a processing enhancement.";
+                return false;
+            }
+
+            if (def.ProcessingSkillTarget != ProcessingSkillTarget.Smelting)
+            {
+                failureReason = "That enhancement is for cooking, not smelting.";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_storedEnhancementItemId) &&
+                !string.Equals(_storedEnhancementItemId, itemId, StringComparison.OrdinalIgnoreCase) &&
+                _storedEnhancementAmount > 0)
+            {
+                failureReason = "This furnace already holds a different enhancement.";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ApplyEnhancementDeposit(string itemId, int deposited)
+        {
+            if (deposited <= 0)
+                return;
+
+            if (string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                _storedEnhancementItemId = itemId.Trim().ToLowerInvariant();
+
+            _storedEnhancementAmount += deposited;
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange(
+                "Furnace",
+                itemId.Trim().ToLowerInvariant(),
+                -deposited);
+            NotifyChanged();
+            RequestSaveDebounced();
+        }
+
+        private void ConsumeEnhancementForBarAttempt()
+        {
+            if (_storedEnhancementAmount <= 0 || string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                return;
+
+            _storedEnhancementAmount--;
+            if (_storedEnhancementAmount <= 0)
+            {
+                _storedEnhancementAmount = 0;
+                _storedEnhancementItemId = "";
+            }
+        }
+
+        private float GetEnhancementFlatSecondsReduction()
+        {
+            ItemDefinition def = ResolveStoredEnhancementDefinition();
+            return def != null ? def.ProcessingFlatSecondsReduction : 0f;
+        }
+
+        private ItemDefinition ResolveStoredEnhancementDefinition()
+        {
+            if (_storedEnhancementAmount <= 0 || string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                return null;
+
+            return ResolveItemDefinition(_storedEnhancementItemId);
+        }
+
+        private static ItemDefinition ResolveItemDefinition(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+                return null;
+
+            ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+            return db != null ? db.Get(itemId) : null;
+        }
+
+        private void LockBarModifiers()
+        {
+            _lockedBarDurationSeconds = GetEffectiveDurationSeconds();
+            _hasLockedBarModifiers = true;
+        }
+
+        private void ClearBarModifiers() => _hasLockedBarModifiers = false;
 
         private void NotifyChanged() => StateChanged?.Invoke();
     }

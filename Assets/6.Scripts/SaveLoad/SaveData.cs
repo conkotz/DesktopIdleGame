@@ -299,6 +299,8 @@ public class SaveData
         public int readyBarAmount;
         public string activeOreItemId;
         public string readyBarItemId;
+        public string storedEnhancementItemId;
+        public int storedEnhancementAmount;
         public float smeltProgressSeconds;
         public bool isSmelting;
     }
@@ -312,6 +314,8 @@ public class SaveData
         public int readyCookedAmount;
         public string activeRawItemId;
         public string readyCookedItemId;
+        public string storedEnhancementItemId;
+        public int storedEnhancementAmount;
         public float cookProgressSeconds;
         public bool isCooking;
     }

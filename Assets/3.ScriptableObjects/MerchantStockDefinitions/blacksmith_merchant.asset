@@ -13,6 +13,12 @@ MonoBehaviour:
   m_Name: blacksmith_merchant
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
+  - itemId: smelting_coal
+    costs:
+    - type: 0
+      amount: 100
+      itemId: 
+    defaultQuantity: -1
   - itemId: stone_sword
     costs:
     - type: 0

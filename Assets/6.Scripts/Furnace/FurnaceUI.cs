@@ -26,6 +26,7 @@ public class FurnaceUI : MonoBehaviour
     private Canvas _canvas;
     private RectTransform _root;
     private RectTransform _orePickerRoot;
+    private RectTransform _orePickerScrollContent;
     private Image _oreIcon;
     private Image _barIcon;
     private TMP_Text _oreAmountText;
@@ -46,6 +47,21 @@ public class FurnaceUI : MonoBehaviour
     private RectTransform _smeltingXpFillRt;
     private Button _activeWorkButton;
     private TMP_Text _activeWorkButtonText;
+    private Button _enhancementButton;
+    private Button _enhancementClearButton;
+    private Image _enhancementIcon;
+    private TMP_Text _enhancementAmountText;
+    private SharedTooltipUI _sharedTooltip;
+
+    private enum SidePickerMode
+    {
+        Ore,
+        Enhancement
+    }
+
+    private SidePickerMode _pickerMode;
+    private const int UiLayoutVersion = 1;
+    private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
     private RectTransform _proficiencyPanelRoot;
@@ -59,11 +75,15 @@ public class FurnaceUI : MonoBehaviour
         "The furnace converts ore into metal bars over time.\n\n" +
         "Deposit ore, press Smelt, and wait for bars to finish. Collect bars before adding new ore or starting another batch.\n\n" +
         "Higher-tier ores take longer to smelt but grant more Smelting proficiency.\n\n" +
+        "Load Coal in the enhancement slot to trim time from each bar (1 consumed per bar).\n\n" +
         "Speed Up trims time from the current bar while smelting (3s cooldown).";
 
     private const int DefaultCanvasSortingOrder = 12000;
     private const float SidePanelGap = 10f;
     private const float FurnaceBlockedLogCooldownSeconds = 2f;
+    private static readonly Vector2 MainPanelSize = new Vector2(360f, 460f);
+    private static readonly Vector2 SidePickerPanelSize = new Vector2(280f, 240f);
+    private static readonly Vector2 HelpPanelSize = new Vector2(280f, 280f);
 
     public static FurnaceUI Instance => _instance;
     public static bool IsOpen => _instance != null && _instance._root != null && _instance._root.gameObject.activeSelf;
@@ -90,6 +110,22 @@ public class FurnaceUI : MonoBehaviour
             return false;
 
         if (!_instance._smelter.TryDepositOreFromInventorySlot(inv, slotIndex, amount, out string reason))
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                Debug.Log($"[Furnace] {reason}");
+            return false;
+        }
+
+        _instance.Refresh();
+        return true;
+    }
+
+    public static bool TryDepositEnhancementFromInventorySlot(Inventory inv, int slotIndex, int amount = 0)
+    {
+        if (!IsOpen || _instance._smelter == null || inv == null || slotIndex < 0)
+            return false;
+
+        if (!_instance._smelter.TryDepositEnhancementFromInventorySlot(inv, slotIndex, amount, out string reason))
         {
             if (!string.IsNullOrWhiteSpace(reason))
                 Debug.Log($"[Furnace] {reason}");
@@ -130,7 +166,7 @@ public class FurnaceUI : MonoBehaviour
     private void OnDestroy()
     {
         if (_smelter != null)
-            _smelter.StateChanged -= Refresh;
+            _smelter.StateChanged -= RefreshOnStationChange;
 
         UnsubscribeProficiency();
 
@@ -163,11 +199,11 @@ public class FurnaceUI : MonoBehaviour
         }
 
         if (_smelter != null)
-            _smelter.StateChanged -= Refresh;
+            _smelter.StateChanged -= RefreshOnStationChange;
 
         _smelter = smelter;
         _clickSource = clickSource;
-        _smelter.StateChanged += Refresh;
+        _smelter.StateChanged += RefreshOnStationChange;
 
         CacheRefs();
         HideOrePicker();
@@ -186,6 +222,7 @@ public class FurnaceUI : MonoBehaviour
         HideOrePicker();
         HideHelpPanel();
         HideProficiencyPanel();
+        HideEnhancementSlotTooltip();
         UnsubscribeProficiency();
         if (_smelter != null && SaveManager.Instance != null)
             SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
@@ -196,7 +233,7 @@ public class FurnaceUI : MonoBehaviour
 
         if (_smelter != null)
         {
-            _smelter.StateChanged -= Refresh;
+            _smelter.StateChanged -= RefreshOnStationChange;
             _smelter = null;
         }
     }
@@ -213,21 +250,51 @@ public class FurnaceUI : MonoBehaviour
             _inventory = Inventory.ResolvePlayer();
         if (!_itemDb)
             _itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (_sharedTooltip == null)
+            _sharedTooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
     }
 
     private void Refresh()
+    {
+        RefreshOnStationChange();
+        RefreshSmeltingLevelButton();
+        RefreshSmeltingXpBar();
+    }
+
+    private void RefreshOnStationChange()
     {
         if (_smelter == null)
             return;
 
         CacheRefs();
+        RefreshEnhancementSlotVisuals();
         RefreshSlotVisuals();
         RefreshProgressOnly();
+        RefreshTimeSummary();
         RefreshActionButton();
         RefreshOreClearButton();
-        RefreshSmeltingLevelButton();
-        RefreshSmeltingXpBar();
+        RefreshEnhancementClearButton();
         RefreshActiveWorkButton();
+    }
+
+    private void RefreshEnhancementClearButton()
+    {
+        if (_enhancementClearButton == null)
+            return;
+
+        bool hasEnhancement = _smelter != null && _smelter.StoredEnhancementAmount > 0;
+        _enhancementClearButton.gameObject.SetActive(hasEnhancement);
+        _enhancementClearButton.interactable = hasEnhancement;
+    }
+
+    private void RefreshEnhancementSlotVisuals()
+    {
+        if (_smelter == null)
+            return;
+
+        int amt = _smelter.StoredEnhancementAmount;
+        string itemId = amt > 0 ? _smelter.StoredEnhancementItemId : "";
+        ApplySlot(_enhancementIcon, _enhancementAmountText, itemId, amt, "", _itemDb);
     }
 
     private void RefreshOreClearButton()
@@ -319,8 +386,6 @@ public class FurnaceUI : MonoBehaviour
         int shownCurrent = Mathf.FloorToInt(progress);
         int shownTotal = Mathf.CeilToInt(duration);
         _progressText.text = $"{shownCurrent} / {shownTotal} seconds";
-
-        RefreshTimeSummary();
     }
 
     private void RefreshTimeSummary()
@@ -435,21 +500,94 @@ public class FurnaceUI : MonoBehaviour
         RemoveAllOre();
     }
 
+    private void OnEnhancementClearClicked()
+    {
+        if (_smelter == null)
+            return;
+
+        if (!_smelter.TryWithdrawAllEnhancement(out string reason))
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                LogFurnaceBlocked(reason);
+            return;
+        }
+
+        Refresh();
+    }
+
+    private void OnEnhancementClicked()
+    {
+        OpenSidePicker(SidePickerMode.Enhancement);
+    }
+
     private void OnOresClicked()
+    {
+        OpenSidePicker(SidePickerMode.Ore);
+    }
+
+    private void OpenSidePicker(SidePickerMode mode)
     {
         if (_orePickerRoot == null)
             return;
 
-        bool show = !_orePickerRoot.gameObject.activeSelf;
-        if (!show)
+        HideHelpPanel();
+
+        if (_orePickerRoot.gameObject.activeSelf && _pickerMode == mode)
         {
             HideOrePicker();
             return;
         }
 
-        HideHelpPanel();
-        RebuildOrePicker();
+        _pickerMode = mode;
+        if (mode == SidePickerMode.Ore)
+            RebuildOrePicker();
+        else
+            RebuildEnhancementPicker();
+
         _orePickerRoot.gameObject.SetActive(true);
+    }
+
+    private void ShowEnhancementSlotTooltip()
+    {
+        if (_smelter == null || _smelter.StoredEnhancementAmount <= 0)
+            return;
+
+        CacheRefs();
+        if (_sharedTooltip == null)
+            return;
+
+        ItemDefinition def = _itemDb != null ? _itemDb.Get(_smelter.StoredEnhancementItemId) : null;
+        if (def == null)
+            return;
+
+        string body = def.GetProcessingEnhancementEffectDescription();
+        if (string.IsNullOrWhiteSpace(body))
+            body = def.description;
+
+        var enhancementRt = _enhancementButton.GetComponent<RectTransform>();
+        if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper))
+        {
+            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Left);
+            flipper.SetMeasureRect(enhancementRt);
+            flipper.SetHeightRect(enhancementRt);
+            if (_root != null)
+                flipper.SetBoundsRect(_root);
+        }
+
+        _sharedTooltip.ShowTextAt(
+            _enhancementButton.transform,
+            def.displayName,
+            body,
+            measureRect: enhancementRt,
+            heightRect: enhancementRt,
+            preferredSide: FlipInsideBounds.PreferredSide.Left);
+        // ShowText resets overlay sort to inventory default; re-apply above this station panel.
+        _sharedTooltip.PushOverlaySortOrder(CanvasSortingOrder + 100);
+    }
+
+    private void HideEnhancementSlotTooltip()
+    {
+        _sharedTooltip?.Hide();
     }
 
     private void OnHelpClicked()
@@ -624,14 +762,12 @@ public class FurnaceUI : MonoBehaviour
             CreateProficiencyLine(unlockLines[i], color, 13f, FontStyles.Normal);
         }
 
-        float activeWorkBonusPercent = (bonuses.ActiveWorkSecondsPerClick - 1f) * 100f;
+        float activeWorkSeconds = bonuses.ActiveWorkSecondsPerClick >= 1.99f ? 2 : 1;
         _proficiencyFooterText.text =
             "Total bonuses granted:\n" +
             $"{FormatPercent(bonuses.SpeedBonusPercent)} increased smelting speed\n" +
             $"{FormatPercent(bonuses.DoubleBarChancePercent)} chance to make 2 instead of 1 bar\n" +
-            (activeWorkBonusPercent > 0.01f
-                ? $"{FormatPercent(activeWorkBonusPercent)} Speed Up effectiveness"
-                : "Standard Speed Up effectiveness");
+            $"Speed up -> {activeWorkSeconds}s, 3s cooldown";
     }
 
     private void CreateProficiencyLine(string text, Color color, float fontSize, FontStyles style)
@@ -655,12 +791,12 @@ public class FurnaceUI : MonoBehaviour
 
     private void RebuildOrePicker()
     {
-        if (_orePickerRoot == null)
+        if (_orePickerScrollContent == null)
             return;
 
         CacheRefs();
-        for (int i = _orePickerRoot.childCount - 1; i >= 0; i--)
-            Destroy(_orePickerRoot.GetChild(i).gameObject);
+        for (int i = _orePickerScrollContent.childCount - 1; i >= 0; i--)
+            Destroy(_orePickerScrollContent.GetChild(i).gameObject);
 
         IReadOnlyList<SmeltingRecipe> recipes = SmeltingRecipes.All;
         bool any = false;
@@ -681,7 +817,7 @@ public class FurnaceUI : MonoBehaviour
 
     private void CreateOrePickerMessage(string message)
     {
-        var row = CreateUiObject("Msg", _orePickerRoot, typeof(RectTransform), typeof(LayoutElement));
+        var row = CreateUiObject("Msg", _orePickerScrollContent, typeof(RectTransform), typeof(LayoutElement));
         row.GetComponent<LayoutElement>().preferredHeight = 28f;
         var text = CreateTmpText("Label", row.transform, 14f, TextLight, TextAlignmentOptions.MidlineLeft);
         StretchFull(text.rectTransform);
@@ -694,7 +830,7 @@ public class FurnaceUI : MonoBehaviour
         string label = def != null ? def.displayName : recipe.OreItemId;
         string oreId = recipe.OreItemId;
 
-        var row = CreateUiObject("OreRow", _orePickerRoot, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
+        var row = CreateUiObject("OreRow", _orePickerScrollContent, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
         var rowLe = row.GetComponent<LayoutElement>();
         rowLe.preferredHeight = 40f;
         rowLe.minHeight = 40f;
@@ -768,7 +904,121 @@ public class FurnaceUI : MonoBehaviour
     {
         Refresh();
         if (_orePickerRoot != null && _orePickerRoot.gameObject.activeSelf)
-            RebuildOrePicker();
+        {
+            if (_pickerMode == SidePickerMode.Enhancement)
+                RebuildEnhancementPicker();
+            else
+                RebuildOrePicker();
+        }
+    }
+
+    private void RebuildEnhancementPicker()
+    {
+        if (_orePickerScrollContent == null)
+            return;
+
+        CacheRefs();
+        for (int i = _orePickerScrollContent.childCount - 1; i >= 0; i--)
+            Destroy(_orePickerScrollContent.GetChild(i).gameObject);
+
+        bool any = false;
+        if (_itemDb != null)
+        {
+            IReadOnlyList<ItemDefinition> items = _itemDb.GetAll();
+            for (int i = 0; i < items.Count; i++)
+            {
+                ItemDefinition def = items[i];
+                if (def == null || !def.IsProcessingSkillEnhancement)
+                    continue;
+                if (def.ProcessingSkillTarget != ProcessingSkillTarget.Smelting)
+                    continue;
+
+                int count = _inventory != null ? _inventory.GetTotalAmount(def.itemId) : 0;
+                if (count <= 0)
+                    continue;
+
+                any = true;
+                CreateEnhancementPickerRow(def, count);
+            }
+        }
+
+        if (!any)
+            CreateOrePickerMessage("No smelting enhancements in inventory.");
+    }
+
+    private void CreateEnhancementPickerRow(ItemDefinition def, int playerCount)
+    {
+        string label = def != null ? def.displayName : "";
+        string itemId = def != null ? def.itemId : "";
+
+        var row = CreateUiObject("EnhancementRow", _orePickerScrollContent, typeof(RectTransform), typeof(Image), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
+        var rowLe = row.GetComponent<LayoutElement>();
+        rowLe.preferredHeight = 40f;
+        rowLe.minHeight = 40f;
+        row.GetComponent<Image>().color = PickerRowBg;
+
+        var hlg = row.GetComponent<HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(6, 6, 6, 6);
+        hlg.spacing = 6f;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
+        hlg.childControlWidth = true;
+        hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+
+        var iconGo = CreateUiObject("Icon", row.transform, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        var iconLe = iconGo.GetComponent<LayoutElement>();
+        iconLe.preferredWidth = 28f;
+        iconLe.preferredHeight = 28f;
+        var icon = iconGo.GetComponent<Image>();
+        icon.preserveAspect = true;
+        if (def != null && def.icon != null)
+            icon.sprite = def.icon;
+
+        var labelGo = CreateUiObject("Label", row.transform, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+        var labelLe = labelGo.GetComponent<LayoutElement>();
+        labelLe.flexibleWidth = 1f;
+        labelLe.minWidth = 60f;
+        var labelText = labelGo.GetComponent<TextMeshProUGUI>();
+        if (TMP_Settings.defaultFontAsset != null)
+            labelText.font = TMP_Settings.defaultFontAsset;
+        labelText.fontSize = 14f;
+        labelText.color = TextLight;
+        labelText.alignment = TextAlignmentOptions.MidlineLeft;
+        labelText.text = $"{label}  x{playerCount}";
+
+        CreateCompactPickerButton(row.transform, "x5", 42f, () => DepositEnhancementFromPicker(itemId, 5));
+        CreateCompactPickerButton(row.transform, "xAll", 48f, () => DepositAllEnhancementFromPicker(itemId));
+    }
+
+    private void DepositEnhancementFromPicker(string itemId, int amount)
+    {
+        if (_smelter == null)
+            return;
+
+        if (!_smelter.TryDepositEnhancement(itemId, amount, out string reason))
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                Debug.Log($"[Furnace] {reason}");
+            return;
+        }
+
+        RefreshPickerAfterDeposit();
+    }
+
+    private void DepositAllEnhancementFromPicker(string itemId)
+    {
+        if (_smelter == null)
+            return;
+
+        if (!_smelter.TryDepositAllEnhancementFromInventory(itemId, out string reason))
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                Debug.Log($"[Furnace] {reason}");
+            return;
+        }
+
+        RefreshPickerAfterDeposit();
     }
 
     private Button CreateCompactPickerButton(Transform parent, string label, float width, UnityEngine.Events.UnityAction onClick)
@@ -950,7 +1200,8 @@ public class FurnaceUI : MonoBehaviour
     {
         if (_root != null && _progressText != null && _timeSummaryText != null && _oreClearButton != null &&
             _smeltingLevelButton != null && _helpButton != null && _activeWorkButton != null &&
-            _smeltingXpFillRt != null)
+            _smeltingXpFillRt != null && _orePickerScrollContent != null && _enhancementIcon != null &&
+            _builtUiLayoutVersion == UiLayoutVersion)
             return;
 
         if (_root != null)
@@ -958,6 +1209,7 @@ public class FurnaceUI : MonoBehaviour
             Destroy(_root.gameObject);
             _root = null;
             _orePickerRoot = null;
+            _orePickerScrollContent = null;
             _helpPanelRoot = null;
             _proficiencyPanelRoot = null;
             _proficiencyScrollContent = null;
@@ -978,6 +1230,10 @@ public class FurnaceUI : MonoBehaviour
             _smeltingXpFillRt = null;
             _activeWorkButton = null;
             _activeWorkButtonText = null;
+            _enhancementButton = null;
+            _enhancementClearButton = null;
+            _enhancementIcon = null;
+            _enhancementAmountText = null;
             _oreIcon = null;
             _barIcon = null;
             _oreAmountText = null;
@@ -1005,7 +1261,7 @@ public class FurnaceUI : MonoBehaviour
             DontDestroyOnLoad(es);
         }
 
-        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 340f));
+        _root = CreatePanel("FurnacePanel", transform, MainPanelSize);
         CreateHeader(_root, "Furnace");
 
         _helpButton = CreateButton(_root, "HelpButton", "?", new Vector2(28f, 28f), new Vector2(0f, 1f));
@@ -1024,11 +1280,38 @@ public class FurnaceUI : MonoBehaviour
 
         BuildSmeltingXpBar(_root);
 
-        var slotsRow = CreateUiObject("SlotsRow", _root, typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        var processingBlock = CreateUiObject("ProcessingBlock", _root, typeof(RectTransform), typeof(VerticalLayoutGroup));
+        var processingRt = processingBlock.GetComponent<RectTransform>();
+        processingRt.anchorMin = new Vector2(0.5f, 0.57f);
+        processingRt.anchorMax = new Vector2(0.5f, 0.57f);
+        processingRt.pivot = new Vector2(0.5f, 0.5f);
+        processingRt.sizeDelta = new Vector2(300f, 176f);
+        var processingLayout = processingBlock.GetComponent<VerticalLayoutGroup>();
+        processingLayout.spacing = 8f;
+        processingLayout.childAlignment = TextAnchor.MiddleCenter;
+        processingLayout.childControlWidth = false;
+        processingLayout.childControlHeight = false;
+
+        _enhancementButton = CreateSlotButton(processingBlock.transform, "", out _enhancementIcon, out _enhancementAmountText, OnEnhancementClicked);
+        var enhancementRt = _enhancementButton.GetComponent<RectTransform>();
+        enhancementRt.sizeDelta = new Vector2(64f, 64f);
+        var enhancementIconRt = _enhancementIcon.rectTransform;
+        enhancementIconRt.sizeDelta = new Vector2(40f, 40f);
+        var enhancementTrigger = _enhancementButton.gameObject.AddComponent<FurnaceEnhancementSlotInteractions>();
+        enhancementTrigger.Initialize(this);
+        var enhancementHover = _enhancementButton.gameObject.AddComponent<FurnaceEnhancementSlotHover>();
+        enhancementHover.Initialize(this);
+
+        _enhancementClearButton = CreateButton(_enhancementButton.transform, "EnhancementClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
+        var enhancementClearRt = _enhancementClearButton.GetComponent<RectTransform>();
+        enhancementClearRt.anchoredPosition = new Vector2(-4f, -4f);
+        var enhancementClearClick = _enhancementClearButton.gameObject.AddComponent<FurnaceSlotClearClick>();
+        enhancementClearClick.Initialize(OnEnhancementClearClicked);
+        _enhancementClearButton.transform.SetAsLastSibling();
+        _enhancementClearButton.gameObject.SetActive(false);
+
+        var slotsRow = CreateUiObject("SlotsRow", processingBlock.transform, typeof(RectTransform), typeof(HorizontalLayoutGroup));
         var slotsRt = slotsRow.GetComponent<RectTransform>();
-        slotsRt.anchorMin = new Vector2(0.5f, 0.52f);
-        slotsRt.anchorMax = new Vector2(0.5f, 0.52f);
-        slotsRt.pivot = new Vector2(0.5f, 0.5f);
         slotsRt.sizeDelta = new Vector2(300f, 88f);
         var hlg = slotsRow.GetComponent<HorizontalLayoutGroup>();
         hlg.spacing = 12f;
@@ -1066,10 +1349,10 @@ public class FurnaceUI : MonoBehaviour
 
         var progressBg = CreateUiObject("ProgressBg", _root, typeof(RectTransform), typeof(Image));
         var progressBgRt = progressBg.GetComponent<RectTransform>();
-        progressBgRt.anchorMin = new Vector2(0.5f, 0.34f);
-        progressBgRt.anchorMax = new Vector2(0.5f, 0.34f);
+        progressBgRt.anchorMin = new Vector2(0.5f, 0.305f);
+        progressBgRt.anchorMax = new Vector2(0.5f, 0.305f);
         progressBgRt.pivot = new Vector2(0.5f, 0.5f);
-        progressBgRt.sizeDelta = new Vector2(280f, 28f);
+        progressBgRt.sizeDelta = new Vector2(280f, 30f);
         var progressBgImage = progressBg.GetComponent<Image>();
         progressBgImage.color = ProgressBg;
         progressBgImage.raycastTarget = false;
@@ -1090,14 +1373,14 @@ public class FurnaceUI : MonoBehaviour
 
         _timeSummaryText = CreateTmpText("TimeSummary", _root, 12f, TextLight, TextAlignmentOptions.Center);
         var summaryRt = _timeSummaryText.rectTransform;
-        summaryRt.anchorMin = new Vector2(0.5f, 0.24f);
-        summaryRt.anchorMax = new Vector2(0.5f, 0.24f);
+        summaryRt.anchorMin = new Vector2(0.5f, 0.225f);
+        summaryRt.anchorMax = new Vector2(0.5f, 0.225f);
         summaryRt.pivot = new Vector2(0.5f, 0.5f);
-        summaryRt.sizeDelta = new Vector2(320f, 36f);
+        summaryRt.sizeDelta = new Vector2(320f, 40f);
         _timeSummaryText.textWrappingMode = TextWrappingModes.Normal;
         _timeSummaryText.text = "";
 
-        _actionButton = CreateButton(_root, "ActionButton", "START", new Vector2(200f, 40f), new Vector2(0.5f, 0.12f));
+        _actionButton = CreateButton(_root, "ActionButton", "START", new Vector2(200f, 40f), new Vector2(0.5f, 0.1f));
         _actionButtonText = _actionButton.GetComponentInChildren<TMP_Text>();
         _actionButton.onClick.AddListener(OnActionClicked);
 
@@ -1105,16 +1388,12 @@ public class FurnaceUI : MonoBehaviour
         closeBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-12f, -12f);
         closeBtn.onClick.AddListener(Close);
 
-        _helpPanelRoot = CreateSidePanel("HelpPanel", _root, new Vector2(280f, 240f), leftSide: true);
+        _helpPanelRoot = CreateSidePanel("HelpPanel", _root, HelpPanelSize, leftSide: true);
         BuildHelpPanelContent(_helpPanelRoot);
         _helpPanelRoot.gameObject.SetActive(false);
 
-        _orePickerRoot = CreateSidePanel("OrePicker", _root, new Vector2(280f, 200f), leftSide: true);
-        var pickerLayout = _orePickerRoot.gameObject.AddComponent<VerticalLayoutGroup>();
-        pickerLayout.padding = new RectOffset(8, 8, 8, 8);
-        pickerLayout.spacing = 6f;
-        pickerLayout.childControlHeight = true;
-        pickerLayout.childForceExpandHeight = false;
+        _orePickerRoot = CreateSidePanel("OrePicker", _root, SidePickerPanelSize, leftSide: true);
+        _orePickerScrollContent = BuildScrollListPanel(_orePickerRoot, preferredHeight: 200f);
         _orePickerRoot.gameObject.SetActive(false);
 
         _proficiencyPanelRoot = CreateSidePanel("ProficiencyPanel", _root, new Vector2(300f, 320f), leftSide: false);
@@ -1124,6 +1403,7 @@ public class FurnaceUI : MonoBehaviour
         RefreshSmeltingLevelButton();
         RefreshSmeltingXpBar();
         RefreshActiveWorkButton();
+        _builtUiLayoutVersion = UiLayoutVersion;
     }
 
     private void BuildSmeltingXpBar(RectTransform parent)
@@ -1175,12 +1455,79 @@ public class FurnaceUI : MonoBehaviour
         headerText.fontStyle = FontStyles.Bold;
         headerText.text = "Smelting";
 
-        var bodyRow = CreateUiObject("Body", panel, typeof(RectTransform), typeof(LayoutElement));
-        bodyRow.GetComponent<LayoutElement>().preferredHeight = 180f;
-        var bodyText = CreateTmpText("Body", bodyRow.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
-        StretchFull(bodyText.rectTransform);
+        var scrollHost = CreateUiObject("ScrollHost", panel, typeof(RectTransform), typeof(LayoutElement), typeof(Image), typeof(ScrollRect));
+        scrollHost.GetComponent<LayoutElement>().preferredHeight = 220f;
+        scrollHost.GetComponent<LayoutElement>().flexibleHeight = 1f;
+        scrollHost.GetComponent<Image>().color = new Color32(36, 38, 42, 255);
+
+        var viewport = CreateUiObject("Viewport", scrollHost.transform, typeof(RectTransform), typeof(RectMask2D));
+        StretchFull(viewport.GetComponent<RectTransform>());
+
+        var content = CreatePanel("Content", viewport.transform, new Vector2(0f, 0f));
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0.5f, 1f);
+        content.sizeDelta = new Vector2(0f, 0f);
+        content.GetComponent<Image>().color = Color.clear;
+        content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var bodyText = CreateTmpText("Body", content.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
+        var bodyRt = bodyText.rectTransform;
+        bodyRt.anchorMin = new Vector2(0f, 1f);
+        bodyRt.anchorMax = new Vector2(1f, 1f);
+        bodyRt.pivot = new Vector2(0.5f, 1f);
+        bodyRt.sizeDelta = new Vector2(-12f, 0f);
         bodyText.textWrappingMode = TextWrappingModes.Normal;
         bodyText.text = HelpBodyText;
+        bodyText.ForceMeshUpdate();
+        bodyRt.sizeDelta = new Vector2(-12f, bodyText.preferredHeight + 8f);
+
+        ScrollRect scroll = scrollHost.GetComponent<ScrollRect>();
+        scroll.viewport = viewport.GetComponent<RectTransform>();
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+    }
+
+    private RectTransform BuildScrollListPanel(RectTransform panel, float preferredHeight)
+    {
+        var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(8, 8, 8, 8);
+        layout.spacing = 6f;
+        layout.childControlHeight = true;
+        layout.childForceExpandHeight = false;
+
+        var scrollHost = CreateUiObject("ScrollHost", panel, typeof(RectTransform), typeof(LayoutElement), typeof(Image), typeof(ScrollRect));
+        var scrollLe = scrollHost.GetComponent<LayoutElement>();
+        scrollLe.preferredHeight = preferredHeight;
+        scrollLe.flexibleHeight = 1f;
+        scrollHost.GetComponent<Image>().color = new Color32(36, 38, 42, 255);
+
+        var viewport = CreateUiObject("Viewport", scrollHost.transform, typeof(RectTransform), typeof(RectMask2D));
+        StretchFull(viewport.GetComponent<RectTransform>());
+
+        RectTransform content = CreatePanel("Content", viewport.transform, new Vector2(0f, 0f));
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0.5f, 1f);
+        content.sizeDelta = new Vector2(0f, 0f);
+        content.GetComponent<Image>().color = Color.clear;
+        var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        contentLayout.padding = new RectOffset(0, 0, 0, 0);
+        contentLayout.spacing = 6f;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandHeight = false;
+        content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        ScrollRect scroll = scrollHost.GetComponent<ScrollRect>();
+        scroll.viewport = viewport.GetComponent<RectTransform>();
+        scroll.content = content;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+
+        return content;
     }
 
     private void BuildProficiencyPanelContent(RectTransform panel)
@@ -1336,6 +1683,62 @@ public class FurnaceUI : MonoBehaviour
         if (go.TryGetComponent(out RectTransform rt))
             rt.localScale = Vector3.one;
         return go;
+    }
+
+    private sealed class FurnaceSlotClearClick : MonoBehaviour, IPointerClickHandler
+    {
+        private System.Action _onClick;
+
+        public void Initialize(System.Action onClick) => _onClick = onClick;
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (eventData.button != PointerEventData.InputButton.Left)
+                return;
+
+            var button = GetComponent<Button>();
+            if (button != null && !button.interactable)
+                return;
+
+            _onClick?.Invoke();
+            eventData.Use();
+        }
+    }
+
+    private sealed class FurnaceEnhancementSlotHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    {
+        private FurnaceUI _owner;
+
+        public void Initialize(FurnaceUI owner) => _owner = owner;
+
+        public void OnPointerEnter(PointerEventData eventData) => _owner?.ShowEnhancementSlotTooltip();
+
+        public void OnPointerExit(PointerEventData eventData) => _owner?.HideEnhancementSlotTooltip();
+    }
+
+    private sealed class FurnaceEnhancementSlotInteractions : MonoBehaviour, IDropHandler
+    {
+        private FurnaceUI _owner;
+
+        public void Initialize(FurnaceUI owner) => _owner = owner;
+
+        public void OnDrop(PointerEventData eventData)
+        {
+            if (_owner == null || !InventoryDragState.HasDrag)
+                return;
+
+            if (InventoryDragState.Source != InventoryDragState.SourceKind.Inventory)
+                return;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (inv == null)
+                return;
+
+            int fromSlot = InventoryDragState.FromSlotIndex;
+            int amount = InventoryDragState.IsSplit ? InventoryDragState.CarriedAmount : 0;
+            if (FurnaceUI.TryDepositEnhancementFromInventorySlot(inv, fromSlot, amount))
+                InventoryDragState.EndDrag();
+        }
     }
 
     private sealed class FurnaceOreSlotInteractions : MonoBehaviour, IPointerClickHandler, IDropHandler

@@ -666,7 +666,18 @@ public enum ConsumableType
     /// <summary>
     /// Permanent map enhancement consumable. Template assets define tier; rolled instances are created when dropped on a map.
     /// </summary>
-    MapEnhancement
+    MapEnhancement,
+
+    /// <summary>
+    /// Consumed one at a time from the cooking range or furnace enhancement slot (salt, spice, herbs, etc.).
+    /// </summary>
+    ProcessingSkillEnhancement
+}
+
+public enum ProcessingSkillTarget
+{
+    Cooking,
+    Smelting
 }
 
 public enum FishingBaitTier
@@ -784,6 +795,18 @@ public struct ConsumableStats
     [Min(0f)]
     [Tooltip("Fishing speed bonus in percent while this bait is active for the swing (e.g. 2 = +2%).")]
     public float fishingSpeedPercentBonus;
+
+    [Header("Processing Skill Enhancement (Consumable Type = ProcessingSkillEnhancement)")]
+    [Tooltip("Which processing window accepts this item (Cooking range or Furnace).")]
+    public ProcessingSkillTarget processingSkillTarget;
+
+    [Min(0f)]
+    [Tooltip("Flat seconds trimmed from each cook/s melt attempt while this item is loaded (e.g. Salt = 1).")]
+    public float processingFlatSecondsReduction;
+
+    [Min(0f)]
+    [Tooltip("Burn chance reduction in percent for each cook attempt while loaded (e.g. Herbs = 10).")]
+    public float processingBurnChanceReductionPercent;
 
     [Header("Map Enhancement (Consumable Type = MapEnhancement)")]
     [Tooltip("Tier 1 rolls 1 modifier; Tier 2 rolls 2 modifiers.")]
@@ -1934,6 +1957,37 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool IsFishingBait =>
         IsConsumable && consumableStats.consumableType == ConsumableType.FishingBait;
+
+    public bool IsProcessingSkillEnhancement =>
+        IsConsumable && consumableStats.consumableType == ConsumableType.ProcessingSkillEnhancement;
+
+    public ProcessingSkillTarget ProcessingSkillTarget =>
+        IsProcessingSkillEnhancement ? consumableStats.processingSkillTarget : ProcessingSkillTarget.Cooking;
+
+    public float ProcessingFlatSecondsReduction =>
+        IsProcessingSkillEnhancement ? Mathf.Max(0f, consumableStats.processingFlatSecondsReduction) : 0f;
+
+    public float ProcessingBurnChanceReductionPercent =>
+        IsProcessingSkillEnhancement ? Mathf.Max(0f, consumableStats.processingBurnChanceReductionPercent) : 0f;
+
+    public string GetProcessingEnhancementEffectDescription()
+    {
+        if (!IsProcessingSkillEnhancement)
+            return "";
+
+        if (ProcessingFlatSecondsReduction > 0.001f)
+        {
+            float seconds = ProcessingFlatSecondsReduction;
+            string unit = Mathf.Approximately(seconds, 1f) ? "second" : "seconds";
+            string action = ProcessingSkillTarget == ProcessingSkillTarget.Smelting ? "smelt" : "cook";
+            return $"Trims {seconds:0.#} {unit} off each {action}.";
+        }
+
+        if (ProcessingBurnChanceReductionPercent > 0.001f)
+            return $"Reduces burn chance by {ProcessingBurnChanceReductionPercent:0.#}% per cook.";
+
+        return "";
+    }
 
     public bool IsMapEnhancement =>
         IsMapEnhancementItemKind ||

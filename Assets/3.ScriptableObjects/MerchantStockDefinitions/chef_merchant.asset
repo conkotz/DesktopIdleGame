@@ -13,31 +13,22 @@ MonoBehaviour:
   m_Name: chef_merchant
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
-  - itemId: cooked_fish
+  - itemId: cooking_salt
     costs:
     - type: 0
-      amount: 5
+      amount: 50
       itemId: 
-    - type: 1
-      amount: 1
-      itemId: raw_fish
     defaultQuantity: -1
-  - itemId: cooked_perch
+  - itemId: cooking_spice
     costs:
     - type: 0
-      amount: 10
+      amount: 150
       itemId: 
-    - type: 1
-      amount: 1
-      itemId: raw_perch
     defaultQuantity: -1
-  - itemId: cooked_pike
+  - itemId: cooking_herbs
     costs:
     - type: 0
-      amount: 10
+      amount: 100
       itemId: 
-    - type: 1
-      amount: 1
-      itemId: raw_pike
     defaultQuantity: -1
   stockSaveKey: 

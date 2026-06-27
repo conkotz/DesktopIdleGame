@@ -476,6 +476,13 @@ public class InventorySlotUI : MonoBehaviour,
         if (slot.IsEmpty)
             return false;
 
+        ItemDefinition def = _inventory.GetItemDef(slot.itemId);
+        if (def != null && def.IsProcessingSkillEnhancement &&
+            def.ProcessingSkillTarget == ProcessingSkillTarget.Smelting)
+        {
+            return FurnaceUI.TryDepositEnhancementFromInventorySlot(_inventory, _slotIndex, 0);
+        }
+
         if (!SmeltingRecipes.IsSmeltableOre(slot.itemId))
             return false;
 
@@ -490,6 +497,13 @@ public class InventorySlotUI : MonoBehaviour,
         var slot = _inventory.GetSlot(_slotIndex);
         if (slot.IsEmpty)
             return false;
+
+        ItemDefinition def = _inventory.GetItemDef(slot.itemId);
+        if (def != null && def.IsProcessingSkillEnhancement &&
+            def.ProcessingSkillTarget == ProcessingSkillTarget.Cooking)
+        {
+            return CookingUI.TryDepositEnhancementFromInventorySlot(_inventory, _slotIndex, 0);
+        }
 
         if (!CookingRecipes.IsCookableRaw(slot.itemId))
             return false;

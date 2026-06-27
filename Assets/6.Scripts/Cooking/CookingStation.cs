@@ -17,6 +17,8 @@ public class CookingStation : MonoBehaviour
     public string StationId => string.IsNullOrWhiteSpace(stationId) ? "cooking_range" : stationId.Trim();
     public string StoredRawItemId => _row != null ? _row.StoredRawItemId : "";
     public int StoredRawAmount => _row != null ? _row.StoredRawAmount : 0;
+    public string StoredEnhancementItemId => _row != null ? _row.StoredEnhancementItemId : "";
+    public int StoredEnhancementAmount => _row != null ? _row.StoredEnhancementAmount : 0;
     public int ReadyCookedAmount => _row != null ? _row.ReadyCookedAmount : 0;
     public string ReadyCookedItemId => _row != null ? _row.ReadyCookedItemId : "";
     public bool IsCooking => _row != null && _row.IsCooking;
@@ -36,6 +38,8 @@ public class CookingStation : MonoBehaviour
     public float GetActiveDurationSeconds() => _row != null ? _row.GetActiveDurationSeconds() : 1f;
 
     public float GetEffectiveDurationSeconds() => _row != null ? _row.GetEffectiveDurationSeconds() : 1f;
+
+    public float GetEffectiveBurnChancePercent() => _row != null ? _row.GetEffectiveBurnChancePercent() : CookingProficiencyBonuses.BaseBurnChancePercent;
 
     public bool TryGetCookTimeEstimate(out float totalRemainingSeconds, out float secondsPerCooked, out int portionsRemaining)
     {
@@ -69,6 +73,26 @@ public class CookingStation : MonoBehaviour
     public bool TryDepositAllRawFromInventory(string rawItemId, out string failureReason) =>
         _row != null
             ? _row.TryDepositAllRawFromInventory(rawItemId, out failureReason)
+            : Fail(out failureReason, "Cooking range not ready.");
+
+    public bool TryDepositEnhancementFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositEnhancementFromInventorySlot(inv, slotIndex, amount, out failureReason)
+            : Fail(out failureReason, "Cooking range not ready.");
+
+    public bool TryDepositEnhancement(string itemId, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositEnhancement(itemId, amount, out failureReason)
+            : Fail(out failureReason, "Cooking range not ready.");
+
+    public bool TryDepositAllEnhancementFromInventory(string itemId, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositAllEnhancementFromInventory(itemId, out failureReason)
+            : Fail(out failureReason, "Cooking range not ready.");
+
+    public bool TryWithdrawAllEnhancement(out string failureReason) =>
+        _row != null
+            ? _row.TryWithdrawAllEnhancement(out failureReason)
             : Fail(out failureReason, "Cooking range not ready.");
 
     public bool TryWithdrawAllFish(out string failureReason) =>
