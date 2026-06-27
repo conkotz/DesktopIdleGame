@@ -279,6 +279,21 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void OpenCharacter() => SelectTab(MainMenuTabId.Character);
 
+    /// <summary>Opens Character beside an active storage window without closing storage.</summary>
+    public void OpenCharacterForStorageCompanion()
+    {
+        if (!characterPage)
+            return;
+
+        if (IsOpen && currentPage == characterPage)
+        {
+            EnsureWindowInteractable();
+            return;
+        }
+
+        OpenPage(characterPage, preserveStorageMode: true);
+    }
+
     public void OpenSkillsAbilities() => SelectTab(MainMenuTabId.Skills);
 
     public void OpenWorldMap() => SelectTab(MainMenuTabId.WorldMap);
@@ -558,7 +573,7 @@ public class MainMenuWindowUI : MonoBehaviour
         }
     }
 
-    private void OpenPage(GameObject targetPage)
+    private void OpenPage(GameObject targetPage, bool preserveStorageMode = false)
     {
         // Rebind flow can leave InputSystemUIInputModule disabled; bottom bar stops receiving keyboard Submit.
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
@@ -588,7 +603,8 @@ public class MainMenuWindowUI : MonoBehaviour
         // Ensure merchant mode never blocks opening pages.
         MapCombatScalingPopupUI.CancelIfOpen();
         MerchantClick.ForceCloseMerchantMode();
-        StorageClick.ForceCloseStorageMode();
+        if (!preserveStorageMode)
+            StorageClick.ForceCloseStorageMode();
         FurnaceClick.ForceClose();
         CookingClick.ForceClose();
 

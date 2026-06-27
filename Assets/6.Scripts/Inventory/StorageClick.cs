@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -43,6 +44,7 @@ public class StorageClick : MonoBehaviour
     private Vector3 _closedNameLabelLocalPos;
     private Vector3 _closedTargetMarkerLocalOffset;
     private bool _openLayoutApplied;
+    private Coroutine _openRoutine;
 
     /// <summary>True when this chest last opened <see cref="StorageUI"/> and it is still open.</summary>
     public static bool IsActiveInstance(StorageClick click) =>
@@ -67,6 +69,16 @@ public class StorageClick : MonoBehaviour
     private void OnDisable()
     {
         WorldFloorFollowerRegistry.Unregister(transform);
+        CancelOpenRoutine();
+    }
+
+    private void CancelOpenRoutine()
+    {
+        if (_openRoutine == null)
+            return;
+
+        StopCoroutine(_openRoutine);
+        _openRoutine = null;
     }
 
     private void LateUpdate()
@@ -184,12 +196,12 @@ public class StorageClick : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         NPCDialogueBoxUI.DismissAllActive();
 
-        MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
-        if (menu != null)
-            menu.OpenCharacter();
-        else
-            Debug.LogWarning("[StorageClick] MainMenuWindowUI not assigned/found.", this);
+        CancelOpenRoutine();
+        _openRoutine = StartCoroutine(CoOpenStorageAndCharacter());
+    }
 
+    private IEnumerator CoOpenStorageAndCharacter()
+    {
         if (!storageUI.gameObject.activeSelf)
             storageUI.gameObject.SetActive(true);
 
@@ -201,6 +213,19 @@ public class StorageClick : MonoBehaviour
         _active = this;
         SetChestOpenVisual(true);
         PositionStorageUI();
+
+        yield return null;
+
+        MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
+        if (menu != null)
+            menu.OpenCharacterForStorageCompanion();
+        else
+            Debug.LogWarning("[StorageClick] MainMenuWindowUI not assigned/found.", this);
+
+        yield return null;
+        PositionStorageUI();
+
+        _openRoutine = null;
     }
 
     private void PositionStorageUI()

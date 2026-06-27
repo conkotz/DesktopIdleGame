@@ -46,6 +46,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     private int _batchChangeNotifyDepth;
     private bool _batchChangeNotifyPending;
 
+    private List<int> _uiDirtySlotIndices;
+    private bool _uiRequiresFullRefresh;
+
     /// <summary>
     /// Delays <see cref="OnStorageChanged"/> until <see cref="EndBatchChanges"/> so multi-step transfers
     /// (store-all, withdraw-all) do not rebuild listeners once per partial stack.
@@ -77,6 +80,62 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _batchChangeNotifyPending = true;
         else
             OnStorageChanged?.Invoke();
+    }
+
+    private void MarkSlotChanged(int slotIndex)
+    {
+        RecordUiDirtySlot(slotIndex);
+        NotifyStorageChanged();
+    }
+
+    private void MarkSlotsChanged(int slotA, int slotB)
+    {
+        RecordUiDirtySlot(slotA);
+        RecordUiDirtySlot(slotB);
+        NotifyStorageChanged();
+    }
+
+    private void MarkAllSlotsChanged()
+    {
+        RecordUiFullRefresh();
+        NotifyStorageChanged();
+    }
+
+    private void RecordUiDirtySlot(int slotIndex)
+    {
+        if (slotIndex < 0 || _uiRequiresFullRefresh)
+            return;
+
+        _uiDirtySlotIndices ??= new List<int>(4);
+        if (_uiDirtySlotIndices.Count >= 16)
+        {
+            RecordUiFullRefresh();
+            return;
+        }
+
+        for (int i = 0; i < _uiDirtySlotIndices.Count; i++)
+        {
+            if (_uiDirtySlotIndices[i] == slotIndex)
+                return;
+        }
+
+        _uiDirtySlotIndices.Add(slotIndex);
+    }
+
+    private void RecordUiFullRefresh()
+    {
+        _uiRequiresFullRefresh = true;
+        _uiDirtySlotIndices?.Clear();
+    }
+
+    /// <summary>Consumed by <see cref="StorageGridUI"/> when coalescing slot refreshes.</summary>
+    public bool TryConsumeUiRefreshHint(out IReadOnlyList<int> dirtySlots, out bool fullRefresh)
+    {
+        fullRefresh = _uiRequiresFullRefresh;
+        dirtySlots = _uiDirtySlotIndices;
+        _uiRequiresFullRefresh = false;
+        _uiDirtySlotIndices = null;
+        return fullRefresh || (dirtySlots != null && dirtySlots.Count > 0);
     }
 
     private void Awake()
@@ -120,7 +179,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         _tabBonusSlots[i] += amount;
         EnsureSlotCount(ComputeTotalSlotCount());
-        NotifyStorageChanged();
+        MarkAllSlotsChanged();
     }
 
     private int GetMaxStack(string itemId, int? maxStackOverride = null)
@@ -353,7 +412,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        NotifyStorageChanged();
+        MarkAllSlotsChanged();
         return amount == 0;
     }
 
@@ -361,7 +420,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return;
         _slots[slotIndex] = newSlot;
-        NotifyStorageChanged();
+        MarkSlotChanged(slotIndex);
     }
 
     public bool SwapSlots(int slotA, int slotB)
@@ -378,7 +437,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return false;
 
         (_slots[slotA], _slots[slotB]) = (b, a);
-        NotifyStorageChanged();
+        MarkSlotsChanged(slotA, slotB);
         return true;
     }
 
@@ -465,7 +524,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (merged.Count > rangeEnd - rangeStart)
             Debug.LogWarning($"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {rangeEnd - rangeStart}.");
 
-        NotifyStorageChanged();
+        MarkAllSlotsChanged();
     }
 
     public int RemoveAmountAtSlot(int slotIndex, int amount)
@@ -481,7 +540,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (s.amount <= 0) s.Clear();
 
         _slots[slotIndex] = s;
-        NotifyStorageChanged();
+        MarkSlotChanged(slotIndex);
         return removed;
     }
 
@@ -513,7 +572,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
-            NotifyStorageChanged();
+            MarkSlotsChanged(fromSlot, toSlot);
             return move;
         }
 
@@ -531,7 +590,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
-            NotifyStorageChanged();
+            MarkSlotsChanged(fromSlot, toSlot);
             return add;
         }
 
@@ -556,31 +615,41 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         var to = _slots[toStorageSlot];
 
-        if (to.IsEmpty)
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            to.itemId = from.itemId;
-            to.amount = amount;
-            _slots[toStorageSlot] = to;
-            inv.RemoveAmountAtSlot(fromInvSlot, amount);
-            NotifyStorageChanged();
-            return amount;
-        }
+            if (to.IsEmpty)
+            {
+                to.itemId = from.itemId;
+                to.amount = amount;
+                _slots[toStorageSlot] = to;
+                inv.RemoveAmountAtSlot(fromInvSlot, amount);
+                MarkSlotChanged(toStorageSlot);
+                return amount;
+            }
 
-        if (to.itemId == from.itemId)
+            if (to.itemId == from.itemId)
+            {
+                int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+                int space = maxStack - to.amount;
+                int add = Mathf.Min(space, amount);
+                if (add <= 0) return 0;
+
+                to.amount += add;
+                _slots[toStorageSlot] = to;
+                inv.RemoveAmountAtSlot(fromInvSlot, add);
+                MarkSlotChanged(toStorageSlot);
+                return add;
+            }
+
+            return 0;
+        }
+        finally
         {
-            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
-            int space = maxStack - to.amount;
-            int add = Mathf.Min(space, amount);
-            if (add <= 0) return 0;
-
-            to.amount += add;
-            _slots[toStorageSlot] = to;
-            inv.RemoveAmountAtSlot(fromInvSlot, add);
-            NotifyStorageChanged();
-            return add;
+            inv.EndBatchChanges();
+            EndBatchChanges();
         }
-
-        return 0;
     }
 
     public int TryMoveFromInventoryToTab(Inventory inv, int fromInvSlot, StorageTabKind tab, int amount)
@@ -700,30 +769,40 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         var to = inv.GetSlot(toInvSlot);
 
-        if (to.IsEmpty)
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
-            int move = Mathf.Min(amount, maxStack);
-            inv.ReplaceSlot(toInvSlot, new Inventory.Slot { itemId = from.itemId, amount = move });
-            RemoveAmountAtSlot(fromStorageSlot, move);
-            return move;
-        }
+            if (to.IsEmpty)
+            {
+                int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+                int move = Mathf.Min(amount, maxStack);
+                inv.ReplaceSlot(toInvSlot, new Inventory.Slot { itemId = from.itemId, amount = move });
+                RemoveAmountAtSlot(fromStorageSlot, move);
+                return move;
+            }
 
-        if (to.itemId == from.itemId)
+            if (to.itemId == from.itemId)
+            {
+                int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+                int space = maxStack - to.amount;
+                int add = Mathf.Min(space, amount);
+                if (add <= 0) return 0;
+
+                var merged = to;
+                merged.amount += add;
+                inv.ReplaceSlot(toInvSlot, merged);
+                RemoveAmountAtSlot(fromStorageSlot, add);
+                return add;
+            }
+
+            return 0;
+        }
+        finally
         {
-            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
-            int space = maxStack - to.amount;
-            int add = Mathf.Min(space, amount);
-            if (add <= 0) return 0;
-
-            var merged = to;
-            merged.amount += add;
-            inv.ReplaceSlot(toInvSlot, merged);
-            RemoveAmountAtSlot(fromStorageSlot, add);
-            return add;
+            inv.EndBatchChanges();
+            EndBatchChanges();
         }
-
-        return 0;
     }
 
     public bool SwapInventorySlotWithStorage(Inventory inv, int invSlot, int storageSlot)
@@ -737,18 +816,28 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (!a.IsEmpty && !SlotAcceptsItem(storageSlot, GetItemDef(a.itemId)))
             return false;
 
-        inv.ReplaceSlot(invSlot, new Inventory.Slot
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            itemId = b.IsEmpty ? null : b.itemId,
-            amount = b.IsEmpty ? 0 : b.amount
-        });
-        _slots[storageSlot] = new Slot
+            inv.ReplaceSlot(invSlot, new Inventory.Slot
+            {
+                itemId = b.IsEmpty ? null : b.itemId,
+                amount = b.IsEmpty ? 0 : b.amount
+            });
+            _slots[storageSlot] = new Slot
+            {
+                itemId = a.IsEmpty ? null : a.itemId,
+                amount = a.IsEmpty ? 0 : a.amount
+            };
+            MarkSlotChanged(storageSlot);
+            return true;
+        }
+        finally
         {
-            itemId = a.IsEmpty ? null : a.itemId,
-            amount = a.IsEmpty ? 0 : a.amount
-        };
-        NotifyStorageChanged();
-        return true;
+            inv.EndBatchChanges();
+            EndBatchChanges();
+        }
     }
 
     /// <summary>
@@ -830,7 +919,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         if (movedTotal > 0)
-            NotifyStorageChanged();
+            MarkAllSlotsChanged();
 
         return movedTotal;
     }
@@ -1154,7 +1243,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         else if (savedCount < ComputeTotalSlotCount())
             MigrateLegacyFlatStorage(savedCount);
 
-        NotifyStorageChanged();
+        MarkAllSlotsChanged();
     }
 
     private void MigrateLegacyFlatStorage(int previousCount)

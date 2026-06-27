@@ -84,13 +84,16 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
         if (!SkillsAbilityTimelinePrewarm.IsComplete)
             return false;
 
-        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
+        if (!AreStorageUIsPrewarmed())
+            return false;
+
+        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreShopsPrewarmed())
             return false;
 
         return true;
     }
 
-    public static bool AreTownServicesPrewarmed()
+    public static bool AreStorageUIsPrewarmed()
     {
         StorageUI[] storageUis =
             Object.FindObjectsByType<StorageUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -102,6 +105,11 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
                 return false;
         }
 
+        return true;
+    }
+
+    public static bool AreShopsPrewarmed()
+    {
         ShopUI[] shops = Object.FindObjectsByType<ShopUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < shops.Length; i++)
         {
@@ -112,6 +120,9 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
 
         return true;
     }
+
+    public static bool AreTownServicesPrewarmed() =>
+        AreStorageUIsPrewarmed() && AreShopsPrewarmed();
 
     /// <summary>Waits for menu (and town storage) prewarm while the load screen is black.</summary>
     public static IEnumerator CoWaitUntilComplete(float timeoutSeconds = 45f)
@@ -151,9 +162,11 @@ public sealed class MainMenuUIPrewarm : MonoBehaviour
         if (!SkillsAbilityTimelinePrewarm.IsComplete)
             yield return SkillsAbilityTimelinePrewarm.CoPrewarmAllSkillTimelines();
 
-        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreTownServicesPrewarmed())
-        {
+        if (!AreStorageUIsPrewarmed())
             yield return CoPrewarmTownStorage();
+
+        if (GameplayLoadDisplayNames.IsActiveTownMap() && !AreShopsPrewarmed())
+        {
             yield return GameplayShopPrewarm.CoPrewarmAllShops();
 
             for (int i = 0; i < 5; i++)

@@ -70,6 +70,12 @@ public sealed class InventoryUiRefreshCoordinator : MonoBehaviour
         EnsureHook();
     }
 
+    /// <summary>Immediately rebuilds any grids marked dirty this frame (e.g. after storage/inventory transfer).</summary>
+    public static void FlushNow()
+    {
+        FlushPendingInternal();
+    }
+
     private static void EnsureHook()
     {
         if (_hookSubscribed)
@@ -101,6 +107,16 @@ public sealed class InventoryUiRefreshCoordinator : MonoBehaviour
             return;
 
         _lastFlushFrame = frame;
+        FlushPendingInternal();
+    }
+
+    private static void FlushPendingInternal()
+    {
+        if (PendingGrids.Count == 0 &&
+            PendingUpgradeGrids.Count == 0 &&
+            PendingValueLabels.Count == 0 &&
+            PendingGoldLabels.Count == 0)
+            return;
 
         Profiler.BeginSample("InventoryUI.RefreshCoalesced");
         try

@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Town chest storage window (grid). <see cref="StorageClick"/> opens this; <see cref="InventorySlotUI"/> checks <see cref="IsOpen"/> for double-click deposit.
@@ -76,17 +77,17 @@ public class StorageUI : MonoBehaviour
 
     public void Open()
     {
+        if (grid != null)
+            grid.SelectFirstDisplayedTab();
+
         if (panelRoot)
         {
             panelRoot.SetActive(true);
             panelRoot.transform.SetAsLastSibling();
         }
 
-        if (grid != null)
-            grid.SelectFirstDisplayedTab();
-
-        if (grid == null || grid.HasPendingRefresh || !grid.IsDisplayPrewarmed)
-            grid?.RefreshNow();
+        if (grid != null && !grid.IsDisplayPrewarmed)
+            grid.RefreshNow();
     }
 
     public void Close()
@@ -109,7 +110,17 @@ public class StorageUI : MonoBehaviour
             return;
 
         _dragPassThroughActive = true;
-        grid?.SetDragPassThrough(true);
+        grid?.SetDragPassThrough(false);
+    }
+
+    /// <summary>While dragging from storage, only pass raycasts through the grid when the pointer leaves it (inventory drops).</summary>
+    public void UpdateStorageDragPassThrough(PointerEventData eventData)
+    {
+        if (!_dragPassThroughActive || grid == null || eventData == null)
+            return;
+
+        bool overSlotGrid = grid.IsPointerOverSlotGrid(eventData);
+        grid.SetDragPassThrough(!overSlotGrid);
     }
 
     public void EndDragFromStoragePanel()

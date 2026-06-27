@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Collider2D))]
 public class ItemDrop : MonoBehaviour
@@ -15,11 +16,16 @@ public class ItemDrop : MonoBehaviour
     public static event Action<string> OnWorldPickupSpawned;
 
     [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private Image iconImage;
+    [Tooltip("World-space width/height of the icon box (inventory-style fill, independent of sprite PPU).")]
+    [SerializeField] private float iconWorldSize = 1f;
     [SerializeField] private float lifetimeSeconds = 30f;
 
     [Header("Stack label")]
     [Tooltip("Optional. Shown only when Amount > 1. Assign a child TMP (world or UI); if empty, uses first TMP_Text under this object.")]
     [SerializeField] private TMP_Text stackAmountText;
+    [Tooltip("Stack number height as a fraction of iconWorldSize (matches inventory corner labels).")]
+    [SerializeField] private float stackLabelSizeFraction = 0.38f;
 
     [Header("Click priority")]
     [Tooltip("Layers that compete for clicks (Pickup + Resource + NPC). Must include this object's layer.")]
@@ -45,6 +51,10 @@ public class ItemDrop : MonoBehaviour
 
     private Collider2D _col;
     private Rigidbody2D _rb;
+    private Canvas _worldCanvas;
+    private RectTransform _iconRect;
+    private float _fittedIconWidth;
+    private float _fittedIconHeight;
     private Coroutine _launchRoutine;
     private Coroutine _autoBattleVacuumRoutine;
 
@@ -75,8 +85,9 @@ public class ItemDrop : MonoBehaviour
         ItemId = itemId;
         Amount = amount;
 
-        if (!spriteRenderer) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        if (spriteRenderer && icon) spriteRenderer.sprite = icon;
+        ApplyIconVisual(icon ?? ResolveIconFromDatabase(itemId));
+        ConfigurePickupLayout();
+        ConfigureStackLabelLayout();
 
         ResolveStackLabel();
         RefreshStackLabel();
@@ -153,11 +164,7 @@ public class ItemDrop : MonoBehaviour
 
     public void SnapVisualBottomToWorldY(float worldY, float skin = 0.01f)
     {
-        if (!spriteRenderer)
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-
-        if (!spriteRenderer)
-            return;
+        ResolveVisualRefs();
 
         if (!_rb)
             _rb = GetComponent<Rigidbody2D>();
@@ -170,7 +177,7 @@ public class ItemDrop : MonoBehaviour
             _rb.bodyType = RigidbodyType2D.Kinematic;
         }
 
-        float deltaY = (worldY + Mathf.Max(0f, skin)) - spriteRenderer.bounds.min.y;
+        float deltaY = (worldY + Mathf.Max(0f, skin)) - GetVisualBottomWorldY();
         transform.position += new Vector3(0f, deltaY, 0f);
 
         if (_rb)
@@ -179,8 +186,7 @@ public class ItemDrop : MonoBehaviour
 
     public void LaunchToGround(Vector3 startWorldPosition, Vector3 targetWorldPosition, float groundY, float duration, float arcHeight, float skin = 0.01f)
     {
-        if (!spriteRenderer)
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        ResolveVisualRefs();
 
         if (!_rb)
             _rb = GetComponent<Rigidbody2D>();
@@ -203,16 +209,216 @@ public class ItemDrop : MonoBehaviour
         transform.position = startWorldPosition;
 
         Vector3 endWorldPosition = targetWorldPosition;
-        if (spriteRenderer)
-        {
-            float visualBottomOffset = spriteRenderer.bounds.min.y - transform.position.y;
-            endWorldPosition.y = groundY + Mathf.Max(0f, skin) - visualBottomOffset;
-        }
+        float visualBottomOffset = GetVisualBottomWorldY() - transform.position.y;
+        endWorldPosition.y = groundY + Mathf.Max(0f, skin) - visualBottomOffset;
 
         if (_launchRoutine != null)
             StopCoroutine(_launchRoutine);
 
         _launchRoutine = StartCoroutine(CoLaunchToGround(startWorldPosition, endWorldPosition, Mathf.Max(0.01f, duration), Mathf.Max(0f, arcHeight)));
+    }
+
+    private void ResolveVisualRefs()
+    {
+        if (!iconImage)
+        {
+            Transform iconTransform = transform.Find("Icon");
+            if (iconTransform)
+                iconImage = iconTransform.GetComponent<Image>();
+        }
+
+        if (iconImage)
+            _iconRect = iconImage.rectTransform;
+
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+    }
+
+    private void ApplyIconVisual(Sprite icon)
+    {
+        ResolveVisualRefs();
+
+        if (iconImage)
+        {
+            if (spriteRenderer)
+                spriteRenderer.enabled = false;
+
+            bool hasIcon = icon != null;
+            iconImage.gameObject.SetActive(hasIcon);
+            iconImage.enabled = hasIcon;
+            iconImage.sprite = icon;
+            iconImage.preserveAspect = true;
+            iconImage.color = Color.white;
+            iconImage.raycastTarget = false;
+            return;
+        }
+
+        if (!spriteRenderer)
+            return;
+
+        spriteRenderer.enabled = true;
+        if (!icon)
+            return;
+
+        spriteRenderer.sprite = icon;
+        FitSpriteRendererToWorldSize(spriteRenderer, icon, iconWorldSize);
+    }
+
+    private void ConfigurePickupLayout()
+    {
+        ResolveVisualRefs();
+
+        var rootRect = transform as RectTransform;
+        if (rootRect)
+        {
+            float size = Mathf.Max(0.05f, iconWorldSize);
+            rootRect.pivot = new Vector2(0.5f, 0f);
+            rootRect.sizeDelta = new Vector2(size, size);
+        }
+
+        if (iconImage)
+        {
+            EnsureWorldCanvas();
+            BottomAlignIconInBox();
+        }
+
+        FitColliderToIcon();
+        Canvas.ForceUpdateCanvases();
+    }
+
+    private void FitColliderToIcon()
+    {
+        if (!_col)
+            _col = GetComponent<Collider2D>();
+
+        float width = _fittedIconWidth > 0f ? _fittedIconWidth : iconWorldSize;
+        float height = _fittedIconHeight > 0f ? _fittedIconHeight : iconWorldSize;
+
+        if (_col is CircleCollider2D circle)
+        {
+            circle.radius = width * 0.5f;
+            circle.offset = new Vector2(0f, height * 0.5f);
+        }
+        else if (_col is BoxCollider2D box)
+        {
+            box.size = new Vector2(width, height);
+            box.offset = new Vector2(0f, height * 0.5f);
+        }
+    }
+
+    private void EnsureWorldCanvas()
+    {
+        _worldCanvas = GetComponent<Canvas>();
+        if (!_worldCanvas)
+            _worldCanvas = gameObject.AddComponent<Canvas>();
+
+        _worldCanvas.renderMode = RenderMode.WorldSpace;
+        _worldCanvas.overrideSorting = true;
+        _worldCanvas.worldCamera = null;
+
+        if (spriteRenderer)
+        {
+            _worldCanvas.sortingLayerID = spriteRenderer.sortingLayerID;
+            _worldCanvas.sortingOrder = spriteRenderer.sortingOrder;
+        }
+    }
+
+    private void BottomAlignIconInBox()
+    {
+        if (!_iconRect || !iconImage || !iconImage.sprite)
+        {
+            _fittedIconWidth = iconWorldSize;
+            _fittedIconHeight = iconWorldSize;
+            StretchIconToFullBox();
+            return;
+        }
+
+        Sprite sprite = iconImage.sprite;
+        float box = Mathf.Max(0.05f, iconWorldSize);
+        float spriteW = sprite.rect.width / sprite.pixelsPerUnit;
+        float spriteH = sprite.rect.height / sprite.pixelsPerUnit;
+        if (spriteW <= 0f || spriteH <= 0f)
+        {
+            _fittedIconWidth = box;
+            _fittedIconHeight = box;
+            StretchIconToFullBox();
+            return;
+        }
+
+        float scale = Mathf.Min(box / spriteW, box / spriteH);
+        _fittedIconWidth = spriteW * scale;
+        _fittedIconHeight = spriteH * scale;
+
+        iconImage.preserveAspect = false;
+
+        _iconRect.anchorMin = new Vector2(0.5f, 0f);
+        _iconRect.anchorMax = new Vector2(0.5f, 0f);
+        _iconRect.pivot = new Vector2(0.5f, 0f);
+        _iconRect.anchoredPosition = Vector2.zero;
+        _iconRect.sizeDelta = new Vector2(_fittedIconWidth, _fittedIconHeight);
+    }
+
+    private void StretchIconToFullBox()
+    {
+        if (!_iconRect)
+            return;
+
+        _iconRect.anchorMin = Vector2.zero;
+        _iconRect.anchorMax = Vector2.one;
+        _iconRect.pivot = new Vector2(0.5f, 0f);
+        _iconRect.anchoredPosition = Vector2.zero;
+        _iconRect.sizeDelta = Vector2.zero;
+        _iconRect.offsetMin = Vector2.zero;
+        _iconRect.offsetMax = Vector2.zero;
+    }
+
+    private static void FitSpriteRendererToWorldSize(SpriteRenderer renderer, Sprite icon, float targetWorldSize)
+    {
+        if (!renderer || !icon || targetWorldSize <= 0f)
+            return;
+
+        Vector2 spriteSize = icon.bounds.size;
+        float maxDim = Mathf.Max(spriteSize.x, spriteSize.y);
+        if (maxDim <= 0.0001f)
+            return;
+
+        float scale = targetWorldSize / maxDim;
+        renderer.transform.localScale = new Vector3(scale, scale, 1f);
+    }
+
+    private float GetVisualBottomWorldY()
+    {
+        if (iconImage && iconImage.enabled && iconImage.sprite && _iconRect)
+        {
+            var corners = new Vector3[4];
+            _iconRect.GetWorldCorners(corners);
+            return Mathf.Min(corners[0].y, corners[3].y);
+        }
+
+        if (!_col)
+            _col = GetComponent<Collider2D>();
+        if (_col)
+            return _col.bounds.min.y;
+
+        if (spriteRenderer && spriteRenderer.enabled)
+            return spriteRenderer.bounds.min.y;
+
+        return transform.position.y;
+    }
+
+    private static Sprite ResolveIconFromDatabase(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        Inventory inventory = UnityEngine.Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        ItemDatabase db = inventory != null ? inventory.GetItemDatabase() : null;
+        if (!db)
+            db = UnityEngine.Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (!db)
+            db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+
+        return db != null ? db.Get(itemId)?.icon : null;
     }
 
     private IEnumerator CoLaunchToGround(Vector3 startWorldPosition, Vector3 endWorldPosition, float duration, float arcHeight)
@@ -250,6 +456,20 @@ public class ItemDrop : MonoBehaviour
             stackAmountText = named.GetComponent<TMP_Text>();
         if (!stackAmountText)
             stackAmountText = GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void ConfigureStackLabelLayout()
+    {
+        ResolveStackLabel();
+        if (!stackAmountText)
+            return;
+
+        float fontSize = Mathf.Max(0.06f, iconWorldSize * stackLabelSizeFraction);
+        stackAmountText.fontSize = fontSize;
+        stackAmountText.enableAutoSizing = false;
+        stackAmountText.raycastTarget = false;
+        stackAmountText.transform.SetAsLastSibling();
+        // RectTransform anchor/position/size come from the prefab — Init only scales font size.
     }
 
     private void RefreshStackLabel()

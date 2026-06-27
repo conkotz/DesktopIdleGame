@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -44,6 +45,7 @@ public class StorageGridUI : MonoBehaviour
     private bool _layoutSettled;
     private Canvas _rootCanvas;
     private StorageTabKind _activeTab = StorageTabKind.Main;
+    private Coroutine _displayRefreshCo;
 
     private int TotalSlots
     {
@@ -57,6 +59,17 @@ public class StorageGridUI : MonoBehaviour
 
     public PlayerStorage PlayerStorage => storage;
     public StorageTabKind ActiveTab => _activeTab;
+
+    public bool IsPointerOverSlotGrid(PointerEventData eventData)
+    {
+        if (!slotsGrid || eventData == null)
+            return false;
+
+        return RectTransformUtility.RectangleContainsScreenPoint(
+            slotsGrid,
+            eventData.position,
+            eventData.pressEventCamera);
+    }
 
     private CanvasGroup _dragPassThroughGroup;
     private bool _dragPassThroughActive;
@@ -121,6 +134,14 @@ public class StorageGridUI : MonoBehaviour
         StartCoroutine(DeferredRefresh());
     }
 
+    private IEnumerator CoReflowAfterPrewarmedOpen()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        ApplyGridFit();
+        RefreshDisplayInstant();
+    }
+
     public bool IsDisplayPrewarmed => _displayPrewarmed;
 
     public bool HasPendingRefresh => _dirty;
@@ -175,12 +196,13 @@ public class StorageGridUI : MonoBehaviour
 
     private bool TryShowPrewarmedWithoutRebuild()
     {
-        if (!_displayPrewarmed || !_poolPrewarmed || _dirty)
+        if (!_displayPrewarmed || !_poolPrewarmed)
             return false;
 
         if (_slotPool.Count < TotalSlots)
             return false;
 
+        StartCoroutine(CoReflowAfterPrewarmedOpen());
         return true;
     }
 
@@ -191,6 +213,12 @@ public class StorageGridUI : MonoBehaviour
 
         if (tabBar != null)
             tabBar.OnTabSelected -= HandleTabSelected;
+
+        if (_dirty && storage != null)
+        {
+            _dirty = false;
+            Rebuild();
+        }
     }
 
     private void EnsureTabBar()
@@ -204,7 +232,7 @@ public class StorageGridUI : MonoBehaviour
     private void HandleTabSelected(StorageTabKind tab)
     {
         _activeTab = tab;
-        _dirty = true;
+        ScheduleTabRefresh();
 
         ScrollRect scroll = slotsGrid != null ? slotsGrid.GetComponentInParent<ScrollRect>(true) : null;
         if (scroll != null)
@@ -213,7 +241,67 @@ public class StorageGridUI : MonoBehaviour
 
     private void MarkDirty()
     {
-        _dirty = true;
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        {
+            _dirty = true;
+            return;
+        }
+
+        RefreshDisplayInstant();
+    }
+
+    private void RefreshDisplayInstant()
+    {
+        if (_displayRefreshCo != null)
+        {
+            StopCoroutine(_displayRefreshCo);
+            _displayRefreshCo = null;
+        }
+
+        _dirty = false;
+        if (!TryRefreshChangedSlotsOnly())
+            Rebuild();
+    }
+
+    private bool TryRefreshChangedSlotsOnly()
+    {
+        if (!storage || !storage.TryConsumeUiRefreshHint(out IReadOnlyList<int> dirtySlots, out bool fullRefresh))
+            return false;
+
+        if (fullRefresh || dirtySlots == null || dirtySlots.Count == 0)
+            return false;
+
+        if (!PrepareRebuildContext(out int totalSlots, out int globalOffset))
+            return true;
+
+        int tabStart = globalOffset;
+        int tabEnd = tabStart + totalSlots;
+
+        for (int d = 0; d < dirtySlots.Count; d++)
+        {
+            int globalIndex = dirtySlots[d];
+            if (globalIndex < tabStart || globalIndex >= tabEnd)
+                continue;
+
+            BindSlotAtIndex(globalIndex - globalOffset, globalOffset);
+        }
+
+        return true;
+    }
+
+    private void ScheduleTabRefresh()
+    {
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+        {
+            _dirty = true;
+            return;
+        }
+
+        if (_displayRefreshCo != null)
+            StopCoroutine(_displayRefreshCo);
+
+        _dirty = false;
+        _displayRefreshCo = StartCoroutine(CoTimeSlicedRebuild());
     }
 
     public void RefreshNow()
@@ -225,6 +313,7 @@ public class StorageGridUI : MonoBehaviour
         }
 
         StopAllCoroutines();
+        _displayRefreshCo = null;
         StartCoroutine(DeferredRefresh());
     }
 
@@ -234,11 +323,8 @@ public class StorageGridUI : MonoBehaviour
         EnsureTabBar();
         if (tabBar != null)
         {
-            StorageTabKind previousTab = _activeTab;
             tabBar.SelectFirstDisplayedTab(notify: false);
             _activeTab = tabBar.ActiveTab;
-            if (_activeTab != previousTab)
-                _dirty = true;
         }
     }
 
@@ -272,11 +358,26 @@ public class StorageGridUI : MonoBehaviour
             storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
     }
 
-    private void Update()
+    private IEnumerator CoTimeSlicedRebuild()
     {
-        if (!_dirty) return;
-        _dirty = false;
-        Rebuild();
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        ApplyGridFit();
+
+        if (!PrepareRebuildContext(out int totalSlots, out int globalOffset))
+        {
+            _displayRefreshCo = null;
+            yield break;
+        }
+
+        for (int i = 0; i < totalSlots; i++)
+        {
+            BindSlotAtIndex(i, globalOffset);
+            if (i < totalSlots - 1 && (i + 1) % PrewarmPoolBatchSize == 0)
+                yield return null;
+        }
+
+        _displayRefreshCo = null;
     }
 
     private IEnumerator DeferredRefresh()
@@ -398,9 +499,23 @@ public class StorageGridUI : MonoBehaviour
 
     public void Rebuild()
     {
+        if (!PrepareRebuildContext(out int totalSlots, out int globalOffset))
+            return;
+
+        for (int i = 0; i < totalSlots; i++)
+            BindSlotAtIndex(i, globalOffset);
+    }
+
+    private bool PrepareRebuildContext(out int totalSlots, out int globalOffset)
+    {
+        totalSlots = 0;
+        globalOffset = 0;
+
         ResolveStorageRef();
         EnsureTabBar();
-        if (!storage || !slotsGrid || !slotPrefab) return;
+        if (!storage || !slotsGrid || !slotPrefab)
+            return false;
+
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
@@ -409,35 +524,41 @@ public class StorageGridUI : MonoBehaviour
 
         EnsurePoolSize();
 
-        int totalSlots = TotalSlots;
+        totalSlots = TotalSlots;
         storage.EnsureSlotCount(storage.ComputeTotalSlotCount());
-        int globalOffset = storage.GetTabStartIndex(_activeTab);
+        globalOffset = storage.GetTabStartIndex(_activeTab);
+        return true;
+    }
 
-        for (int i = 0; i < totalSlots; i++)
+    private void BindSlotAtIndex(int i, int globalOffset)
+    {
+        if (i < 0 || i >= _slotPool.Count)
+            return;
+
+        var slotUI = _slotPool[i];
+        if (!slotUI)
+            return;
+
+        int globalIndex = globalOffset + i;
+
+        if (slotsGrid && slotUI.transform.parent == slotsGrid)
+            slotUI.transform.SetSiblingIndex(i);
+
+        var s = storage.GetSlot(globalIndex);
+
+        if (!s.IsEmpty)
         {
-            var slotUI = _slotPool[i];
-            if (!slotUI) continue;
+            ItemDefinition def = storage.GetItemDef(s.itemId);
+            if (!def && itemDb)
+                def = itemDb.Get(s.itemId);
 
-            int globalIndex = globalOffset + i;
-
-            if (slotsGrid && slotUI.transform.parent == slotsGrid)
-                slotUI.transform.SetSiblingIndex(i);
-
-            var s = storage.GetSlot(globalIndex);
-
-            if (!s.IsEmpty)
-            {
-                ItemDefinition def = storage.GetItemDef(s.itemId);
-                if (!def && itemDb) def = itemDb.Get(s.itemId);
-
-                slotUI.Bind(def, s.amount, s.itemId, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
-                slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
-            }
-            else
-            {
-                slotUI.Bind(null, 0, null, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
-                slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
-            }
+            slotUI.Bind(def, s.amount, s.itemId, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
+            slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
+        }
+        else
+        {
+            slotUI.Bind(null, 0, null, tooltip, storage, globalIndex, storagePanelRect, _rootCanvas);
+            slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
         }
     }
 }

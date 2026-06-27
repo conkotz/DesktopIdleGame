@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 750
+  spritePixelsToUnits: 100
   spriteBorder: {x: 420, y: 337, z: 437, w: 281}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ChatGPT Image Feb 21, 2026, 01_04_27 AM_0
+      name: SplitwoodLogSprite
       rect:
         serializedVersion: 2
         x: 423
-        y: 343
+        y: 349
         width: 673
-        height: 350
+        height: 344
       alignment: 9
       pivot: {x: 0.50853133, y: 0.5041007}
       border: {x: 2, y: 0, z: 0, w: 0}
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      ChatGPT Image Feb 21, 2026, 01_04_27 AM_0: -542036637493289155
+      SplitwoodLogSprite: -542036637493289155
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

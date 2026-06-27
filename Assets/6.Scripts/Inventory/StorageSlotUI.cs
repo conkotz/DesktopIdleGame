@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -207,6 +208,24 @@ public class StorageSlotUI : MonoBehaviour,
             return db;
 
         return Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+    }
+
+    private Sprite ResolveDropIcon(string itemId)
+    {
+        if (_def != null && _def.icon != null)
+            return _def.icon;
+
+        if (icon != null && icon.enabled && icon.sprite != null)
+            return icon.sprite;
+
+        if (_storage != null)
+        {
+            ItemDefinition storageDef = _storage.GetItemDef(itemId);
+            if (storageDef != null && storageDef.icon != null)
+                return storageDef.icon;
+        }
+
+        return ResolveItemDatabase()?.Get(itemId)?.icon;
     }
 
     private static bool ItemIdEquals(string a, string b) =>
@@ -458,14 +477,17 @@ public class StorageSlotUI : MonoBehaviour,
         if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId) || slot.amount <= 0)
             return;
 
-        int removed = _storage.RemoveAmountAtSlot(_slotIndex, slot.amount);
+        string itemId = slot.itemId;
+        int dropAmount = slot.amount;
+        Sprite iconSprite = ResolveDropIcon(itemId);
+
+        int removed = _storage.RemoveAmountAtSlot(_slotIndex, dropAmount);
         if (removed <= 0)
             return;
 
-        Sprite iconSprite = _def ? _def.icon : null;
         if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
-        ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
+            DropManager.Instance.Spawn(itemId, removed, iconSprite);
+        ItemGainPopupNotifier.NotifyLost(itemId, removed);
         _tooltip?.Hide();
     }
 
@@ -611,6 +633,9 @@ public class StorageSlotUI : MonoBehaviour,
     {
         if (_dragIconRT == null) return;
         UpdateDragIconPosition(eventData);
+
+        var storageUi = FindFirstObjectByType<StorageUI>(FindObjectsInactive.Include);
+        storageUi?.UpdateStorageDragPassThrough(eventData);
     }
 
     public void OnEndDrag(PointerEventData eventData)
@@ -619,6 +644,9 @@ public class StorageSlotUI : MonoBehaviour,
         _dragIconGO = null;
         _dragIconRT = null;
         _dragIconImage = null;
+
+        if (TryDropStorageDragOnSlotUnderPointer(eventData))
+            return;
 
         if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
         {
@@ -629,6 +657,104 @@ public class StorageSlotUI : MonoBehaviour,
         // Drop handlers on other UI (e.g. inventory slots) may run after EndDrag on the source in some
         // Unity versions. Clearing drag state immediately breaks those drops — defer cleanup one frame.
         StartCoroutine(EndStorageDragDeferred());
+    }
+
+    /// <summary>Raycast fallback when grid pass-through or event order prevented IDropHandler from firing.</summary>
+    private bool TryDropStorageDragOnSlotUnderPointer(PointerEventData eventData)
+    {
+        if (!InventoryDragState.HasDrag || InventoryDragState.Source != InventoryDragState.SourceKind.Storage)
+            return false;
+
+        StorageSlotUI target = RaycastStorageSlotUnderPointer(eventData);
+        if (target == null || target == this)
+            return false;
+
+        if (!target.TryAcceptStorageDragDrop())
+            return false;
+
+        EndStorageDragNow();
+        return true;
+    }
+
+    private static StorageSlotUI RaycastStorageSlotUnderPointer(PointerEventData eventData)
+    {
+        if (EventSystem.current == null || eventData == null)
+            return null;
+
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+
+        for (int i = 0; i < results.Count; i++)
+        {
+            GameObject hit = results[i].gameObject;
+            if (!hit)
+                continue;
+
+            StorageSlotUI slot = hit.GetComponentInParent<StorageSlotUI>();
+            if (slot)
+                return slot;
+        }
+
+        return null;
+    }
+
+    /// <returns>True when a storage drag was applied to this slot.</returns>
+    public bool TryAcceptStorageDragDrop()
+    {
+        if (_storage == null)
+            return false;
+
+        if (!InventoryDragState.HasDrag || InventoryDragState.Source != InventoryDragState.SourceKind.Storage)
+            return false;
+
+        if (InventoryDragState.StorageSource != null && InventoryDragState.StorageSource != _storage)
+            return false;
+
+        int fromStorage = InventoryDragState.FromSlotIndex;
+        int toStorage = _slotIndex;
+
+        if (fromStorage < 0 || toStorage < 0)
+            return false;
+
+        if (fromStorage == toStorage)
+        {
+            InventoryDragState.EndDrag();
+            return true;
+        }
+
+        if (InventoryDragState.IsSplit)
+        {
+            if (_storage.MoveAmount(fromStorage, toStorage, InventoryDragState.CarriedAmount) > 0)
+            {
+                InventoryDragState.EndDrag();
+                _tooltip?.Hide();
+                return true;
+            }
+
+            return false;
+        }
+
+        var from = _storage.GetSlot(fromStorage);
+        var to = _storage.GetSlot(toStorage);
+
+        if (!from.IsEmpty && !to.IsEmpty && from.itemId == to.itemId)
+        {
+            if (_storage.MoveAmount(fromStorage, toStorage, from.amount) > 0)
+            {
+                InventoryDragState.EndDrag();
+                _tooltip?.Hide();
+                return true;
+            }
+        }
+
+        if (_storage.SwapSlots(fromStorage, toStorage))
+        {
+            InventoryDragState.EndDrag();
+            _tooltip?.Hide();
+            return true;
+        }
+
+        return false;
     }
 
     private void TryDropStorageDragToGround()
@@ -649,10 +775,10 @@ public class StorageSlotUI : MonoBehaviour,
             return;
         }
 
+        Sprite iconSprite = ResolveDropIcon(itemId);
         int removed = _storage.RemoveAmountAtSlot(fromSlot, dropAmount);
         if (removed > 0)
         {
-            Sprite iconSprite = _def ? _def.icon : null;
             if (DropManager.Instance != null)
                 DropManager.Instance.Spawn(itemId, removed, iconSprite);
             ItemGainPopupNotifier.NotifyLost(itemId, removed);
@@ -755,38 +881,7 @@ public class StorageSlotUI : MonoBehaviour,
         if (!InventoryDragState.HasDrag || InventoryDragState.Source != InventoryDragState.SourceKind.Storage)
             return;
 
-        int fromStorage = InventoryDragState.FromSlotIndex;
-        int toStorage = _slotIndex;
-
-        if (fromStorage < 0 || toStorage < 0) return;
-        if (fromStorage == toStorage)
-        {
-            InventoryDragState.EndDrag();
-            return;
-        }
-
-        if (InventoryDragState.IsSplit)
-        {
-            _storage.MoveAmount(fromStorage, toStorage, InventoryDragState.CarriedAmount);
-            InventoryDragState.EndDrag();
-            return;
-        }
-
-        var from = _storage.GetSlot(fromStorage);
-        var to = _storage.GetSlot(toStorage);
-
-        if (!from.IsEmpty && !to.IsEmpty && from.itemId == to.itemId)
-        {
-            int moved = _storage.MoveAmount(fromStorage, toStorage, from.amount);
-            if (moved > 0)
-            {
-                InventoryDragState.EndDrag();
-                return;
-            }
-        }
-
-        _storage.SwapSlots(fromStorage, toStorage);
-        InventoryDragState.EndDrag();
+        TryAcceptStorageDragDrop();
     }
 
     private void CreateDragIcon()
