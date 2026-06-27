@@ -625,6 +625,22 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return movedTotal;
     }
 
+    /// <summary>
+    /// Deposits into the preferred affinity tab first; any remainder goes to Main when the affinity tab is full.
+    /// </summary>
+    public int TryMoveFromInventoryToTabWithMainFallback(Inventory inv, int fromInvSlot, StorageTabKind preferredTab, int amount)
+    {
+        int moved = TryMoveFromInventoryToTab(inv, fromInvSlot, preferredTab, amount);
+        if (preferredTab == StorageTabKind.Main || inv == null)
+            return moved;
+
+        var from = inv.GetSlot(fromInvSlot);
+        if (!from.IsEmpty)
+            moved += TryMoveFromInventoryToTab(inv, fromInvSlot, StorageTabKind.Main, from.amount);
+
+        return moved;
+    }
+
     public int TryMoveFromStorageSlotToTab(int fromGlobalSlot, StorageTabKind tab, int amount)
     {
         if (fromGlobalSlot < 0 || fromGlobalSlot >= _slots.Count || amount <= 0)
@@ -746,7 +762,11 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         ItemDefinition def = GetItemDef(itemId);
         StorageTabKind tab = ResolveAutoDepositTab(def);
-        return TryDepositAmountToTab(itemId, amount, tab, touchedSlotIndices);
+        int moved = TryDepositAmountToTab(itemId, amount, tab, touchedSlotIndices);
+        if (tab != StorageTabKind.Main && moved < amount)
+            moved += TryDepositAmountToTab(itemId, amount - moved, StorageTabKind.Main, touchedSlotIndices);
+
+        return moved;
     }
 
     public int TryDepositAmountToTab(string itemId, int amount, StorageTabKind tab, IList<int> touchedSlotIndices = null)
@@ -954,7 +974,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             ItemDefinition def = GetItemDef(from.itemId);
             StorageTabKind tab = ResolveAutoDepositTab(def);
-            return TryMoveFromInventoryToTab(inv, invSlot, tab, from.amount);
+            return TryMoveFromInventoryToTabWithMainFallback(inv, invSlot, tab, from.amount);
         }
         finally
         {

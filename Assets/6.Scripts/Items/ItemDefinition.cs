@@ -2762,9 +2762,17 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsConsumable)
         {
             CharacterStats stats = ConsumablePassiveModifiers.ResolveLocalPlayerStats();
-            string s = IsFishingBait
-                ? "Consumable: Used for fishing."
-                : $"Consumable: {consumableStats.consumableType}";
+            string s;
+            if (IsFishingBait)
+                s = "Consumable: Used for fishing.";
+            else if (IsProcessingSkillEnhancement)
+            {
+                s = ProcessingSkillTarget == ProcessingSkillTarget.Smelting
+                    ? "Consumable: Used in Smelting"
+                    : "Consumable: Used in cooking";
+            }
+            else
+                s = $"Consumable: {consumableStats.consumableType}";
 
             if (IsFishingBait)
                 s += $"\nFishing Speed: +{FishingBaitSpeedBonusFraction * 100f:0.#}%";
@@ -2855,9 +2863,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (CanCook())
         {
             string s = "Cookable: Yes";
-
-            if (!string.IsNullOrWhiteSpace(CookedResultItemId))
-                s += $"\nCook Result: {CookedResultItemId} x{CookedResultAmount}";
 
             if (RequiredCookingLevel > 0)
                 s += $"\nRequired Cooking: {RequiredCookingLevel}";

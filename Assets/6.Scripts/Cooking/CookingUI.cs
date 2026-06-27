@@ -62,7 +62,7 @@ public class CookingUI : MonoBehaviour
     }
 
     private SidePickerMode _pickerMode;
-    private const int UiLayoutVersion = 5;
+    private const int UiLayoutVersion = 7;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -1515,22 +1515,12 @@ public class CookingUI : MonoBehaviour
         content.GetComponent<Image>().color = Color.clear;
         var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
         contentLayout.padding = new RectOffset(6, 6, 6, 6);
-        contentLayout.spacing = 0f;
+        contentLayout.spacing = 4f;
         contentLayout.childControlHeight = true;
-        contentLayout.childControlWidth = true;
         contentLayout.childForceExpandHeight = false;
-        contentLayout.childForceExpandWidth = true;
         content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        var bodyRow = CreateUiObject("BodyRow", content, typeof(RectTransform), typeof(LayoutElement));
-        bodyRow.GetComponent<LayoutElement>().flexibleWidth = 1f;
-        var bodyText = CreateTmpText("Body", bodyRow.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
-        StretchFull(bodyText.rectTransform);
-        bodyText.textWrappingMode = TextWrappingModes.Normal;
-        bodyText.text = HelpBodyText;
-        var bodyFitter = bodyText.gameObject.AddComponent<ContentSizeFitter>();
-        bodyFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        bodyFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        AddHelpBodyTextRow(content, HelpBodyText);
 
         ScrollRect scroll = scrollHost.GetComponent<ScrollRect>();
         scroll.viewport = viewport.GetComponent<RectTransform>();
@@ -1538,7 +1528,29 @@ public class CookingUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
-        scroll.scrollSensitivity = 20f;
+        scroll.normalizedPosition = new Vector2(0f, 1f);
+    }
+
+    private void AddHelpBodyTextRow(RectTransform content, string text)
+    {
+        var row = CreateUiObject("BodyRow", content, typeof(RectTransform), typeof(LayoutElement));
+        var rowLe = row.GetComponent<LayoutElement>();
+        rowLe.flexibleWidth = 1f;
+
+        var bodyText = CreateTmpText("Body", row.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
+        var bodyRt = bodyText.rectTransform;
+        bodyRt.anchorMin = new Vector2(0f, 1f);
+        bodyRt.anchorMax = new Vector2(1f, 1f);
+        bodyRt.pivot = new Vector2(0.5f, 1f);
+        bodyRt.offsetMin = Vector2.zero;
+        bodyRt.offsetMax = Vector2.zero;
+        bodyText.textWrappingMode = TextWrappingModes.Normal;
+        bodyText.text = text;
+        bodyText.ForceMeshUpdate();
+
+        float wrapWidth = HelpPanelSize.x - 44f;
+        Vector2 preferred = bodyText.GetPreferredValues(text, wrapWidth, float.PositiveInfinity);
+        rowLe.preferredHeight = preferred.y + 4f;
     }
 
     private void BuildShowBurnLogsToggle(RectTransform parent)

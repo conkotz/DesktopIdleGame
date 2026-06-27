@@ -1,25 +1,33 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Populates the NEW skills page Skills column with grouped combat, gathering, and processing rows.
-/// Collapsed bottom bar: one column per section. Expanded: two-column grid per section.
+/// Wires scene-placed <see cref="SkillListEntryUI"/> rows under SkillsProgress.
+/// Preserves editor grid settings for the narrow layout; switches to 4 columns when the bottom bar is wide.
+/// Rebuilds vertical stacking after grid changes so sections do not overlap on reopen.
 /// </summary>
 [DisallowMultipleComponent]
 public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
 {
-    private const string ScrollViewName = "ScrollView";
+    private const string ScrollViewName = "Scroll View";
+    private const string LegacyScrollViewName = "ScrollView";
     private const string ContentName = "Content";
-    private const float HeaderHeight = 28f;
-    private const float RowSpacing = 6f;
-    private const float GridCellSize = 100f;
+
+    [Header("Scroll")]
+    [SerializeField] private RectTransform listContent;
 
     [Header("Section headers")]
     [SerializeField] private RectTransform combatSkillsHeader;
     [SerializeField] private RectTransform gatheringSkillsHeader;
     [SerializeField] private RectTransform processingSkillsHeader;
+
+    [Header("Section content (GridLayoutGroup roots)")]
+    [SerializeField] private RectTransform combatSkillsContent;
+    [SerializeField] private RectTransform gatheringSkillsContent;
+    [SerializeField] private RectTransform processingSkillsContent;
 
     [Header("Combat entries")]
     [SerializeField] private SkillListEntryUI combatMelee;
@@ -42,9 +50,6 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     [SerializeField] private SkillListEntryUI processingRangerCrafting;
     [SerializeField] private SkillListEntryUI processingAlchemy;
 
-    [SerializeField] private Transform listContent;
-    [SerializeField] private SkillListEntryUI entryPrefab;
-
     private SkillDatabase _skillDatabase;
     private SkillsManager _skillsManager;
     private Action<SkillDefinition> _onSkillClicked;
@@ -52,14 +57,29 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     private SkillsAbilityBottomPanelLayoutUI _bottomPanelLayout;
     private bool _processingSubscribed;
     private bool _layoutSubscribed;
-    private bool _gridExpanded;
-
-    private RectTransform _combatEntriesRoot;
-    private RectTransform _gatheringEntriesRoot;
-    private RectTransform _processingEntriesRoot;
+    private bool _authoredCaptured;
 
     private readonly Dictionary<SkillType, SkillListEntryUI> _entryBySkillType = new();
-    private readonly List<SkillListEntryUI> _rows = new();
+    private readonly Dictionary<RectTransform, GridLayoutSnapshot> _authoredGridByRoot = new();
+
+    private ScrollRect _scrollRect;
+    private Coroutine _layoutCo;
+
+    private struct GridLayoutSnapshot
+    {
+        public GridLayoutGroup.Constraint Constraint;
+        public int ConstraintCount;
+        public Vector2 CellSize;
+        public Vector2 Spacing;
+        public RectOffset Padding;
+    }
+
+    private void Awake()
+    {
+        ResolveReferences();
+        CaptureAuthoredGridLayoutsOnce();
+        ConfigureScrollContentRoot();
+    }
 
     public void Configure(
         SkillDatabase database,
@@ -73,21 +93,15 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         _onHoverAcknowledge = onHoverAcknowledge;
     }
 
-    public void SetEntryPrefab(SkillListEntryUI prefab)
-    {
-        if (prefab != null)
-            entryPrefab = prefab;
-    }
-
-    /// <summary>Legacy hook — list always shows all skill groups now.</summary>
     public void SetVisibleCategory(SkillCategory category) => RebuildList();
+
+    public void SetEntryPrefab(SkillListEntryUI prefab) { }
 
     public void RebuildList()
     {
-        EnsureReferences();
-        SubscribeLayoutChanges();
-        SubscribeProcessingChanges();
-        ClearRowTracking();
+        ResolveReferences();
+        WireScrollRect();
+        _entryBySkillType.Clear();
 
         PreferRuntimeSkillsManager();
         if (_skillDatabase == null)
@@ -109,10 +123,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         WireProcessingPlaceholder(processingRangerCrafting);
         WireProcessingPlaceholder(processingAlchemy);
 
-        ApplyGridColumns(_gridExpanded);
-
-        if (listContent is RectTransform rt)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+        ScheduleLayoutRefresh();
     }
 
     public void ShowUnlockGlowForSkill(SkillType skillType)
@@ -173,68 +184,79 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     {
         SubscribeLayoutChanges();
         SubscribeProcessingChanges();
-        if (_rows.Count == 0)
-            RebuildList();
+        RestoreAuthoredGridLayouts();
+        RebuildList();
     }
 
     private void OnDisable()
     {
         UnsubscribeLayoutChanges();
         UnsubscribeProcessingChanges();
+
+        if (_layoutCo != null)
+        {
+            StopCoroutine(_layoutCo);
+            _layoutCo = null;
+        }
+
+        RestoreAuthoredGridLayouts();
+        RefreshVerticalLayoutImmediate();
     }
 
     private void WireCombatEntry(SkillListEntryUI entry, SkillType skillType)
     {
-        SkillDefinition def = FindSkill(skillType);
-        entry = EnsureEntry(entry, _combatEntriesRoot);
-        if (entry == null || def == null)
-        {
-            if (entry != null)
-                entry.gameObject.SetActive(false);
+        if (entry == null)
             return;
-        }
 
-        entry.gameObject.SetActive(true);
+        SkillDefinition def = FindSkill(skillType);
         int level = _skillsManager != null ? _skillsManager.GetLevel(skillType) : 1;
         float progress01 = _skillsManager != null ? _skillsManager.GetProgress01(skillType) : 0f;
         int xp = _skillsManager != null ? _skillsManager.GetXpIntoLevel(skillType) : 0;
-        entry.SetupWithXp(def, level, progress01, xp, false, HandleEntryClicked, _onHoverAcknowledge);
-        TrackRow(entry, skillType);
+
+        if (def != null)
+        {
+            entry.SetupWithXp(def, level, progress01, xp, false, HandleEntryClicked, _onHoverAcknowledge);
+            _entryBySkillType[skillType] = entry;
+        }
+        else
+        {
+            entry.RefreshDisplay(level, progress01, xp, selected: false, interactable: false);
+        }
     }
 
     private void WireGatheringEntry(SkillListEntryUI entry, SkillType skillType)
     {
-        SkillDefinition def = FindSkill(skillType);
-        entry = EnsureEntry(entry, _gatheringEntriesRoot);
-        if (entry == null || def == null)
-        {
-            if (entry != null)
-                entry.gameObject.SetActive(false);
+        if (entry == null)
             return;
-        }
 
-        entry.gameObject.SetActive(true);
+        SkillDefinition def = FindSkill(skillType);
         int level = _skillsManager != null ? _skillsManager.GetLevel(skillType) : 1;
         float progress01 = _skillsManager != null ? _skillsManager.GetProgress01(skillType) : 0f;
         int xp = _skillsManager != null ? _skillsManager.GetXpIntoLevel(skillType) : 0;
-        entry.SetupWithXp(def, level, progress01, xp, false, HandleEntryClicked, _onHoverAcknowledge);
-        TrackRow(entry, skillType);
+
+        if (def != null)
+        {
+            entry.SetupWithXp(def, level, progress01, xp, false, HandleEntryClicked, _onHoverAcknowledge);
+            _entryBySkillType[skillType] = entry;
+        }
+        else
+        {
+            entry.RefreshDisplay(level, progress01, xp, selected: false, interactable: false);
+        }
     }
 
-    private void WireProcessingEntry(SkillListEntryUI entry, ProcessingSkillType processingType)
+    private static void WireProcessingEntry(SkillListEntryUI entry, ProcessingSkillType processingType)
     {
-        entry = EnsureEntry(entry, _processingEntriesRoot);
         if (entry == null)
             return;
 
         ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
-        int level = runtime.GetLevel(processingType);
-        float progress01 = runtime.GetProgress01(processingType);
-        int xp = runtime.GetXp(processingType);
-        Sprite icon = entry.transform.Find("Icon")?.GetComponent<Image>()?.sprite;
-
-        entry.gameObject.SetActive(true);
-        entry.SetupDisplay(icon, level, progress01, xp, selected: false, interactable: false);
+        entry.RefreshDisplay(
+            runtime.GetLevel(processingType),
+            runtime.GetProgress01(processingType),
+            runtime.GetXp(processingType),
+            selected: false,
+            interactable: false);
     }
 
     private static void WireProcessingPlaceholder(SkillListEntryUI entry)
@@ -242,9 +264,8 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         if (entry == null)
             return;
 
-        entry.gameObject.SetActive(true);
-        Sprite icon = entry.transform.Find("Icon")?.GetComponent<Image>()?.sprite;
-        entry.SetupDisplay(icon, level: 1, progress01: 0f, currentXp: 0, selected: false, interactable: false);
+        entry.RefreshDisplay(1, 0f, 0, selected: false, interactable: false);
+        entry.SetNotCompleteVisible(true);
     }
 
     private void RefreshProcessingEntries()
@@ -272,55 +293,19 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         return null;
     }
 
-    private SkillListEntryUI EnsureEntry(SkillListEntryUI assigned, RectTransform parent)
-    {
-        if (parent == null)
-            return assigned;
-
-        if (assigned != null)
-        {
-            assigned.transform.SetParent(parent, false);
-            return assigned;
-        }
-
-        if (entryPrefab == null)
-            return null;
-
-        SkillListEntryUI created = Instantiate(entryPrefab, parent);
-        created.gameObject.SetActive(true);
-        return created;
-    }
-
-    private void TrackRow(SkillListEntryUI entry, SkillType skillType)
-    {
-        if (entry == null)
-            return;
-
-        _entryBySkillType[skillType] = entry;
-        if (!_rows.Contains(entry))
-            _rows.Add(entry);
-    }
-
-    private void ClearRowTracking()
-    {
-        _rows.Clear();
-        _entryBySkillType.Clear();
-    }
-
     private void HandleEntryClicked(SkillDefinition skill) => _onSkillClicked?.Invoke(skill);
 
     private void SubscribeLayoutChanges()
     {
-        if (_layoutSubscribed)
-            return;
-
         _bottomPanelLayout = GetComponentInParent<SkillsAbilityBottomPanelLayoutUI>(true);
         if (_bottomPanelLayout == null)
             return;
 
-        _bottomPanelLayout.ExpandedChanged += OnBottomPanelExpandedChanged;
-        _gridExpanded = _bottomPanelLayout.IsExpanded;
-        _layoutSubscribed = true;
+        if (!_layoutSubscribed)
+        {
+            _bottomPanelLayout.ExpandedChanged += OnBottomPanelExpandedChanged;
+            _layoutSubscribed = true;
+        }
     }
 
     private void UnsubscribeLayoutChanges()
@@ -332,19 +317,14 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         _layoutSubscribed = false;
     }
 
-    private void OnBottomPanelExpandedChanged(bool expanded)
-    {
-        _gridExpanded = expanded;
-        ApplyGridColumns(expanded);
-    }
+    private void OnBottomPanelExpandedChanged(bool detailsExpanded) => ScheduleLayoutRefresh();
 
     private void SubscribeProcessingChanges()
     {
         if (_processingSubscribed)
             return;
 
-        ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
-        runtime.Changed += OnProcessingProficiencyChanged;
+        ProcessingProficiencyRuntime.EnsureInstance().Changed += OnProcessingProficiencyChanged;
         _processingSubscribed = true;
     }
 
@@ -361,199 +341,331 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
 
     private void OnProcessingProficiencyChanged() => RefreshProcessingEntries();
 
-    private void ApplyGridColumns(bool expanded)
+    private bool IsWideSkillsLayout()
     {
-        int columns = expanded ? 2 : 1;
-        ApplyGridColumns(_combatEntriesRoot, columns);
-        ApplyGridColumns(_gatheringEntriesRoot, columns);
-        ApplyGridColumns(_processingEntriesRoot, columns);
+        if (_bottomPanelLayout != null)
+            return !_bottomPanelLayout.IsExpanded;
+
+        return ((RectTransform)transform).rect.width >= 240f;
     }
 
-    private static void ApplyGridColumns(RectTransform entriesRoot, int columns)
+    private void CaptureAuthoredGridLayoutsOnce()
     {
-        if (entriesRoot == null)
+        if (_authoredCaptured)
             return;
 
-        GridLayoutGroup grid = entriesRoot.GetComponent<GridLayoutGroup>();
+        CaptureAuthoredGrid(combatSkillsContent);
+        CaptureAuthoredGrid(gatheringSkillsContent);
+        CaptureAuthoredGrid(processingSkillsContent);
+        _authoredCaptured = true;
+    }
+
+    private void CaptureAuthoredGrid(RectTransform root)
+    {
+        if (root == null || _authoredGridByRoot.ContainsKey(root))
+            return;
+
+        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
         if (grid == null)
             return;
 
-        columns = Mathf.Clamp(columns, 1, 2);
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = columns;
-
-        float width = entriesRoot.rect.width;
-        if (width < 32f)
-            width = GridCellSize * columns + grid.spacing.x;
-
-        float spacing = grid.spacing.x;
-        float pad = grid.padding.left + grid.padding.right;
-        float cellWidth = (width - pad - spacing * (columns - 1)) / columns;
-        cellWidth = Mathf.Max(72f, cellWidth);
-        grid.cellSize = new Vector2(cellWidth, GridCellSize);
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(entriesRoot);
+        _authoredGridByRoot[root] = new GridLayoutSnapshot
+        {
+            Constraint = grid.constraint,
+            ConstraintCount = grid.constraintCount,
+            CellSize = grid.cellSize,
+            Spacing = grid.spacing,
+            Padding = grid.padding
+        };
     }
 
-    private void EnsureReferences()
+    private void RestoreAuthoredGridLayouts()
     {
-        ResolveHeader(ref combatSkillsHeader, "CombatSkillsHeader");
-        ResolveHeader(ref gatheringSkillsHeader, "GatheringSkillsHeader");
-        ResolveHeader(ref processingSkillsHeader, "ProcessingSkillsHeader");
+        RestoreAuthoredGrid(combatSkillsContent);
+        RestoreAuthoredGrid(gatheringSkillsContent);
+        RestoreAuthoredGrid(processingSkillsContent);
+    }
 
-        EnsureScrollStructure();
-        EnsureSectionStructure(
-            combatSkillsHeader,
-            "CombatSkillsEntries",
-            ref _combatEntriesRoot);
-        EnsureSectionStructure(
-            gatheringSkillsHeader,
-            "GatheringSkillsEntries",
-            ref _gatheringEntriesRoot);
-        EnsureSectionStructure(
-            processingSkillsHeader,
-            "ProcessingSkillsEntries",
-            ref _processingEntriesRoot);
+    private void RestoreAuthoredGrid(RectTransform root)
+    {
+        if (root == null)
+            return;
 
-        if (entryPrefab == null)
+        GridLayoutGroup grid = root.GetComponent<GridLayoutGroup>();
+        if (grid == null)
+            return;
+
+        if (!_authoredGridByRoot.TryGetValue(root, out GridLayoutSnapshot authored))
+            return;
+
+        grid.constraint = authored.Constraint;
+        grid.constraintCount = authored.ConstraintCount;
+        grid.cellSize = authored.CellSize;
+        grid.spacing = authored.Spacing;
+        grid.padding = authored.Padding;
+    }
+
+    private void ScheduleLayoutRefresh()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (_layoutCo != null)
+            StopCoroutine(_layoutCo);
+
+        _layoutCo = StartCoroutine(CoApplyLayoutAfterFrame());
+    }
+
+    private IEnumerator CoApplyLayoutAfterFrame()
+    {
+        yield return null;
+        ApplyGridColumnLayout();
+        RefreshVerticalLayoutImmediate();
+
+        if (IsWideSkillsLayout())
         {
-            SkillsAbilityPageNewUI page =
-                GetComponentInParent<SkillsAbilityPageNewUI>(true)
-                ?? FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include);
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            RefreshVerticalLayoutImmediate();
+        }
 
-            if (page != null && page.SkillEntryPrefab != null)
-                entryPrefab = page.SkillEntryPrefab;
+        _layoutCo = null;
+    }
+
+    private void ApplyGridColumnLayout()
+    {
+        RestoreAuthoredGridLayouts();
+
+        if (!IsWideSkillsLayout())
+            return;
+
+        ApplyWideGridLayout(combatSkillsContent);
+        ApplyWideGridLayout(gatheringSkillsContent);
+        ApplyWideGridLayout(processingSkillsContent);
+    }
+
+    private void ApplyWideGridLayout(RectTransform contentRoot)
+    {
+        if (contentRoot == null)
+            return;
+
+        GridLayoutGroup grid = contentRoot.GetComponent<GridLayoutGroup>();
+        if (grid == null)
+            return;
+
+        const int wideColumns = 4;
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = wideColumns;
+
+        if (_authoredGridByRoot.TryGetValue(contentRoot, out GridLayoutSnapshot authored))
+        {
+            grid.cellSize = authored.CellSize;
+            grid.spacing = authored.Spacing;
+            grid.padding = authored.Padding;
         }
     }
 
-    private void ResolveHeader(ref RectTransform header, string objectName)
+    private void ConfigureScrollContentRoot()
     {
-        if (header == null)
-            header = transform.Find(objectName) as RectTransform;
+        if (listContent == null)
+            return;
+
+        listContent.anchorMin = new Vector2(0f, 1f);
+        listContent.anchorMax = new Vector2(1f, 1f);
+        listContent.pivot = new Vector2(0.5f, 1f);
+        listContent.anchoredPosition = Vector2.zero;
+
+        VerticalLayoutGroup vlg = listContent.GetComponent<VerticalLayoutGroup>();
+        if (vlg != null)
+        {
+            vlg.childAlignment = TextAnchor.UpperLeft;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+        }
+
+        ContentSizeFitter fitter = listContent.GetComponent<ContentSizeFitter>();
+        if (fitter == null)
+            fitter = listContent.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
-    private void EnsureScrollStructure()
+    private void RefreshVerticalLayoutImmediate()
+    {
+        bool wide = IsWideSkillsLayout();
+
+        PrepareSectionForLayoutGroup(combatSkillsHeader);
+        PrepareSectionForLayoutGroup(gatheringSkillsHeader);
+        PrepareSectionForLayoutGroup(processingSkillsHeader);
+        PrepareGridSectionForLayoutGroup(combatSkillsContent, wide);
+        PrepareGridSectionForLayoutGroup(gatheringSkillsContent, wide);
+        PrepareGridSectionForLayoutGroup(processingSkillsContent, wide);
+
+        if (combatSkillsContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(combatSkillsContent);
+        if (gatheringSkillsContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(gatheringSkillsContent);
+        if (processingSkillsContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(processingSkillsContent);
+
+        if (listContent != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(listContent);
+            Canvas.ForceUpdateCanvases();
+        }
+
+        if (_scrollRect != null)
+            _scrollRect.normalizedPosition = new Vector2(0f, 1f);
+    }
+
+    private static void PrepareSectionForLayoutGroup(RectTransform section)
+    {
+        if (section == null)
+            return;
+
+        section.anchorMin = new Vector2(0f, 1f);
+        section.anchorMax = new Vector2(1f, 1f);
+        section.pivot = new Vector2(0.5f, 1f);
+        section.anchoredPosition = Vector2.zero;
+
+        LayoutElement le = section.GetComponent<LayoutElement>();
+        if (le == null)
+            le = section.gameObject.AddComponent<LayoutElement>();
+        le.flexibleWidth = 1f;
+
+        float preferredHeight = LayoutUtility.GetPreferredHeight(section);
+        if (preferredHeight > 1f)
+            le.preferredHeight = preferredHeight;
+    }
+
+    private static void PrepareGridSectionForLayoutGroup(RectTransform section, bool wide)
+    {
+        if (section == null)
+            return;
+
+        LayoutElement le = section.GetComponent<LayoutElement>();
+        if (le == null)
+            le = section.gameObject.AddComponent<LayoutElement>();
+
+        GridLayoutGroup grid = section.GetComponent<GridLayoutGroup>();
+
+        if (wide && grid != null)
+        {
+            section.anchorMin = new Vector2(0f, 1f);
+            section.anchorMax = new Vector2(0f, 1f);
+            section.pivot = new Vector2(0f, 1f);
+            section.anchoredPosition = Vector2.zero;
+
+            int columns = grid.constraintCount > 0 ? grid.constraintCount : 4;
+            int activeChildren = CountActiveLayoutChildren(section);
+            int rows = Mathf.Max(1, Mathf.CeilToInt(activeChildren / (float)columns));
+
+            float padH = grid.padding.left + grid.padding.right;
+            float padV = grid.padding.top + grid.padding.bottom;
+            Vector2 cell = grid.cellSize;
+            Vector2 spacing = grid.spacing;
+
+            le.flexibleWidth = 0f;
+            le.minWidth = -1f;
+            le.preferredWidth = padH + columns * cell.x + (columns - 1) * spacing.x;
+            le.preferredHeight = padV + rows * cell.y + (rows - 1) * spacing.y;
+            return;
+        }
+
+        section.anchorMin = new Vector2(0f, 1f);
+        section.anchorMax = new Vector2(1f, 1f);
+        section.pivot = new Vector2(0.5f, 1f);
+        section.anchoredPosition = Vector2.zero;
+
+        le.flexibleWidth = 1f;
+        le.minWidth = -1f;
+        le.preferredWidth = -1f;
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(section);
+        le.preferredHeight = LayoutUtility.GetPreferredHeight(section);
+    }
+
+    private static int CountActiveLayoutChildren(RectTransform section)
+    {
+        int count = 0;
+        for (int i = 0; i < section.childCount; i++)
+        {
+            Transform child = section.GetChild(i);
+            if (child.gameObject.activeInHierarchy)
+                count++;
+        }
+
+        return count;
+    }
+
+    private void WireScrollRect()
+    {
+        Transform scrollTransform = transform.Find(ScrollViewName);
+        if (scrollTransform == null)
+            scrollTransform = transform.Find(LegacyScrollViewName);
+        if (scrollTransform == null)
+            return;
+
+        _scrollRect = scrollTransform.GetComponent<ScrollRect>();
+        if (_scrollRect == null)
+            return;
+
+        if (listContent == null)
+            listContent = scrollTransform.Find($"Viewport/{ContentName}") as RectTransform;
+
+        RectTransform viewport = scrollTransform.Find("Viewport") as RectTransform;
+        if (listContent != null)
+            _scrollRect.content = listContent;
+        if (viewport != null)
+            _scrollRect.viewport = viewport;
+
+        _scrollRect.horizontal = false;
+        _scrollRect.vertical = true;
+        _scrollRect.movementType = ScrollRect.MovementType.Clamped;
+    }
+
+    private void ResolveReferences()
+    {
+        if (listContent == null)
+            listContent = FindScrollContent();
+
+        ResolveContentRoot(ref combatSkillsContent, "CombatSkillsContent");
+        ResolveContentRoot(ref gatheringSkillsContent, "GatheringSkillsContent");
+        ResolveContentRoot(ref processingSkillsContent, "ProcessingSkillsContent");
+
+        if (combatSkillsHeader == null)
+            combatSkillsHeader = listContent != null ? listContent.Find("CombatSkillsHeader") as RectTransform : null;
+        if (gatheringSkillsHeader == null)
+            gatheringSkillsHeader = listContent != null ? listContent.Find("GatheringSkillsHeader") as RectTransform : null;
+        if (processingSkillsHeader == null)
+            processingSkillsHeader = listContent != null ? listContent.Find("ProcessingSkillsHeader") as RectTransform : null;
+    }
+
+    private RectTransform FindScrollContent()
     {
         Transform scroll = transform.Find(ScrollViewName);
         if (scroll == null)
-            scroll = BuildScrollView();
+            scroll = transform.Find(LegacyScrollViewName);
 
-        Transform content = scroll.Find($"Viewport/{ContentName}");
-        if (content == null)
-            return;
+        if (scroll == null)
+            return null;
 
-        listContent = content;
-
-        MoveHeaderIntoContent(combatSkillsHeader, content);
-        MoveHeaderIntoContent(gatheringSkillsHeader, content);
-        MoveHeaderIntoContent(processingSkillsHeader, content);
-
-        var contentLayout = content.GetComponent<VerticalLayoutGroup>();
-        if (contentLayout == null)
-        {
-            contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-            contentLayout.padding = new RectOffset(4, 4, 4, 4);
-            contentLayout.spacing = RowSpacing;
-            contentLayout.childControlWidth = true;
-            contentLayout.childControlHeight = true;
-            contentLayout.childForceExpandWidth = true;
-            contentLayout.childForceExpandHeight = false;
-        }
-
-        if (content.GetComponent<ContentSizeFitter>() == null)
-        {
-            var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
-            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        }
+        return scroll.Find($"Viewport/{ContentName}") as RectTransform;
     }
 
-    private static void MoveHeaderIntoContent(RectTransform header, Transform content)
+    private void ResolveContentRoot(ref RectTransform root, string objectName)
     {
-        if (header == null || content == null || header.parent == content)
+        if (root != null)
             return;
 
-        header.SetParent(content, false);
-    }
+        if (listContent != null)
+            root = listContent.Find(objectName) as RectTransform;
 
-    private void EnsureSectionStructure(RectTransform header, string entriesName, ref RectTransform entriesRoot)
-    {
-        if (header == null)
-            return;
-
-        Transform content = listContent != null ? listContent : transform;
-        entriesRoot = content.Find(entriesName) as RectTransform;
-        if (entriesRoot == null)
-        {
-            var entriesGo = new GameObject(entriesName, typeof(RectTransform), typeof(GridLayoutGroup), typeof(LayoutElement));
-            entriesRoot = entriesGo.GetComponent<RectTransform>();
-            entriesRoot.SetParent(content, false);
-            entriesRoot.SetSiblingIndex(header.GetSiblingIndex() + 1);
-        }
-
-        var grid = entriesRoot.GetComponent<GridLayoutGroup>();
-        grid.spacing = new Vector2(RowSpacing, RowSpacing);
-        grid.padding = new RectOffset(0, 0, 0, 0);
-        grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
-        grid.startAxis = GridLayoutGroup.Axis.Horizontal;
-        grid.childAlignment = TextAnchor.UpperLeft;
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 1;
-        grid.cellSize = new Vector2(GridCellSize, GridCellSize);
-
-        var layoutElement = entriesRoot.GetComponent<LayoutElement>();
-        layoutElement.minHeight = GridCellSize;
-        layoutElement.flexibleWidth = 1f;
-
-        if (header.GetComponent<LayoutElement>() == null)
-        {
-            var headerLe = header.gameObject.AddComponent<LayoutElement>();
-            headerLe.preferredHeight = HeaderHeight;
-            headerLe.flexibleWidth = 1f;
-        }
-    }
-
-    private Transform BuildScrollView()
-    {
-        Transform selectionBar = transform.Find("CurrentSelectionBar");
-
-        var scrollGo = new GameObject(ScrollViewName, typeof(RectTransform), typeof(ScrollRect));
-        var scrollRt = scrollGo.GetComponent<RectTransform>();
-        scrollRt.SetParent(transform, false);
-        scrollRt.anchorMin = Vector2.zero;
-        scrollRt.anchorMax = Vector2.one;
-        scrollRt.offsetMin = Vector2.zero;
-        scrollRt.offsetMax = Vector2.zero;
-        if (selectionBar is RectTransform headerRt)
-            scrollRt.offsetMax = new Vector2(0f, -(headerRt.rect.height > 1f ? headerRt.rect.height : HeaderHeight));
-
-        var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
-        var viewportRt = viewportGo.GetComponent<RectTransform>();
-        viewportRt.SetParent(scrollRt, false);
-        viewportRt.anchorMin = Vector2.zero;
-        viewportRt.anchorMax = Vector2.one;
-        viewportRt.offsetMin = Vector2.zero;
-        viewportRt.offsetMax = Vector2.zero;
-        viewportGo.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.01f);
-
-        var contentGo = new GameObject(ContentName, typeof(RectTransform));
-        var contentRt = contentGo.GetComponent<RectTransform>();
-        contentRt.SetParent(viewportRt, false);
-        contentRt.anchorMin = new Vector2(0f, 1f);
-        contentRt.anchorMax = new Vector2(1f, 1f);
-        contentRt.pivot = new Vector2(0.5f, 1f);
-        contentRt.anchoredPosition = Vector2.zero;
-        contentRt.sizeDelta = new Vector2(0f, 0f);
-
-        ScrollRect scrollRect = scrollGo.GetComponent<ScrollRect>();
-        scrollRect.viewport = viewportRt;
-        scrollRect.content = contentRt;
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-
-        scrollGo.transform.SetAsLastSibling();
-        return scrollRt;
+        if (root == null)
+            root = transform.Find(objectName) as RectTransform;
     }
 
     private void PreferRuntimeSkillsManager()

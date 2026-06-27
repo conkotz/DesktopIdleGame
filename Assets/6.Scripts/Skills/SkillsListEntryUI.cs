@@ -12,7 +12,10 @@ using UnityEngine.UI;
 public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 {
     [Header("Row")]
-    [Tooltip("Skill icon.")]
+    [Tooltip("Drag a sprite asset here (SkillsPageIcons, etc.). Applied to Icon Image at runtime.")]
+    [SerializeField] private Sprite skillIconSprite;
+
+    [Tooltip("Icon Image target that displays skillIconSprite.")]
     [SerializeField] private Image icon;
 
     [Tooltip("Display name line.")]
@@ -24,6 +27,9 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     [Tooltip("Current XP line (e.g. 450 XP).")]
     [SerializeField] private TMP_Text xpText;
 
+    [Tooltip("Shown on processing skills that are not implemented yet.")]
+    [SerializeField] private GameObject notCompleteText;
+
     [Header("XP Bar")]
     [Tooltip("XP bar fill image (uses Image.fillAmount).")]
     [SerializeField] private Image xpBarFill;
@@ -34,6 +40,9 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     [Header("Display")]
     [Tooltip("Square skill icons include the name; hide the separate name line.")]
     [SerializeField] private bool hideNameText = true;
+
+    [Tooltip("Keep the sprite assigned on the Icon image in the inspector instead of overwriting from SkillDefinition.")]
+    [SerializeField] private bool preferInspectorAssignedIcon = true;
 
     [Header("Selection")]
     [FormerlySerializedAs("background")]
@@ -67,6 +76,14 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         if (!xpText)
             xpText = transform.Find("XpBar/ExpText")?.GetComponent<TMP_Text>();
 
+        if (!icon)
+            icon = transform.Find("Icon")?.GetComponent<Image>();
+
+        if (!notCompleteText)
+            notCompleteText = transform.Find("NotCompleteText")?.gameObject;
+
+        ApplyIconResolve(null);
+
         // Keep Button clicks/hover/press, but stop EventSystem "selected" focus from tinting only one row
         // (Selected Color on a list of Buttons). Selection visuals use selectionBackground + SetSelected instead.
         if (button)
@@ -79,6 +96,14 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
                 button.colors = cb;
             }
         }
+    }
+
+    private void OnValidate()
+    {
+        if (!icon)
+            icon = transform.Find("Icon")?.GetComponent<Image>();
+
+        ApplyIconResolve(null);
     }
 
     private void OnEnable()
@@ -173,10 +198,7 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         if (!_definition)
             return;
 
-        if (icon)
-        {
-            ApplyIcon(_definition.icon);
-        }
+        ApplyIconResolve(_definition != null ? _definition.icon : null);
 
         if (nameText)
         {
@@ -197,6 +219,7 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         SetLevel(level);
         SetProgress(progress01);
         SetSelected(selected);
+        SetNotCompleteVisible(false);
 
         if (button)
         {
@@ -206,34 +229,36 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         }
     }
 
-    /// <summary>Display-only row (processing placeholders) or rows without a skill tree binding.</summary>
-    public void SetupDisplay(
-        Sprite iconSprite,
+    /// <summary>Updates level/xp/progress without changing hierarchy icons or reparenting.</summary>
+    public void RefreshDisplay(
         int level,
         float progress01,
         int currentXp,
         bool selected,
         bool interactable)
     {
-        _definition = null;
-        _onClicked = null;
-        _onHoverAcknowledge = null;
+        ApplyIconResolve(null);
 
-        ApplyIcon(iconSprite);
-
-        if (nameText)
+        if (nameText && hideNameText)
             nameText.gameObject.SetActive(false);
 
         SetLevel(level);
         SetProgress(progress01);
         SetXp(currentXp);
         SetSelected(selected);
+        SetNotCompleteVisible(false);
 
         if (button)
-        {
-            button.onClick.RemoveAllListeners();
             button.interactable = interactable;
-        }
+    }
+
+    public void SetNotCompleteVisible(bool visible)
+    {
+        if (!notCompleteText)
+            notCompleteText = transform.Find("NotCompleteText")?.gameObject;
+
+        if (notCompleteText)
+            notCompleteText.SetActive(visible);
     }
 
     public void SetupWithXp(
@@ -247,6 +272,20 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     {
         Setup(definition, level, progress01, selected, onClicked, onHoverAcknowledge);
         SetXp(currentXp);
+    }
+
+    private void ApplyIconResolve(Sprite fallbackSprite)
+    {
+        if (!icon)
+            return;
+
+        Sprite sprite = skillIconSprite;
+        if (sprite == null && preferInspectorAssignedIcon && icon.sprite != null)
+            sprite = icon.sprite;
+        if (sprite == null)
+            sprite = fallbackSprite;
+
+        ApplyIcon(sprite);
     }
 
     private void ApplyIcon(Sprite iconSprite)
