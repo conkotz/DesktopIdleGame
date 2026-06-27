@@ -1195,17 +1195,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // -------------------------
     private void RequestImmediateSave()
     {
-        if (_suppressSaveForSetSwap)
-            return;
-        if (SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+        RequestDeferredSave();
     }
 
     private void RequestDeferredSave()
     {
         if (_suppressSaveForSetSwap)
             return;
-        SaveManager.Instance?.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+        SaveManager.Instance?.NotifyInventoryChangedDebounced();
     }
 
 

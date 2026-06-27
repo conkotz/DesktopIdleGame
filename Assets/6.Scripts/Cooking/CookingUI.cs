@@ -236,7 +236,7 @@ public class CookingUI : MonoBehaviour
         HideEnhancementSlotTooltip();
         UnsubscribeProficiency();
         if (_station != null && SaveManager.Instance != null)
-            SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
 
         HideImmediate();
         _clickSource?.NotifyClosed();

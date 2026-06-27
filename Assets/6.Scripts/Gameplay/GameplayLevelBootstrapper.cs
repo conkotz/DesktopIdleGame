@@ -119,7 +119,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         yield return null;
         yield return null;
         if (SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+            SaveManager.Instance.SaveImmediate();
     }
 
 }

@@ -660,7 +660,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         CaptureSlotsToSavedState();
         if (!ShouldDeferLoadoutSwapSideEffects() && SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
         if (!ShouldDeferLoadoutSwapSideEffects())
             NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();
@@ -1471,7 +1471,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         CaptureSlotsToSavedState();
 
         if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
-            SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
 
         NotifyPlayerStatsCombatPowerRelevantChange();
         RefreshSecondaryRowExpandedFromAssignments();

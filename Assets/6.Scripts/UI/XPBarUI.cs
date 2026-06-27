@@ -32,17 +32,26 @@ public class XPBarUI : MonoBehaviour
     [SerializeField] private Color rangedColor = new Color(0.2f, 0.6f, 0.2f);
     [SerializeField] private Color magicColor = new Color(0.4f, 0.4f, 1f);
     [SerializeField] private Color enduranceColor = new Color(0.9f, 0.6f, 0.2f);
-    private SkillType _currentSkill;
+    private SkillType _displaySkill;
     private bool _labelHiddenForStrip;
+
+    private static bool IsBottomBarSkill(SkillType skill) => skill != SkillType.Endurance;
 
     private void Awake()
     {
         if (!fill) fill = transform.Find("Fill")?.GetComponent<Image>();
         if (!label) label = transform.Find("SourceText")?.GetComponent<TMP_Text>();
 
-        _currentSkill = fixedSkill;
+        _displaySkill = fixedSkill;
         if (!stripController)
             stripController = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+    }
+
+    private SkillType ResolveDisplaySkill(SkillType candidate)
+    {
+        if (IsBottomBarSkill(candidate))
+            return candidate;
+        return IsBottomBarSkill(_displaySkill) ? _displaySkill : SkillType.Melee;
     }
 
     private void LateUpdate()
@@ -61,7 +70,7 @@ public class XPBarUI : MonoBehaviour
             sm.OnActiveXpDisplayChanged += HandleActiveDisplayChanged;
 
             if (followActiveDisplay)
-                _currentSkill = sm.ActiveSkill;
+                _displaySkill = ResolveDisplaySkill(sm.ActiveSkill);
         }
 
         RefreshAll();
@@ -83,8 +92,10 @@ public class XPBarUI : MonoBehaviour
     // ✅ Called when you click a resource node (SetActiveXpDisplay in PlayerController)
     private void HandleActiveDisplayChanged(SkillType skill, string source)
     {
-        if (!followActiveDisplay) return;
-        _currentSkill = skill;
+        if (!followActiveDisplay || !IsBottomBarSkill(skill))
+            return;
+
+        _displaySkill = skill;
 
         RefreshAll();
         ApplyStripLabelVisibility();
@@ -108,15 +119,14 @@ public class XPBarUI : MonoBehaviour
 
     private void HandleXpGained(SkillType skill, int amount, string source)
     {
-        // If we follow active display, SkillsManager already set ActiveSkill/Source in AddXp()
         if (!followActiveDisplay)
         {
-            // If not following active display, only update if this skill is the fixed one
-            if (_currentSkill != fixedSkill) _currentSkill = fixedSkill;
+            if (_displaySkill != fixedSkill)
+                _displaySkill = fixedSkill;
         }
-        else
+        else if (IsBottomBarSkill(skill))
         {
-            _currentSkill = skill;
+            _displaySkill = skill;
         }
 
         RefreshAll();
@@ -126,11 +136,12 @@ public class XPBarUI : MonoBehaviour
     {
         if (!followActiveDisplay)
         {
-            if (_currentSkill != fixedSkill) _currentSkill = fixedSkill;
+            if (_displaySkill != fixedSkill)
+                _displaySkill = fixedSkill;
         }
-        else
+        else if (IsBottomBarSkill(skill))
         {
-            _currentSkill = skill; // keep showing whichever just leveled / last active
+            _displaySkill = skill;
         }
 
         RefreshAll();
@@ -142,7 +153,7 @@ public class XPBarUI : MonoBehaviour
         if (sm == null || fill == null) return;
 
         // Choose skill
-        SkillType skill = followActiveDisplay ? _currentSkill : fixedSkill;
+        SkillType skill = followActiveDisplay ? ResolveDisplaySkill(_displaySkill) : fixedSkill;
 
         int lvl = sm.GetLevel(skill);
         int cur = sm.GetXpIntoLevel(skill);
@@ -161,12 +172,7 @@ public class XPBarUI : MonoBehaviour
         }
     }
 
-    private static string SkillLabel(SkillType s)
-    {
-        if (s == SkillType.Endurance)
-            return "Endurance";
-        return s.ToString();
-    }
+    private static string SkillLabel(SkillType s) => s.ToString();
 
     private static string BuildActiveSourceTail(string sourceLabel, int xpPerGain)
     {

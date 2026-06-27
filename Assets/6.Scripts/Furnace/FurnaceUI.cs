@@ -225,7 +225,7 @@ public class FurnaceUI : MonoBehaviour
         HideEnhancementSlotTooltip();
         UnsubscribeProficiency();
         if (_smelter != null && SaveManager.Instance != null)
-            SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
+            SaveManager.Instance.NotifyInventoryChangedDebounced();
 
         HideImmediate();
         _clickSource?.NotifyClosed();

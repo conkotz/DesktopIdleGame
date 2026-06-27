@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Kirurobo;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -36,10 +37,16 @@ public class SaveManager : MonoBehaviour
 
     [SerializeField] private bool autosave = true;
     [SerializeField] private float autosaveIntervalSeconds = 30f;
+    [Tooltip("Wait after inventory changes before writing a save. Higher = fewer hitches while looting.")]
+    [SerializeField] private float inventorySaveDebounceSeconds = 5f;
+    [Tooltip("Wait after storage changes before writing a save.")]
+    [SerializeField] private float storageSaveDebounceSeconds = 5f;
+    [Tooltip("Skip timed autosave if any save completed within this many seconds.")]
+    [SerializeField] private float autosaveMinGapAfterSaveSeconds = 20f;
 
     [Header("Debug")]
     [Tooltip("Turn on to silence save request / disk-write logs in the Console.")]
-    [SerializeField] private bool disableSaveEventLogs;
+    [SerializeField] private bool disableSaveEventLogs = true;
     [Tooltip("Logs non-critical save flow messages (staged load, ApplyToPlayer summary, slot metadata, force-apply). Warnings for real problems stay on.")]
     [SerializeField] private bool verboseInfoLogs;
 
@@ -78,11 +85,53 @@ public class SaveManager : MonoBehaviour
     private Inventory _inventory;
     private PlayerStorage _playerStorage;
 
-    private const float InventorySaveDebounceSeconds = 1f;
-    private const float StorageSaveDebounceSeconds = 1f;
     private float _inventorySaveDueUnscaled = -1f;
     private float _storageSaveDueUnscaled = -1f;
+    private float _lastSuccessfulSaveUnscaled = -1f;
+    private bool _saveDirty;
     private int _saveRequestFrame = -1;
+
+    private ISaveable[] _cachedSaveables;
+    private int _cachedSaveablesSceneHandle = -1;
+
+    private sealed class PendingDiskWrite
+    {
+        public SaveRequestKind Kind;
+        public string SavePath;
+        public string BackupPath;
+        public SaveData Data;
+        public SaveGameHeader Header;
+        public string HeaderPath;
+        public long CaptureMs;
+        public int Slot;
+        public string SceneName;
+        public int CaptureFrame;
+    }
+
+    private sealed class PendingAsyncSaveLog
+    {
+        public SaveRequestKind Kind;
+        public string Result;
+        public long ElapsedMs;
+        public string Detail;
+        public int Frame;
+        public bool IsError;
+        public string ErrorMessage;
+    }
+
+    private readonly object _diskWriteLock = new();
+    private PendingDiskWrite _pendingDiskWrite;
+    private volatile bool _diskWriteWorkerRunning;
+    private readonly ManualResetEventSlim _diskWriteIdle = new(true);
+    private readonly object _asyncLogLock = new();
+    private PendingAsyncSaveLog _pendingAsyncSaveLog;
+
+    private bool _buildingSnapshot;
+    private SaveRequestKind _coalescedSnapshotKind = SaveRequestKind.Unknown;
+
+    private const float SnapshotBudgetMsPerFrame = 2.5f;
+    private Coroutine _timeSlicedSaveCo;
+    private SaveRequestKind _timeSlicedSaveKind = SaveRequestKind.Unknown;
 
     private SaveData _lastLoadedData;
     private bool _isApplyingSaveData;
@@ -131,6 +180,7 @@ public class SaveManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
         UnbindInventory();
         UnbindPlayerStorage();
+        FlushPendingDiskWritesBlocking();
     }
 
     // ✅ Key change: do NOT Load/Save in Start() anymore (Bootstrap has no saveables yet)
@@ -146,6 +196,7 @@ public class SaveManager : MonoBehaviour
                             !scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase);
         if (nonBootstrap)
         {
+            InvalidateSaveablesCache();
             IsGameFullyLoaded = false;
             _autosaveHoldUntilUnscaled = Time.unscaledTime + 0.85f;
             if (_gameplayReadyRoutine != null)
@@ -423,6 +474,7 @@ public class SaveManager : MonoBehaviour
         };
 
         _lastLoadedData = data;
+        _saveDirty = false;
 
         NormalizeSaveDataLists(data);
         AlignNewGameTemplateSlotCountsFromRuntime(data);
@@ -565,6 +617,8 @@ public class SaveManager : MonoBehaviour
 
     private void Update()
     {
+        FlushPendingAsyncSaveLog();
+
         if (_stripZoomSaveDueUnscaled >= 0f && Time.unscaledTime >= _stripZoomSaveDueUnscaled)
         {
             _stripZoomSaveDueUnscaled = -1f;
@@ -593,6 +647,15 @@ public class SaveManager : MonoBehaviour
         if (_autosaveTimer >= autosaveIntervalSeconds)
         {
             _autosaveTimer = 0f;
+            if (!_saveDirty)
+                return;
+
+            if (_lastSuccessfulSaveUnscaled >= 0f &&
+                Time.unscaledTime - _lastSuccessfulSaveUnscaled < autosaveMinGapAfterSaveSeconds)
+            {
+                return;
+            }
+
             RequestSave(SaveRequestKind.AutosaveInterval);
         }
     }
@@ -616,7 +679,17 @@ public class SaveManager : MonoBehaviour
         if (_editorIsExitingPlayMode)
             return;
 #endif
+        if (_timeSlicedSaveCo != null)
+        {
+            StopCoroutine(_timeSlicedSaveCo);
+            _timeSlicedSaveCo = null;
+            _timeSlicedSaveKind = SaveRequestKind.Unknown;
+            _buildingSnapshot = false;
+        }
+
+        FlushPendingDiskWritesBlocking();
         RequestSave(SaveRequestKind.AppQuit, immediate: true);
+        FlushPendingDiskWritesBlocking();
     }
 
     public bool HasSave() => File.Exists(ActiveSavePath);
@@ -709,6 +782,22 @@ public class SaveManager : MonoBehaviour
 
     public void Save()
     {
+        MarkSaveDirty();
+        NotifyInventoryChangedDebounced();
+    }
+
+    /// <summary>Marks persisted game state as changed since the last successful save (autosave waits on this).</summary>
+    public void MarkSaveDirty()
+    {
+        if (_isApplyingSaveData)
+            return;
+
+        _saveDirty = true;
+    }
+
+    /// <summary>Synchronous save for bootstrap, scene transitions, and other must-flush-now cases.</summary>
+    public void SaveImmediate()
+    {
         RequestSave(SaveRequestKind.Manual, immediate: true);
     }
 
@@ -766,25 +855,100 @@ public class SaveManager : MonoBehaviour
 
     private void ExecuteSave(SaveRequestKind kind)
     {
-        if (_isApplyingSaveData) return;
-#if UNITY_EDITOR
-        if (_editorIsExitingPlayMode)
+        if (_isApplyingSaveData)
+            return;
+
+        if (UsesAsyncDiskWrite(kind))
         {
-            if (verboseInfoLogs)
-                Debug.Log($"[SaveManager] Skipping disk save ({kind}) — Editor is exiting Play Mode.");
+            QueueTimeSlicedSave(kind);
             return;
         }
+
+        if (_buildingSnapshot)
+        {
+            if (GetSaveRequestPriority(kind) >= GetSaveRequestPriority(_coalescedSnapshotKind))
+                _coalescedSnapshotKind = kind;
+            return;
+        }
+
+        _buildingSnapshot = true;
+        try
+        {
+            ExecuteSaveInternal(kind);
+        }
+        finally
+        {
+            _buildingSnapshot = false;
+            if (_coalescedSnapshotKind != SaveRequestKind.Unknown)
+            {
+                SaveRequestKind next = _coalescedSnapshotKind;
+                _coalescedSnapshotKind = SaveRequestKind.Unknown;
+                ExecuteSave(next);
+            }
+        }
+    }
+
+    private void QueueTimeSlicedSave(SaveRequestKind kind)
+    {
+        if (GetSaveRequestPriority(kind) >= GetSaveRequestPriority(_timeSlicedSaveKind))
+            _timeSlicedSaveKind = kind;
+
+        if (_timeSlicedSaveCo != null)
+            return;
+
+        _timeSlicedSaveCo = StartCoroutine(CoTimeSlicedSaveWorker());
+    }
+
+    private IEnumerator CoTimeSlicedSaveWorker()
+    {
+        _buildingSnapshot = true;
+        try
+        {
+            while (_timeSlicedSaveKind != SaveRequestKind.Unknown)
+            {
+                SaveRequestKind kind = _timeSlicedSaveKind;
+                _timeSlicedSaveKind = SaveRequestKind.Unknown;
+                yield return CoExecuteTimeSlicedSave(kind);
+            }
+        }
+        finally
+        {
+            _buildingSnapshot = false;
+            _timeSlicedSaveCo = null;
+        }
+    }
+
+    private IEnumerator CoExecuteTimeSlicedSave(SaveRequestKind kind)
+    {
+#if UNITY_EDITOR
+        if (_editorIsExitingPlayMode)
+            yield break;
 #endif
-        var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var captureStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         if (!IsRuntimeReadyForSave(out string readinessReason))
         {
-            LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, readinessReason);
-            return;
+            LogSaveEvent(kind, "skipped", captureStopwatch.ElapsedMilliseconds, readinessReason);
+            yield break;
         }
 
         SaveData previousSnapshot = _lastLoadedData;
+        SaveData data = CreateSaveDataShell();
+        List<ISaveable> saveables = GetDedupedSaveables();
+        SaveablesWriteCoverage writeCoverage = SaveablesWriteCoverage.FromSaveablesList(saveables);
+        yield return CoWriteSaveablesTimeSliced(data, saveables);
 
+        ApplySaveDataSideStores(kind, data, writeCoverage);
+        yield return null;
+
+        if (!TryValidateSaveSnapshot(kind, data, previousSnapshot, captureStopwatch, out _))
+            yield break;
+
+        CommitSaveSnapshot(kind, data, captureStopwatch.ElapsedMilliseconds);
+    }
+
+    private SaveData CreateSaveDataShell()
+    {
         var data = new SaveData
         {
             version = 4,
@@ -792,23 +956,89 @@ public class SaveManager : MonoBehaviour
         };
 
         NormalizeSaveDataLists(data);
-
-        // Merchants only exist in the gameplay scene. Autosave / menu / world-map saves used to build an empty
-        // merchantStocks list and wipe every vendor on disk. Seed from the last snapshot, then in-scene merchants overwrite.
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
+        return data;
+    }
 
+    private List<ISaveable> GetDedupedSaveables()
+    {
         ISaveable[] saveablesRaw = FindSaveables();
         List<ISaveable> saveables = DedupeActionBarSaveables(saveablesRaw);
-        saveables = DedupeInventorySaveables(saveables);
-        foreach (var s in saveables)
-            s.SaveInto(data);
+        return DedupeInventorySaveables(saveables);
+    }
 
+    private static void WriteSaveablesInto(SaveData data, List<ISaveable> saveables)
+    {
+        for (int i = 0; i < saveables.Count; i++)
+            saveables[i].SaveInto(data);
+    }
+
+    private static IEnumerator CoWriteSaveablesTimeSliced(SaveData data, List<ISaveable> saveables)
+    {
+        if (saveables == null || saveables.Count == 0)
+            yield break;
+
+        var frameBudget = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < saveables.Count; i++)
+        {
+            saveables[i].SaveInto(data);
+            if (i >= saveables.Count - 1)
+                continue;
+
+            if (frameBudget.ElapsedMilliseconds < SnapshotBudgetMsPerFrame)
+                continue;
+
+            yield return null;
+            frameBudget.Restart();
+        }
+    }
+
+    private struct SaveablesWriteCoverage
+    {
+        public bool Inventory;
+        public bool PlayerStorage;
+
+        public static SaveablesWriteCoverage FromSaveablesList(List<ISaveable> saveables)
+        {
+            return new SaveablesWriteCoverage
+            {
+                Inventory = WasCanonicalSaveableWritten(saveables, PickCanonicalInventoryForSave()),
+                PlayerStorage = WasCanonicalSaveableWritten(saveables, PickCanonicalPlayerStorageForSave())
+            };
+        }
+    }
+
+    private static bool WasCanonicalSaveableWritten(List<ISaveable> saveables, ISaveable canonical)
+    {
+        if (canonical == null || saveables == null || saveables.Count == 0)
+            return false;
+
+        if (canonical is UnityEngine.Object uo && !uo)
+            return false;
+
+        for (int i = 0; i < saveables.Count; i++)
+        {
+            ISaveable candidate = saveables[i];
+            if (candidate == null)
+                continue;
+            if (candidate is UnityEngine.Object obj && !obj)
+                continue;
+            if (ReferenceEquals(candidate, canonical))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void ApplySaveDataSideStores(SaveRequestKind kind, SaveData data, SaveablesWriteCoverage writeCoverage = default)
+    {
         SeedActionBarFromSnapshot(data, _lastLoadedData);
-
-        EnsureInventoryInSaveData(data);
-        EnsurePlayerStorageInSaveData(data);
+        if (!writeCoverage.Inventory)
+            EnsureInventoryInSaveData(data);
+        if (!writeCoverage.PlayerStorage)
+            EnsurePlayerStorageInSaveData(data);
 
         if (data.inventorySlotCount > 0 && (data.inventorySlots == null || data.inventorySlots.Count == 0))
         {
@@ -828,27 +1058,36 @@ public class SaveManager : MonoBehaviour
             TryRecordGameplayMapExitPosition(data);
 
         ApplyActiveMapToSaveData(data);
-
         SaveDataIntegrity.SanitizeBeforeWrite(data, "Save");
+    }
+
+    private bool TryValidateSaveSnapshot(
+        SaveRequestKind kind,
+        SaveData data,
+        SaveData previousSnapshot,
+        System.Diagnostics.Stopwatch stopwatch,
+        out bool valid)
+    {
+        valid = false;
         if (!IsCriticalSnapshotValid(data, out string snapshotReason))
         {
-            LogSaveEvent(kind, "aborted", saveStopwatch.ElapsedMilliseconds, snapshotReason);
-            return;
+            LogSaveEvent(kind, "aborted", stopwatch.ElapsedMilliseconds, snapshotReason);
+            return false;
         }
+
         if (IsSuspiciousProgressWipe(data, previousSnapshot, kind, out string suspiciousReason))
         {
             Debug.LogWarning($"[SaveManager] Skipping save ({kind}) because {suspiciousReason}");
-            LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, suspiciousReason);
-            return;
+            LogSaveEvent(kind, "skipped", stopwatch.ElapsedMilliseconds, suspiciousReason);
+            return false;
         }
 
-        if (File.Exists(ActiveSavePath))
-            File.Copy(ActiveSavePath, ActiveSaveBackupPath, overwrite: true);
+        valid = true;
+        return true;
+    }
 
-        var json = JsonUtility.ToJson(data, true);
-        File.WriteAllText(ActiveSavePath, json);
-
-        // Write a small meta/header file for the slot select UI.
+    private void CommitSaveSnapshot(SaveRequestKind kind, SaveData data, long captureMs)
+    {
         int slot = GetSafeActiveSlot();
         int combatPower = 0;
         PlayerController playerForHeader = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
@@ -856,21 +1095,241 @@ public class SaveManager : MonoBehaviour
         if (playerStats != null)
             combatPower = playerStats.CombatPowerRounded;
 
-        var header = SaveSlotManager.BuildHeaderFromSaveData(
+        SaveGameHeader header = SaveSlotManager.BuildHeaderFromSaveData(
             slot,
             data,
             SceneManager.GetActiveScene().name,
             DateTime.UtcNow,
-            combatPower
-        );
-        SaveSlotManager.WriteHeader(header);
+            combatPower);
+        int captureFrame = Time.frameCount;
         _lastLoadedData = data;
+        _lastSuccessfulSaveUnscaled = Time.unscaledTime;
+        _saveDirty = false;
+        _autosaveTimer = 0f;
 
+        if (UsesAsyncDiskWrite(kind))
+        {
+            ScheduleAsyncDiskWrite(new PendingDiskWrite
+            {
+                Kind = kind,
+                SavePath = ActiveSavePath,
+                BackupPath = ActiveSaveBackupPath,
+                Data = data,
+                Header = header,
+                HeaderPath = SaveSlotManager.GetMetaPath(slot),
+                CaptureMs = captureMs,
+                Slot = slot,
+                SceneName = SceneManager.GetActiveScene().name,
+                CaptureFrame = captureFrame
+            });
+            LogSaveEvent(
+                kind,
+                "snapshot captured (serialize+disk async)",
+                captureMs,
+                $"slot={slot} scene={SceneManager.GetActiveScene().name}",
+                captureFrame);
+            return;
+        }
+
+        string json = JsonUtility.ToJson(data, false);
+        string headerJson = JsonUtility.ToJson(header, true);
+        WriteSnapshotToDisk(ActiveSavePath, ActiveSaveBackupPath, json, SaveSlotManager.GetMetaPath(slot), headerJson);
         LogSaveEvent(
             kind,
             "completed",
-            saveStopwatch.ElapsedMilliseconds,
-            $"slot={slot} scene={SceneManager.GetActiveScene().name}");
+            captureMs,
+            $"slot={slot} scene={SceneManager.GetActiveScene().name}",
+            captureFrame);
+    }
+
+    private void ExecuteSaveInternal(SaveRequestKind kind)
+    {
+#if UNITY_EDITOR
+        if (_editorIsExitingPlayMode)
+        {
+            if (verboseInfoLogs)
+                Debug.Log($"[SaveManager] Skipping disk save ({kind}) — Editor is exiting Play Mode.");
+            return;
+        }
+#endif
+        var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        if (!IsRuntimeReadyForSave(out string readinessReason))
+        {
+            LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, readinessReason);
+            return;
+        }
+
+        FlushPendingDiskWritesBlocking();
+
+        SaveData previousSnapshot = _lastLoadedData;
+        SaveData data = CreateSaveDataShell();
+        List<ISaveable> saveables = GetDedupedSaveables();
+        SaveablesWriteCoverage writeCoverage = SaveablesWriteCoverage.FromSaveablesList(saveables);
+        WriteSaveablesInto(data, saveables);
+        ApplySaveDataSideStores(kind, data, writeCoverage);
+
+        if (!TryValidateSaveSnapshot(kind, data, previousSnapshot, saveStopwatch, out _))
+            return;
+
+        CommitSaveSnapshot(kind, data, saveStopwatch.ElapsedMilliseconds);
+    }
+
+    private static bool UsesAsyncDiskWrite(SaveRequestKind kind) =>
+        kind is SaveRequestKind.AutosaveInterval
+            or SaveRequestKind.DebouncedStripZoom
+            or SaveRequestKind.InventoryChanged
+            or SaveRequestKind.StorageChanged;
+
+    private static void WriteSnapshotToDisk(
+        string savePath,
+        string backupPath,
+        string json,
+        string headerPath,
+        string headerJson)
+    {
+        if (File.Exists(savePath))
+            File.Copy(savePath, backupPath, overwrite: true);
+
+        File.WriteAllText(savePath, json);
+        if (!string.IsNullOrEmpty(headerPath) && !string.IsNullOrEmpty(headerJson))
+            File.WriteAllText(headerPath, headerJson);
+    }
+
+    private void ScheduleAsyncDiskWrite(PendingDiskWrite write)
+    {
+        lock (_diskWriteLock)
+        {
+            _pendingDiskWrite = write;
+            if (_diskWriteWorkerRunning)
+                return;
+
+            _diskWriteWorkerRunning = true;
+            _diskWriteIdle.Reset();
+            ThreadPool.QueueUserWorkItem(AsyncDiskWriteWorker);
+        }
+    }
+
+    private void AsyncDiskWriteWorker(object _)
+    {
+        while (true)
+        {
+            PendingDiskWrite job;
+            lock (_diskWriteLock)
+            {
+                job = _pendingDiskWrite;
+                _pendingDiskWrite = null;
+                if (job == null)
+                {
+                    _diskWriteWorkerRunning = false;
+                    if (_pendingDiskWrite != null)
+                    {
+                        _diskWriteWorkerRunning = true;
+                        ThreadPool.QueueUserWorkItem(AsyncDiskWriteWorker);
+                    }
+                    else
+                    {
+                        _diskWriteIdle.Set();
+                    }
+
+                    return;
+                }
+            }
+
+            var diskStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                var serializeStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                string json = JsonUtility.ToJson(job.Data, false);
+                string headerJson = job.Header != null ? JsonUtility.ToJson(job.Header, true) : null;
+                long serializeMs = serializeStopwatch.ElapsedMilliseconds;
+
+                WriteSnapshotToDisk(job.SavePath, job.BackupPath, json, job.HeaderPath, headerJson);
+                QueueAsyncSaveLog(new PendingAsyncSaveLog
+                {
+                    Kind = job.Kind,
+                    Result = "completed (async serialize+disk)",
+                    ElapsedMs = job.CaptureMs + serializeMs + diskStopwatch.ElapsedMilliseconds,
+                    Detail =
+                        $"slot={job.Slot} scene={job.SceneName} capture={job.CaptureMs}ms serialize={serializeMs}ms disk={diskStopwatch.ElapsedMilliseconds}ms",
+                    Frame = job.CaptureFrame
+                });
+            }
+            catch (Exception ex)
+            {
+                QueueAsyncSaveLog(new PendingAsyncSaveLog
+                {
+                    Kind = job.Kind,
+                    IsError = true,
+                    ErrorMessage = ex.Message,
+                    Frame = job.CaptureFrame
+                });
+            }
+        }
+    }
+
+    private void FlushPendingDiskWritesBlocking()
+    {
+        for (int attempt = 0; attempt < 500; attempt++)
+        {
+            _diskWriteIdle.Wait(50);
+            PendingDiskWrite pending;
+            lock (_diskWriteLock)
+            {
+                if (_diskWriteWorkerRunning)
+                    continue;
+
+                pending = _pendingDiskWrite;
+                _pendingDiskWrite = null;
+            }
+
+            if (pending == null)
+                return;
+
+            try
+            {
+                string json = JsonUtility.ToJson(pending.Data, false);
+                string headerJson = pending.Header != null ? JsonUtility.ToJson(pending.Header, true) : null;
+                WriteSnapshotToDisk(pending.SavePath, pending.BackupPath, json, pending.HeaderPath, headerJson);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[SaveManager] Flush save failed ({pending.Kind}): {ex.Message}");
+            }
+        }
+    }
+
+    private void InvalidateSaveablesCache()
+    {
+        _cachedSaveables = null;
+        _cachedSaveablesSceneHandle = -1;
+    }
+
+    private void QueueAsyncSaveLog(PendingAsyncSaveLog log)
+    {
+        lock (_asyncLogLock)
+            _pendingAsyncSaveLog = log;
+    }
+
+    private void FlushPendingAsyncSaveLog()
+    {
+        PendingAsyncSaveLog log;
+        lock (_asyncLogLock)
+        {
+            log = _pendingAsyncSaveLog;
+            _pendingAsyncSaveLog = null;
+        }
+
+        if (log == null)
+            return;
+
+        if (log.IsError)
+        {
+            Debug.LogError($"[SaveManager] Async save failed ({log.Kind}): {log.ErrorMessage}");
+            return;
+        }
+
+        LogSaveEvent(log.Kind, log.Result, log.ElapsedMs, log.Detail, log.Frame);
     }
 
     private void LogSaveFlow(string message)
@@ -881,19 +1340,20 @@ public class SaveManager : MonoBehaviour
         Debug.Log($"[SaveManager] {message} (frame={Time.frameCount}, scene={SceneManager.GetActiveScene().name})");
     }
 
-    private void LogSaveEvent(SaveRequestKind kind, string result, long elapsedMs, string detail = null)
+    private void LogSaveEvent(SaveRequestKind kind, string result, long elapsedMs, string detail = null, int frame = -1)
     {
         if (disableSaveEventLogs)
             return;
 
-        string message = $"[SaveManager] Save {result} ({kind}) {elapsedMs}ms frame={Time.frameCount}";
+        int frameCount = frame >= 0 ? frame : Time.frameCount;
+        string logMessage = $"[SaveManager] Save {result} ({kind}) {elapsedMs}ms frame={frameCount}";
         if (!string.IsNullOrEmpty(detail))
-            message += $" — {detail}";
+            logMessage += $" — {detail}";
 
-        if (result == "completed")
-            Debug.LogWarning(message);
+        if (result.StartsWith("completed", StringComparison.Ordinal))
+            Debug.LogWarning(logMessage);
         else
-            Debug.Log(message);
+            Debug.Log(logMessage);
     }
 
     private bool IsRuntimeReadyForSave(out string reason)
@@ -1160,6 +1620,7 @@ public class SaveManager : MonoBehaviour
         if (_isApplyingSaveData)
             return;
 
+        MarkSaveDirty();
         _stripZoomSaveDueUnscaled = Time.unscaledTime + ShopStockSaveDebounceSeconds;
     }
 
@@ -1168,6 +1629,7 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public void NotifyShopStockChanged()
     {
+        MarkSaveDirty();
         RequestSave(SaveRequestKind.ShopStockChanged, immediate: true);
     }
 
@@ -1518,6 +1980,7 @@ public class SaveManager : MonoBehaviour
         SaveDataIntegrity.RepairAfterJsonLoad(data, "Load");
 
         _lastLoadedData = data;
+        _saveDirty = false;
         MerchantStockRuntime.EnsureInstance().LoadFrom(data);
         _hasPendingLoad = true;
         _didFinalApplyForCurrentLoad = false;
@@ -1786,8 +2249,9 @@ public class SaveManager : MonoBehaviour
         if (_isApplyingSaveData)
             return;
 
-        _inventorySaveDueUnscaled = Time.unscaledTime + InventorySaveDebounceSeconds;
-        LogSaveFlow($"Inventory change — save scheduled in {InventorySaveDebounceSeconds:0.#}s");
+        MarkSaveDirty();
+        _inventorySaveDueUnscaled = Time.unscaledTime + inventorySaveDebounceSeconds;
+        LogSaveFlow($"Inventory change — save scheduled in {inventorySaveDebounceSeconds:0.#}s");
     }
 
     private void TryBindInventory()
@@ -1838,17 +2302,24 @@ public class SaveManager : MonoBehaviour
     {
         if (_isApplyingSaveData) return;
 
-        _storageSaveDueUnscaled = Time.unscaledTime + StorageSaveDebounceSeconds;
+        MarkSaveDirty();
+        _storageSaveDueUnscaled = Time.unscaledTime + storageSaveDebounceSeconds;
     }
 
     private ISaveable[] FindSaveables()
     {
+        Scene active = SceneManager.GetActiveScene();
+        if (_cachedSaveables != null && active.IsValid() && _cachedSaveablesSceneHandle == active.handle)
+            return _cachedSaveables;
+
         var behaviours = FindObjectsByType<MonoBehaviour>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None
         );
 
-        return behaviours.OfType<ISaveable>().ToArray();
+        _cachedSaveables = behaviours.OfType<ISaveable>().ToArray();
+        _cachedSaveablesSceneHandle = active.IsValid() ? active.handle : -1;
+        return _cachedSaveables;
     }
 
     /// <summary>
@@ -2251,6 +2722,7 @@ public class SaveManager : MonoBehaviour
         _stripZoomSaveDueUnscaled = -1f;
         _inventorySaveDueUnscaled = -1f;
         _storageSaveDueUnscaled = -1f;
+        _saveDirty = false;
         _saveRequestPending = false;
         _pendingSaveKind = SaveRequestKind.Unknown;
         _saveRequestFrame = -1;
