@@ -110,6 +110,7 @@ public class SaveManager : MonoBehaviour
         // Must target a scene root; SaveManager may live under a child (e.g. _GameSystems on Bootstrap).
         DontDestroyOnLoad(transform.root.gameObject);
         FurnaceSmeltingRuntime.EnsureInstance();
+        ProcessingProficiencyRuntime.EnsureInstance();
         MerchantStockRuntime.EnsureInstance();
         LoadAllSaveMetadata();
         FireSaveSystemReady("Awake");

@@ -35,6 +35,8 @@ public class FurnaceSmelter : MonoBehaviour
 
     public float GetActiveDurationSeconds() => _row != null ? _row.GetActiveDurationSeconds() : 1f;
 
+    public float GetEffectiveDurationSeconds() => _row != null ? _row.GetEffectiveDurationSeconds() : 1f;
+
     public bool TryGetSmeltTimeEstimate(out float totalRemainingSeconds, out float secondsPerBar, out int barsRemaining)
     {
         if (_row != null)
@@ -77,6 +79,11 @@ public class FurnaceSmelter : MonoBehaviour
     public bool TryCollectBars(int amount, out string failureReason) =>
         _row != null
             ? _row.TryCollectBars(amount, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryActiveWork(out string failureReason) =>
+        _row != null
+            ? _row.TryActiveWork(out failureReason)
             : Fail(out failureReason, "Furnace not ready.");
 
     private void Awake()

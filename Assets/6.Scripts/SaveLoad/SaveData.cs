@@ -276,6 +276,17 @@ public class SaveData
     [Header("Furnace smelting")]
     public List<FurnaceSmelterSave> furnaceSmelters = new();
 
+    [Header("Processing proficiencies")]
+    public List<ProcessingProficiencySave> processingProficiency = new();
+
+    [Serializable]
+    public class ProcessingProficiencySave
+    {
+        public int skillType;
+        public int level = 1;
+        public float xp;
+    }
+
     [Serializable]
     public class FurnaceSmelterSave
     {

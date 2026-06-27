@@ -15,11 +15,8 @@ GameObject:
   - component: {fileID: 781000000000000002}
   - component: {fileID: 4181235982351577245}
   - component: {fileID: -3861232571764350438}
-  - component: {fileID: 881000000000000001}
-  - component: {fileID: 881000000000000002}
-  - component: {fileID: 881000000000000003}
   m_Layer: 7
-  m_Name: Furnace
+  m_Name: cookingRange
   m_TagString: NoticeBoard
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -91,7 +88,7 @@ SpriteRenderer:
   m_SortingLayer: 3
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -7446207674052402092, guid: fd53c674853c6d9439679df6d26c62a4, type: 3}
+  m_Sprite: {fileID: -6006124163787852173, guid: ee4c77152986c324f821275810d1be78, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -135,17 +132,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.020318031, y: -0.15538609}
+  m_Offset: {x: -0.02593422, y: 0.0018708706}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 3.056318, y: 3.3133333}
+    oldSize: {x: 1.6656266, y: 1.44}
     newSize: {x: 2.972, y: 3.644}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 2.5862293, y: 2.9481313}
+  m_Size: {x: 1.6426888, y: 1.3755627}
   m_EdgeRadius: 0
 --- !u!114 &781000000000000001
 MonoBehaviour:
@@ -180,7 +177,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: No smelting in progress.
+  dialogue: 
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   useDialogueLocalOffsetOverride: 0
   dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
@@ -198,17 +195,7 @@ MonoBehaviour:
   openDialogueAfterQuestAcceptedQuestId: 
   oneWayDialogueQueue: 0
   oneWayDialogueQueueSaveId: 
-  additionalConditionalDialogues:
-  - condition: 3
-    completedQuestId: 
-    acceptedQuestId: 
-    afterDeathRespawnMapNodeId: 
-    dialogue: Smelting in progress.
-    onAcceptOutcome: 0
-    teleportTargetNode: {fileID: 0}
-    teleportMapNodeId: 
-    buyAllItemId: 
-    buyAllGoldPerItem: 0
+  additionalConditionalDialogues: []
   questGiver: {fileID: 0}
   debugLogPlainDialogueResolution: 0
 --- !u!114 &4181235982351577245
@@ -249,53 +236,6 @@ MonoBehaviour:
   characterName: Furnace
   role: 
   nameLabel: {fileID: 3979667164614100145}
---- !u!114 &881000000000000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1301700847255990616}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6478990abcdef12345602, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FurnaceSmelter
-  furnaceId: furnace
---- !u!114 &881000000000000002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1301700847255990616}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1b2c3d4e5f6478990abcdef12345603, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FurnaceClick
-  smelter: {fileID: 881000000000000001}
-  player: {fileID: 0}
-  furnaceCollider: {fileID: 0}
-  openWhenWithinXDistance: 0.15
-  closeWhenBeyondDistance: 5
---- !u!114 &881000000000000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1301700847255990616}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f7a8b9c0d1e2436586978899aabbccdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FurnaceStageVisual
-  smelter: {fileID: 881000000000000001}
-  spriteRenderer: {fileID: 4644976816631653098}
-  inactiveSprite: {fileID: -7446207674052402092, guid: fd53c674853c6d9439679df6d26c62a4, type: 3}
-  activeSprite: {fileID: -215184542, guid: fd53c674853c6d9439679df6d26c62a4, type: 3}
-  readySprite: {fileID: 1793828476, guid: fd53c674853c6d9439679df6d26c62a4, type: 3}
 --- !u!1 &2690790343970341782
 GameObject:
   m_ObjectHideFlags: 0
@@ -362,7 +302,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.099, y: 1.41}
+  m_AnchoredPosition: {x: 0, y: 1.41}
   m_SizeDelta: {x: 2, y: 2}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &1266714235752817241

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>Circular world-map node; connector geometry matches <see cref="SkillTreeConnectorUI"/>.</summary>
@@ -11,8 +12,22 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private RectTransform rectTransform;
     [SerializeField] private Image fillImage;
     [SerializeField] private Image iconImage;
-    [Tooltip("Optional skill icon for single-type gathering maps (child named Icon).")]
-    [SerializeField] private Image gatheringTypeIconImage;
+    [Tooltip("Small map-type badge (child named Icon). Hidden when no sprite is assigned for the node type.")]
+    [FormerlySerializedAs("gatheringTypeIconImage")]
+    [SerializeField] private Image mapTypeIconImage;
+    [Header("Map type icons")]
+    [Tooltip("Shown when nodeType is Town.")]
+    [SerializeField] private Sprite townMapTypeIcon;
+    [Tooltip("Shown when nodeType is Combat (and Boss).")]
+    [SerializeField] private Sprite combatMapTypeIcon;
+    [Tooltip("Shown when nodeType is Gathering and gatheringSubtype is Mining.")]
+    [SerializeField] private Sprite miningMapTypeIcon;
+    [Tooltip("Shown when nodeType is Gathering and gatheringSubtype is Woodcutting.")]
+    [SerializeField] private Sprite woodcuttingMapTypeIcon;
+    [Tooltip("Shown when nodeType is Gathering and gatheringSubtype is Fishing.")]
+    [SerializeField] private Sprite fishingMapTypeIcon;
+    [Tooltip("Shown when nodeType is Dungeon or EnduranceTrial.")]
+    [SerializeField] private Sprite dungeonEnduranceMapTypeIcon;
     [SerializeField] private Button button;
     [SerializeField] private GameObject selectedBorder;
     [SerializeField] private GameObject lockedOverlay;
@@ -58,8 +73,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         }
         if (!mapScalingText)
             mapScalingText = transform.Find("MapScalingText")?.GetComponent<TMP_Text>();
-        if (!gatheringTypeIconImage)
-            gatheringTypeIconImage = transform.Find("Icon")?.GetComponent<Image>();
+        if (!mapTypeIconImage)
+            mapTypeIconImage = transform.Find("Icon")?.GetComponent<Image>();
         if (button)
             button.onClick.AddListener(OnClick);
 
@@ -159,7 +174,7 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         }
 
         RefreshMapScalingLabel(node);
-        RefreshGatheringTypeIcon(node);
+        RefreshMapTypeIcon(node);
 
         if (currentLocationIcon)
             currentLocationIcon.SetActive(playerAtThisMap);
@@ -213,47 +228,49 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         mapScalingText.text = $"Map Scaling: {selectedTier}";
     }
 
-    private void RefreshGatheringTypeIcon(MapNodeDefinition node)
+    private void RefreshMapTypeIcon(MapNodeDefinition node)
     {
-        if (!gatheringTypeIconImage)
+        if (!mapTypeIconImage)
             return;
 
-        bool show = node != null &&
-                    node.nodeType == MapNodeType.Gathering &&
-                    node.gatheringSubtype != MapGatheringSubtype.None;
-
-        if (!show)
+        Sprite icon = ResolveMapTypeIcon(node);
+        if (icon == null)
         {
-            gatheringTypeIconImage.gameObject.SetActive(false);
+            mapTypeIconImage.gameObject.SetActive(false);
             return;
         }
 
-        Sprite skillIcon = ResolveGatheringSubtypeIcon(node.gatheringSubtype);
-        gatheringTypeIconImage.sprite = skillIcon;
-        gatheringTypeIconImage.preserveAspect = true;
-        gatheringTypeIconImage.gameObject.SetActive(skillIcon != null);
+        mapTypeIconImage.sprite = icon;
+        mapTypeIconImage.preserveAspect = true;
+        mapTypeIconImage.gameObject.SetActive(true);
     }
 
-    private static SkillDatabase s_gatheringSkillDatabase;
-
-    private static Sprite ResolveGatheringSubtypeIcon(MapGatheringSubtype subtype)
+    private Sprite ResolveMapTypeIcon(MapNodeDefinition node)
     {
-        if (subtype == MapGatheringSubtype.None)
+        if (node == null)
             return null;
 
-        SkillType skillType = subtype switch
+        switch (node.nodeType)
         {
-            MapGatheringSubtype.Mining => SkillType.Mining,
-            MapGatheringSubtype.Woodcutting => SkillType.Woodcutting,
-            MapGatheringSubtype.Fishing => SkillType.Fishing,
-            _ => SkillType.Mining
-        };
-
-        if (s_gatheringSkillDatabase == null)
-            s_gatheringSkillDatabase = SkillDatabase.LoadDefault();
-
-        SkillDefinition def = s_gatheringSkillDatabase != null ? s_gatheringSkillDatabase.Get(skillType) : null;
-        return def != null ? def.icon : null;
+            case MapNodeType.Town:
+                return townMapTypeIcon;
+            case MapNodeType.Combat:
+            case MapNodeType.Boss:
+                return combatMapTypeIcon;
+            case MapNodeType.Gathering:
+                return node.gatheringSubtype switch
+                {
+                    MapGatheringSubtype.Mining => miningMapTypeIcon,
+                    MapGatheringSubtype.Woodcutting => woodcuttingMapTypeIcon,
+                    MapGatheringSubtype.Fishing => fishingMapTypeIcon,
+                    _ => null
+                };
+            case MapNodeType.Dungeon:
+            case MapNodeType.EnduranceTrial:
+                return dungeonEnduranceMapTypeIcon;
+            default:
+                return null;
+        }
     }
 
     private void RefreshVisuals(bool selected)

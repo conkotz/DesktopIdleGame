@@ -39,10 +39,30 @@ public class FurnaceUI : MonoBehaviour
     private Button _oresButton;
     private Button _barsButton;
     private Button _oreClearButton;
+    private Button _helpButton;
+    private Button _smeltingLevelButton;
+    private TMP_Text _smeltingLevelButtonText;
+    private Image _smeltingXpFill;
+    private RectTransform _smeltingXpFillRt;
+    private Button _activeWorkButton;
+    private TMP_Text _activeWorkButtonText;
+
+    private RectTransform _helpPanelRoot;
+    private RectTransform _proficiencyPanelRoot;
+    private RectTransform _proficiencyScrollContent;
+    private TMP_Text _proficiencyFooterText;
 
     private float _nextPendingBarsLogTime;
+    private bool _proficiencySubscribed;
+
+    private const string HelpBodyText =
+        "The furnace converts ore into metal bars over time.\n\n" +
+        "Deposit ore, press Smelt, and wait for bars to finish. Collect bars before adding new ore or starting another batch.\n\n" +
+        "Higher-tier ores take longer to smelt but grant more Smelting proficiency.\n\n" +
+        "Speed Up trims time from the current bar while smelting (3s cooldown).";
 
     private const int DefaultCanvasSortingOrder = 12000;
+    private const float SidePanelGap = 10f;
     private const float FurnaceBlockedLogCooldownSeconds = 2f;
 
     public static FurnaceUI Instance => _instance;
@@ -112,6 +132,8 @@ public class FurnaceUI : MonoBehaviour
         if (_smelter != null)
             _smelter.StateChanged -= Refresh;
 
+        UnsubscribeProficiency();
+
         if (_instance == this)
             _instance = null;
     }
@@ -123,6 +145,7 @@ public class FurnaceUI : MonoBehaviour
 
         RefreshProgressOnly();
         RefreshActionButton();
+        RefreshActiveWorkButton();
     }
 
     public void Open(FurnaceSmelter smelter, FurnaceClick clickSource)
@@ -148,6 +171,9 @@ public class FurnaceUI : MonoBehaviour
 
         CacheRefs();
         HideOrePicker();
+        HideHelpPanel();
+        HideProficiencyPanel();
+        SubscribeProficiency();
         _root.gameObject.SetActive(true);
         Refresh();
 
@@ -158,6 +184,9 @@ public class FurnaceUI : MonoBehaviour
     public void Close()
     {
         HideOrePicker();
+        HideHelpPanel();
+        HideProficiencyPanel();
+        UnsubscribeProficiency();
         if (_smelter != null && SaveManager.Instance != null)
             SaveManager.Instance.RequestSave(SaveManager.SaveRequestKind.InventoryChanged);
 
@@ -196,6 +225,9 @@ public class FurnaceUI : MonoBehaviour
         RefreshProgressOnly();
         RefreshActionButton();
         RefreshOreClearButton();
+        RefreshSmeltingLevelButton();
+        RefreshSmeltingXpBar();
+        RefreshActiveWorkButton();
     }
 
     private void RefreshOreClearButton()
@@ -415,9 +447,205 @@ public class FurnaceUI : MonoBehaviour
             return;
         }
 
+        HideHelpPanel();
         RebuildOrePicker();
         _orePickerRoot.gameObject.SetActive(true);
     }
+
+    private void OnHelpClicked()
+    {
+        if (_helpPanelRoot == null)
+            return;
+
+        bool show = !_helpPanelRoot.gameObject.activeSelf;
+        if (!show)
+        {
+            HideHelpPanel();
+            return;
+        }
+
+        HideOrePicker();
+        _helpPanelRoot.gameObject.SetActive(true);
+    }
+
+    private void OnSmeltingLevelClicked()
+    {
+        if (_proficiencyPanelRoot == null)
+            return;
+
+        bool show = !_proficiencyPanelRoot.gameObject.activeSelf;
+        if (!show)
+        {
+            HideProficiencyPanel();
+            return;
+        }
+
+        RebuildProficiencyPanel();
+        _proficiencyPanelRoot.gameObject.SetActive(true);
+    }
+
+    private void OnActiveWorkClicked()
+    {
+        if (_smelter == null)
+            return;
+
+        if (!_smelter.TryActiveWork(out string reason))
+        {
+            if (!string.IsNullOrWhiteSpace(reason))
+                LogFurnaceBlocked(reason);
+            RefreshActiveWorkButton();
+            return;
+        }
+
+        Refresh();
+    }
+
+    private void HideHelpPanel()
+    {
+        if (_helpPanelRoot != null)
+            _helpPanelRoot.gameObject.SetActive(false);
+    }
+
+    private void HideProficiencyPanel()
+    {
+        if (_proficiencyPanelRoot != null)
+            _proficiencyPanelRoot.gameObject.SetActive(false);
+    }
+
+    private void SubscribeProficiency()
+    {
+        if (_proficiencySubscribed)
+            return;
+
+        ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
+        runtime.Changed += OnProficiencyChanged;
+        _proficiencySubscribed = true;
+    }
+
+    private void UnsubscribeProficiency()
+    {
+        if (!_proficiencySubscribed)
+            return;
+
+        if (ProcessingProficiencyRuntime.Instance != null)
+            ProcessingProficiencyRuntime.Instance.Changed -= OnProficiencyChanged;
+        _proficiencySubscribed = false;
+    }
+
+    private void OnProficiencyChanged()
+    {
+        if (!IsOpen)
+            return;
+
+        RefreshSmeltingLevelButton();
+        RefreshSmeltingXpBar();
+        RefreshActiveWorkButton();
+        if (_proficiencyPanelRoot != null && _proficiencyPanelRoot.gameObject.activeSelf)
+            RebuildProficiencyPanel();
+    }
+
+    private void RefreshSmeltingLevelButton()
+    {
+        if (_smeltingLevelButtonText == null)
+            return;
+
+        int level = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Smelting);
+        _smeltingLevelButtonText.text = $"< Smelting: Lv {level} >";
+    }
+
+    private void RefreshSmeltingXpBar()
+    {
+        if (_smeltingXpFillRt == null)
+            return;
+
+        ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
+        int level = runtime.GetLevel(ProcessingSkillType.Smelting);
+        float t = runtime.GetProgress01(ProcessingSkillType.Smelting);
+        _smeltingXpFillRt.anchorMax = new Vector2(Mathf.Clamp01(t), 1f);
+    }
+
+    private void RefreshActiveWorkButton()
+    {
+        if (_activeWorkButton == null || _activeWorkButtonText == null)
+            return;
+
+        bool smelting = _smelter != null && _smelter.IsSmelting;
+        float cooldown = ProcessingProficiencyRuntime.EnsureInstance().GetActiveWorkCooldownRemaining();
+        bool onCooldown = cooldown > 0.01f;
+
+        _activeWorkButton.interactable = smelting && !onCooldown;
+        if (!smelting)
+            _activeWorkButtonText.text = "Speed Up";
+        else if (onCooldown)
+            _activeWorkButtonText.text = $"Speed Up ({Mathf.CeilToInt(cooldown)}s)";
+        else
+            _activeWorkButtonText.text = "Speed Up";
+
+        _activeWorkButtonText.color = _activeWorkButton.interactable ? Accent : StopAccent;
+    }
+
+    private void RebuildProficiencyPanel()
+    {
+        if (_proficiencyScrollContent == null || _proficiencyFooterText == null)
+            return;
+
+        for (int i = _proficiencyScrollContent.childCount - 1; i >= 0; i--)
+            Destroy(_proficiencyScrollContent.GetChild(i).gameObject);
+
+        ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
+        int level = runtime.GetLevel(ProcessingSkillType.Smelting);
+        SmeltingProficiencyBonuses bonuses = runtime.GetSmeltingBonuses();
+
+        CreateProficiencyLine($"Smelting — Lv {level}", Accent, 16f, FontStyles.Bold);
+
+        if (level < ProcessingSkillCurves.MaxLevel)
+        {
+            int xp = runtime.GetXp(ProcessingSkillType.Smelting);
+            int needed = runtime.GetXpToNextLevel(ProcessingSkillType.Smelting);
+            CreateProficiencyLine(
+                $"Next level: {xp}/{needed} XP",
+                TextLight,
+                12f,
+                FontStyles.Normal);
+        }
+        else
+        {
+            CreateProficiencyLine("Max level reached", TextLight, 12f, FontStyles.Normal);
+        }
+
+        CreateProficiencyLine("", TextLight, 6f, FontStyles.Normal);
+
+        IReadOnlyList<string> unlockLines = SmeltingProficiencyBonuses.BuildUnlockLines();
+        for (int i = 0; i < SmeltingProficiencyBonuses.UnlockRows.Length; i++)
+        {
+            SmeltingProficiencyBonuses.UnlockRow row = SmeltingProficiencyBonuses.UnlockRows[i];
+            bool unlocked = level >= row.Level;
+            Color color = unlocked ? Accent : new Color32(150, 150, 150, 255);
+            CreateProficiencyLine(unlockLines[i], color, 13f, FontStyles.Normal);
+        }
+
+        float activeWorkBonusPercent = (bonuses.ActiveWorkSecondsPerClick - 1f) * 100f;
+        _proficiencyFooterText.text =
+            "Total bonuses granted:\n" +
+            $"{FormatPercent(bonuses.SpeedBonusPercent)} increased smelting speed\n" +
+            $"{FormatPercent(bonuses.DoubleBarChancePercent)} chance to make 2 instead of 1 bar\n" +
+            (activeWorkBonusPercent > 0.01f
+                ? $"{FormatPercent(activeWorkBonusPercent)} Speed Up effectiveness"
+                : "Standard Speed Up effectiveness");
+    }
+
+    private void CreateProficiencyLine(string text, Color color, float fontSize, FontStyles style)
+    {
+        var row = CreateUiObject("Line", _proficiencyScrollContent, typeof(RectTransform), typeof(LayoutElement));
+        row.GetComponent<LayoutElement>().preferredHeight = fontSize + 10f;
+        var tmp = CreateTmpText("Text", row.transform, fontSize, color, TextAlignmentOptions.TopLeft);
+        StretchFull(tmp.rectTransform);
+        tmp.fontStyle = style;
+        tmp.enableWordWrapping = true;
+        tmp.text = text;
+    }
+
+    private static string FormatPercent(float value) => $"{value:0.#}%";
 
     private void HideOrePicker()
     {
@@ -720,7 +948,9 @@ public class FurnaceUI : MonoBehaviour
 
     private void BuildUi()
     {
-        if (_root != null && _progressText != null && _timeSummaryText != null && _oreClearButton != null)
+        if (_root != null && _progressText != null && _timeSummaryText != null && _oreClearButton != null &&
+            _smeltingLevelButton != null && _helpButton != null && _activeWorkButton != null &&
+            _smeltingXpFillRt != null)
             return;
 
         if (_root != null)
@@ -728,6 +958,10 @@ public class FurnaceUI : MonoBehaviour
             Destroy(_root.gameObject);
             _root = null;
             _orePickerRoot = null;
+            _helpPanelRoot = null;
+            _proficiencyPanelRoot = null;
+            _proficiencyScrollContent = null;
+            _proficiencyFooterText = null;
             _progressText = null;
             _timeSummaryText = null;
             _progressFill = null;
@@ -737,6 +971,13 @@ public class FurnaceUI : MonoBehaviour
             _oresButton = null;
             _barsButton = null;
             _oreClearButton = null;
+            _helpButton = null;
+            _smeltingLevelButton = null;
+            _smeltingLevelButtonText = null;
+            _smeltingXpFill = null;
+            _smeltingXpFillRt = null;
+            _activeWorkButton = null;
+            _activeWorkButtonText = null;
             _oreIcon = null;
             _barIcon = null;
             _oreAmountText = null;
@@ -764,13 +1005,29 @@ public class FurnaceUI : MonoBehaviour
             DontDestroyOnLoad(es);
         }
 
-        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 320f));
+        _root = CreatePanel("FurnacePanel", transform, new Vector2(360f, 340f));
         CreateHeader(_root, "Furnace");
+
+        _helpButton = CreateButton(_root, "HelpButton", "?", new Vector2(28f, 28f), new Vector2(0f, 1f));
+        var helpRt = _helpButton.GetComponent<RectTransform>();
+        helpRt.pivot = new Vector2(0f, 1f);
+        helpRt.anchoredPosition = new Vector2(12f, -12f);
+        _helpButton.onClick.AddListener(OnHelpClicked);
+
+        _smeltingLevelButton = CreateButton(_root, "SmeltingLevelButton", "< Smelting: Lv 1 >", new Vector2(220f, 24f), new Vector2(0.5f, 1f));
+        var smeltBtnRt = _smeltingLevelButton.GetComponent<RectTransform>();
+        smeltBtnRt.pivot = new Vector2(0.5f, 1f);
+        smeltBtnRt.anchoredPosition = new Vector2(0f, -42f);
+        _smeltingLevelButtonText = _smeltingLevelButton.GetComponentInChildren<TMP_Text>();
+        _smeltingLevelButtonText.fontSize = 13f;
+        _smeltingLevelButton.onClick.AddListener(OnSmeltingLevelClicked);
+
+        BuildSmeltingXpBar(_root);
 
         var slotsRow = CreateUiObject("SlotsRow", _root, typeof(RectTransform), typeof(HorizontalLayoutGroup));
         var slotsRt = slotsRow.GetComponent<RectTransform>();
-        slotsRt.anchorMin = new Vector2(0.5f, 0.55f);
-        slotsRt.anchorMax = new Vector2(0.5f, 0.55f);
+        slotsRt.anchorMin = new Vector2(0.5f, 0.52f);
+        slotsRt.anchorMax = new Vector2(0.5f, 0.52f);
         slotsRt.pivot = new Vector2(0.5f, 0.5f);
         slotsRt.sizeDelta = new Vector2(300f, 88f);
         var hlg = slotsRow.GetComponent<HorizontalLayoutGroup>();
@@ -797,6 +1054,15 @@ public class FurnaceUI : MonoBehaviour
         _barsButton = CreateSlotButton(slotsRow.transform, "Bars", out _barIcon, out _barAmountText, null);
         var barsTrigger = _barsButton.gameObject.AddComponent<FurnaceBarsContextTrigger>();
         barsTrigger.Initialize(this);
+
+        _activeWorkButton = CreateButton(_barsButton.transform, "ActiveWorkButton", "Speed Up", new Vector2(76f, 18f), new Vector2(0.5f, 1f));
+        var activeRt = _activeWorkButton.GetComponent<RectTransform>();
+        activeRt.pivot = new Vector2(0.5f, 0f);
+        activeRt.anchoredPosition = new Vector2(0f, 6f);
+        _activeWorkButtonText = _activeWorkButton.GetComponentInChildren<TMP_Text>();
+        _activeWorkButtonText.fontSize = 10f;
+        _activeWorkButton.onClick.AddListener(OnActiveWorkClicked);
+        _activeWorkButton.transform.SetAsLastSibling();
 
         var progressBg = CreateUiObject("ProgressBg", _root, typeof(RectTransform), typeof(Image));
         var progressBgRt = progressBg.GetComponent<RectTransform>();
@@ -839,17 +1105,125 @@ public class FurnaceUI : MonoBehaviour
         closeBtn.GetComponent<RectTransform>().anchoredPosition = new Vector2(-12f, -12f);
         closeBtn.onClick.AddListener(Close);
 
-        _orePickerRoot = CreatePanel("OrePicker", _root, new Vector2(280f, 200f));
-        _orePickerRoot.anchorMin = new Vector2(0f, 0.5f);
-        _orePickerRoot.anchorMax = new Vector2(0f, 0.5f);
-        _orePickerRoot.pivot = new Vector2(0f, 0.5f);
-        _orePickerRoot.anchoredPosition = new Vector2(-290f, 0f);
+        _helpPanelRoot = CreateSidePanel("HelpPanel", _root, new Vector2(280f, 240f), leftSide: true);
+        BuildHelpPanelContent(_helpPanelRoot);
+        _helpPanelRoot.gameObject.SetActive(false);
+
+        _orePickerRoot = CreateSidePanel("OrePicker", _root, new Vector2(280f, 200f), leftSide: true);
         var pickerLayout = _orePickerRoot.gameObject.AddComponent<VerticalLayoutGroup>();
         pickerLayout.padding = new RectOffset(8, 8, 8, 8);
         pickerLayout.spacing = 6f;
         pickerLayout.childControlHeight = true;
         pickerLayout.childForceExpandHeight = false;
         _orePickerRoot.gameObject.SetActive(false);
+
+        _proficiencyPanelRoot = CreateSidePanel("ProficiencyPanel", _root, new Vector2(300f, 320f), leftSide: false);
+        BuildProficiencyPanelContent(_proficiencyPanelRoot);
+        _proficiencyPanelRoot.gameObject.SetActive(false);
+
+        RefreshSmeltingLevelButton();
+        RefreshSmeltingXpBar();
+        RefreshActiveWorkButton();
+    }
+
+    private void BuildSmeltingXpBar(RectTransform parent)
+    {
+        var xpBg = CreateUiObject("SmeltingXpBg", parent, typeof(RectTransform), typeof(Image));
+        var xpBgRt = xpBg.GetComponent<RectTransform>();
+        xpBgRt.anchorMin = new Vector2(0.5f, 1f);
+        xpBgRt.anchorMax = new Vector2(0.5f, 1f);
+        xpBgRt.pivot = new Vector2(0.5f, 1f);
+        xpBgRt.anchoredPosition = new Vector2(0f, -68f);
+        xpBgRt.sizeDelta = new Vector2(240f, 8f);
+        xpBg.GetComponent<Image>().color = ProgressBg;
+        xpBg.GetComponent<Image>().raycastTarget = false;
+
+        var xpFillGo = CreateUiObject("Fill", xpBg.transform, typeof(RectTransform), typeof(Image));
+        _smeltingXpFillRt = xpFillGo.GetComponent<RectTransform>();
+        _smeltingXpFillRt.anchorMin = Vector2.zero;
+        _smeltingXpFillRt.anchorMax = Vector2.zero;
+        _smeltingXpFillRt.offsetMin = Vector2.zero;
+        _smeltingXpFillRt.offsetMax = Vector2.zero;
+        _smeltingXpFill = xpFillGo.GetComponent<Image>();
+        _smeltingXpFill.color = Accent;
+        _smeltingXpFill.raycastTarget = false;
+    }
+
+    private RectTransform CreateSidePanel(string name, Transform parent, Vector2 size, bool leftSide)
+    {
+        var panel = CreatePanel(name, parent, size);
+        panel.anchorMin = new Vector2(leftSide ? 0f : 1f, 0.5f);
+        panel.anchorMax = new Vector2(leftSide ? 0f : 1f, 0.5f);
+        panel.pivot = new Vector2(leftSide ? 0f : 1f, 0.5f);
+        float offset = size.x + SidePanelGap;
+        panel.anchoredPosition = new Vector2(leftSide ? -offset : offset, 0f);
+        return panel;
+    }
+
+    private void BuildHelpPanelContent(RectTransform panel)
+    {
+        var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(10, 10, 10, 10);
+        layout.spacing = 8f;
+        layout.childControlHeight = true;
+        layout.childForceExpandHeight = false;
+
+        var headerRow = CreateUiObject("Header", panel, typeof(RectTransform), typeof(LayoutElement));
+        headerRow.GetComponent<LayoutElement>().preferredHeight = 24f;
+        var headerText = CreateTmpText("Title", headerRow.transform, 16f, Accent, TextAlignmentOptions.MidlineLeft);
+        StretchFull(headerText.rectTransform);
+        headerText.fontStyle = FontStyles.Bold;
+        headerText.text = "Smelting";
+
+        var bodyRow = CreateUiObject("Body", panel, typeof(RectTransform), typeof(LayoutElement));
+        bodyRow.GetComponent<LayoutElement>().preferredHeight = 180f;
+        var bodyText = CreateTmpText("Body", bodyRow.transform, 13f, TextLight, TextAlignmentOptions.TopLeft);
+        StretchFull(bodyText.rectTransform);
+        bodyText.enableWordWrapping = true;
+        bodyText.text = HelpBodyText;
+    }
+
+    private void BuildProficiencyPanelContent(RectTransform panel)
+    {
+        var rootLayout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
+        rootLayout.padding = new RectOffset(8, 8, 8, 8);
+        rootLayout.spacing = 6f;
+        rootLayout.childControlHeight = true;
+        rootLayout.childForceExpandHeight = false;
+
+        var scrollHost = CreateUiObject("ScrollHost", panel, typeof(RectTransform), typeof(LayoutElement), typeof(Image), typeof(ScrollRect));
+        scrollHost.GetComponent<LayoutElement>().preferredHeight = 220f;
+        scrollHost.GetComponent<LayoutElement>().flexibleHeight = 1f;
+        scrollHost.GetComponent<Image>().color = new Color32(36, 38, 42, 255);
+
+        var viewport = CreateUiObject("Viewport", scrollHost.transform, typeof(RectTransform), typeof(RectMask2D));
+        StretchFull(viewport.GetComponent<RectTransform>());
+
+        _proficiencyScrollContent = CreatePanel("Content", viewport.transform, new Vector2(0f, 0f));
+        _proficiencyScrollContent.anchorMin = new Vector2(0f, 1f);
+        _proficiencyScrollContent.anchorMax = new Vector2(1f, 1f);
+        _proficiencyScrollContent.pivot = new Vector2(0.5f, 1f);
+        _proficiencyScrollContent.sizeDelta = new Vector2(0f, 0f);
+        _proficiencyScrollContent.GetComponent<Image>().color = Color.clear;
+        var contentLayout = _proficiencyScrollContent.gameObject.AddComponent<VerticalLayoutGroup>();
+        contentLayout.padding = new RectOffset(6, 6, 6, 6);
+        contentLayout.spacing = 4f;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandHeight = false;
+        _proficiencyScrollContent.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        ScrollRect scroll = scrollHost.GetComponent<ScrollRect>();
+        scroll.viewport = viewport.GetComponent<RectTransform>();
+        scroll.content = _proficiencyScrollContent;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+
+        var footerRow = CreateUiObject("Footer", panel, typeof(RectTransform), typeof(LayoutElement));
+        footerRow.GetComponent<LayoutElement>().preferredHeight = 72f;
+        _proficiencyFooterText = CreateTmpText("Footer", footerRow.transform, 12f, TextLight, TextAlignmentOptions.TopLeft);
+        StretchFull(_proficiencyFooterText.rectTransform);
+        _proficiencyFooterText.enableWordWrapping = true;
     }
 
     private Button CreateSlotButton(Transform parent, string label, out Image icon, out TMP_Text amountText, UnityEngine.Events.UnityAction onClick)

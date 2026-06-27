@@ -169,11 +169,11 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 6719064946348508326}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 55, y: 15}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 30, y: 30}
-  m_Pivot: {x: 0.5, y: 1}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8188714550790151714
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -647,6 +647,13 @@ MonoBehaviour:
   rectTransform: {fileID: 6719064946348508326}
   fillImage: {fileID: 3430430973493009189}
   iconImage: {fileID: 5184373170557204525}
+  mapTypeIconImage: {fileID: 3367884800453102371}
+  townMapTypeIcon: {fileID: 8084088031722646883, guid: f13d112a7f36cd14ab97cc8e4b562611, type: 3}
+  combatMapTypeIcon: {fileID: 3995296735107726653, guid: 009f3ff464199e44d979050445d85492, type: 3}
+  miningMapTypeIcon: {fileID: 1238663177, guid: 009f3ff464199e44d979050445d85492, type: 3}
+  woodcuttingMapTypeIcon: {fileID: -808992590, guid: 009f3ff464199e44d979050445d85492, type: 3}
+  fishingMapTypeIcon: {fileID: 385903779, guid: 009f3ff464199e44d979050445d85492, type: 3}
+  dungeonEnduranceMapTypeIcon: {fileID: 1592512150, guid: 009f3ff464199e44d979050445d85492, type: 3}
   button: {fileID: 2025800678717755029}
   selectedBorder: {fileID: 6724881658191109502}
   lockedOverlay: {fileID: 7829962505556040931}

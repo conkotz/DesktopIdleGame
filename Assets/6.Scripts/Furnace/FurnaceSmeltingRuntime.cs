@@ -173,8 +173,16 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public bool TryGetActiveRecipe(out SmeltingRecipe recipe) =>
             SmeltingRecipes.TryGetForOre(GetActiveOreItemId(), out recipe);
 
-        public float GetActiveDurationSeconds() =>
-            TryGetActiveRecipe(out SmeltingRecipe recipe) ? recipe.SecondsPerBar : 1f;
+        public float GetActiveDurationSeconds() => GetEffectiveDurationSeconds();
+
+        public float GetEffectiveDurationSeconds()
+        {
+            if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
+                return 1f;
+
+            float speedBonus = ProcessingProficiencyRuntime.EnsureInstance().GetSmeltingBonuses().SpeedBonusPercent;
+            return recipe.SecondsPerBar / (1f + speedBonus / 100f);
+        }
 
         public int GetOrePerBar() =>
             TryGetActiveRecipe(out SmeltingRecipe recipe) ? recipe.OrePerBar : SmeltingRecipes.DefaultOrePerBar;
@@ -220,7 +228,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (!SmeltingRecipes.TryGetForOre(oreId, out SmeltingRecipe recipe))
                 return false;
 
-            secondsPerBar = recipe.SecondsPerBar;
+            secondsPerBar = GetEffectiveDurationSeconds();
             int ore = StoredOreAmount;
             if (ore < recipe.OrePerBar)
                 return false;
@@ -231,16 +239,19 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             if (_isSmelting)
             {
-                float currentBarRemaining = Mathf.Max(0f, recipe.SecondsPerBar - _smeltProgressSeconds);
-                totalRemainingSeconds = currentBarRemaining + (barsRemaining - 1) * recipe.SecondsPerBar;
+                float currentBarRemaining = Mathf.Max(0f, secondsPerBar - _smeltProgressSeconds);
+                totalRemainingSeconds = currentBarRemaining + (barsRemaining - 1) * secondsPerBar;
             }
             else
             {
-                totalRemainingSeconds = barsRemaining * recipe.SecondsPerBar;
+                totalRemainingSeconds = barsRemaining * secondsPerBar;
             }
 
             return true;
         }
+
+        public bool TryActiveWork(out string failureReason) =>
+            ProcessingProficiencyRuntime.EnsureInstance().TryApplyActiveWork(this, out failureReason);
 
         public bool TryDepositOreFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
         {
@@ -440,6 +451,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return true;
             }
 
+            bool wasSmelting = _isSmelting;
             bool structuralChange = false;
             float remaining = deltaSeconds;
             while (remaining > 0f && _isSmelting)
@@ -451,7 +463,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                     break;
                 }
 
-                float needed = recipe.SecondsPerBar - _smeltProgressSeconds;
+                float barDuration = GetEffectiveDurationSeconds();
+                float needed = barDuration - _smeltProgressSeconds;
                 if (remaining >= needed)
                 {
                     remaining -= needed;
@@ -460,6 +473,9 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                     _readyBarAmount++;
                     _readyBarItemId = recipe.BarItemId;
                     structuralChange = true;
+
+                    ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
+                    TryRollBonusBar(recipe);
 
                     if (_storedOreAmount < recipe.OrePerBar)
                         _isSmelting = false;
@@ -473,11 +489,27 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             if (structuralChange)
             {
+                if (wasSmelting && !_isSmelting && _readyBarAmount > 0)
+                    LogSmeltingBatchComplete();
+
                 ClearStaleIdsWhenEmpty();
                 NotifyChanged();
             }
 
             return structuralChange;
+        }
+
+        private void LogSmeltingBatchComplete()
+        {
+            string barItemId = GetReadyBarItemId();
+            if (string.IsNullOrWhiteSpace(barItemId))
+                return;
+
+            int amount = _readyBarAmount;
+            string barLabel = ItemGainPopupNotifier.ResolveDisplayLabel(barItemId, amount);
+            GameLog.Add(
+                $"Furnace finished smelting: {amount} {barLabel} ready to collect.",
+                GameLog.QuestCompleteColor);
         }
 
         public void WriteInto(List<SaveData.FurnaceSmelterSave> target)
@@ -610,6 +642,19 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreItemId.Trim().ToLowerInvariant(), -deposited);
             NotifyChanged();
             RequestSaveDebounced();
+        }
+
+        private void TryRollBonusBar(SmeltingRecipe recipe)
+        {
+            SmeltingProficiencyBonuses bonuses = ProcessingProficiencyRuntime.EnsureInstance().GetSmeltingBonuses();
+            if (bonuses.DoubleBarChancePercent <= 0f)
+                return;
+
+            if (UnityEngine.Random.value * 100f >= bonuses.DoubleBarChancePercent)
+                return;
+
+            _readyBarAmount++;
+            _readyBarItemId = recipe.BarItemId;
         }
 
         private void NotifyChanged() => StateChanged?.Invoke();
