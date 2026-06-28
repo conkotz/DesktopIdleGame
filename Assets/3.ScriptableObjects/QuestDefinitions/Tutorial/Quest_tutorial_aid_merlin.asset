@@ -28,9 +28,6 @@ MonoBehaviour:
   rewardItemId: basic_wand
   rewardItemQuantity: 1
   additionalItemRewards:
-  - item: {fileID: 11400000, guid: a9b9fbd1af4462542b24e62b53a6bff5, type: 2}
-    itemId: basic_focus
-    quantity: 1
   - item: {fileID: 11400000, guid: 62f3f781aaffd6e46a32040a8b81664b, type: 2}
     itemId: 
     quantity: 15
@@ -40,6 +37,12 @@ MonoBehaviour:
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
   grantAdditionalInventorySlotsOnRewardClaim: 0
+  grantAdditionalMainStorageSlotsOnRewardClaim: 0
+  grantAdditionalNonMainStorageSlotsOnRewardClaim: 0
+  grantCombatXpToAllCombatSkillsOnRewardClaim: 0
+  grantCombatSkillXpOnRewardClaim: 0
+  grantCombatSkillXpSkill: 3
+  grantRandomMapEnhancementForNodeIdOnRewardClaim: 
   restockMerchantStockOnRewardClaim: 0
   restockMerchantStockSaveKey: 
   repeatable: 0
@@ -63,6 +66,10 @@ MonoBehaviour:
   requiredCompletedMapNodeId: 
   recommendedLocationNode: {fileID: 0}
   requiredSkillLevels: []
+  combatSkillGateMode: 0
+  combatRequiredLevel: 1
+  combatSingleSkill: 3
+  requiredMinMapScalingLevel: 0
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: tutorial_3
   hideFromQuestJournalUnlessAccepted: 0

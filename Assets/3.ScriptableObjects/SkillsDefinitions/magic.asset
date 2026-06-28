@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 5
   displayName: Magic
-  description: Magic channels elemental energy into spells. Higher levels
-    unlock stonger destructive spells, utility magic, and passives that amplify your spellcasting and control the battlefield.
+  description: Magic channels elemental energy into spells. Higher levels unlock
+    stonger destructive spells, utility magic, and passives that amplify your spellcasting
+    and control the battlefield.
   presentation: {fileID: 0}
   icon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
   themeColor: {r: 0.13147244, g: 0.122855045, b: 0.5471698, a: 1}
@@ -40,7 +41,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 1
     title: Fire Ball
-    description: Hurl a ball of fire at your target (8-10 fire damage, 2s cooldown, 8 mana).
+    description: Hurl a ball of fire at your target (8-10 fire damage, 2s cooldown,
+      8 mana).
     icon: {fileID: -317914268, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -56,7 +58,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 1
     title: Ice Shard
-    description: Launch a shard of ice at your target (6-12 ice damage, 2s cooldown, 8 mana).
+    description: Launch a shard of ice at your target (6-12 ice damage, 2s cooldown,
+      8 mana).
     icon: {fileID: 1411015114, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -72,7 +75,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 1
     title: Energy Bolt
-    description: Fire a bolt of energy at your target (3-15 lightning damage, 2s cooldown, 8 mana).
+    description: Fire a bolt of energy at your target (3-15 lightning damage, 2s
+      cooldown, 8 mana).
     icon: {fileID: -69107095, guid: 3676b3313adfc364e858ba0ad6ffa832, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -262,6 +266,36 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
+  - requiredLevel: 15
+    title: Chain Lightning
+    description: Conjure lightning from your hands towards the closest enemy in front
+      of you and then chains to additional nearby enemies.
+    icon: {fileID: 3635194895896409061, guid: 40bf976827de79147b880b19bd35a1fe, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 8c2ef1d27f864a649eba4dd9eb6d38fe, type: 2}
+    presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Extended Chain
+      description: Chains +1 additional time and increases chain range by +2.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Shocking Arc
+      description: Gains +15% chance to shock and adds +3% shock effect if applied
+        by this spell.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Fire Mastery I
     description: +5% Fire Damage
@@ -598,22 +632,6 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 41
-    title: Arcane Knowledge III
-    description: +50 Max Mana
-    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-    unlockType: 0
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 9
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
   - requiredLevel: 42
     title: Arcane Flow VI
     description: +2% Cooldown Reduction
@@ -726,34 +744,3 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 15
-    title: Chain Lightning
-    description: Conjure lightning from your hands towards the closest enemy in front
-      of you and then chains to additional nearby enemies.
-    icon: {fileID: 3635194895896409061, guid: 40bf976827de79147b880b19bd35a1fe, type: 3}
-    unlockType: 1
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 11400000, guid: 8c2ef1d27f864a649eba4dd9eb6d38fe, type: 2}
-    presentation: {fileID: 11400000, guid: 947f154cd45d42f2ba66d4d0f571b4a9, type: 2}
-    choices:
-    - requiredLevel: 18
-      title: Extended Chain
-      description: Chains +1 additional time and increases chain range by +2.
-      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
-      ability: {fileID: 0}
-      presentation: {fileID: 0}
-    - requiredLevel: 18
-      title: Shocking Arc
-      description: Gains +15% chance to shock and adds +3% shock effect if applied
-        by this spell.
-      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
-      ability: {fileID: 0}
-      presentation: {fileID: 0}
-
