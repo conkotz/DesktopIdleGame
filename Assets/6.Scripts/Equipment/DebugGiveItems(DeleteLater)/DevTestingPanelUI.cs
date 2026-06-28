@@ -260,6 +260,9 @@ public class DevTestingPanelUI : MonoBehaviour
         }
 
         sm.DebugSetAllTrackedSkillsLevel(1);
+
+        ProcessingProficiencyRuntime.EnsureInstance().DebugSetAllProcessingLevels(1);
+
         ShowPopup("DEBUG ALL SKILLS → 1", new Color(0.85f, 0.55f, 0.35f));
     }
 
@@ -274,6 +277,9 @@ public class DevTestingPanelUI : MonoBehaviour
         }
 
         sm.DebugIncreaseAllSkillsOneLevel();
+
+        ProcessingProficiencyRuntime.EnsureInstance().DebugIncreaseAllProcessingLevels();
+
         if (levelUpEffect)
             levelUpEffect.PlayLevelUp();
         ShowPopup("DEBUG +1 ALL SKILLS", Color.yellow);
@@ -290,6 +296,9 @@ public class DevTestingPanelUI : MonoBehaviour
         }
 
         sm.DebugDecreaseAllSkillsOneLevel();
+
+        ProcessingProficiencyRuntime.EnsureInstance().DebugDecreaseAllProcessingLevels();
+
         ShowPopup("DEBUG -1 ALL SKILLS", new Color(0.85f, 0.55f, 0.35f));
     }
 

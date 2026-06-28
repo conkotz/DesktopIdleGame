@@ -79,6 +79,14 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
         EnsureBringToFrontVisual();
         EnsureShopCenterInMenuButton();
         EnsureResizeHandles();
+        HideEmbeddedLabel();
+    }
+
+    private void HideEmbeddedLabel()
+    {
+        Transform labelTransform = transform.Find("Label");
+        if (labelTransform)
+            labelTransform.gameObject.SetActive(false);
     }
 
     public Color GetResizeHandleColor() =>
@@ -92,6 +100,11 @@ public sealed class WindowPivotGhostUI : MonoBehaviour,
             Mathf.Clamp01(_fillColor.b * 0.88f),
             1f);
     }
+
+    public string GetDisplayLabel() =>
+        _binding != null ? _binding.DisplayLabel : "Window";
+
+    public Color GetLabelColor() => _labelColor;
 
     public void RefreshInteractionChrome()
     {

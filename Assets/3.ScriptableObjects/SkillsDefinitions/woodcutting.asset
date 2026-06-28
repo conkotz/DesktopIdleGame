@@ -43,7 +43,7 @@ MonoBehaviour:
   - requiredLevel: 1
     title: Splitwood Trees
     description: Can chop Splitwood trees
-    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+    icon: {fileID: -5474793117547072519, guid: 40188adcc4e31094ab796f51c7c6f1d3, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -218,7 +218,7 @@ MonoBehaviour:
   - requiredLevel: 10
     title: Hardwood Trees
     description: Can chop Hardwood Trees
-    icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
+    icon: {fileID: -6888454697701933379, guid: b82c663ed53e4a142ae972319cc2ffcd, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -489,7 +489,7 @@ MonoBehaviour:
   - requiredLevel: 20
     title: Wildwood Trees
     description: Can chop Wildwood Trees
-    icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
+    icon: {fileID: -4694980200145558752, guid: e22b024b19a10a74a8a5eaf5d31a4a3a, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -727,7 +727,7 @@ MonoBehaviour:
   - requiredLevel: 30
     title: Ember Oak Trees
     description: Can chop Ember Oak Trees
-    icon: {fileID: -1347025922908315872, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
+    icon: {fileID: 6892088591319057153, guid: b73553204a9ca47408b5e334a0cd4d23, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -962,7 +962,7 @@ MonoBehaviour:
   - requiredLevel: 40
     title: Spiritwood Trees
     description: Can chop Spiritwood Trees
-    icon: {fileID: 8025565611991365312, guid: 8386a5fe05670604ab939edaa09c2a51, type: 3}
+    icon: {fileID: -7047005660116801892, guid: b73553204a9ca47408b5e334a0cd4d23, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

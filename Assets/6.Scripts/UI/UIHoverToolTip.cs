@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 public enum UiTooltipSource
 {
@@ -88,21 +89,44 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         if (string.IsNullOrWhiteSpace(body))
             return;
 
-        var flipper = tooltipPanel.GetComponent<FlipInsideBounds>();
-        if (flipper)
-        {
-            flipper.SetPreferredSide(preferredSide);
+        Transform anchor = useSharedTooltipAnchor && tooltipAnchor ? tooltipAnchor : transform;
+        RectTransform measureRect = tooltipMeasureRect ? tooltipMeasureRect : anchor as RectTransform;
+        EnsureHoverAnchorLayoutReady(measureRect);
 
-            if (tooltipMeasureRect)
+        tooltipPanel.ShowTextAt(
+            anchor,
+            title,
+            body,
+            measureRect: measureRect,
+            heightRect: measureRect,
+            preferredSide: preferredSide,
+            useStatsDisplayHeader: true,
+            useHudTooltipScale: false);
+    }
+
+    internal static void EnsureHoverAnchorLayoutReady(RectTransform anchorRt)
+    {
+        if (!anchorRt)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        Transform walk = anchorRt;
+        while (walk != null)
+        {
+            if (walk is RectTransform rt)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+
+            if (walk.TryGetComponent<ScrollRect>(out ScrollRect scroll) && scroll.content != null)
             {
-                flipper.SetMeasureRect(tooltipMeasureRect);
-                flipper.SetHeightRect(tooltipMeasureRect);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(scroll.content);
+                break;
             }
+
+            walk = walk.parent;
         }
 
-        Transform anchor = useSharedTooltipAnchor && tooltipAnchor ? tooltipAnchor : transform;
-        tooltipPanel.SetAnchor(anchor);
-        tooltipPanel.ShowText(title, body, null, useStatsDisplayHeader: true);
+        Canvas.ForceUpdateCanvases();
     }
 
     public void OnPointerExit(PointerEventData eventData)

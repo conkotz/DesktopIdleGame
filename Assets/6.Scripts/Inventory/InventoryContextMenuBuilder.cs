@@ -38,7 +38,11 @@ public static class InventoryContextMenuBuilder
             entries.Add(new ContextMenuEntry("Equip on map", slot.PerformEquipOnMapAction));
 
         if (def.IsOpenable)
+        {
             entries.Add(new ContextMenuEntry("Open", slot.PerformOpenAction));
+            if (slot.CanShowOpenAllAction())
+                entries.Add(new ContextMenuEntry("Open All", slot.PerformOpenAllAction));
+        }
 
         if (CanEat(def))
             entries.Add(new ContextMenuEntry("Eat", slot.PerformEatAction));

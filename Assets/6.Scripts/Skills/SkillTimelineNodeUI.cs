@@ -53,6 +53,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     [SerializeField] private Image typeDiamond;
     [SerializeField] private GameObject lockedOverlay;
     [SerializeField] private GameObject selectedGlow;
+    [SerializeField] private GameObject highlightGlowMinorPassive;
     [SerializeField] private GameObject notSelectedRoot;
     [SerializeField] private GameObject checkmark;
     [SerializeField] private TMP_Text nameLabel;
@@ -188,11 +189,11 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
 
     public void ShowUnlockGlow()
     {
-        RectTransform rt = RectTransform;
-        if (!rt)
-            return;
+        EnsureReferences();
+        ClearUnlockGlow();
 
-        _unlockGlow = UIPulseGlowOverlay.Show(rt);
+        GameObject glow = UsesMinorPassiveUnlockGlow() ? highlightGlowMinorPassive : selectedGlow;
+        SetUnlockHighlightGlowActive(glow, true);
     }
 
     public void ClearUnlockGlow()
@@ -200,6 +201,31 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
         if (_unlockGlow != null)
             _unlockGlow.Clear();
         _unlockGlow = null;
+
+        SetUnlockHighlightGlowActive(null, false);
+    }
+
+    private bool UsesMinorPassiveUnlockGlow() =>
+        _appliedType == SkillTimelineNodeType.MinorPassive || _appliedMinorLayout;
+
+    private void SetUnlockHighlightGlowActive(GameObject activeGlow, bool active)
+    {
+        if (selectedGlow != null && selectedGlow != activeGlow)
+            selectedGlow.SetActive(false);
+
+        if (highlightGlowMinorPassive != null && highlightGlowMinorPassive != activeGlow)
+            highlightGlowMinorPassive.SetActive(false);
+
+        if (activeGlow == null || !active)
+            return;
+
+        if (activeGlow.TryGetComponent(out Image glowImage))
+        {
+            glowImage.raycastTarget = false;
+            glowImage.color = selectedGlowColor;
+        }
+
+        activeGlow.SetActive(true);
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -677,6 +703,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
         SetChildActive(typeDiamond, false);
         SetChildActive(lockedOverlay, false);
         SetChildActive(selectedGlow, false);
+        SetChildActive(highlightGlowMinorPassive, false);
         SetChildActive(checkmark, false);
 
         if (nameLabel != null)
@@ -740,9 +767,17 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
 
         if (selectedGlow == null)
         {
-            Transform t = transform.Find("RootButton/SelectedGlow");
+            Transform t = transform.Find("RootButton/HighlightGlow")
+                ?? transform.Find("RootButton/SelectedGlow");
             if (t != null)
                 selectedGlow = t.gameObject;
+        }
+
+        if (highlightGlowMinorPassive == null)
+        {
+            Transform t = transform.Find("RootButton/HighlightGlowMinorPassive");
+            if (t != null)
+                highlightGlowMinorPassive = t.gameObject;
         }
 
         if (notSelectedRoot == null)
@@ -970,8 +1005,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
                 overlayImg.color = lockedOverlayColor;
         }
 
-        if (selectedGlow != null)
-            selectedGlow.SetActive(false);
+        SetUnlockHighlightGlowActive(null, false);
 
         if (checkmark != null)
             checkmark.SetActive(unlocked);

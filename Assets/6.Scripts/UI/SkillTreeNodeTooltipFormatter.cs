@@ -106,6 +106,11 @@ public static class SkillTreeNodeTooltipFormatter
         string effectText = null;
         string scalingText = null;
         CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+        if (GatheringResourceUnlockDetails.TryResolveNode(skill, unlock, out NodeDefinition resourceNode))
+        {
+            desc = GatheringResourceUnlockDetails.AppendResourceStatsRichText(
+                desc, resourceNode, skill.skillType, stats, level);
+        }
         if (useMajorPassivePresentation)
         {
             effectText = desc;

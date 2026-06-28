@@ -687,6 +687,12 @@ public class SharedTooltipUI : MonoBehaviour
         _scaleAnchor = null;
         _useHudTooltipScalePath = false;
 
+        if (flipInsideBounds)
+        {
+            flipInsideBounds.SetMeasureRect(null);
+            flipInsideBounds.SetHeightRect(null);
+        }
+
         if (_rt)
         {
             _rt.anchoredPosition = Vector2.zero;

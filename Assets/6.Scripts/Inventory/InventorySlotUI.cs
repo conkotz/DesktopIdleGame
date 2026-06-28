@@ -655,7 +655,7 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (def.IsOpenable && slot.amount > 0)
         {
-            TryOpenItemAtSlot(def);
+            TryOpenItemAtSlot(_slotIndex, def);
             return;
         }
 
@@ -679,23 +679,23 @@ public class InventorySlotUI : MonoBehaviour,
     /// the source item's <see cref="ItemDefinition.displayName"/> as the source label, so the Tracker window's
     /// gold section groups the rewards under the opened item (e.g. "Bird Nest → Feather x10, Leather x1").
     /// </summary>
-    private void TryOpenItemAtSlot(ItemDefinition def)
+    private bool TryOpenItemAtSlot(int slotIndex, ItemDefinition def)
     {
         if (def == null || _inventory == null)
-            return;
+            return false;
 
         if (!def.IsOpenable)
-            return;
+            return false;
 
-        var slot = _inventory.GetSlot(_slotIndex);
+        var slot = _inventory.GetSlot(slotIndex);
         if (slot.IsEmpty || slot.amount <= 0)
-            return;
+            return false;
 
         int required = Mathf.Max(1, def.OpenRequiredAmount);
         if (slot.amount < required)
         {
             GameLog.Add($"You need {required} {def.displayName} to open one ({slot.amount}/{required}).");
-            return;
+            return false;
         }
 
         // Empty table or a roll that produced nothing: don't silently delete the player's items.
@@ -703,11 +703,11 @@ public class InventorySlotUI : MonoBehaviour,
         if (rolled == null || rolled.Count == 0)
         {
             GameLog.Add($"{def.displayName} contained nothing this time.");
-            return;
+            return false;
         }
 
-        if (_inventory.RemoveAmountAtSlot(_slotIndex, required) != required)
-            return;
+        if (_inventory.RemoveAmountAtSlot(slotIndex, required) != required)
+            return false;
 
         // Use the opened item's display name as the loot source so the Tracker rolls everything from one open under
         // a single row (e.g. "Bird Nest"). Fall back to itemId only when the displayName field is empty.
@@ -724,7 +724,32 @@ public class InventorySlotUI : MonoBehaviour,
             tracker?.RegisterLootGain(trackerSource, reward.itemId, reward.amount);
         }
 
-        _tooltip?.Hide();
+        return true;
+    }
+
+    public bool CanShowOpenAllAction()
+    {
+        if (_def == null || _inventory == null || !_def.IsOpenable)
+            return false;
+
+        return _inventory.GetTotalAmount(_def.itemId) > 1;
+    }
+
+    private static int FindOpenableSlotIndex(Inventory inventory, string itemId, int requiredAmount)
+    {
+        if (inventory == null || string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        for (int i = 0; i < inventory.SlotCount; i++)
+        {
+            var slot = inventory.GetSlot(i);
+            if (slot.IsEmpty || slot.itemId != itemId || slot.amount < requiredAmount)
+                continue;
+
+            return i;
+        }
+
+        return -1;
     }
 
     public void SetTooltipDocking(
@@ -979,7 +1004,34 @@ public class InventorySlotUI : MonoBehaviour,
         if (_def == null || _inventory == null)
             return;
 
-        TryOpenItemAtSlot(_def);
+        if (TryOpenItemAtSlot(_slotIndex, _def))
+            _tooltip?.Hide();
+    }
+
+    public void PerformOpenAllAction()
+    {
+        if (_def == null || _inventory == null || !_def.IsOpenable)
+            return;
+
+        int required = Mathf.Max(1, _def.OpenRequiredAmount);
+        string itemId = _def.itemId;
+        const int maxOpensPerAction = 10_000;
+        int opened = 0;
+
+        while (_inventory.GetTotalAmount(itemId) >= required && opened < maxOpensPerAction)
+        {
+            int slotIndex = FindOpenableSlotIndex(_inventory, itemId, required);
+            if (slotIndex < 0)
+                break;
+
+            if (!TryOpenItemAtSlot(slotIndex, _def))
+                break;
+
+            opened++;
+        }
+
+        if (opened > 0)
+            _tooltip?.Hide();
     }
 
     public void PerformEatAction()

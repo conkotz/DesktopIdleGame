@@ -69,7 +69,8 @@ public class CookingUI : MonoBehaviour
     }
 
     private SidePickerMode _pickerMode;
-    private const int UiLayoutVersion = 9;
+    private const float ScrollSensitivity = 8f;
+    private const int UiLayoutVersion = 10;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -1839,6 +1840,7 @@ public class CookingUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
         scroll.normalizedPosition = new Vector2(0f, 1f);
     }
 
@@ -1946,6 +1948,7 @@ public class CookingUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
 
         return content;
     }
@@ -1985,6 +1988,7 @@ public class CookingUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
 
         var footerRow = CreateUiObject("Footer", panel, typeof(RectTransform), typeof(LayoutElement));
         footerRow.GetComponent<LayoutElement>().preferredHeight = 72f;

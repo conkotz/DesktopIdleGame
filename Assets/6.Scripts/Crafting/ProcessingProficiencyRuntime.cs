@@ -154,8 +154,32 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
 
     public void DebugSetAllProcessingLevels(int level)
     {
-        DebugSetLevel(ProcessingSkillType.Smelting, level);
-        DebugSetLevel(ProcessingSkillType.Cooking, level);
+        foreach (ProcessingSkillType type in Enum.GetValues(typeof(ProcessingSkillType)))
+            DebugSetLevel(type, level);
+    }
+
+    public void DebugIncreaseAllProcessingLevels()
+    {
+        foreach (ProcessingSkillType type in Enum.GetValues(typeof(ProcessingSkillType)))
+        {
+            int current = GetLevel(type);
+            if (current >= ProcessingSkillCurves.MaxLevel)
+                continue;
+
+            DebugSetLevel(type, current + 1);
+        }
+    }
+
+    public void DebugDecreaseAllProcessingLevels()
+    {
+        foreach (ProcessingSkillType type in Enum.GetValues(typeof(ProcessingSkillType)))
+        {
+            int current = GetLevel(type);
+            if (current <= 1)
+                continue;
+
+            DebugSetLevel(type, current - 1);
+        }
     }
 
     public void AddXp(ProcessingSkillType type, int amount)

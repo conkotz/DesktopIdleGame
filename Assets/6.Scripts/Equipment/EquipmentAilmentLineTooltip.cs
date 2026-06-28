@@ -77,19 +77,18 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         if (!TryBuildTooltip(s, out string title, out string body) || string.IsNullOrWhiteSpace(body))
             return;
 
-        var flipper = tooltipPanel.GetComponent<FlipInsideBounds>();
-        if (flipper)
-        {
-            flipper.SetPreferredSide(preferredSide);
-            if (tooltipMeasureRect)
-            {
-                flipper.SetMeasureRect(tooltipMeasureRect);
-                flipper.SetHeightRect(tooltipMeasureRect);
-            }
-        }
+        RectTransform measureRect = tooltipMeasureRect ? tooltipMeasureRect : transform as RectTransform;
+        UIHoverTooltip.EnsureHoverAnchorLayoutReady(measureRect);
 
-        tooltipPanel.SetAnchor(transform);
-        tooltipPanel.ShowText(title, body, null, useStatsDisplayHeader: true);
+        tooltipPanel.ShowTextAt(
+            transform,
+            title,
+            body,
+            measureRect: measureRect,
+            heightRect: measureRect,
+            preferredSide: preferredSide,
+            useStatsDisplayHeader: true,
+            useHudTooltipScale: false);
     }
 
     public void OnPointerExit(PointerEventData eventData)

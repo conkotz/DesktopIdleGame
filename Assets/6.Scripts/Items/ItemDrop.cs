@@ -55,11 +55,15 @@ public class ItemDrop : MonoBehaviour
     private RectTransform _iconRect;
     private float _fittedIconWidth;
     private float _fittedIconHeight;
+    private Color _stackLabelBaseColor = Color.white;
+    private bool _stackLabelDimmed;
     private Coroutine _launchRoutine;
     private Coroutine _autoBattleVacuumRoutine;
 
     // Used by WorldClickPicker2D tie-breaker (newest drop wins)
     public int DropOrder { get; private set; }
+    public bool HasVisibleStackLabel =>
+        Amount > 1 && stackAmountText != null && stackAmountText.gameObject.activeInHierarchy;
     private static int _dropSeq;
 
     private void Awake()
@@ -72,11 +76,13 @@ public class ItemDrop : MonoBehaviour
     private void OnEnable()
     {
         WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.ItemDrop);
+        ItemDropStackLabelFocus.Register(this);
     }
 
     private void OnDisable()
     {
         WorldFloorFollowerRegistry.Unregister(transform);
+        ItemDropStackLabelFocus.Unregister(this);
     }
 
     /// <param name="disableAutoDespawn">When true, the pickup never auto-destroys (e.g. level-placed one-shot loot).</param>
@@ -469,7 +475,45 @@ public class ItemDrop : MonoBehaviour
         stackAmountText.enableAutoSizing = false;
         stackAmountText.raycastTarget = false;
         stackAmountText.transform.SetAsLastSibling();
+        _stackLabelBaseColor = stackAmountText.color;
+        ApplyStackLabelDimState();
         // RectTransform anchor/position/size come from the prefab — Init only scales font size.
+    }
+
+    public bool TryGetStackLabelScreenRect(Camera cam, out Rect screenRect)
+    {
+        screenRect = default;
+        if (!HasVisibleStackLabel || !cam)
+            return false;
+
+        stackAmountText.ForceMeshUpdate();
+        Bounds bounds = stackAmountText.bounds;
+        Vector3 min = cam.WorldToScreenPoint(bounds.min);
+        Vector3 max = cam.WorldToScreenPoint(bounds.max);
+        screenRect = Rect.MinMaxRect(
+            Mathf.Min(min.x, max.x),
+            Mathf.Min(min.y, max.y),
+            Mathf.Max(min.x, max.x),
+            Mathf.Max(min.y, max.y));
+        return screenRect.width > 0.5f && screenRect.height > 0.5f;
+    }
+
+    public void SetStackLabelDimState(bool dimmed)
+    {
+        _stackLabelDimmed = dimmed;
+        ApplyStackLabelDimState();
+    }
+
+    private void ApplyStackLabelDimState()
+    {
+        if (!stackAmountText)
+            return;
+
+        Color c = _stackLabelBaseColor;
+        c.a = _stackLabelDimmed
+            ? _stackLabelBaseColor.a * ItemDropStackLabelFocus.DimAlphaMultiplierForLabels
+            : _stackLabelBaseColor.a;
+        stackAmountText.color = c;
     }
 
     private void RefreshStackLabel()
@@ -485,6 +529,7 @@ public class ItemDrop : MonoBehaviour
 
         stackAmountText.gameObject.SetActive(true);
         stackAmountText.text = Amount.ToString();
+        ApplyStackLabelDimState();
     }
 
 

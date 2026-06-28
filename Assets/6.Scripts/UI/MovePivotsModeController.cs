@@ -85,6 +85,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
     private readonly Dictionary<string, Rect[]> _actionBarSlotHintRects = new(1);
     private readonly List<WindowPivotGhostUI> _ghosts = new(8);
     private readonly List<PivotGhostBringToFrontOverlayButton> _bringToFrontOverlayButtons = new(8);
+    private readonly List<PivotGhostLabelOverlay> _labelOverlays = new(8);
     private readonly Dictionary<GameObject, bool> _rememberedActive = new(16);
 
     private RectTransform _overlayRoot;
@@ -1046,6 +1047,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         }
 
         SyncBringToFrontOverlayVisibility();
+        SyncLabelOverlayVisibility();
     }
 
     private void ApplyAllGhostLayoutsToBindings()
@@ -1137,10 +1139,27 @@ public sealed class MovePivotsModeController : MonoBehaviour
             ghostGo.SetActive(true);
             _ghosts.Add(ghost);
             EnsureBringToFrontOverlayButton(ghost);
+            EnsureLabelOverlay(ghost);
         }
 
         SyncBringToFrontOverlayOrder();
         SyncBringToFrontOverlayVisibility();
+    }
+
+    private void EnsureLabelOverlay(WindowPivotGhostUI ghost)
+    {
+        if (!_overlayRoot || !ghost)
+            return;
+
+        GameObject labelGo = new GameObject(
+            $"PivotLabel_{ghost.Binding.MemoryKey}",
+            typeof(RectTransform),
+            typeof(PivotGhostLabelOverlay));
+        labelGo.layer = _overlayRoot.gameObject.layer;
+
+        PivotGhostLabelOverlay labelOverlay = labelGo.GetComponent<PivotGhostLabelOverlay>();
+        labelOverlay.Initialize(ghost, _overlayRoot);
+        _labelOverlays.Add(labelOverlay);
     }
 
     private void EnsureBringToFrontOverlayButton(WindowPivotGhostUI ghost)
@@ -1173,8 +1192,15 @@ public sealed class MovePivotsModeController : MonoBehaviour
             overlayButton.ApplyColor(ghost.GetBringToFrontButtonColor());
         }
 
+        for (int i = 0; i < _labelOverlays.Count; i++)
+        {
+            if (_labelOverlays[i])
+                _labelOverlays[i].RefreshFromGhost();
+        }
+
         SyncBringToFrontOverlayOrder();
         SyncBringToFrontOverlayVisibility();
+        SyncLabelOverlayVisibility();
     }
 
     private void SyncBringToFrontOverlayOrder()
@@ -1194,6 +1220,26 @@ public sealed class MovePivotsModeController : MonoBehaviour
         }
 
         EnsureOverlayButtonsOnTop();
+        SyncLabelOverlayOrder();
+    }
+
+    private void SyncLabelOverlayOrder()
+    {
+        _labelOverlays.Sort((a, b) =>
+        {
+            if (!a || !b || !a.Ghost || !b.Ghost)
+                return 0;
+
+            return b.Ghost.transform.GetSiblingIndex().CompareTo(a.Ghost.transform.GetSiblingIndex());
+        });
+
+        for (int i = 0; i < _labelOverlays.Count; i++)
+        {
+            if (_labelOverlays[i])
+                _labelOverlays[i].transform.SetAsLastSibling();
+        }
+
+        EnsureOverlayButtonsOnTop();
     }
 
     private void SyncBringToFrontOverlayVisibility()
@@ -1207,6 +1253,20 @@ public sealed class MovePivotsModeController : MonoBehaviour
             WindowPivotGhostUI ghost = overlayButton.Ghost;
             bool show = !_testViewActive && ghost != null && ghost.isActiveAndEnabled;
             overlayButton.gameObject.SetActive(show);
+        }
+    }
+
+    private void SyncLabelOverlayVisibility()
+    {
+        for (int i = 0; i < _labelOverlays.Count; i++)
+        {
+            PivotGhostLabelOverlay labelOverlay = _labelOverlays[i];
+            if (!labelOverlay)
+                continue;
+
+            WindowPivotGhostUI ghost = labelOverlay.Ghost;
+            bool show = !_testViewActive && ghost != null && ghost.isActiveAndEnabled;
+            labelOverlay.gameObject.SetActive(show);
         }
     }
 
@@ -1231,6 +1291,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
     private void DestroyBringToFrontOverlayButtons()
     {
+        DestroyLabelOverlays();
+
         for (int i = _bringToFrontOverlayButtons.Count - 1; i >= 0; i--)
         {
             if (_bringToFrontOverlayButtons[i])
@@ -1238,6 +1300,17 @@ public sealed class MovePivotsModeController : MonoBehaviour
         }
 
         _bringToFrontOverlayButtons.Clear();
+    }
+
+    private void DestroyLabelOverlays()
+    {
+        for (int i = _labelOverlays.Count - 1; i >= 0; i--)
+        {
+            if (_labelOverlays[i])
+                Destroy(_labelOverlays[i].gameObject);
+        }
+
+        _labelOverlays.Clear();
     }
 
     private void DestroyGhosts()

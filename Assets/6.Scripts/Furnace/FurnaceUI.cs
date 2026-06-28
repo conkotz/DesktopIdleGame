@@ -67,7 +67,8 @@ public class FurnaceUI : MonoBehaviour
     }
 
     private SidePickerMode _pickerMode;
-    private const int UiLayoutVersion = 3;
+    private const float ScrollSensitivity = 8f;
+    private const int UiLayoutVersion = 4;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -1747,6 +1748,7 @@ public class FurnaceUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
     }
 
     private RectTransform BuildScrollListPanel(RectTransform panel, float preferredHeight)
@@ -1785,6 +1787,7 @@ public class FurnaceUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
 
         return content;
     }
@@ -1824,6 +1827,7 @@ public class FurnaceUI : MonoBehaviour
         scroll.horizontal = false;
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = ScrollSensitivity;
 
         var footerRow = CreateUiObject("Footer", panel, typeof(RectTransform), typeof(LayoutElement));
         footerRow.GetComponent<LayoutElement>().preferredHeight = 72f;
