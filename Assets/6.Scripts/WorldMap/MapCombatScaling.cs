@@ -17,32 +17,40 @@ public static class MapCombatScaling
     /// <summary>Kills required to unlock scaling level 2 … 7 (index 0 → level 2, etc.).</summary>
     public static readonly int[] KillThresholdsForLevel = { 200, 500, 1000, 2000, 5000, 10000, 20000 };
 
+    public static int[] ResolveKillThresholds(MapNodeDefinition node) =>
+        node != null && node.UsesBossAreaScaling()
+            ? MapBossCombatScaling.KillThresholdsForLevel
+            : KillThresholdsForLevel;
+
     public const float HpMultiplierPerLevelAboveBase = 1f;
     public const float XpRateBonusPerLevelAboveBase = 0.10f;
     public const float LootChanceBonusPerLevelAboveBase = 0.25f;
     public const float GoldBonusPerLevelAboveBase = 0.25f;
 
-    public static int GetUnlockedLevel(int totalKillsOnMap)
+    public static int GetUnlockedLevel(int totalKillsOnMap, MapNodeDefinition node = null)
     {
+        int[] thresholds = ResolveKillThresholds(node);
         int kills = Math.Max(0, totalKillsOnMap);
         int level = MinLevel;
-        for (int i = 0; i < KillThresholdsForLevel.Length; i++)
+        for (int i = 0; i < thresholds.Length; i++)
         {
-            if (kills >= KillThresholdsForLevel[i])
+            if (kills >= thresholds[i])
                 level = i + 2;
         }
 
         return Math.Clamp(level, MinLevel, MaxLevel);
     }
 
-    public static int GetKillsRequiredForLevel(int level)
+    public static int GetKillsRequiredForLevel(int level, MapNodeDefinition node = null)
     {
         if (level <= MinLevel)
             return 0;
+
+        int[] thresholds = ResolveKillThresholds(node);
         int index = level - 2;
-        if (index < 0 || index >= KillThresholdsForLevel.Length)
-            return KillThresholdsForLevel[KillThresholdsForLevel.Length - 1];
-        return KillThresholdsForLevel[index];
+        if (index < 0 || index >= thresholds.Length)
+            return thresholds[thresholds.Length - 1];
+        return thresholds[index];
     }
 
     /// <summary>Level 1 = 1×, level 2 = 2×, level 3 = 3× base HP.</summary>
@@ -89,9 +97,9 @@ public static class MapCombatScaling
 
         progress ??= WorldMapProgressManager.Instance;
         int kills = progress != null ? progress.GetEnemyKillsOnNode(nodeId) : 0;
-        int unlocked = GetUnlockedLevel(kills);
+        int unlocked = GetUnlockedLevel(kills, node);
         int selected = progress != null ? progress.GetCombatMapScalingSelectedTier(nodeId) : SliderMin;
-        int maxSlider = GetMaxSelectableSliderValue(unlocked, kills);
+        int maxSlider = GetMaxSelectableSliderValue(unlocked, kills, node);
         return Mathf.Clamp(selected, SliderMin, maxSlider);
     }
 
@@ -106,18 +114,18 @@ public static class MapCombatScaling
     }
 
     /// <summary>Max slider index allowed from kill-unlocked play level and total kills on this map.</summary>
-    public static int GetMaxSelectableSliderValue(int unlockedLevel, int totalKillsOnMap = 0)
+    public static int GetMaxSelectableSliderValue(int unlockedLevel, int totalKillsOnMap = 0, MapNodeDefinition node = null)
     {
         if (unlockedLevel <= MinLevel)
             return SliderMin;
 
         int kills = Math.Max(0, totalKillsOnMap);
+        int[] thresholds = ResolveKillThresholds(node);
         int maxFromLevel = unlockedLevel >= MaxLevel
             ? SliderMax - 1
             : Mathf.Clamp(unlockedLevel - 1, SliderMin, SliderMax);
 
-        if (KillThresholdsForLevel.Length > 0 &&
-            kills >= KillThresholdsForLevel[KillThresholdsForLevel.Length - 1])
+        if (thresholds.Length > 0 && kills >= thresholds[thresholds.Length - 1])
             return SliderMax;
 
         return maxFromLevel;
@@ -133,7 +141,7 @@ public static class MapCombatScaling
             return MinLevel;
 
         int kills = progress != null ? progress.GetEnemyKillsOnNode(nodeId) : 0;
-        int unlocked = GetUnlockedLevel(kills);
+        int unlocked = GetUnlockedLevel(kills, node);
         int selectedSlider = progress != null ? progress.GetCombatMapScalingSelectedTier(nodeId) : 0;
         int requested = GetPlayLevelFromSliderValue(selectedSlider);
         return Mathf.Min(unlocked, requested);
@@ -141,6 +149,58 @@ public static class MapCombatScaling
 
     public static int ResolveActiveScalingLevel(MapNodeDefinition node, WorldMapProgressManager progress) =>
         GetEffectivePlayLevel(node, progress);
+
+    public static float ResolveHpMultiplier(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node != null && node.UsesBossAreaScaling())
+        {
+            int slider = GetEffectiveSliderValue(node, progress);
+            return MapBossCombatScaling.GetHpMultiplier(slider);
+        }
+
+        return GetHpMultiplier(GetEffectivePlayLevel(node, progress));
+    }
+
+    public static float ResolveDamageMultiplier(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node != null && node.UsesBossAreaScaling())
+        {
+            int slider = GetEffectiveSliderValue(node, progress);
+            return MapBossCombatScaling.GetDamageMultiplier(slider);
+        }
+
+        return 1f;
+    }
+
+    public static float ResolveLootChanceMultiplier(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node != null && node.UsesBossAreaScaling())
+        {
+            int slider = GetEffectiveSliderValue(node, progress);
+            return MapBossCombatScaling.GetLootChanceMultiplier(slider);
+        }
+
+        return GetLootChanceMultiplier(GetEffectivePlayLevel(node, progress));
+    }
+
+    public static float ResolveGoldMultiplier(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node != null && node.UsesBossAreaScaling())
+        {
+            int slider = GetEffectiveSliderValue(node, progress);
+            return MapBossCombatScaling.GetGoldMultiplier(slider);
+        }
+
+        return GetGoldMultiplier(GetEffectivePlayLevel(node, progress));
+    }
+
+    public static float ResolveXpRateMultiplier(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node != null && node.UsesBossAreaScaling())
+            return 1f;
+
+        return GetXpRateMultiplier(GetEffectivePlayLevel(node, progress));
+    }
 
     public static string BuildUnlockTiersText(MapNodeDefinition node, WorldMapProgressManager progress)
     {
@@ -153,9 +213,10 @@ public static class MapCombatScaling
         sb.AppendLine($"<b><size=14>Total enemies killed in this area: {kills}</size></b>");
         sb.AppendLine();
 
-        for (int scaling = 1; scaling <= KillThresholdsForLevel.Length; scaling++)
+        int[] thresholds = ResolveKillThresholds(node);
+        for (int scaling = 1; scaling <= thresholds.Length; scaling++)
         {
-            int required = KillThresholdsForLevel[scaling - 1];
+            int required = thresholds[scaling - 1];
             bool tierUnlocked = kills >= required;
             int displayKills = tierUnlocked ? required : kills;
             string status = tierUnlocked ? "unlocked" : "locked";
@@ -167,8 +228,11 @@ public static class MapCombatScaling
         return sb.ToString().TrimEnd();
     }
 
-    public static string BuildBonusesText(int sliderValue)
+    public static string BuildBonusesText(int sliderValue, MapNodeDefinition node = null)
     {
+        if (node != null && node.UsesBossAreaScaling())
+            return MapBossCombatScaling.BuildBonusesText(sliderValue);
+
         sliderValue = Mathf.Clamp(sliderValue, SliderMin, SliderMax);
         int playLevel = GetPlayLevelFromSliderValue(sliderValue);
         int hpPct = Mathf.RoundToInt((GetHpMultiplier(playLevel) - 1f) * 100f);
@@ -261,7 +325,9 @@ public static class MapCombatScaling
         if (spawnOrder.Count == 0)
             return entries;
 
-        Dictionary<string, int> scalingExtras = BuildScalingExtraSpawnsByEnemyId(map, sliderValue);
+        Dictionary<string, int> scalingExtras = map.UsesNormalMapCombatScaling()
+            ? BuildScalingExtraSpawnsByEnemyId(map, sliderValue)
+            : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         for (int i = 0; i < spawnOrder.Count; i++)
         {
@@ -287,8 +353,9 @@ public static class MapCombatScaling
         MapEnhancementAggregate enhancements = null)
     {
         List<MapEnemySpawnCountEntry> counts = BuildEnemySpawnCounts(map, sliderValue, enhancements);
+        string typeLabel = map != null && map.isBossMap ? "Boss Combat" : "Combat";
         if (counts.Count == 0)
-            return "Combat";
+            return typeLabel;
 
         var suffix = new StringBuilder();
         suffix.Append(" - ");
@@ -304,7 +371,7 @@ public static class MapCombatScaling
             suffix.Append(')');
         }
 
-        return $"Combat<size=75%>{suffix}</size>";
+        return $"{typeLabel}<size=75%>{suffix}</size>";
     }
 
     public static List<string> CollectDistinctEnemyIdsInSpawnOrder(MapNodeDefinition map)
@@ -379,7 +446,7 @@ public static class MapCombatScaling
             customLines.Add($"• {name} — {FormatSpecialDropChancePercent(entry.dropChance)}");
         }
 
-        if (node.IsMapCombatScalingEnabled() && sliderValue >= 2)
+        if (node.IsMapCombatScalingEnabled() && sliderValue >= 2 && !node.UsesBossAreaScaling())
         {
             IReadOnlyList<string> defaultLines = MapCombatScalingSpecialDropDefaults.BuildSummaryLinesForScalingLevel(sliderValue);
             for (int i = 0; i < defaultLines.Count; i++)

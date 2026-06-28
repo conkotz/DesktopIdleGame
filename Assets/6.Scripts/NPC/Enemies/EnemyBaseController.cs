@@ -313,14 +313,16 @@ public class EnemyBaseController : MonoBehaviour
 
         WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
-        int scalingLevel = node.GetCombatScalingLevel(progress);
 
-        float hpMult = MapCombatScaling.GetHpMultiplier(scalingLevel);
+        float hpMult = MapCombatScaling.ResolveHpMultiplier(node, progress);
         stats.ApplyMapCombatScalingHealth(hpMult);
 
-        _mapScalingLootChanceMultiplier = MapCombatScaling.GetLootChanceMultiplier(scalingLevel);
-        _mapScalingGoldMultiplier = MapCombatScaling.GetGoldMultiplier(scalingLevel);
-        _mapScalingXpRateMultiplier = MapCombatScaling.GetXpRateMultiplier(scalingLevel);
+        float dmgMult = MapCombatScaling.ResolveDamageMultiplier(node, progress);
+        stats.ApplyMapCombatScalingDamage(dmgMult);
+
+        _mapScalingLootChanceMultiplier = MapCombatScaling.ResolveLootChanceMultiplier(node, progress);
+        _mapScalingGoldMultiplier = MapCombatScaling.ResolveGoldMultiplier(node, progress);
+        _mapScalingXpRateMultiplier = MapCombatScaling.ResolveXpRateMultiplier(node, progress);
     }
 
     private void ApplyActiveMapEnhancementModifiers()
@@ -2308,7 +2310,7 @@ public class EnemyBaseController : MonoBehaviour
         var individualEntries = new List<MapScalingSpecialLootEntry>();
         var groupRolls = new List<MapScalingSpecialLootGroupRoll>();
         node.CollectMapSpecificSpecialDrops(sliderTier, individualEntries);
-        if (node.IsMapCombatScalingEnabled())
+        if (node.UsesNormalMapCombatScaling())
         {
             MapCombatScalingSpecialDropDefaults.CollectIndividualDropsForScalingLevel(sliderTier, individualEntries);
             MapCombatScalingSpecialDropDefaults.CollectGroupRollsForScalingLevel(sliderTier, groupRolls);

@@ -97,6 +97,42 @@ MonoBehaviour:
     amountMin: 3
     amountMax: 5
     dropChance: 0.4
+  - item: {fileID: 11400000, guid: 6c03eb97d12298f4586bf53d54b712c8, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.03
+  - item: {fileID: 11400000, guid: 25e1dda91c02f6142b796a3bc3e11d49, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 068a5354b34f4fd280be27eb7d4c8925, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 2fd6fd8383dc4758b137550ae05cc9f0, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 6f7f162ce5344ff5bcae87e36afae4fa, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: ff989df1d5574623a97137488ae1a55e, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 866174f124f25fe47b77fbc9e4058445, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 920766f191c04fc28b1f30dc4c4275ce, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: 7e3b9d2c5f8a4e1b9c6d0a3f7b2e8590, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
   lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

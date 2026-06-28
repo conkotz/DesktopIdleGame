@@ -100,7 +100,7 @@ public class WorldMapNodeButtonUI : MonoBehaviour
             nameText.text = node ? node.displayName : "—";
 
         if (typeText)
-            typeText.text = node ? node.nodeType.ToString() : "";
+            typeText.text = node ? node.GetMapUiTypeDisplayText() : "";
 
         if (stateText)
         {

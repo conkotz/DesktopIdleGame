@@ -6176,6 +6176,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// After <see cref="ApplyEnemyDefinition"/>, scales enemy outgoing damage for boss map scaling (base damage × multiplier).
+    /// </summary>
+    public void ApplyMapCombatScalingDamage(float damageMultiplier)
+    {
+        if (!GetComponent<EnemyBaseController>())
+            return;
+
+        damageMultiplier = Mathf.Max(1f, damageMultiplier);
+        if (damageMultiplier <= 1.0001f)
+            return;
+
+        unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * damageMultiplier));
+        unarmedMaxPhysicalDamage = Mathf.Max(
+            unarmedMinPhysicalDamage,
+            Mathf.RoundToInt(unarmedMaxPhysicalDamage * damageMultiplier));
+        OnStatsChanged?.Invoke();
+    }
+
+    /// <summary>
     /// Reduces enemy outgoing damage from equipped map enhancements (additive from base values).
     /// </summary>
     public void ApplyMapEnhancementDamageReduction(float reductionFraction)

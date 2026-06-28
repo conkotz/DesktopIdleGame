@@ -16,11 +16,15 @@ MonoBehaviour:
   displayName: Bear Den
   description: A big bear inhabits this area. Stay out!
   nodeType: 0
+  gatheringSubtype: 0
   enemyAggroMode: 0
   ignoreAggroRange: 1
   respawnHereIfDied: 0
+  isBossMap: 1
   mapCombatScalingEnabled: 0
   mapCombatScalingSpecialDropsByLevel: []
+  bossAreaScalingEnabled: 1
+  bossAreaScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 30
   eliteSpawnChance: 0
@@ -33,6 +37,8 @@ MonoBehaviour:
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
+  gatheringSkillGateMode: 0
+  gatheringRequiredLevel: 1
   combatSkillGateMode: 2
   combatSingleSkill: 0
   combatRequiredLevel: 15

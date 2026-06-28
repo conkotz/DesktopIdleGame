@@ -616,7 +616,7 @@ public class LevelSelectListViewUI : MonoBehaviour
             selectedNodeIcon.sprite = hasIcon ? n.icon : null;
         }
 
-        if (selectedNodeType) selectedNodeType.text = n ? $"Type: {n.nodeType}" : "";
+        if (selectedNodeType) selectedNodeType.text = n ? $"Type: {n.GetMapUiTypeDisplayText()}" : "";
 
         SkillsManager skills = FindSkillsManager();
         if (selectedNodeState)

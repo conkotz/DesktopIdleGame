@@ -15,6 +15,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [Tooltip("Small map-type badge (child named Icon). Hidden when no sprite is assigned for the node type.")]
     [FormerlySerializedAs("gatheringTypeIconImage")]
     [SerializeField] private Image mapTypeIconImage;
+    [Tooltip("Boss badge overlay (child named BossIcon). Uses Boss Map Type Icon sprite when the node is a boss map.")]
+    [SerializeField] private Image bossIconImage;
     [Header("Map type icons")]
     [Tooltip("Shown when nodeType is Town.")]
     [SerializeField] private Sprite townMapTypeIcon;
@@ -28,6 +30,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private Sprite fishingMapTypeIcon;
     [Tooltip("Shown when nodeType is Dungeon or EnduranceTrial.")]
     [SerializeField] private Sprite dungeonEnduranceMapTypeIcon;
+    [Tooltip("Shown when MapNodeDefinition Is Boss Map is enabled (combat boss badge).")]
+    [SerializeField] private Sprite bossMapTypeIcon;
     [SerializeField] private Button button;
     [SerializeField] private GameObject selectedBorder;
     [SerializeField] private GameObject lockedOverlay;
@@ -75,6 +79,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             mapScalingText = transform.Find("MapScalingText")?.GetComponent<TMP_Text>();
         if (!mapTypeIconImage)
             mapTypeIconImage = transform.Find("Icon")?.GetComponent<Image>();
+        if (!bossIconImage)
+            bossIconImage = transform.Find("BossIcon")?.GetComponent<Image>();
         if (button)
             button.onClick.AddListener(OnClick);
 
@@ -175,6 +181,7 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
 
         RefreshMapScalingLabel(node);
         RefreshMapTypeIcon(node);
+        RefreshBossIcon(node);
 
         if (currentLocationIcon)
             currentLocationIcon.SetActive(playerAtThisMap);
@@ -225,7 +232,22 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             : MapCombatScaling.SliderMin;
 
         mapScalingText.gameObject.SetActive(true);
-        mapScalingText.text = $"Map Scaling: {selectedTier}";
+        string prefix = node.UsesBossAreaScaling() ? "Boss Scaling" : "Map Scaling";
+        mapScalingText.text = $"{prefix}: {selectedTier}";
+    }
+
+    private void RefreshBossIcon(MapNodeDefinition node)
+    {
+        if (!bossIconImage)
+            return;
+
+        bool show = node != null && node.isBossMap && bossMapTypeIcon != null;
+        bossIconImage.gameObject.SetActive(show);
+        if (!show)
+            return;
+
+        bossIconImage.sprite = bossMapTypeIcon;
+        bossIconImage.preserveAspect = true;
     }
 
     private void RefreshMapTypeIcon(MapNodeDefinition node)

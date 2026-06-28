@@ -466,12 +466,22 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("When true, death respawns the player back onto this same map instead of the region town fallback.")]
     public bool respawnHereIfDied;
 
+    [Tooltip("Combat maps only. Marks this area as a boss map (shows boss badge on world map).")]
+    public bool isBossMap;
+
     [Header("Combat — map scaling")]
     [Tooltip("Combat maps only. When enabled, kills on this map unlock scaling tiers that boost enemy HP, XP, loot, and gold from base values.")]
     public bool mapCombatScalingEnabled;
 
     [Tooltip("Optional special loot per scaling level (2–7). Fixed drop chances — not scaled. Only the selected scaling tier's entries roll (not cumulative with lower tiers).")]
     public List<MapScalingLevelSpecialDrops> mapCombatScalingSpecialDropsByLevel = new();
+
+    [Header("Boss area — scaling")]
+    [Tooltip("Boss maps only. When enabled, uses boss scaling tiers instead of normal combat map scaling.")]
+    public bool bossAreaScalingEnabled;
+
+    [Tooltip("Optional boss-only special loot per scaling level (2–7). Fixed drop chances — not scaled.")]
+    public List<MapScalingLevelSpecialDrops> bossAreaScalingSpecialDropsByLevel = new();
 
     [Header("Enemy respawn (spawn group plans)")]
     [Tooltip("When true, enemies spawned from spawn group plans can respawn after death. Delay is Enemy Respawn Delay Seconds below. Ignored for endurance waves.")]
@@ -862,8 +872,16 @@ public class MapNodeDefinition : ScriptableObject
         return CanEnter(progress, skills) && !entranceOnlyAccess;
     }
 
+    public bool IsBossAreaScalingEnabled() =>
+        nodeType == MapNodeType.Combat && isBossMap && bossAreaScalingEnabled;
+
+    public bool UsesBossAreaScaling() => IsBossAreaScalingEnabled();
+
+    public bool UsesNormalMapCombatScaling() =>
+        nodeType == MapNodeType.Combat && mapCombatScalingEnabled && !UsesBossAreaScaling();
+
     public bool IsMapCombatScalingEnabled() =>
-        nodeType == MapNodeType.Combat && mapCombatScalingEnabled;
+        nodeType == MapNodeType.Combat && (mapCombatScalingEnabled || IsBossAreaScalingEnabled());
 
     public int GetCombatScalingLevel(WorldMapProgressManager progress) =>
         MapCombatScaling.ResolveActiveScalingLevel(this, progress);
@@ -875,12 +893,18 @@ public class MapNodeDefinition : ScriptableObject
             return;
 
         int tier = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
-        if (tier <= 0 || mapCombatScalingSpecialDropsByLevel == null)
+        if (tier <= 0)
             return;
 
-        for (int i = 0; i < mapCombatScalingSpecialDropsByLevel.Count; i++)
+        List<MapScalingLevelSpecialDrops> source = UsesBossAreaScaling()
+            ? bossAreaScalingSpecialDropsByLevel
+            : mapCombatScalingSpecialDropsByLevel;
+        if (source == null)
+            return;
+
+        for (int i = 0; i < source.Count; i++)
         {
-            MapScalingLevelSpecialDrops tierEntry = mapCombatScalingSpecialDropsByLevel[i];
+            MapScalingLevelSpecialDrops tierEntry = source[i];
             if (tierEntry == null || tierEntry.scalingLevel != tier || tierEntry.drops == null)
                 continue;
 
@@ -898,7 +922,7 @@ public class MapNodeDefinition : ScriptableObject
     public void CollectCombatScalingSpecialDropsUpToSlider(int sliderValue, List<MapScalingSpecialLootEntry> results)
     {
         CollectMapSpecificSpecialDrops(sliderValue, results);
-        if (IsMapCombatScalingEnabled())
+        if (UsesNormalMapCombatScaling())
             MapCombatScalingSpecialDropDefaults.CollectLegacyIndividualScrollEntries(sliderValue, results);
     }
 
@@ -906,6 +930,19 @@ public class MapNodeDefinition : ScriptableObject
     public const string EnterConditionUnavailable = "Unavailable until requirements are met";
     public const string EnterConditionEntranceOnly =
         "Access to map available only from entrance (teleport unavailable)";
+
+    /// <summary>Level select / world map details — display name for map type.</summary>
+    public string GetMapUiTypeDisplayText()
+    {
+        if (nodeType == MapNodeType.Combat && isBossMap)
+            return "Boss Combat";
+
+        return nodeType switch
+        {
+            MapNodeType.EnduranceTrial => "Endurance Trial",
+            _ => nodeType.ToString()
+        };
+    }
 
     /// <summary>Level select / world map details — how this node can be entered from the menu.</summary>
     public string GetEnterConditionDisplayText(WorldMapProgressManager progress, SkillsManager skills)

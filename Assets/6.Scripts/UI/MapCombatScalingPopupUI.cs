@@ -12,7 +12,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
     private const int TooltipSortOrder = CanvasSortOrder + 100;
-    private const int UiVersion = 13;
+    private const int UiVersion = 14;
     private const float DetailsScrollbarWidth = 14f;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
@@ -42,6 +42,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
     private MapEnhancementScalingSlotUI[] _enhancementSlots;
     private RectTransform _enhancementSlotsRow;
+    private RectTransform _mapEnhancementsSection;
     private TMP_Text _appliedEffectsText;
     private TMP_Text _enhancementReloadWarningText;
     private SharedTooltipUI _sharedTooltip;
@@ -147,8 +148,8 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _sharedTooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
 
         int kills = progress != null ? progress.GetEnemyKillsOnNode(node.nodeId) : 0;
-        int unlocked = MapCombatScaling.GetUnlockedLevel(kills);
-        _maxSelectableSlider = MapCombatScaling.GetMaxSelectableSliderValue(unlocked, kills);
+        int unlocked = MapCombatScaling.GetUnlockedLevel(kills, node);
+        _maxSelectableSlider = MapCombatScaling.GetMaxSelectableSliderValue(unlocked, kills, node);
 
         int selected = progress != null
             ? progress.GetCombatMapScalingSelectedTier(node.nodeId)
@@ -171,6 +172,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         StartCoroutine(CoRefreshDetailsScrollNextFrame());
         RefreshLockedTierWarning(selected);
         RefreshConfirmButtonState();
+        RefreshEnhancementSectionVisibility();
         RefreshEnhancementSlots();
         if (_panelRoot != null)
             _panelRoot.gameObject.SetActive(true);
@@ -268,9 +270,10 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         bool previewLockedTier = sliderValue > _maxSelectableSlider;
         if (_scaleValueText != null)
         {
+            string prefix = _node != null && _node.UsesBossAreaScaling() ? "Boss Map Scaling" : "Map Scaling";
             _scaleValueText.text = previewLockedTier
-                ? $"Map Scaling: {sliderValue} (locked — preview only)"
-                : $"Map Scaling: {sliderValue}";
+                ? $"{prefix}: {sliderValue} (locked — preview only)"
+                : $"{prefix}: {sliderValue}";
         }
 
         if (_detailsText == null || _node == null)
@@ -279,7 +282,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         var sb = new System.Text.StringBuilder();
         sb.AppendLine(MapCombatScaling.BuildUnlockTiersText(_node, _progress));
         sb.AppendLine();
-        sb.AppendLine(MapCombatScaling.BuildBonusesText(sliderValue));
+        sb.AppendLine(MapCombatScaling.BuildBonusesText(sliderValue, _node));
         sb.AppendLine();
         sb.AppendLine(MapCombatScaling.BuildSpecialLootText(_node, sliderValue));
 
@@ -504,6 +507,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         const float slotSize = 64f;
 
         RectTransform section = CreateChild(parent, "MapEnhancementsSection");
+        _mapEnhancementsSection = section;
         LayoutElement sectionLe = section.gameObject.AddComponent<LayoutElement>();
         sectionLe.minHeight = 152f;
 
@@ -626,8 +630,19 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         return slotUi;
     }
 
+    private void RefreshEnhancementSectionVisibility()
+    {
+        if (_mapEnhancementsSection == null)
+            return;
+
+        bool show = _node != null && !_node.UsesBossAreaScaling();
+        _mapEnhancementsSection.gameObject.SetActive(show);
+    }
+
     private void RefreshEnhancementSlots()
     {
+        if (_node != null && _node.UsesBossAreaScaling())
+            return;
         if (_node == null)
             return;
 

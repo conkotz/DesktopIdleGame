@@ -79,6 +79,15 @@ public sealed class MapNodeDefinitionEditor : Editor
             if (iterator.name == "gatheringSubtype")
                 continue;
 
+            if (iterator.name == "isBossMap")
+            {
+                SerializedProperty nodeType = serializedObject.FindProperty("nodeType");
+                bool isCombat = nodeType != null && nodeType.enumValueIndex == (int)MapNodeType.Combat;
+                using (new EditorGUI.DisabledScope(!isCombat))
+                    EditorGUILayout.PropertyField(iterator, true);
+                continue;
+            }
+
             if (iterator.name == "mapCombatScalingEnabled")
             {
                 DrawMapScalingSection(iterator);
@@ -86,6 +95,15 @@ public sealed class MapNodeDefinitionEditor : Editor
             }
 
             if (iterator.name == "mapCombatScalingSpecialDropsByLevel")
+                continue;
+
+            if (iterator.name == "bossAreaScalingEnabled")
+            {
+                DrawBossAreaScalingSection(iterator);
+                continue;
+            }
+
+            if (iterator.name == "bossAreaScalingSpecialDropsByLevel")
                 continue;
 
             if (iterator.name == "spawnGroupPlans")
@@ -188,14 +206,18 @@ public sealed class MapNodeDefinitionEditor : Editor
     private void DrawMapScalingSection(SerializedProperty scalingEnabledProp)
     {
         SerializedProperty nodeType = serializedObject.FindProperty("nodeType");
+        SerializedProperty isBossMap = serializedObject.FindProperty("isBossMap");
+        SerializedProperty bossScalingEnabled = serializedObject.FindProperty("bossAreaScalingEnabled");
         SerializedProperty specialDrops = serializedObject.FindProperty("mapCombatScalingSpecialDropsByLevel");
         bool isCombat = nodeType != null && nodeType.enumValueIndex == (int)MapNodeType.Combat;
+        bool bossScalingActive = isBossMap != null && isBossMap.boolValue
+            && bossScalingEnabled != null && bossScalingEnabled.boolValue;
 
-        using (new EditorGUI.DisabledScope(!isCombat))
+        using (new EditorGUI.DisabledScope(!isCombat || bossScalingActive))
         {
             EditorGUILayout.PropertyField(scalingEnabledProp, new GUIContent("Map Combat Scaling Enabled"));
 
-            if (isCombat && scalingEnabledProp.boolValue)
+            if (isCombat && scalingEnabledProp.boolValue && !bossScalingActive)
             {
                 EditorGUILayout.HelpBox(
                     "Level 1 = current base stats. Unlocks: 200 / 500 / 1k / 2k / 5k / 10k / 20k kills on this map.\n" +
@@ -212,6 +234,49 @@ public sealed class MapNodeDefinitionEditor : Editor
             else if (!isCombat && scalingEnabledProp.boolValue)
             {
                 EditorGUILayout.HelpBox("Map scaling applies to Combat node type only.", MessageType.Warning);
+            }
+            else if (bossScalingActive && scalingEnabledProp.boolValue)
+            {
+                EditorGUILayout.HelpBox("Boss area scaling is enabled — normal combat scaling is ignored for this map.", MessageType.Info);
+            }
+        }
+    }
+
+    private void DrawBossAreaScalingSection(SerializedProperty bossScalingEnabledProp)
+    {
+        SerializedProperty nodeType = serializedObject.FindProperty("nodeType");
+        SerializedProperty isBossMap = serializedObject.FindProperty("isBossMap");
+        SerializedProperty bossSpecialDrops = serializedObject.FindProperty("bossAreaScalingSpecialDropsByLevel");
+        bool isCombat = nodeType != null && nodeType.enumValueIndex == (int)MapNodeType.Combat;
+        bool isBoss = isBossMap != null && isBossMap.boolValue;
+
+        using (new EditorGUI.DisabledScope(!isCombat || !isBoss))
+        {
+            EditorGUILayout.PropertyField(bossScalingEnabledProp, new GUIContent("Boss Area Scaling Enabled"));
+
+            if (isCombat && isBoss && bossScalingEnabledProp.boolValue)
+            {
+                EditorGUILayout.HelpBox(
+                    "Uses boss-specific kill unlock tiers: 3 / 10 / 25 / 50 / 100 / 250 / 500 kills on this map.\n" +
+                    "Per selected scaling tier (from base): HP +50%, damage +20%, loot chance +10%, gold +20%.\n\n" +
+                    "Boss maps do not use automatic enhancement scroll / map enhancement defaults. " +
+                    "Add boss-specific special drops below when needed.",
+                    MessageType.Info);
+
+                EditorGUILayout.TextArea(
+                    MapBossCombatScaling.BuildEditorPreviewText(),
+                    GUILayout.MinHeight(88f));
+
+                if (bossSpecialDrops != null)
+                    EditorGUILayout.PropertyField(bossSpecialDrops, new GUIContent("Boss-Specific Special Drops By Scaling Level"), true);
+            }
+            else if (isCombat && !isBoss && bossScalingEnabledProp.boolValue)
+            {
+                EditorGUILayout.HelpBox("Enable Is Boss Map to use boss area scaling.", MessageType.Warning);
+            }
+            else if (!isCombat && bossScalingEnabledProp.boolValue)
+            {
+                EditorGUILayout.HelpBox("Boss area scaling applies to Combat boss maps only.", MessageType.Warning);
             }
         }
     }

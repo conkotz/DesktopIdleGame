@@ -198,11 +198,12 @@ public class LevelSpawnDirector : MonoBehaviour
 
             MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
             var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int scalingSlider = def.IsMapCombatScalingEnabled()
+            int scalingSlider = def.UsesNormalMapCombatScaling()
                 ? MapCombatScaling.GetEffectiveSliderValue(def, WorldMapProgressManager.Instance)
                 : MapCombatScaling.SliderMin;
-            Dictionary<string, int> scalingExtraSpawns =
-                MapCombatScaling.BuildScalingExtraSpawnsByEnemyId(def, scalingSlider);
+            Dictionary<string, int> scalingExtraSpawns = def.UsesNormalMapCombatScaling()
+                ? MapCombatScaling.BuildScalingExtraSpawnsByEnemyId(def, scalingSlider)
+                : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
             SpawnAllPlans(

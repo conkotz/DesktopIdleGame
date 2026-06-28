@@ -357,15 +357,16 @@ public static class DatabaseItemSourceCatalog
 
     private static void ScanScalingDrops(MapNodeDefinition node, string mapLabel)
     {
-        if (!node.mapCombatScalingEnabled)
+        if (!node.mapCombatScalingEnabled && !node.IsBossAreaScalingEnabled())
             return;
 
         var drops = new List<MapScalingSpecialLootEntry>();
         node.CollectMapSpecificSpecialDrops(MapCombatScaling.SliderMax, drops);
 
+        string suffix = node.IsBossAreaScalingEnabled() ? "boss scaling" : "scaling";
         string label = string.IsNullOrWhiteSpace(mapLabel)
-            ? "Combat maps (scaling)"
-            : $"{mapLabel} (scaling)";
+            ? $"Combat maps ({suffix})"
+            : $"{mapLabel} ({suffix})";
 
         for (int i = 0; i < drops.Count; i++)
         {
@@ -377,12 +378,15 @@ public static class DatabaseItemSourceCatalog
             Register(item.itemId, label);
         }
 
-        Register(MapCombatScalingSpecialDropDefaults.MapEnhancementTier1ItemId, label);
-        Register(MapCombatScalingSpecialDropDefaults.MapEnhancementTier2ItemId, label);
-        Register(MapCombatScalingSpecialDropDefaults.SlotReductionScrollItemId, label);
-        Register("basic_weapon_physical_scroll", label);
-        Register("intermediate_weapon_physical_scroll", label);
-        Register("advanced_weapon_physical_scroll", label);
+        if (node.UsesNormalMapCombatScaling())
+        {
+            Register(MapCombatScalingSpecialDropDefaults.MapEnhancementTier1ItemId, label);
+            Register(MapCombatScalingSpecialDropDefaults.MapEnhancementTier2ItemId, label);
+            Register(MapCombatScalingSpecialDropDefaults.SlotReductionScrollItemId, label);
+            Register("basic_weapon_physical_scroll", label);
+            Register("intermediate_weapon_physical_scroll", label);
+            Register("advanced_weapon_physical_scroll", label);
+        }
     }
 
     private static void ScanQuestRewards(IReadOnlyList<QuestDefinition> quests)
