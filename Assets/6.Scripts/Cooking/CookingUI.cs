@@ -70,7 +70,7 @@ public class CookingUI : MonoBehaviour
 
     private SidePickerMode _pickerMode;
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 10;
+    private const int UiLayoutVersion = 11;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -108,6 +108,25 @@ public class CookingUI : MonoBehaviour
 
     public static CookingUI Instance => _instance;
     public static bool IsOpen => _instance != null && _instance._root != null && _instance._root.gameObject.activeSelf;
+
+    public RectTransform GetLayoutPanel() => _root;
+    public Canvas GetLayoutCanvas() => _canvas;
+
+    public void ShowLayoutPreview()
+    {
+        if (_root == null)
+            BuildUi();
+        if (_root == null)
+            return;
+
+        ProcessingSkillsWindowLayout.ApplyLayoutToOpenPanel(_root, _canvas);
+        _root.gameObject.SetActive(true);
+    }
+
+    public void HideLayoutPreview()
+    {
+        HideImmediate();
+    }
 
     public static int CanvasSortingOrder =>
         _instance != null && _instance._canvas != null
@@ -252,6 +271,7 @@ public class CookingUI : MonoBehaviour
         HideHelpPanel();
         HideProficiencyPanel();
         SubscribeProficiency();
+        ProcessingSkillsWindowLayout.ApplyLayoutToOpenPanel(_root, _canvas);
         _root.gameObject.SetActive(true);
         Refresh();
 
@@ -269,6 +289,7 @@ public class CookingUI : MonoBehaviour
         if (_station != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
 
+        ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;
@@ -1759,6 +1780,7 @@ public class CookingUI : MonoBehaviour
         RefreshCookingLevelButton();
         RefreshCookingXpBar();
         RefreshActiveWorkButton();
+        ProcessingSkillsWindowLayout.EnsureProcessingDragBackdrop(_root, _canvas);
         _builtUiLayoutVersion = UiLayoutVersion;
     }
 

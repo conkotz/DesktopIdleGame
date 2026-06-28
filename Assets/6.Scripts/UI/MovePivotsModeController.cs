@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -13,7 +14,10 @@ public sealed class MovePivotsModeController : MonoBehaviour
     private const float OverlayButtonHeight = 40f;
     private const float OverlaySaveButtonWidth = 280f;
     private const float OverlayWideButtonWidth = 340f;
+    private const float OverlayVisibilityButtonWidth = 280f;
+    private const float OverlayResetButtonWidth = 240f;
     private const float OverlaySaveButtonHeight = 48f;
+    private static readonly Color OverlayButtonResetColor = new(0.78f, 0.24f, 0.24f, 0.96f);
     private const float OverlayButtonStackGap = 8f;
     private const float OverlayTopInset = 12f;
 
@@ -98,7 +102,11 @@ public sealed class MovePivotsModeController : MonoBehaviour
     private Button _testViewButton;
     private Button _alignButton;
     private Button _cancelButton;
+    private Button _visibilityButton;
+    private Button _resetPivotsButton;
     private TMP_Text _testViewButtonLabel;
+    private PivotWindowVisibilityMenu _visibilityMenu;
+    private readonly Dictionary<string, bool> _pivotGhostVisibleByKey = new(StringComparer.Ordinal);
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void BootstrapAfterSceneLoad()
@@ -165,6 +173,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
             if (rect)
                 UIWindowLayoutBinding.EnsureOn(rect, label);
         }
+
+        ProcessingSkillsWindowLayout.EnsureProxyAnchors();
     }
 
     private void Awake()
@@ -314,6 +324,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
             DestroyGhosts();
             RestoreWindowVisibility(reloadPivotLayoutFromPrefs: false);
             RestoreMainMenuSettingsIfNeeded();
+            _visibilityMenu?.SetExpanded(false);
             if (_overlayRoot)
                 _overlayRoot.gameObject.SetActive(false);
             return;
@@ -322,6 +333,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
         _testViewActive = false;
         _restoreMainMenuSettingsOnExit = false;
         _rememberedActive.Clear();
+        _pivotGhostVisibleByKey.Clear();
         DiscoverBindings();
 
         if (_bindings.Count == 0)
@@ -342,6 +354,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
         EnforceBoundWindowsHidden();
         EnsureOverlay();
         RebuildGhosts();
+        InitializePivotVisibilityState();
+        RebuildVisibilityMenu();
 
         if (_ghosts.Count == 0)
         {
@@ -374,6 +388,11 @@ public sealed class MovePivotsModeController : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
 
+        if (FurnaceUI.IsOpen)
+            FurnaceUI.Instance?.Close();
+        if (CookingUI.IsOpen)
+            CookingUI.Instance?.Close();
+
         if (QuickMenuPanelToggleUI.IsOpen)
         {
             GameObject quickMenu = GameObject.Find("QuickMenuPanel");
@@ -393,6 +412,7 @@ public sealed class MovePivotsModeController : MonoBehaviour
             return;
 
         _windowsParent = windowsArea as RectTransform;
+        ProcessingSkillsWindowLayout.EnsureProxyAnchors();
 
         for (int i = 0; i < UIWindowLayoutBinding.KnownMovePivotWindows.Length; i++)
         {
@@ -445,7 +465,9 @@ public sealed class MovePivotsModeController : MonoBehaviour
             }
 
             string key = binding.MemoryKey;
-            if (UIWindowSessionLayoutMemory.TryGet(key, out UIWindowLayoutPrefs.Snapshot session))
+            if (ProcessingSkillsWindowLayout.TryGetSessionSnapshotForAlign(binding, out UIWindowLayoutPrefs.Snapshot processingSnapshot))
+                _preEditBindingSnapshots.Add(processingSnapshot);
+            else if (UIWindowSessionLayoutMemory.TryGet(key, out UIWindowLayoutPrefs.Snapshot session))
                 _preEditBindingSnapshots.Add(session);
             else if (binding.WindowRect != null)
                 _preEditBindingSnapshots.Add(binding.GetCurrentSnapshot());
@@ -800,6 +822,16 @@ public sealed class MovePivotsModeController : MonoBehaviour
         else if (!_alignButton)
             _alignButton = _overlayRoot.Find("MovePivotsAlignButton")?.GetComponent<Button>();
 
+        if (!_overlayRoot.Find("MovePivotsVisibilityButton"))
+            CreateVisibilityButton(_overlayRoot);
+        else if (!_visibilityButton)
+            _visibilityButton = _overlayRoot.Find("MovePivotsVisibilityButton")?.GetComponent<Button>();
+
+        if (!_overlayRoot.Find("MovePivotsResetButton"))
+            CreateResetPivotsButton(_overlayRoot);
+        else if (!_resetPivotsButton)
+            _resetPivotsButton = _overlayRoot.Find("MovePivotsResetButton")?.GetComponent<Button>();
+
         if (!_overlayRoot.Find("MovePivotsCancelButton"))
             CreateCancelButton(_overlayRoot);
         else if (!_cancelButton)
@@ -808,6 +840,23 @@ public sealed class MovePivotsModeController : MonoBehaviour
         ApplyOverlayButtonChrome();
         LayoutOverlayButtons();
         UpdateTestViewButtonLabel();
+
+        DestroyLegacyVisibilityMenuHost();
+
+        if (_visibilityButton != null && _visibilityMenu == null)
+            _visibilityMenu = PivotWindowVisibilityMenu.AttachToButton(_visibilityButton, HandlePivotVisibilityChanged);
+        else
+            _visibilityMenu?.SetToggleButton(_visibilityButton);
+    }
+
+    private void DestroyLegacyVisibilityMenuHost()
+    {
+        if (!_overlayRoot)
+            return;
+
+        Transform legacyHost = _overlayRoot.Find("MovePivotsVisibilityMenu");
+        if (legacyHost)
+            Destroy(legacyHost.gameObject);
     }
 
     private void ApplyOverlayButtonChrome()
@@ -818,10 +867,17 @@ public sealed class MovePivotsModeController : MonoBehaviour
         StyleOverlayButton(_overlayRoot.Find("MovePivotsDoneButton"), "Save layout", OverlayButtonSaveColor);
         StyleOverlayButton(_overlayRoot.Find("MovePivotsTestViewButton"), "Test View", OverlayButtonDefaultColor);
         StyleOverlayButton(_overlayRoot.Find("MovePivotsAlignButton"), "Align pivots with current positions", OverlayButtonDefaultColor, 15f);
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsVisibilityButton"), "Window visibility toggle", OverlayButtonDefaultColor, 15f);
+        StyleOverlayButton(_overlayRoot.Find("MovePivotsResetButton"), "Reset to default pivots", OverlayButtonResetColor, 13f, new Color(0.05f, 0.05f, 0.05f, 1f));
         StyleOverlayButton(_overlayRoot.Find("MovePivotsCancelButton"), "Exit and don't save", OverlayButtonCancelColor, 15f);
     }
 
-    private static void StyleOverlayButton(Transform buttonTransform, string labelText, Color backgroundColor, float fontSize = 18f)
+    private static void StyleOverlayButton(
+        Transform buttonTransform,
+        string labelText,
+        Color backgroundColor,
+        float fontSize = 18f,
+        Color? labelColor = null)
     {
         if (!buttonTransform)
             return;
@@ -834,6 +890,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
         {
             label.text = labelText;
             label.fontSize = fontSize;
+            if (labelColor.HasValue)
+                label.color = labelColor.Value;
         }
     }
 
@@ -847,8 +905,10 @@ public sealed class MovePivotsModeController : MonoBehaviour
         float wSave = OverlaySaveButtonWidth;
         float wTest = OverlaySaveButtonWidth;
         float wAlign = OverlayWideButtonWidth;
+        float wVisibility = OverlayVisibilityButtonWidth;
+        float wReset = OverlayResetButtonWidth;
         float wCancel = OverlaySaveButtonWidth;
-        float totalWidth = wSave + wTest + wAlign + wCancel + gap * 3f;
+        float totalWidth = wSave + wTest + wAlign + wVisibility + wReset + wCancel + gap * 5f;
         float x = -totalWidth * 0.5f;
 
         PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsDoneButton") as RectTransform, ref x, wSave, y);
@@ -857,7 +917,12 @@ public sealed class MovePivotsModeController : MonoBehaviour
         x += gap;
         PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsAlignButton") as RectTransform, ref x, wAlign, y);
         x += gap;
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsVisibilityButton") as RectTransform, ref x, wVisibility, y);
+        x += gap;
+        PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsResetButton") as RectTransform, ref x, wReset, y);
+        x += gap;
         PositionOverlayButtonHorizontal(_overlayRoot.Find("MovePivotsCancelButton") as RectTransform, ref x, wCancel, y);
+        _visibilityMenu?.SetToggleButton(_visibilityButton);
     }
 
     private static void PositionOverlayButtonHorizontal(RectTransform buttonRect, ref float x, float width, float y)
@@ -909,6 +974,35 @@ public sealed class MovePivotsModeController : MonoBehaviour
             OverlaySaveButtonHeight,
             15f);
         _alignButton.onClick.AddListener(AlignGhostsWithCurrentWindowPositions);
+    }
+
+    private void CreateVisibilityButton(RectTransform parent)
+    {
+        _visibilityButton = CreateOverlayButton(
+            parent,
+            "MovePivotsVisibilityButton",
+            "Window visibility toggle",
+            new Vector2(0f, -OverlayTopInset),
+            OverlayVisibilityButtonWidth,
+            OverlaySaveButtonHeight,
+            15f);
+        _visibilityButton.onClick.AddListener(ToggleVisibilityMenu);
+
+        DestroyLegacyVisibilityMenuHost();
+        _visibilityMenu = PivotWindowVisibilityMenu.AttachToButton(_visibilityButton, HandlePivotVisibilityChanged);
+    }
+
+    private void CreateResetPivotsButton(RectTransform parent)
+    {
+        _resetPivotsButton = CreateOverlayButton(
+            parent,
+            "MovePivotsResetButton",
+            "Reset to default pivots",
+            new Vector2(0f, -OverlayTopInset),
+            OverlayResetButtonWidth,
+            OverlaySaveButtonHeight,
+            13f);
+        _resetPivotsButton.onClick.AddListener(ResetAllGhostsToFactoryDefaults);
     }
 
     private void CreateCancelButton(RectTransform parent)
@@ -1071,8 +1165,17 @@ public sealed class MovePivotsModeController : MonoBehaviour
             if (binding == null || !binding.WindowRect)
                 continue;
 
+            if (!IsPivotGhostVisible(binding.MemoryKey))
+                continue;
+
             if (UIWindowLayoutBinding.UsesGhostDuringTestView(binding.MemoryKey))
                 continue;
+
+            if (UIWindowLayoutBinding.IsProcessingSkillsWindow(binding.MemoryKey))
+            {
+                ProcessingSkillsWindowLayout.ShowTestPreview();
+                continue;
+            }
 
             binding.WindowRect.gameObject.SetActive(true);
             binding.WindowRect.SetAsLastSibling();
@@ -1092,6 +1195,12 @@ public sealed class MovePivotsModeController : MonoBehaviour
 
             if (UIWindowLayoutBinding.UsesGhostDuringTestView(binding.MemoryKey))
                 continue;
+
+            if (UIWindowLayoutBinding.IsProcessingSkillsWindow(binding.MemoryKey))
+            {
+                ProcessingSkillsWindowLayout.HideTestPreview();
+                continue;
+            }
 
             binding.WindowRect.gameObject.SetActive(false);
         }
@@ -1136,7 +1245,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
                 _actionBarSlotHintRects.TryGetValue(binding.MemoryKey, out slotHints);
 
             ghost.Initialize(binding, _windowsParent, snapshot, fillColor, slotHints);
-            ghostGo.SetActive(true);
+            ApplyPivotGhostVisibility(binding.MemoryKey, ghost);
+            ghostGo.SetActive(IsPivotGhostVisible(binding.MemoryKey));
             _ghosts.Add(ghost);
             EnsureBringToFrontOverlayButton(ghost);
             EnsureLabelOverlay(ghost);
@@ -1278,6 +1388,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
         Transform done = _overlayRoot.Find("MovePivotsDoneButton");
         Transform testView = _overlayRoot.Find("MovePivotsTestViewButton");
         Transform align = _overlayRoot.Find("MovePivotsAlignButton");
+        Transform visibility = _overlayRoot.Find("MovePivotsVisibilityButton");
+        Transform reset = _overlayRoot.Find("MovePivotsResetButton");
         Transform cancel = _overlayRoot.Find("MovePivotsCancelButton");
         if (done)
             done.SetAsLastSibling();
@@ -1285,6 +1397,10 @@ public sealed class MovePivotsModeController : MonoBehaviour
             testView.SetAsLastSibling();
         if (align)
             align.SetAsLastSibling();
+        if (visibility)
+            visibility.SetAsLastSibling();
+        if (reset)
+            reset.SetAsLastSibling();
         if (cancel)
             cancel.SetAsLastSibling();
     }
@@ -1326,5 +1442,161 @@ public sealed class MovePivotsModeController : MonoBehaviour
         _ghosts.Clear();
         _ghostSnapshots.Clear();
         _actionBarSlotHintRects.Clear();
+    }
+
+    private void InitializePivotVisibilityState()
+    {
+        _pivotGhostVisibleByKey.Clear();
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null || string.IsNullOrWhiteSpace(binding.MemoryKey))
+                continue;
+
+            _pivotGhostVisibleByKey[binding.MemoryKey] = true;
+        }
+    }
+
+    private void RebuildVisibilityMenu()
+    {
+        if (_visibilityMenu == null && _overlayRoot)
+            _visibilityMenu = PivotWindowVisibilityMenu.AttachToButton(_visibilityButton, HandlePivotVisibilityChanged);
+
+        _visibilityMenu?.SetToggleButton(_visibilityButton);
+        _visibilityMenu?.RebuildRows(_bindings, _pivotGhostVisibleByKey);
+    }
+
+    private void ToggleVisibilityMenu()
+    {
+        _visibilityMenu?.ToggleExpanded();
+    }
+
+    private void HandlePivotVisibilityChanged(string memoryKey, bool visible)
+    {
+        if (string.IsNullOrWhiteSpace(memoryKey))
+            return;
+
+        _pivotGhostVisibleByKey[memoryKey] = visible;
+        SetPivotGhostVisible(memoryKey, visible);
+    }
+
+    private bool IsPivotGhostVisible(string memoryKey)
+    {
+        if (string.IsNullOrWhiteSpace(memoryKey))
+            return true;
+
+        return !_pivotGhostVisibleByKey.TryGetValue(memoryKey, out bool visible) || visible;
+    }
+
+    private void SetPivotGhostVisible(string memoryKey, bool visible)
+    {
+        WindowPivotGhostUI ghost = FindGhost(memoryKey);
+        if (ghost)
+            ghost.gameObject.SetActive(visible);
+
+        _visibilityMenu?.SetRowVisible(memoryKey, visible);
+        SyncBringToFrontOverlayVisibility();
+        SyncLabelOverlayVisibility();
+
+        if (_testViewActive)
+        {
+            UIWindowLayoutBinding binding = FindBinding(memoryKey);
+            if (binding == null)
+                return;
+
+            if (!visible)
+            {
+                if (UIWindowLayoutBinding.IsProcessingSkillsWindow(memoryKey))
+                {
+                    ProcessingSkillsWindowLayout.HideTestPreview();
+                }
+                else if (!UIWindowLayoutBinding.UsesGhostDuringTestView(memoryKey) && binding.WindowRect)
+                    binding.WindowRect.gameObject.SetActive(false);
+            }
+            else
+            {
+                ApplyAllGhostLayoutsToBindings();
+                if (UIWindowLayoutBinding.IsProcessingSkillsWindow(memoryKey))
+                    ProcessingSkillsWindowLayout.ShowTestPreview();
+                else if (!UIWindowLayoutBinding.UsesGhostDuringTestView(memoryKey) && binding.WindowRect)
+                {
+                    binding.WindowRect.gameObject.SetActive(true);
+                    binding.WindowRect.SetAsLastSibling();
+                }
+            }
+        }
+    }
+
+    private void ApplyPivotGhostVisibility(string memoryKey, WindowPivotGhostUI ghost)
+    {
+        if (!ghost)
+            return;
+
+        bool visible = IsPivotGhostVisible(memoryKey);
+        ghost.gameObject.SetActive(visible);
+    }
+
+    private UIWindowLayoutBinding FindBinding(string memoryKey)
+    {
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding != null && binding.MemoryKey == memoryKey)
+                return binding;
+        }
+
+        return null;
+    }
+
+    private WindowPivotGhostUI FindGhost(string memoryKey)
+    {
+        for (int i = 0; i < _ghosts.Count; i++)
+        {
+            WindowPivotGhostUI ghost = _ghosts[i];
+            if (ghost?.Binding != null && ghost.Binding.MemoryKey == memoryKey)
+                return ghost;
+        }
+
+        return null;
+    }
+
+    private void ResetAllGhostsToFactoryDefaults()
+    {
+        if (_testViewActive)
+            ExitTestView(restoreWindowVisibility: true);
+
+        _visibilityMenu?.SetExpanded(false);
+
+        for (int i = 0; i < _bindings.Count; i++)
+        {
+            UIWindowLayoutBinding binding = _bindings[i];
+            if (binding == null)
+                continue;
+
+            if (UIWindowLayoutBinding.IsProcessingSkillsWindow(binding.MemoryKey))
+            {
+                ProcessingSkillsWindowLayout.ResetProxyToFactoryDefault(binding.WindowRect);
+                UIWindowLayoutPrefs.Delete(binding.MemoryKey);
+                UIWindowPositionMemory.ForgetKey(binding.MemoryKey);
+                UIWindowSessionLayoutMemory.ForgetKey(binding.MemoryKey);
+                binding.RecaptureFactoryFromCurrentLayout();
+            }
+            else
+            {
+                binding.ResetToFactory();
+            }
+
+            UIWindowLayoutPrefs.Snapshot factorySnapshot = binding.GetCurrentSnapshot();
+            if (i < _ghostSnapshots.Count)
+                _ghostSnapshots[i] = factorySnapshot;
+
+            WindowPivotGhostUI ghost = i < _ghosts.Count ? _ghosts[i] : null;
+            if (ghost)
+                ghost.ApplyLayoutSnapshot(factorySnapshot);
+        }
+
+        ProcessingSkillsWindowLayout.HideTestPreview();
+        RefreshAllGhostChrome();
+        GameLog.Add("All window pivots reset to default positions");
     }
 }

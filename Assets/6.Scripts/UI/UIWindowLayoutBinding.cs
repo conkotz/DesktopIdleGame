@@ -14,7 +14,8 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
         ("FullDPSWindow", "DPS meter"),
         ("ActionBarWindow", "Action bar"),
         ("QuestTrackerWindow", "Quest tracker"),
-        ("ShopWindow", "Shop")
+        ("ShopWindow", "Shop"),
+        ("ProcessingWindow", "Processing"),
     };
 
     private static readonly Color[] PivotGhostFillPalette =
@@ -103,6 +104,9 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     public static bool IsActionBarWindow(string memoryKey) =>
         string.Equals(memoryKey, "ActionBarWindow", System.StringComparison.Ordinal);
 
+    public static bool IsProcessingSkillsWindow(string memoryKey) =>
+        ProcessingSkillsWindowLayout.IsProcessingSkillsWindow(memoryKey);
+
     /// <summary>Main menu and shop never open together in-game — keep ghosts during Test View.</summary>
     public static bool UsesGhostDuringTestView(string memoryKey) =>
         IsMainMenuWindow(memoryKey) || IsShopWindow(memoryKey);
@@ -115,6 +119,9 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
         if (IsActionBarWindow(memoryKey))
             return ActionBarUI.GetPivotPlaceholderHeight();
 
+        if (IsProcessingSkillsWindow(memoryKey))
+            return ProcessingSkillsWindowLayout.GetProxySizeInWindowsArea().y;
+
         return 180f;
     }
 
@@ -125,6 +132,9 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     {
         if (binding == null)
             return snapshot;
+
+        if (IsProcessingSkillsWindow(binding.MemoryKey))
+            return ProcessingSkillsWindowLayout.PrepareGhostSnapshot(snapshot);
 
         UIWindowLayoutPrefs.Snapshot prepared = snapshot;
         if (!IsQuestTrackerWindow(binding.MemoryKey) && prepared.sizeDelta.y < GetPivotGhostMinimumHeight(binding.MemoryKey))
@@ -259,6 +269,15 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     public void CaptureFactoryIfNeeded()
     {
         if (_factoryCaptured || !windowRect)
+            return;
+
+        _factorySnapshot = UIWindowLayoutPrefs.Capture(windowRect);
+        _factoryCaptured = true;
+    }
+
+    public void RecaptureFactoryFromCurrentLayout()
+    {
+        if (!windowRect)
             return;
 
         _factorySnapshot = UIWindowLayoutPrefs.Capture(windowRect);

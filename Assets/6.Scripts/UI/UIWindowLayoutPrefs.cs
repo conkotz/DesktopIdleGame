@@ -122,7 +122,8 @@ public static class UIWindowLayoutPrefs
             "FullDPSWindow",
             "ActionBarWindow",
             "QuestTrackerWindow",
-            "ShopWindow"
+            "ShopWindow",
+            "ProcessingWindow"
         };
 
         for (int i = 0; i < keys.Length; i++)
