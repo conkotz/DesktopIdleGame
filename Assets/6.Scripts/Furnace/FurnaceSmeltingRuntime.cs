@@ -145,6 +145,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public event Action StateChanged;
 
         private readonly string _furnaceId;
+        private readonly ProcessingFuelBank _fuelBank = new();
         private string _storedEnhancementItemId = "";
         private int _storedEnhancementAmount;
         private string _storedOreItemId = "";
@@ -162,6 +163,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public string FurnaceId => _furnaceId;
         public string StoredEnhancementItemId => _storedEnhancementItemId ?? "";
         public int StoredEnhancementAmount => Mathf.Max(0, _storedEnhancementAmount);
+        public string StoredFuelItemId => _fuelBank.StoredItemId;
+        public int StoredFuelAmount => _fuelBank.StoredAmount;
+        public bool HasFuel => _fuelBank.HasFuel;
+        public float FuelSecondsRemaining => _fuelBank.GetSecondsRemaining();
         public string StoredOreItemId => _storedOreItemId ?? "";
         public int StoredOreAmount => Mathf.Max(0, _storedOreAmount);
         public int ReadyBarAmount => Mathf.Max(0, _readyBarAmount);
@@ -205,6 +210,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (_isSmelting || _readyBarAmount > 0)
                 return false;
             if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
+                return false;
+            if (!MeetsSmeltingLevelRequirement(recipe))
+                return false;
+            if (!_fuelBank.HasFuel)
                 return false;
             return _storedOreAmount >= recipe.OrePerBar;
         }
@@ -443,6 +452,134 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return TryDepositEnhancement(itemId, available, out failureReason);
         }
 
+        public bool TryDepositFuelFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (inv == null || slotIndex < 0)
+            {
+                failureReason = "Invalid slot.";
+                return false;
+            }
+
+            var slot = inv.GetSlot(slotIndex);
+            if (slot.IsEmpty)
+            {
+                failureReason = "Empty slot.";
+                return false;
+            }
+
+            int deposit = amount <= 0 ? slot.amount : Mathf.Min(amount, slot.amount);
+            if (deposit <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateFuelDeposit(slot.itemId, deposit, out failureReason, out int allowed))
+                return false;
+
+            deposit = allowed;
+            int removed = inv.RemoveAmountAtSlot(slotIndex, deposit);
+            if (removed <= 0)
+            {
+                failureReason = "Could not remove fuel from inventory.";
+                return false;
+            }
+
+            ApplyFuelDeposit(slot.itemId, removed);
+            return true;
+        }
+
+        public bool TryDepositFuel(string itemId, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateFuelDeposit(itemId, amount, out failureReason, out int allowed))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            if (available <= 0)
+            {
+                failureReason = "You do not have that log.";
+                return false;
+            }
+
+            int deposit = Mathf.Min(Mathf.Min(amount, allowed), available);
+            if (!inv.Remove(itemId, deposit))
+            {
+                failureReason = "Could not remove fuel from inventory.";
+                return false;
+            }
+
+            ApplyFuelDeposit(itemId, deposit);
+            return true;
+        }
+
+        public bool TryDepositAllFuelFromInventory(string itemId, out string failureReason)
+        {
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            return TryDepositFuel(itemId, available, out failureReason);
+        }
+
+        public bool TryWithdrawAllFuel(out string failureReason)
+        {
+            failureReason = null;
+            if (!_fuelBank.HasFuel)
+            {
+                failureReason = "No fuel stored.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            string itemId = _fuelBank.StoredItemId;
+            int toReturn = _fuelBank.StoredAmount;
+            float burned = _fuelBank.SecondsBurnedFromCurrentLog;
+            _fuelBank.Clear();
+
+            int before = inv.GetTotalAmount(itemId);
+            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
+            int added = inv.GetTotalAmount(itemId) - before;
+            if (added <= 0)
+            {
+                _fuelBank.Load(itemId, toReturn, burned);
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            if (added < toReturn)
+                _fuelBank.AddLogs(itemId, toReturn - added);
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
         public bool TryWithdrawAllEnhancement(out string failureReason)
         {
             failureReason = null;
@@ -587,6 +724,14 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (deltaSeconds <= 0f || !_isSmelting)
                 return false;
 
+            if (!_fuelBank.TryConsumeSeconds(deltaSeconds))
+            {
+                _isSmelting = false;
+                ClearBarModifiers();
+                NotifyChanged();
+                return true;
+            }
+
             if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
             {
                 _isSmelting = false;
@@ -682,6 +827,9 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 readyBarItemId = GetReadyBarItemId(),
                 storedEnhancementItemId = _storedEnhancementItemId ?? "",
                 storedEnhancementAmount = Mathf.Max(0, _storedEnhancementAmount),
+                storedFuelItemId = _fuelBank.StoredItemId,
+                storedFuelAmount = _fuelBank.StoredAmount,
+                fuelSecondsBurnedFromCurrentLog = _fuelBank.SecondsBurnedFromCurrentLog,
                 activeOreItemId = _activeOreItemId ?? "",
                 smeltProgressSeconds = Mathf.Max(0f, _smeltProgressSeconds),
                 isSmelting = _isSmelting
@@ -696,6 +844,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _readyBarItemId = row.readyBarItemId ?? "";
             _storedEnhancementItemId = row.storedEnhancementItemId ?? "";
             _storedEnhancementAmount = Mathf.Max(0, row.storedEnhancementAmount);
+            _fuelBank.Load(
+                row.storedFuelItemId ?? "",
+                row.storedFuelAmount,
+                row.fuelSecondsBurnedFromCurrentLog);
             _activeOreItemId = row.activeOreItemId ?? "";
             _smeltProgressSeconds = Mathf.Max(0f, row.smeltProgressSeconds);
             _isSmelting = row.isSmelting;
@@ -715,7 +867,9 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             if (_isSmelting &&
-                (!TryGetActiveRecipe(out SmeltingRecipe activeRecipe) || _storedOreAmount < activeRecipe.OrePerBar))
+                (!_fuelBank.HasFuel ||
+                 !TryGetActiveRecipe(out SmeltingRecipe activeRecipe) ||
+                 _storedOreAmount < activeRecipe.OrePerBar))
             {
                 _isSmelting = false;
                 ClearBarModifiers();
@@ -767,6 +921,9 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return "";
         }
 
+        private static int GetRequiredSmeltingLevel(SmeltingRecipe recipe) =>
+            SmeltingRecipes.GetRequiredSmeltingLevel(recipe);
+
         private bool ValidateOreDeposit(string oreItemId, out string failureReason)
         {
             failureReason = null;
@@ -776,9 +933,17 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
-            if (!SmeltingRecipes.TryGetForOre(oreItemId, out _))
+            if (!SmeltingRecipes.TryGetForOre(oreItemId, out SmeltingRecipe recipe))
             {
                 failureReason = "That ore cannot be smelted here.";
+                return false;
+            }
+
+            int smeltingLevel = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Smelting);
+            int requiredLevel = GetRequiredSmeltingLevel(recipe);
+            if (smeltingLevel < requiredLevel)
+            {
+                failureReason = $"Requires Smelting level {requiredLevel}.";
                 return false;
             }
 
@@ -797,6 +962,12 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             return true;
+        }
+
+        private static bool MeetsSmeltingLevelRequirement(SmeltingRecipe recipe)
+        {
+            int smeltingLevel = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Smelting);
+            return smeltingLevel >= GetRequiredSmeltingLevel(recipe);
         }
 
         private void ApplyOreDeposit(string oreItemId, int deposited)
@@ -857,6 +1028,33 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             return true;
+        }
+
+        private bool ValidateFuelDeposit(string itemId, int amount, out string failureReason, out int allowedAmount)
+        {
+            allowedAmount = 0;
+            if (!_fuelBank.CanAccept(itemId, amount, out failureReason))
+                return false;
+
+            allowedAmount = _fuelBank.GetDepositCapacity(amount);
+            if (allowedAmount <= 0)
+            {
+                failureReason = $"Fuel slot is full (max {ProcessingFuelCatalog.MaxFuelLogs}).";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ApplyFuelDeposit(string itemId, int deposited)
+        {
+            if (deposited <= 0)
+                return;
+
+            _fuelBank.AddLogs(itemId, deposited);
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId.Trim().ToLowerInvariant(), -deposited);
+            NotifyChanged();
+            RequestSaveDebounced();
         }
 
         private void ApplyEnhancementDeposit(string itemId, int deposited)

@@ -145,6 +145,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         public event Action StateChanged;
 
         private readonly string _stationId;
+        private readonly ProcessingFuelBank _fuelBank = new();
         private string _storedEnhancementItemId = "";
         private int _storedEnhancementAmount;
         private string _storedRawItemId = "";
@@ -163,6 +164,10 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         public string StationId => _stationId;
         public string StoredEnhancementItemId => _storedEnhancementItemId ?? "";
         public int StoredEnhancementAmount => Mathf.Max(0, _storedEnhancementAmount);
+        public string StoredFuelItemId => _fuelBank.StoredItemId;
+        public int StoredFuelAmount => _fuelBank.StoredAmount;
+        public bool HasFuel => _fuelBank.HasFuel;
+        public float FuelSecondsRemaining => _fuelBank.GetSecondsRemaining();
         public string StoredRawItemId => _storedRawItemId ?? "";
         public int StoredRawAmount => Mathf.Max(0, _storedRawAmount);
         public int ReadyCookedAmount => Mathf.Max(0, _readyCookedAmount);
@@ -213,6 +218,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             if (_isCooking || _readyCookedAmount > 0)
                 return false;
             if (!TryGetActiveRecipe(out CookingRecipe recipe))
+                return false;
+            if (!_fuelBank.HasFuel)
                 return false;
             return _storedRawAmount >= recipe.RawPerCooked;
         }
@@ -451,6 +458,134 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             return TryDepositEnhancement(itemId, available, out failureReason);
         }
 
+        public bool TryDepositFuelFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (inv == null || slotIndex < 0)
+            {
+                failureReason = "Invalid slot.";
+                return false;
+            }
+
+            var slot = inv.GetSlot(slotIndex);
+            if (slot.IsEmpty)
+            {
+                failureReason = "Empty slot.";
+                return false;
+            }
+
+            int deposit = amount <= 0 ? slot.amount : Mathf.Min(amount, slot.amount);
+            if (deposit <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateFuelDeposit(slot.itemId, deposit, out failureReason, out int allowed))
+                return false;
+
+            deposit = allowed;
+            int removed = inv.RemoveAmountAtSlot(slotIndex, deposit);
+            if (removed <= 0)
+            {
+                failureReason = "Could not remove fuel from inventory.";
+                return false;
+            }
+
+            ApplyFuelDeposit(slot.itemId, removed);
+            return true;
+        }
+
+        public bool TryDepositFuel(string itemId, int amount, out string failureReason)
+        {
+            failureReason = null;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            {
+                failureReason = "Invalid deposit.";
+                return false;
+            }
+
+            if (!ValidateFuelDeposit(itemId, amount, out failureReason, out int allowed))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            if (available <= 0)
+            {
+                failureReason = "You do not have that log.";
+                return false;
+            }
+
+            int deposit = Mathf.Min(Mathf.Min(amount, allowed), available);
+            if (!inv.Remove(itemId, deposit))
+            {
+                failureReason = "Could not remove fuel from inventory.";
+                return false;
+            }
+
+            ApplyFuelDeposit(itemId, deposit);
+            return true;
+        }
+
+        public bool TryDepositAllFuelFromInventory(string itemId, out string failureReason)
+        {
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            int available = inv.GetTotalAmount(itemId);
+            return TryDepositFuel(itemId, available, out failureReason);
+        }
+
+        public bool TryWithdrawAllFuel(out string failureReason)
+        {
+            failureReason = null;
+            if (!_fuelBank.HasFuel)
+            {
+                failureReason = "No fuel stored.";
+                return false;
+            }
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+            {
+                failureReason = "Inventory not found.";
+                return false;
+            }
+
+            string itemId = _fuelBank.StoredItemId;
+            int toReturn = _fuelBank.StoredAmount;
+            float burned = _fuelBank.SecondsBurnedFromCurrentLog;
+            _fuelBank.Clear();
+
+            int before = inv.GetTotalAmount(itemId);
+            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
+            int added = inv.GetTotalAmount(itemId) - before;
+            if (added <= 0)
+            {
+                _fuelBank.Load(itemId, toReturn, burned);
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            if (added < toReturn)
+                _fuelBank.AddLogs(itemId, toReturn - added);
+
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
+            NotifyChanged();
+            RequestSaveDebounced();
+            return true;
+        }
+
         public bool TryWithdrawAllEnhancement(out string failureReason)
         {
             failureReason = null;
@@ -595,6 +730,14 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             if (deltaSeconds <= 0f || !_isCooking)
                 return false;
 
+            if (!_fuelBank.TryConsumeSeconds(deltaSeconds))
+            {
+                _isCooking = false;
+                ClearPortionModifiers();
+                NotifyChanged();
+                return true;
+            }
+
             if (!TryGetActiveRecipe(out CookingRecipe recipe))
             {
                 _isCooking = false;
@@ -707,6 +850,9 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 readyCookedItemId = GetReadyCookedItemId(),
                 storedEnhancementItemId = _storedEnhancementItemId ?? "",
                 storedEnhancementAmount = Mathf.Max(0, _storedEnhancementAmount),
+                storedFuelItemId = _fuelBank.StoredItemId,
+                storedFuelAmount = _fuelBank.StoredAmount,
+                fuelSecondsBurnedFromCurrentLog = _fuelBank.SecondsBurnedFromCurrentLog,
                 activeRawItemId = _activeRawItemId ?? "",
                 cookProgressSeconds = Mathf.Max(0f, _cookProgressSeconds),
                 isCooking = _isCooking
@@ -721,6 +867,10 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             _readyCookedItemId = row.readyCookedItemId ?? "";
             _storedEnhancementItemId = row.storedEnhancementItemId ?? "";
             _storedEnhancementAmount = Mathf.Max(0, row.storedEnhancementAmount);
+            _fuelBank.Load(
+                row.storedFuelItemId ?? "",
+                row.storedFuelAmount,
+                row.fuelSecondsBurnedFromCurrentLog);
             _activeRawItemId = row.activeRawItemId ?? "";
             _cookProgressSeconds = Mathf.Max(0f, row.cookProgressSeconds);
             _isCooking = row.isCooking;
@@ -740,10 +890,15 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             if (_isCooking &&
-                (!TryGetActiveRecipe(out CookingRecipe activeRecipe) || _storedRawAmount < activeRecipe.RawPerCooked))
+                (!_fuelBank.HasFuel ||
+                 !TryGetActiveRecipe(out CookingRecipe activeRecipe) ||
+                 _storedRawAmount < activeRecipe.RawPerCooked))
             {
                 _isCooking = false;
+                ClearPortionModifiers();
             }
+            else if (_isCooking)
+                LockPortionModifiers();
 
             ClearStaleIdsWhenEmpty();
         }
@@ -822,6 +977,33 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             return true;
         }
 
+        private bool ValidateFuelDeposit(string itemId, int amount, out string failureReason, out int allowedAmount)
+        {
+            allowedAmount = 0;
+            if (!_fuelBank.CanAccept(itemId, amount, out failureReason))
+                return false;
+
+            allowedAmount = _fuelBank.GetDepositCapacity(amount);
+            if (allowedAmount <= 0)
+            {
+                failureReason = $"Fuel slot is full (max {ProcessingFuelCatalog.MaxFuelLogs}).";
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ApplyFuelDeposit(string itemId, int deposited)
+        {
+            if (deposited <= 0)
+                return;
+
+            _fuelBank.AddLogs(itemId, deposited);
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId.Trim().ToLowerInvariant(), -deposited);
+            NotifyChanged();
+            RequestSaveDebounced();
+        }
+
         private void ApplyEnhancementDeposit(string itemId, int deposited)
         {
             if (deposited <= 0)
@@ -894,6 +1076,17 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             {
                 failureReason = "That fish cannot be cooked here.";
                 return false;
+            }
+
+            ItemDefinition def = ResolveItemDefinition(rawItemId);
+            if (def != null && def.RequiredCookingLevel > 0)
+            {
+                int cookingLevel = ProcessingProficiencyRuntime.EnsureInstance().GetLevel(ProcessingSkillType.Cooking);
+                if (cookingLevel < def.RequiredCookingLevel)
+                {
+                    failureReason = $"Requires Cooking level {def.RequiredCookingLevel}.";
+                    return false;
+                }
             }
 
             if (_readyCookedAmount > 0)

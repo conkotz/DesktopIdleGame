@@ -242,6 +242,10 @@ public class DevTestingPanelUI : MonoBehaviour
         }
 
         sm.DebugSetAllTrackedSkillsLevel(50);
+
+        ProcessingProficiencyRuntime processing = ProcessingProficiencyRuntime.EnsureInstance();
+        processing.DebugSetAllProcessingLevels(50);
+
         ShowPopup("DEBUG ALL SKILLS → 50", new Color(0.4f, 1f, 0.55f));
     }
 

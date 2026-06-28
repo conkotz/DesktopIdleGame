@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 4
   displayName: Ranged
-  description: Fight enemies using ranged combat
+  description: Ranged focus on using bows and companions for combat at a distance. Higher levels
+    unlock stonger precision abilities that punish enemies before they reach you.
   presentation: {fileID: 0}
   icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
   themeColor: {r: 0.013349866, g: 0.4716981, b: 0.035673983, a: 1}

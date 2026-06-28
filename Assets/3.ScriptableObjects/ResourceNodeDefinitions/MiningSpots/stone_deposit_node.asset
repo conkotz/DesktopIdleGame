@@ -29,15 +29,15 @@ MonoBehaviour:
   maxInterval: 8
   bonusDrops:
   - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
-    chance: 0.05
+    chance: 0.03
     amountMin: 1
     amountMax: 1
   - item: {fileID: 11400000, guid: 78978cfc548432a4ea84da872ae16b2f, type: 2}
-    chance: 0.05
+    chance: 0.03
     amountMin: 1
     amountMax: 1
   - item: {fileID: 11400000, guid: 212768177bfc68f44aec2e779670e552, type: 2}
-    chance: 0.05
+    chance: 0.03
     amountMin: 1
     amountMax: 1
   hiddenDrops: []

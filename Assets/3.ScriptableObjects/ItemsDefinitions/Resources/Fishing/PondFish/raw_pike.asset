@@ -181,6 +181,6 @@ MonoBehaviour:
     isCookable: 1
     cookedResultItemId: cooked_pike
     cookedResultAmount: 1
-    requiredCookingLevel: 0
+    requiredCookingLevel: 10
     cookingXp: 15
     cookingTimeSeconds: 9

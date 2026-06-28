@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 0
   displayName: Mining
-  description: Gather mining resources used to make weapons and armour
+  description: Mining allows you to gather resources from ore nodes. Ores can be turned
+    into bars and used in blacksmithing to create heavy armour and weapons. Gems obtained can be used jewel crafting to make jewellery. 
   presentation: {fileID: 0}
   icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
   themeColor: {r: 0.21568629, g: 0.21568629, b: 0.21568629, a: 1}

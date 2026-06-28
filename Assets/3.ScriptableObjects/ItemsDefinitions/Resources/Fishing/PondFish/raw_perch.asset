@@ -181,6 +181,6 @@ MonoBehaviour:
     isCookable: 1
     cookedResultItemId: cooked_perch
     cookedResultAmount: 1
-    requiredCookingLevel: 0
+    requiredCookingLevel: 5
     cookingXp: 12
     cookingTimeSeconds: 7

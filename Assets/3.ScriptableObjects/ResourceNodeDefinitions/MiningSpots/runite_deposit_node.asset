@@ -28,40 +28,40 @@ MonoBehaviour:
   minInterval: 35
   maxInterval: 45
   bonusDrops:
-  - item: {fileID: 11400000, guid: 0679f085e3db4718b1e26f9a5f3d7027, type: 2}
-    chance: 0.08
-    amountMin: 1
-    amountMax: 1
-  - item: {fileID: 11400000, guid: 1018484d9d9649bb858c783bc64917ad, type: 2}
-    chance: 0.08
-    amountMin: 1
-    amountMax: 1
-  - item: {fileID: 11400000, guid: f16afa89917c4dc69b26df39e9b7d941, type: 2}
-    chance: 0.08
-    amountMin: 1
-    amountMax: 1
-  - item: {fileID: 11400000, guid: ded6deb4923b40578382181cd24dad80, type: 2}
-    chance: 0.08
-    amountMin: 1
-    amountMax: 1
   - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
-    chance: 0.05
-    amountMin: 1
-    amountMax: 1
-  - item: {fileID: 11400000, guid: 212768177bfc68f44aec2e779670e552, type: 2}
-    chance: 0.05
+    chance: 0.045
     amountMin: 1
     amountMax: 1
   - item: {fileID: 11400000, guid: 78978cfc548432a4ea84da872ae16b2f, type: 2}
-    chance: 0.05
+    chance: 0.045
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: 212768177bfc68f44aec2e779670e552, type: 2}
+    chance: 0.045
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: 0679f085e3db4718b1e26f9a5f3d7027, type: 2}
+    chance: 0.04
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: 1018484d9d9649bb858c783bc64917ad, type: 2}
+    chance: 0.04
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: f16afa89917c4dc69b26df39e9b7d941, type: 2}
+    chance: 0.04
+    amountMin: 1
+    amountMax: 1
+  - item: {fileID: 11400000, guid: ded6deb4923b40578382181cd24dad80, type: 2}
+    chance: 0.04
     amountMin: 1
     amountMax: 1
   - item: {fileID: 11400000, guid: 1fe8129001de4ab98aad722013c08832, type: 2}
-    chance: 0.03
+    chance: 0.02
     amountMin: 1
     amountMax: 1
   - item: {fileID: 11400000, guid: a8dba90ddcaa45819ac3ef0c50c2762a, type: 2}
-    chance: 0.03
+    chance: 0.02
     amountMin: 1
     amountMax: 1
   hiddenDrops: []

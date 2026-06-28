@@ -29,6 +29,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty enhancementScrollStats;
     private SerializedProperty mapEnhancementStats;
     private SerializedProperty cookableStats;
+    private SerializedProperty smeltableStats;
 
     // Bonuses
     private SerializedProperty bonusStats;
@@ -76,6 +77,7 @@ public class ItemDefinitionEditor : Editor
         enhancementScrollStats = serializedObject.FindProperty("enhancementScrollStats");
         mapEnhancementStats = serializedObject.FindProperty("mapEnhancementStats");
         cookableStats = serializedObject.FindProperty("cookableStats");
+        smeltableStats = serializedObject.FindProperty("smeltableStats");
 
         bonusStats = serializedObject.FindProperty("bonusStats");
         randomStatPool = serializedObject.FindProperty("randomStatPool");
@@ -346,6 +348,9 @@ public class ItemDefinitionEditor : Editor
 
         if (kind == ItemKind.Resource || kind == ItemKind.Consumable)
             DrawCookableStatsBlock();
+
+        if (kind == ItemKind.Resource)
+            DrawSmeltableStatsBlock();
 
         serializedObject.ApplyModifiedProperties();
         if (GUI.changed)
@@ -1408,6 +1413,37 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.HelpBox(
             "Cookable items can be processed at a cooking range.\n\n" +
             "Cooking Time is the base seconds per portion before speed bonuses.",
+            MessageType.None
+        );
+    }
+
+    private void DrawSmeltableStatsBlock()
+    {
+        DrawModuleHeader("Smeltable Stats");
+
+        if (smeltableStats == null)
+        {
+            EditorGUILayout.HelpBox("smeltableStats property not found.", MessageType.Error);
+            return;
+        }
+
+        EditorGUILayout.LabelField("Smelting", EditorStyles.boldLabel);
+
+        SerializedProperty requiredSmeltingLevel =
+            smeltableStats.FindPropertyRelative("requiredSmeltingLevel");
+
+        EditorGUILayout.PropertyField(
+            requiredSmeltingLevel,
+            new GUIContent(
+                "Required Smelting Level",
+                requiredSmeltingLevel != null ? requiredSmeltingLevel.tooltip : null));
+
+        if (requiredSmeltingLevel != null && requiredSmeltingLevel.intValue < 0)
+            requiredSmeltingLevel.intValue = 0;
+
+        EditorGUILayout.HelpBox(
+            "Ores: minimum Smelting level to deposit at a furnace (0 = use recipe default).\n\n" +
+            "Bars: optional display/tooltip level for the smelted product.",
             MessageType.None
         );
     }

@@ -65,6 +65,13 @@ public readonly struct CookingProficiencyBonuses
         }
     }
 
+    public static readonly ProcessingProficiencyUnlockLines.Row[] ContentUnlockRows =
+    {
+        new(1, "Can cook fish"),
+        new(5, "Can cook perch"),
+        new(10, "Can cook pike"),
+    };
+
     public static readonly UnlockRow[] UnlockRows =
     {
         new(5, "5% increased cooking speed", speedBonusPercent: 5f),
@@ -79,15 +86,16 @@ public readonly struct CookingProficiencyBonuses
         new(50, "15% increased cooking speed, 5% reduced burn chance", speedBonusPercent: 15f, burnRateReductionPercent: 5f),
     };
 
-    public static IReadOnlyList<string> BuildUnlockLines()
+    public static List<ProcessingProficiencyUnlockLines.Row> BuildDisplayUnlockRows()
     {
-        var lines = new List<string>(UnlockRows.Length);
-        for (int i = 0; i < UnlockRows.Length; i++)
-        {
-            UnlockRow row = UnlockRows[i];
-            lines.Add($"Lv {row.Level}: {row.Description}");
-        }
+        var content = new List<ProcessingProficiencyUnlockLines.Row>(ContentUnlockRows.Length);
+        for (int i = 0; i < ContentUnlockRows.Length; i++)
+            content.Add(ContentUnlockRows[i]);
 
-        return lines;
+        var bonus = new List<ProcessingProficiencyUnlockLines.Row>(UnlockRows.Length);
+        for (int i = 0; i < UnlockRows.Length; i++)
+            bonus.Add(new ProcessingProficiencyUnlockLines.Row(UnlockRows[i].Level, UnlockRows[i].Description));
+
+        return ProcessingProficiencyUnlockLines.MergeByLevel(content, bonus);
     }
 }

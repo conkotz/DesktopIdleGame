@@ -2535,6 +2535,11 @@ public class SaveManager : MonoBehaviour
             readyBarAmount = row.readyBarAmount,
             activeOreItemId = row.activeOreItemId ?? "",
             readyBarItemId = row.readyBarItemId ?? "",
+            storedEnhancementItemId = row.storedEnhancementItemId ?? "",
+            storedEnhancementAmount = row.storedEnhancementAmount,
+            storedFuelItemId = row.storedFuelItemId ?? "",
+            storedFuelAmount = row.storedFuelAmount,
+            fuelSecondsBurnedFromCurrentLog = row.fuelSecondsBurnedFromCurrentLog,
             smeltProgressSeconds = row.smeltProgressSeconds,
             isSmelting = row.isSmelting
         };

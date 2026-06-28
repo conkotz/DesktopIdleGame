@@ -301,6 +301,9 @@ public class SaveData
         public string readyBarItemId;
         public string storedEnhancementItemId;
         public int storedEnhancementAmount;
+        public string storedFuelItemId;
+        public int storedFuelAmount;
+        public float fuelSecondsBurnedFromCurrentLog;
         public float smeltProgressSeconds;
         public bool isSmelting;
     }
@@ -316,6 +319,9 @@ public class SaveData
         public string readyCookedItemId;
         public string storedEnhancementItemId;
         public int storedEnhancementAmount;
+        public string storedFuelItemId;
+        public int storedFuelAmount;
+        public float fuelSecondsBurnedFromCurrentLog;
         public float cookProgressSeconds;
         public bool isCooking;
     }

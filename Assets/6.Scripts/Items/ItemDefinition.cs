@@ -1010,6 +1010,14 @@ public struct CookableStats
     [Min(0.1f)] public float cookingTimeSeconds;
 }
 
+[System.Serializable]
+public struct SmeltableStats
+{
+    [Header("Smelting")]
+    [Tooltip("Minimum Smelting proficiency required to smelt this ore at a furnace. Bars can use this for display/tooltips.")]
+    [Min(0)] public int requiredSmeltingLevel;
+}
+
 [CreateAssetMenu(menuName = "Desktop Idle Game/Item Definition", fileName = "NewItem")]
 public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
@@ -1149,6 +1157,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     [Header("Cookable Stats")]
     public CookableStats cookableStats;
+
+    [Header("Smeltable Stats")]
+    public SmeltableStats smeltableStats;
 
     public bool IsWeapon => itemKind == ItemKind.Weapon;
     public bool IsMagicWand =>
@@ -1979,8 +1990,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float seconds = ProcessingFlatSecondsReduction;
             string unit = Mathf.Approximately(seconds, 1f) ? "second" : "seconds";
-            string action = ProcessingSkillTarget == ProcessingSkillTarget.Smelting ? "smelt" : "cook";
-            return $"Trims {seconds:0.#} {unit} off each {action}.";
+            string verb = ProcessingSkillTarget == ProcessingSkillTarget.Smelting ? "smelt" : "cook";
+            return $"Reduces the time to {verb} by {seconds:0.#} {unit} per action.";
         }
 
         if (ProcessingBurnChanceReductionPercent > 0.001f)
@@ -2295,6 +2306,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public int RequiredCookingLevel =>
         IsCookable ? Mathf.Max(0, cookableStats.requiredCookingLevel) : 0;
+
+    public int RequiredSmeltingLevel
+    {
+        get
+        {
+            if (smeltableStats.requiredSmeltingLevel > 0)
+                return smeltableStats.requiredSmeltingLevel;
+
+            if (SmeltingRecipes.TryGetForOre(itemId, out SmeltingRecipe recipe))
+                return recipe.RequiredSmeltingLevel;
+
+            return 0;
+        }
+    }
 
     public int CookingXp =>
         IsCookable ? Mathf.Max(0, cookableStats.cookingXp) : 0;
@@ -2866,6 +2891,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (RequiredCookingLevel > 0)
                 s += $"\nRequired Cooking: {RequiredCookingLevel}";
+
+            if (RequiredSmeltingLevel > 0)
+                s += $"\nRequired Smelting: {RequiredSmeltingLevel}";
 
             if (CookingXp > 0)
                 s += $"\nCooking XP: {CookingXp}";

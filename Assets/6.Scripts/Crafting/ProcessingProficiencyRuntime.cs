@@ -143,6 +143,21 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
     public void AddCookingFishXp(CookingRecipe recipe) =>
         AddXp(ProcessingSkillType.Cooking, ProcessingSkillCurves.GetCookingFishXp(recipe));
 
+    public void DebugSetLevel(ProcessingSkillType type, int level)
+    {
+        SkillState state = EnsureSkill(type);
+        state.Level = Mathf.Clamp(level, 1, ProcessingSkillCurves.MaxLevel);
+        state.Xp = 0;
+        Changed?.Invoke();
+        RequestSaveDebounced();
+    }
+
+    public void DebugSetAllProcessingLevels(int level)
+    {
+        DebugSetLevel(ProcessingSkillType.Smelting, level);
+        DebugSetLevel(ProcessingSkillType.Cooking, level);
+    }
+
     public void AddXp(ProcessingSkillType type, int amount)
     {
         if (amount <= 0)

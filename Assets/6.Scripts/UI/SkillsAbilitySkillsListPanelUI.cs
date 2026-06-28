@@ -55,6 +55,8 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     private SkillsManager _skillsManager;
     private Action<SkillDefinition> _onSkillClicked;
     private Action<SkillDefinition> _onHoverAcknowledge;
+    private Action<ProcessingSkillDisplayCatalog.Id> _onProcessingClicked;
+    private ProcessingSkillDisplayCatalog.Id? _selectedProcessingSkill;
     private SkillsAbilityBottomPanelLayoutUI _bottomPanelLayout;
     private bool _processingSubscribed;
     private bool _layoutSubscribed;
@@ -86,12 +88,14 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         SkillDatabase database,
         SkillsManager skillsManager,
         Action<SkillDefinition> onSkillClicked,
-        Action<SkillDefinition> onHoverAcknowledge = null)
+        Action<SkillDefinition> onHoverAcknowledge = null,
+        Action<ProcessingSkillDisplayCatalog.Id> onProcessingClicked = null)
     {
         _skillDatabase = database;
         _skillsManager = skillsManager;
         _onSkillClicked = onSkillClicked;
         _onHoverAcknowledge = onHoverAcknowledge;
+        _onProcessingClicked = onProcessingClicked;
     }
 
     public void SetVisibleCategory(SkillCategory category) => RebuildList();
@@ -117,13 +121,13 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         WireGatheringEntry(gatheringMining, SkillType.Mining);
         WireGatheringEntry(gatheringFishing, SkillType.Fishing);
 
-        WireProcessingEntry(processingCooking, ProcessingSkillType.Cooking);
-        WireProcessingEntry(processingSmelting, ProcessingSkillType.Smelting);
-        WireProcessingPlaceholder(processingBlacksmithing);
-        WireProcessingPlaceholder(processingMagicCrafting);
-        WireProcessingPlaceholder(processingRangerCrafting);
-        WireProcessingPlaceholder(processingAlchemy);
-        WireProcessingPlaceholder(processingJewelCrafting);
+        WireProcessingEntry(processingCooking, ProcessingSkillDisplayCatalog.Id.Cooking);
+        WireProcessingEntry(processingSmelting, ProcessingSkillDisplayCatalog.Id.Smelting);
+        WireProcessingPlaceholder(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
+        WireProcessingPlaceholder(processingMagicCrafting, ProcessingSkillDisplayCatalog.Id.MagicCrafting);
+        WireProcessingPlaceholder(processingRangerCrafting, ProcessingSkillDisplayCatalog.Id.RangedCrafting);
+        WireProcessingPlaceholder(processingAlchemy, ProcessingSkillDisplayCatalog.Id.Alchemy);
+        WireProcessingPlaceholder(processingJewelCrafting, ProcessingSkillDisplayCatalog.Id.JewelCrafting);
 
         ScheduleLayoutRefresh();
     }
@@ -143,13 +147,32 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
             ShowUnlockGlowForSkill(skillType);
     }
 
-    public void RefreshSelection(SkillDefinition selectedSkill)
+    public void RefreshSelection(SkillDefinition selectedSkill, ProcessingSkillDisplayCatalog.Id? selectedProcessing = null)
     {
+        _selectedProcessingSkill = selectedProcessing;
+
         foreach (KeyValuePair<SkillType, SkillListEntryUI> pair in _entryBySkillType)
         {
             bool selected = selectedSkill != null && selectedSkill.skillType == pair.Key;
             pair.Value.SetSelected(selected);
         }
+
+        RefreshProcessingSelectionHighlights();
+    }
+
+    public Sprite TryGetSkillListIcon(SkillType skillType)
+    {
+        if (!_entryBySkillType.TryGetValue(skillType, out SkillListEntryUI entry) || entry == null)
+            return null;
+
+        SkillDefinition def = FindSkill(skillType);
+        return entry.GetDisplayIcon(def != null ? def.icon : null);
+    }
+
+    public Sprite TryGetProcessingListIcon(ProcessingSkillDisplayCatalog.Id processingSkill)
+    {
+        SkillListEntryUI entry = ResolveProcessingEntryReference(processingSkill);
+        return entry != null ? entry.GetDisplayIcon() : null;
     }
 
     public void RefreshLevelsForSkill(SkillType skillType)
@@ -247,39 +270,96 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         }
     }
 
-    private static void WireProcessingEntry(SkillListEntryUI entry, ProcessingSkillType processingType)
+    private void WireProcessingEntry(SkillListEntryUI entry, ProcessingSkillDisplayCatalog.Id processingId)
     {
         if (entry == null)
             return;
 
         ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
-        entry.RefreshDisplay(
-            runtime.GetLevel(processingType),
-            runtime.GetProgress01(processingType),
-            runtime.GetXp(processingType),
-            selected: false,
-            interactable: false);
+        int level = 1;
+        float progress01 = 0f;
+        int xp = 0;
+
+        if (ProcessingSkillDisplayCatalog.TryGetProficiencyType(processingId, out ProcessingSkillType proficiencyType))
+        {
+            level = runtime.GetLevel(proficiencyType);
+            progress01 = runtime.GetProgress01(proficiencyType);
+            xp = runtime.GetXp(proficiencyType);
+        }
+
+        entry.SetupProcessingRow(
+            level,
+            progress01,
+            xp,
+            selected: _selectedProcessingSkill == processingId,
+            interactable: true,
+            showNotComplete: false,
+            onClicked: () => HandleProcessingEntryClicked(processingId));
     }
 
-    private static void WireProcessingPlaceholder(SkillListEntryUI entry)
+    private void WireProcessingPlaceholder(SkillListEntryUI entry, ProcessingSkillDisplayCatalog.Id processingId)
     {
         if (entry == null)
             return;
 
-        entry.RefreshDisplay(1, 0f, 0, selected: false, interactable: false);
-        entry.SetNotCompleteVisible(true);
+        entry.SetupProcessingRow(
+            1,
+            0f,
+            0,
+            selected: _selectedProcessingSkill == processingId,
+            interactable: true,
+            showNotComplete: true,
+            onClicked: () => HandleProcessingEntryClicked(processingId));
+    }
+
+    private void HandleProcessingEntryClicked(ProcessingSkillDisplayCatalog.Id processingId)
+    {
+        _onProcessingClicked?.Invoke(processingId);
     }
 
     private void RefreshProcessingEntries()
     {
-        WireProcessingEntry(processingCooking, ProcessingSkillType.Cooking);
-        WireProcessingEntry(processingSmelting, ProcessingSkillType.Smelting);
-        WireProcessingPlaceholder(processingBlacksmithing);
-        WireProcessingPlaceholder(processingMagicCrafting);
-        WireProcessingPlaceholder(processingRangerCrafting);
-        WireProcessingPlaceholder(processingAlchemy);
-        WireProcessingPlaceholder(processingJewelCrafting);
+        WireProcessingEntry(processingCooking, ProcessingSkillDisplayCatalog.Id.Cooking);
+        WireProcessingEntry(processingSmelting, ProcessingSkillDisplayCatalog.Id.Smelting);
+        WireProcessingPlaceholder(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
+        WireProcessingPlaceholder(processingMagicCrafting, ProcessingSkillDisplayCatalog.Id.MagicCrafting);
+        WireProcessingPlaceholder(processingRangerCrafting, ProcessingSkillDisplayCatalog.Id.RangedCrafting);
+        WireProcessingPlaceholder(processingAlchemy, ProcessingSkillDisplayCatalog.Id.Alchemy);
+        WireProcessingPlaceholder(processingJewelCrafting, ProcessingSkillDisplayCatalog.Id.JewelCrafting);
+        RefreshProcessingSelectionHighlights();
     }
+
+    private void RefreshProcessingSelectionHighlights()
+    {
+        SetProcessingSelected(processingCooking, ProcessingSkillDisplayCatalog.Id.Cooking);
+        SetProcessingSelected(processingSmelting, ProcessingSkillDisplayCatalog.Id.Smelting);
+        SetProcessingSelected(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
+        SetProcessingSelected(processingMagicCrafting, ProcessingSkillDisplayCatalog.Id.MagicCrafting);
+        SetProcessingSelected(processingRangerCrafting, ProcessingSkillDisplayCatalog.Id.RangedCrafting);
+        SetProcessingSelected(processingAlchemy, ProcessingSkillDisplayCatalog.Id.Alchemy);
+        SetProcessingSelected(processingJewelCrafting, ProcessingSkillDisplayCatalog.Id.JewelCrafting);
+    }
+
+    private void SetProcessingSelected(SkillListEntryUI entry, ProcessingSkillDisplayCatalog.Id processingId)
+    {
+        if (entry == null)
+            return;
+
+        entry.SetSelected(_selectedProcessingSkill.HasValue && _selectedProcessingSkill.Value == processingId);
+    }
+
+    private SkillListEntryUI ResolveProcessingEntryReference(ProcessingSkillDisplayCatalog.Id processingId) =>
+        processingId switch
+        {
+            ProcessingSkillDisplayCatalog.Id.Cooking => processingCooking,
+            ProcessingSkillDisplayCatalog.Id.Smelting => processingSmelting,
+            ProcessingSkillDisplayCatalog.Id.Blacksmithing => processingBlacksmithing,
+            ProcessingSkillDisplayCatalog.Id.MagicCrafting => processingMagicCrafting,
+            ProcessingSkillDisplayCatalog.Id.RangedCrafting => processingRangerCrafting,
+            ProcessingSkillDisplayCatalog.Id.Alchemy => processingAlchemy,
+            ProcessingSkillDisplayCatalog.Id.JewelCrafting => processingJewelCrafting,
+            _ => null
+        };
 
     private SkillDefinition FindSkill(SkillType skillType)
     {

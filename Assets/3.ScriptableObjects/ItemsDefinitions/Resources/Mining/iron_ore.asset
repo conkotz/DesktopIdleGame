@@ -228,3 +228,5 @@ MonoBehaviour:
     cookedResultAmount: 0
     requiredCookingLevel: 0
     cookingXp: 0
+  smeltableStats:
+    requiredSmeltingLevel: 1

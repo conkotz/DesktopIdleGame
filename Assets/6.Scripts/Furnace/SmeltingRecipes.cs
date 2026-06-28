@@ -7,13 +7,20 @@ public readonly struct SmeltingRecipe
     public readonly string BarItemId;
     public readonly int OrePerBar;
     public readonly float SecondsPerBar;
+    public readonly int RequiredSmeltingLevel;
 
-    public SmeltingRecipe(string oreItemId, string barItemId, int orePerBar, float secondsPerBar)
+    public SmeltingRecipe(
+        string oreItemId,
+        string barItemId,
+        int orePerBar,
+        float secondsPerBar,
+        int requiredSmeltingLevel = 1)
     {
         OreItemId = oreItemId;
         BarItemId = barItemId;
         OrePerBar = Mathf.Max(1, orePerBar);
         SecondsPerBar = Mathf.Max(0.1f, secondsPerBar);
+        RequiredSmeltingLevel = Mathf.Max(1, requiredSmeltingLevel);
     }
 }
 
@@ -24,10 +31,10 @@ public static class SmeltingRecipes
 
     private static readonly SmeltingRecipe[] Recipes =
     {
-        new("iron_ore", "iron_bar", DefaultOrePerBar, 10f),
-        new("mythril_ore", "mythril_bar", DefaultOrePerBar, 15f),
-        new("runite_ore", "runite_bar", DefaultOrePerBar, 20f),
-        new("celestium_ore", "celestium_bar", DefaultOrePerBar, 25f),
+        new("iron_ore", "iron_bar", DefaultOrePerBar, 10f, requiredSmeltingLevel: 1),
+        new("mythril_ore", "mythril_bar", DefaultOrePerBar, 15f, requiredSmeltingLevel: 10),
+        new("runite_ore", "runite_bar", DefaultOrePerBar, 20f, requiredSmeltingLevel: 20),
+        new("celestium_ore", "celestium_bar", DefaultOrePerBar, 25f, requiredSmeltingLevel: 30),
     };
 
     private static readonly Dictionary<string, SmeltingRecipe> ByOre = BuildMap();
@@ -45,6 +52,22 @@ public static class SmeltingRecipes
     }
 
     public static bool IsSmeltableOre(string oreItemId) => TryGetForOre(oreItemId, out _);
+
+    public static int GetRequiredSmeltingLevel(string oreItemId)
+    {
+        if (!TryGetForOre(oreItemId, out SmeltingRecipe recipe))
+            return 0;
+
+        ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        ItemDefinition def = db != null ? db.Get(oreItemId) : null;
+        if (def != null && def.smeltableStats.requiredSmeltingLevel > 0)
+            return def.RequiredSmeltingLevel;
+
+        return recipe.RequiredSmeltingLevel;
+    }
+
+    public static int GetRequiredSmeltingLevel(SmeltingRecipe recipe) =>
+        GetRequiredSmeltingLevel(recipe.OreItemId);
 
     private static Dictionary<string, SmeltingRecipe> BuildMap()
     {

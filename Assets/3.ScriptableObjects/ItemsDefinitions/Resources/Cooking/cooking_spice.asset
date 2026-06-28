@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: 'Trims 2 seconds from each cook attempt while loaded in the range.'
+  description: 'Reduces the time to cook by 2 seconds per action while loaded in the range.'
   rarity: 0
   value: 150
   equipSlot: 0

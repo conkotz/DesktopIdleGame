@@ -60,6 +60,14 @@ public readonly struct SmeltingProficiencyBonuses
         }
     }
 
+    public static readonly ProcessingProficiencyUnlockLines.Row[] ContentUnlockRows =
+    {
+        new(1, "Can smelt iron"),
+        new(10, "Can smelt mythril"),
+        new(20, "Can smelt runite"),
+        new(30, "Can smelt celestium"),
+    };
+
     public static readonly UnlockRow[] UnlockRows =
     {
         new(5, "5% increased smelting speed", speedBonusPercent: 5f),
@@ -74,15 +82,16 @@ public readonly struct SmeltingProficiencyBonuses
         new(50, "15% increased smelting speed, 5% chance to make 2 bars instead of 1", speedBonusPercent: 15f, doubleBarChancePercent: 5f),
     };
 
-    public static IReadOnlyList<string> BuildUnlockLines()
+    public static List<ProcessingProficiencyUnlockLines.Row> BuildDisplayUnlockRows()
     {
-        var lines = new List<string>(UnlockRows.Length);
-        for (int i = 0; i < UnlockRows.Length; i++)
-        {
-            UnlockRow row = UnlockRows[i];
-            lines.Add($"Lv {row.Level}: {row.Description}");
-        }
+        var content = new List<ProcessingProficiencyUnlockLines.Row>(ContentUnlockRows.Length);
+        for (int i = 0; i < ContentUnlockRows.Length; i++)
+            content.Add(ContentUnlockRows[i]);
 
-        return lines;
+        var bonus = new List<ProcessingProficiencyUnlockLines.Row>(UnlockRows.Length);
+        for (int i = 0; i < UnlockRows.Length; i++)
+            bonus.Add(new ProcessingProficiencyUnlockLines.Row(UnlockRows[i].Level, UnlockRows[i].Description));
+
+        return ProcessingProficiencyUnlockLines.MergeByLevel(content, bonus);
     }
 }

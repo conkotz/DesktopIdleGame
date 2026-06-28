@@ -2772,6 +2772,10 @@ public class PlayerController : MonoBehaviour
             int gatherSkillLevel = GetGatherSkillLevel(def.actionType);
             def.RollMainYieldCounts(_mainYieldScratch, gatherSkillLevel, isFishing ? _fishingXpScratch : null);
 
+            int fishingBaseXpThisTick = 0;
+            if (isFishing && _fishingXpScratch.Count > 0)
+                fishingBaseXpThisTick = _fishingXpScratch[0];
+
             bool woodSingle =
                 isWoodcutting &&
                 _mainYieldScratch.Count == 1;
@@ -2844,13 +2848,6 @@ public class PlayerController : MonoBehaviour
                         _mainYieldScratch[k] *= 2;
                     }
 
-                    if (isFishing && _fishingXpScratch.Count > 0)
-                    {
-                        int nXp = _fishingXpScratch.Count;
-                        for (int xi = 0; xi < nXp; xi++)
-                            _fishingXpScratch.Add(_fishingXpScratch[xi]);
-                    }
-
                     if (isMining)
                         TryApplyMiningMasteryDoubleGritMulti();
                 }
@@ -2865,8 +2862,6 @@ public class PlayerController : MonoBehaviour
                             if (kv.Value <= 0 || string.IsNullOrWhiteSpace(kv.Key))
                                 continue;
                             _mainYieldScratch[kv.Key] = kv.Value + 1;
-                            if (_fishingXpScratch.Count > 0)
-                                _fishingXpScratch.Add(_fishingXpScratch[_fishingXpScratch.Count - 1]);
                             break;
                         }
                     }
@@ -2887,9 +2882,9 @@ public class PlayerController : MonoBehaviour
                 }
 
                 if (isMining && IsMiningCapstoneBonusOreUnlocked())
-                    TryApplyCapstoneBonusToFirstMainYield(syncFishingXp: false);
+                    TryApplyCapstoneBonusToFirstMainYield();
                 else if (isFishing && IsFishingCapstoneBonusFishUnlocked())
-                    TryApplyCapstoneBonusToFirstMainYield(syncFishingXp: true);
+                    TryApplyCapstoneBonusToFirstMainYield();
 
                 mainYieldEligibleForXp = NodeDefinition.SumMainYieldCounts(_mainYieldScratch) > 0;
 
@@ -2907,14 +2902,9 @@ public class PlayerController : MonoBehaviour
                 var sm = SkillsManager.Instance;
                 if (sm != null)
                 {
-                    if (isFishing && _fishingXpScratch.Count > 0)
+                    if (isFishing && fishingBaseXpThisTick > 0)
                     {
-                        for (int xi = 0; xi < _fishingXpScratch.Count; xi++)
-                        {
-                            int xv = _fishingXpScratch[xi];
-                            if (xv > 0)
-                                sm.AddXp(SkillType.Fishing, xv, def.displayName);
-                        }
+                        sm.AddXp(SkillType.Fishing, fishingBaseXpThisTick, def.displayName);
                     }
                     else if (!isFishing && def.xpPerTick > 0)
                     {
@@ -4000,7 +3990,7 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>+1 to the first main-yield entry only (never bonus/hidden drops).</summary>
-    private void TryApplyCapstoneBonusToFirstMainYield(bool syncFishingXp)
+    private void TryApplyCapstoneBonusToFirstMainYield()
     {
         foreach (var kv in _mainYieldScratch)
         {
@@ -4008,8 +3998,6 @@ public class PlayerController : MonoBehaviour
                 continue;
 
             _mainYieldScratch[kv.Key] = kv.Value + 1;
-            if (syncFishingXp && _fishingXpScratch.Count > 0)
-                _fishingXpScratch.Add(_fishingXpScratch[_fishingXpScratch.Count - 1]);
             break;
         }
     }

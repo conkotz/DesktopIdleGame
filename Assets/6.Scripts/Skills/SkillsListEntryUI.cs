@@ -68,6 +68,56 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 
     public SkillDefinition Definition => _definition;
 
+    /// <summary>Resolved list-row icon (prefab / inspector sprite, then optional fallback).</summary>
+    public Sprite GetDisplayIcon(Sprite fallbackSprite = null)
+    {
+        Sprite sprite = skillIconSprite;
+        if (sprite == null && preferInspectorAssignedIcon && icon != null && icon.sprite != null)
+            sprite = icon.sprite;
+        if (sprite == null)
+            sprite = fallbackSprite;
+
+        return ShouldShowIcon(sprite) ? sprite : null;
+    }
+
+    /// <summary>Processing rows without a <see cref="SkillDefinition"/>.</summary>
+    public void SetupProcessingRow(
+        int level,
+        float progress01,
+        int currentXp,
+        bool selected,
+        bool interactable,
+        bool showNotComplete,
+        Action onClicked)
+    {
+        _definition = null;
+        _onClicked = null;
+        _onHoverAcknowledge = null;
+
+        ApplyIconResolve(null);
+
+        if (nameText && hideNameText)
+            nameText.gameObject.SetActive(false);
+
+        SetLevel(level);
+        SetProgress(progress01);
+        SetXp(currentXp);
+        SetSelected(selected);
+        SetNotCompleteVisible(showNotComplete);
+
+        if (button)
+        {
+            button.onClick.RemoveAllListeners();
+            if (onClicked != null)
+                button.onClick.AddListener(() =>
+                {
+                    ClearUnlockGlow();
+                    onClicked.Invoke();
+                });
+            button.interactable = interactable;
+        }
+    }
+
     private void Awake()
     {
         if (!button)

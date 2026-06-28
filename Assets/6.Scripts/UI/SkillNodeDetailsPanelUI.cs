@@ -91,6 +91,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
     private readonly List<SkillNodeDetailsEnhancementCardUI> _spawnedEnhancementButtons = new();
     private SkillTimelineNodeBinding _currentBinding;
+    private SkillDefinition _currentSkill;
+    private ProcessingSkillDisplayCatalog.Id? _currentProcessingSkill;
     private AbilityIconDragAssignUI _abilityIconDragAssign;
     private int _previewEnhancementIndex = -1;
     private int _committedEnhancementIndex = -1;
@@ -108,7 +110,10 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
     public SkillTimelineNodeBinding CurrentBinding => _currentBinding;
 
-    public bool HasActiveDetails => _currentBinding != null;
+    public SkillDefinition CurrentSkill => _currentSkill;
+
+    public bool HasActiveDetails =>
+        _currentBinding != null || _currentSkill != null || _currentProcessingSkill.HasValue;
 
     private void Awake()
     {
@@ -234,6 +239,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     public void ShowEmpty(string message = DefaultEmptyMessage)
     {
         _currentBinding = null;
+        _currentSkill = null;
+        _currentProcessingSkill = null;
         ClearEnhancementButtons();
         SetEnhancementsLockedOverlay(false);
         if (enhancementsSubtitleText != null)
@@ -266,6 +273,168 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         RefreshCollapseButtonVisible();
     }
 
+    public void Show(SkillDefinition skill, SkillsManager skillsManager = null, SkillsAbilitySkillsListPanelUI listPanel = null)
+    {
+        if (skill == null)
+        {
+            ShowEmpty();
+            return;
+        }
+
+        _currentBinding = null;
+        _currentSkill = skill;
+        _currentProcessingSkill = null;
+        _previewEnhancementIndex = -1;
+        _committedEnhancementIndex = -1;
+
+        if (skillsManager == null)
+        {
+            skillsManager = SkillsManager.Instance;
+            if (skillsManager == null)
+                skillsManager = FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+        }
+
+        int level = skillsManager != null ? skillsManager.GetLevel(skill.skillType) : 1;
+
+        if (emptyStateRoot != null)
+            emptyStateRoot.SetActive(false);
+        if (contentRoot != null)
+            contentRoot.SetActive(true);
+
+        ClearEnhancementButtons();
+        SetEnhancementsLockedOverlay(false);
+        if (enhancementsSubtitleText != null)
+            enhancementsSubtitleText.gameObject.SetActive(false);
+        RefreshEnhancementActionButton(locked: true, committedIndex: -1);
+
+        if (skillIconImage != null)
+        {
+            Sprite icon = ResolveSkillListIcon(skill, listPanel) ?? skill.icon;
+            skillIconImage.sprite = icon;
+            skillIconImage.enabled = icon != null;
+        }
+
+        EnsureLevelReqTextReference();
+
+        if (nameText != null)
+            nameText.text = skill.displayName ?? skill.skillType.ToString();
+
+        if (levelReqText != null)
+        {
+            levelReqText.gameObject.SetActive(true);
+            levelReqText.text = $"Lv {level}";
+        }
+
+        if (typeText != null)
+            typeText.text = "Skill";
+
+        if (unlockStateText != null)
+        {
+            unlockStateText.text = string.Empty;
+            unlockStateText.gameObject.SetActive(false);
+        }
+
+        if (descriptionText != null)
+            descriptionText.text = skill.description ?? string.Empty;
+
+        BindTypeSection(null, FormatSkillCategoryTypeLabel(skill.category));
+        BindAbilityIconDragAssign(null, null);
+        SetSectionActive(scalingSectionRoot, false);
+        SetSectionActive(effectSectionRoot, false);
+        SetSectionActive(costSectionRoot, false);
+        SetSectionActive(cooldownSectionRoot, false);
+        SetCostCooldownRowVisible(false);
+        BindRequirementsSection(null, null, null, -1);
+
+        ApplyDetailsTypography();
+        ApplySectionDividerLayout();
+        EnsureDetailsPanelDividerLines();
+        UpdateDetailsPanelDividerVisibility();
+        ScheduleDeferredDividerRefresh();
+        ResetColumnBodyScrollPositions();
+        NotifyBottomPanelLayout(null);
+        ApplyDetailsInteriorLayout(expanded: false);
+        ScheduleDeferredColumnsLayout();
+        RefreshCollapseButtonVisible();
+    }
+
+    public void Show(ProcessingSkillDisplayCatalog.Id processingSkill, SkillsAbilitySkillsListPanelUI listPanel = null)
+    {
+        _currentBinding = null;
+        _currentSkill = null;
+        _currentProcessingSkill = processingSkill;
+        _previewEnhancementIndex = -1;
+        _committedEnhancementIndex = -1;
+
+        int level = 1;
+        if (ProcessingSkillDisplayCatalog.TryGetProficiencyType(processingSkill, out ProcessingSkillType proficiencyType))
+        {
+            ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.EnsureInstance();
+            level = runtime.GetLevel(proficiencyType);
+        }
+
+        if (emptyStateRoot != null)
+            emptyStateRoot.SetActive(false);
+        if (contentRoot != null)
+            contentRoot.SetActive(true);
+
+        ClearEnhancementButtons();
+        SetEnhancementsLockedOverlay(false);
+        if (enhancementsSubtitleText != null)
+            enhancementsSubtitleText.gameObject.SetActive(false);
+        RefreshEnhancementActionButton(locked: true, committedIndex: -1);
+
+        if (skillIconImage != null)
+        {
+            Sprite icon = listPanel != null ? listPanel.TryGetProcessingListIcon(processingSkill) : null;
+            skillIconImage.sprite = icon;
+            skillIconImage.enabled = icon != null;
+        }
+
+        EnsureLevelReqTextReference();
+
+        if (nameText != null)
+            nameText.text = ProcessingSkillDisplayCatalog.GetDisplayName(processingSkill);
+
+        if (levelReqText != null)
+        {
+            levelReqText.gameObject.SetActive(true);
+            levelReqText.text = $"Lv {level}";
+        }
+
+        if (typeText != null)
+            typeText.text = "Skill";
+
+        if (unlockStateText != null)
+        {
+            unlockStateText.text = string.Empty;
+            unlockStateText.gameObject.SetActive(false);
+        }
+
+        if (descriptionText != null)
+            descriptionText.text = ProcessingSkillDisplayCatalog.GetDescription(processingSkill);
+
+        BindTypeSection(null, "Processing Skill");
+        BindAbilityIconDragAssign(null, null);
+        SetSectionActive(scalingSectionRoot, false);
+        SetSectionActive(effectSectionRoot, false);
+        SetSectionActive(costSectionRoot, false);
+        SetSectionActive(cooldownSectionRoot, false);
+        SetCostCooldownRowVisible(false);
+        BindRequirementsSection(null, null, null, -1);
+
+        ApplyDetailsTypography();
+        ApplySectionDividerLayout();
+        EnsureDetailsPanelDividerLines();
+        UpdateDetailsPanelDividerVisibility();
+        ScheduleDeferredDividerRefresh();
+        ResetColumnBodyScrollPositions();
+        NotifyBottomPanelLayout(null);
+        ApplyDetailsInteriorLayout(expanded: false);
+        ScheduleDeferredColumnsLayout();
+        RefreshCollapseButtonVisible();
+    }
+
     public void Show(SkillTimelineNodeBinding binding)
     {
         if (binding == null)
@@ -273,6 +442,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             ShowEmpty();
             return;
         }
+
+        _currentSkill = null;
+        _currentProcessingSkill = null;
 
         bool switchingNode = !IsSameEnhancementBinding(_currentBinding, binding);
         _currentBinding = binding;
@@ -1374,6 +1546,37 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             if (hasRequirements)
                 requirementWeaponText.ForceMeshUpdate();
         }
+    }
+
+    private static string FormatSkillCategoryTypeLabel(SkillCategory category) =>
+        category switch
+        {
+            SkillCategory.Gathering => "Gathering Skill",
+            SkillCategory.Combat => "Combat Skill",
+            SkillCategory.Crafting => "Crafting Skill",
+            SkillCategory.Utility => "Utility Skill",
+            _ => "Skill"
+        };
+
+    private static Sprite ResolveSkillListIcon(SkillDefinition skill, SkillsAbilitySkillsListPanelUI listPanel)
+    {
+        if (skill == null)
+            return null;
+
+        if (listPanel != null)
+            return listPanel.TryGetSkillListIcon(skill.skillType);
+
+        SkillsAbilitySkillsListPanelUI resolved = FindSkillsListPanel();
+        return resolved != null ? resolved.TryGetSkillListIcon(skill.skillType) : null;
+    }
+
+    private static SkillsAbilitySkillsListPanelUI FindSkillsListPanel()
+    {
+        SkillsAbilityPageNewUI page = FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include);
+        if (page == null)
+            return null;
+
+        return page.GetComponentInChildren<SkillsAbilitySkillsListPanelUI>(true);
     }
 
     private void BindTypeSection(AbilityDefinition ability, string fallbackTypeLabel)

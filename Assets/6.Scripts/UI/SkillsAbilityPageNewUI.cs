@@ -61,6 +61,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     public SkillListEntryUI SkillEntryPrefab => skillEntryPrefab;
 
     private SkillDefinition _selectedSkill;
+    private ProcessingSkillDisplayCatalog.Id? _selectedProcessingSkill;
     private SkillCategory _categoryMode = SkillCategory.Combat;
     private bool _skipSelectionHubNotify;
     private Transform _activeSkillTabBarRoot;
@@ -208,6 +209,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             SetCategoryMode(skill.category, selectDefaultSkill: false);
 
         _selectedSkill = skill;
+        _selectedProcessingSkill = null;
         SetTimelineScrollViewportVisible(false);
         BeginTimelineScrollRestoreSession(_selectedSkill);
         try
@@ -228,8 +230,33 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         QueueDeferredActionBarForSelectedSkill();
         RefreshAbilityPresetButtonLabels();
 
+        EnsureDetailsPanelReferences();
+        skillNodeDetailsPanel?.Show(skill, skillsManager, skillsListPanel);
+
         if (!_skipSelectionHubNotify)
             SkillsAbilityPageSelectionHub.NotifySelection(skill, this);
+    }
+
+    public void SelectProcessingSkill(ProcessingSkillDisplayCatalog.Id processingSkill)
+    {
+        SaveTimelineScrollForSkill(_selectedSkill);
+
+        _selectedSkill = null;
+        _selectedProcessingSkill = processingSkill;
+
+        RefreshSkillsListSelection();
+
+        EnsureDetailsPanelReferences();
+        skillNodeDetailsPanel?.Show(processingSkill, skillsListPanel);
+    }
+
+    public void ClearProcessingSkillSelection()
+    {
+        if (!_selectedProcessingSkill.HasValue)
+            return;
+
+        _selectedProcessingSkill = null;
+        RefreshSkillsListSelection();
     }
 
     public void ApplySelectionFromOtherPage(SkillDefinition skill)
@@ -454,7 +481,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         SkillsAbilitiesColdStartLevelUpGlow.MergeInto(_pendingEntryGlowBySkill, _pendingTreeGlowLevelsBySkill);
-        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover);
+        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover, SelectProcessingSkill);
         skillsListPanel.SetVisibleCategory(_categoryMode);
         skillsListPanel.ApplyPendingEntryGlows(_pendingEntryGlowBySkill);
         RefreshSkillsListSelection();
@@ -463,7 +490,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private void RefreshSkillsListSelection()
     {
         if (skillsListPanel != null)
-            skillsListPanel.RefreshSelection(_selectedSkill);
+            skillsListPanel.RefreshSelection(_selectedSkill, _selectedProcessingSkill);
     }
 
     private void RefreshSkillsListLevels()
@@ -473,7 +500,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         PreferRuntimeSkillsManager();
-        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover);
+        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover, SelectProcessingSkill);
         skillsListPanel.RefreshAllLevels();
     }
 

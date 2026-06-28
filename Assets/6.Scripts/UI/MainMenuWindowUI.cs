@@ -435,9 +435,6 @@ public class MainMenuWindowUI : MonoBehaviour
         {
             MerchantClick.ForceCloseMerchantMode();
             StorageClick.ForceCloseStorageMode();
-            FurnaceClick.ForceClose();
-        CookingClick.ForceClose();
-            CookingClick.ForceClose();
         }
 
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();

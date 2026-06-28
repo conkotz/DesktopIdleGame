@@ -1804,6 +1804,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         float? savedScroll = CaptureTimelineScrollPosition();
         _detailsFocusedTimelineNode = node;
+        FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include)?.ClearProcessingSkillSelection();
         detailsPanel.Show(node.Binding);
         RestoreTimelineScrollPosition(savedScroll);
         RefreshRowSelectionButtons();
@@ -1852,6 +1853,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         EnsureDetailsPanelReference();
         _detailsFocusedTimelineNode = node;
+        FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include)?.ClearProcessingSkillSelection();
         if (detailsPanel != null)
             detailsPanel.Show(node.Binding);
 

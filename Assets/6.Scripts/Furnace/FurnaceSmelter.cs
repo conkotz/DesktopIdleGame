@@ -19,6 +19,10 @@ public class FurnaceSmelter : MonoBehaviour
     public int StoredOreAmount => _row != null ? _row.StoredOreAmount : 0;
     public string StoredEnhancementItemId => _row != null ? _row.StoredEnhancementItemId : "";
     public int StoredEnhancementAmount => _row != null ? _row.StoredEnhancementAmount : 0;
+    public string StoredFuelItemId => _row != null ? _row.StoredFuelItemId : "";
+    public int StoredFuelAmount => _row != null ? _row.StoredFuelAmount : 0;
+    public bool HasFuel => _row != null && _row.HasFuel;
+    public float FuelSecondsRemaining => _row != null ? _row.FuelSecondsRemaining : 0f;
     public int ReadyBarAmount => _row != null ? _row.ReadyBarAmount : 0;
     public string ReadyBarItemId => _row != null ? _row.ReadyBarItemId : "";
     public bool IsSmelting => _row != null && _row.IsSmelting;
@@ -86,6 +90,26 @@ public class FurnaceSmelter : MonoBehaviour
     public bool TryDepositAllEnhancementFromInventory(string itemId, out string failureReason) =>
         _row != null
             ? _row.TryDepositAllEnhancementFromInventory(itemId, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositFuelFromInventorySlot(Inventory inv, int slotIndex, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositFuelFromInventorySlot(inv, slotIndex, amount, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositFuel(string itemId, int amount, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositFuel(itemId, amount, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryDepositAllFuelFromInventory(string itemId, out string failureReason) =>
+        _row != null
+            ? _row.TryDepositAllFuelFromInventory(itemId, out failureReason)
+            : Fail(out failureReason, "Furnace not ready.");
+
+    public bool TryWithdrawAllFuel(out string failureReason) =>
+        _row != null
+            ? _row.TryWithdrawAllFuel(out failureReason)
             : Fail(out failureReason, "Furnace not ready.");
 
     public bool TryWithdrawAllEnhancement(out string failureReason) =>

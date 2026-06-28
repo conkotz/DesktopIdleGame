@@ -181,6 +181,6 @@ MonoBehaviour:
     isCookable: 1
     cookedResultItemId: cooked_fish
     cookedResultAmount: 1
-    requiredCookingLevel: 0
+    requiredCookingLevel: 1
     cookingXp: 10
     cookingTimeSeconds: 5

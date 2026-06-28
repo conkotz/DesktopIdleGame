@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 5
   displayName: Magic
-  description: Fight enemies using magic combat
+  description: Magic channels elemental energy into spells. Higher levels
+    unlock stonger destructive spells, utility magic, and passives that amplify your spellcasting and control the battlefield.
   presentation: {fileID: 0}
   icon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
   themeColor: {r: 0.13147244, g: 0.122855045, b: 0.5471698, a: 1}

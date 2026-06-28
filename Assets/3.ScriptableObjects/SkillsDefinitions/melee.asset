@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 3
   displayName: Melee
-  description: 'Fight enemies using melee combat '
+  description: Melee governs close-quarters combat with swords, axes, and other melee
+    weapons. Train it to unlock powerful abilities that reward standing toe-to-toe with enemies.
   presentation: {fileID: 0}
   icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
   themeColor: {r: 0.7735849, g: 0.03357058, b: 0.043666083, a: 1}

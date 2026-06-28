@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 6
   displayName: Endurance
-  description: 'Increase your capabilities to reduce incoming damage through access
-    to new armour and defensive mitigations '
+  description: Endurance improves your resilience in combat by unlocking higher
+    armour tiers and defensive passives. Increasing endurance will reduce incoming damage and
+    survive longer fights.
   icon: {fileID: 2403332761242691292, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
   themeColor: {r: 0.4490565, g: 0.4490565, b: 0.4490565, a: 1}
   category: 1

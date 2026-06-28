@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
   skillType: 2
   displayName: Fishing
-  description: Gather mining resources used to make weapons and armour
+  description: Fishing allows you to catch fish from ponds, rivers, and oceans. Fish
+    can be cooked for food that may grant temporary buffs and recovery.
   presentation: {fileID: 0}
   icon: {fileID: 1027717821713504454, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
   themeColor: {r: 0.16702022, g: 0.113485165, b: 0.6075471, a: 1}
