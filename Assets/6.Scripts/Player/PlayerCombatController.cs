@@ -945,7 +945,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
-        if (stats.AttacksPerSecond <= 0f || stats.MaxDamage <= 0)
+        if (stats.AttacksPerSecond <= 0f || !CanPerformAutoAttackCadence())
         {
             var mainDef = player != null && stats != null
                 ? GetMainWeaponDefForPopup()
@@ -1071,14 +1071,31 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
-        // Magic weapons do not auto-attack; damage comes from Lv1 starter spells and other slotted abilities.
+        float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
+
         if (IsMagicAttack())
         {
-            player.ClearActionOverride();
+            if (abilityController != null && abilityController.TryAutoReleaseQueuedCrescentSlashFromCadence())
+                return;
+
+            if (Time.time < _nextAttackTime)
+                return;
+
+            if (abilityController == null ||
+                !abilityController.TryPerformMagicAutoAttack(showLockedFeedback: false, out bool spellExecuted))
+            {
+                _attackBufferedFromRange = false;
+                player.ClearActionOverride();
+                return;
+            }
+
+            if (spellExecuted)
+                _nextAttackTime = Time.time + cooldown;
+
+            _attackBufferedFromRange = false;
+            player.SetActionOverride(PlayerController.PlayerAction.Fighting);
             return;
         }
-
-        float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
 
         // Prioritize queued Crescent Slash over normal auto attack cadence.
         if (abilityController != null && abilityController.TryAutoReleaseQueuedCrescentSlashFromCadence())
@@ -1086,18 +1103,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (Time.time < _nextAttackTime)
         {
-            return;
-        }
-
-        if (IsMagicAttack() && !TrySpendManaForMagicAttack())
-        {
-            _attackBufferedFromRange = false;
-            player.ClearActionOverride();
-            if (Time.time >= _nextLowManaPopupTime)
-            {
-                player.ShowPopup("Not enough mana.");
-                _nextLowManaPopupTime = Time.time + 0.4f;
-            }
             return;
         }
 
@@ -1137,10 +1142,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (IsRangedAttack())
         {
             HandleRangedAttack(_target, rolled, wasCrit, swingAttribution);
-        }
-        else if (IsMagicAttack())
-        {
-            HandleMagicAttack(_target, rolled, wasCrit, swingAttribution);
         }
         else
         {
@@ -1302,9 +1303,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         bool anyOffCooldownManaAbility = false;
         bool anyAffordableOffCooldownManaAbility = false;
 
-        if (TryAutoCastCommittedMagicStarterSpell(ref anyOffCooldownManaAbility, ref anyAffordableOffCooldownManaAbility))
-            return;
-
         var orderedSlots = actionBar
             .GetSlots()
             .Where(slot => slot != null)
@@ -1440,35 +1438,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         _nextOutOfManaActivityLogTime = Time.time + OutOfManaActivityLogCooldownSeconds;
         GameLog.Add(OutOfManaActivityLogMessage, GameLog.CannotMessageColor);
-    }
-
-    /// <summary>
-    /// Idle auto-battle: cast the committed Lv1 magic starter spell (respects cooldown + mana via <see cref="PlayerAbilityController.TryUseAbility"/>).
-    /// </summary>
-    private bool TryAutoCastCommittedMagicStarterSpell(
-        ref bool anyOffCooldownManaAbility,
-        ref bool anyAffordableOffCooldownManaAbility)
-    {
-        if (stats == null || abilityController == null || stats.CurrentAttackSkill != AttackSkill.Magic)
-            return false;
-
-        SkillsManager sm = SkillsManager.Instance;
-        if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
-            return false;
-
-        TrackAutoBattleManaAbilityGate(spellId, ref anyOffCooldownManaAbility, ref anyAffordableOffCooldownManaAbility);
-
-        if (abilityController.IsManaCostAbilityReadyForAutoBattle(spellId, out AbilityDefinition def) &&
-            !abilityController.CanAffordAbilityResourceCost(def))
-            return false;
-
-        return abilityController.TryUseAbility(
-            spellId,
-            showLockedFeedback: false,
-            allowSoulforgedRecastWhileActive: false,
-            requireCrescentSlashTargetInFacingLane: true,
-            requireWhirlwindTargetInRadius: true,
-            requireGuardiansHammerTargetInFacingZone: true);
     }
 
     private static bool IsFlameChargeActionBarSlot(ActionBarSlotUI slot)
@@ -1698,26 +1667,19 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         return stats != null && stats.CurrentAttackSkill == AttackSkill.Magic;
     }
 
-    private bool TrySpendManaForMagicAttack()
+    /// <summary>
+    /// Magic auto-attack damage comes from the committed Lv1 starter spell, not weapon MaxDamage
+    /// (spell-scaling staves often report 0 weapon damage). Spell selection is validated later.
+    /// </summary>
+    private bool CanPerformAutoAttackCadence()
     {
-        if (player == null)
+        if (stats == null || stats.AttacksPerSecond <= 0f)
             return false;
 
-        float manaCost = 0f;
-        SkillsManager sm = SkillsManager.Instance;
-        if (MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(sm, out string spellId))
-            manaCost = MagicStarterSpellRules.GetManaCostForAbilityId(spellId);
-        else
-        {
-            var weapon = GetMainWeaponDefForPopup();
-            if (weapon != null)
-                manaCost = weapon.ManaCostPerAttack;
-        }
-
-        if (manaCost <= 0f)
+        if (stats.MaxDamage > 0)
             return true;
 
-        return player.SpendMana(manaCost);
+        return IsMagicAttack();
     }
 
     private void HandleRangedAttack(
@@ -1800,51 +1762,6 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay, swingAttribution, consumeAmmo: consumeAmmo));
-    }
-
-    private void HandleMagicAttack(
-        EnemyBaseController targetAtFireTime,
-        SplitDamage rolled,
-        bool wasCrit,
-        SwingOutgoingAttribution swingAttribution)
-    {
-        float fireDelay = Mathf.Max(0f, magicProjectileFireDelay);
-        if (fireDelay <= 0f)
-        {
-            ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
-            return;
-        }
-
-        StartCoroutine(ResolveMagicAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay, swingAttribution));
-    }
-
-    private System.Collections.IEnumerator ResolveMagicAttackAfterFireDelay(
-        EnemyBaseController targetAtFireTime,
-        SplitDamage rolled,
-        bool wasCrit,
-        float fireDelay,
-        SwingOutgoingAttribution swingAttribution)
-    {
-        yield return new WaitForSeconds(fireDelay);
-        ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
-    }
-
-    private void ResolveMagicAttackAtRelease(
-        EnemyBaseController targetAtFireTime,
-        SplitDamage rolled,
-        bool wasCrit,
-        SwingOutgoingAttribution swingAttribution)
-    {
-        if (targetAtFireTime == null || targetAtFireTime.IsDead)
-            return;
-
-        if (!TrySpawnMagicProjectile(targetAtFireTime, stats != null ? stats.CurrentMagicAttackType : MagicAttackType.Lightning, out IMagicProjectileVisual bolt))
-        {
-            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
-            return;
-        }
-
-        bolt.OnImpact += () => ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
     }
 
     private bool TrySpawnRangedProjectile(EnemyBaseController targetAtFireTime, out float travelTime)

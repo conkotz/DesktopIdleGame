@@ -3097,9 +3097,6 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return false;
 
-        if (CombatStarterAttackAbility.IsLegacyMagicAttackAbilityId(def.abilityId))
-            return false;
-
         if (def.tag == AbilityTag.ToggleBuff)
             return !IsToggleBuffActive(def);
 
@@ -3129,6 +3126,8 @@ public partial class PlayerAbilityController : MonoBehaviour
     private const string NoDamageWithCurrentWeaponLogMessage = "Ability does no damage with this weapon";
     private const float NoDamageWithCurrentWeaponLogCooldownSeconds = 3f;
     private static float _nextNoDamageWithCurrentWeaponLogTime = -999f;
+    private const float NoPrimarySpellSelectedLogCooldownSeconds = 3f;
+    private static float _nextNoPrimarySpellSelectedLogTime = -999f;
 
     /// <summary>
     /// Pick the closest valid enemy for this ability, set combat target, or block the cast when range check applies.
@@ -3158,6 +3157,12 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (IsPrimingAbility(def))
         {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+            if (engaged != null && combat != null && !combat.IsEnemyWithinAttackRange(engaged))
+                combat.EngageTargetFromPlayerInput(engaged);
+
             LogNoActiveTargetPrimedThrottled();
             return true;
         }
@@ -3173,6 +3178,18 @@ public partial class PlayerAbilityController : MonoBehaviour
             combat = GetComponent<PlayerCombatController>();
         if (combat == null)
             return false;
+
+        if (CombatStarterAttackAbility.IsMagicStarterAttack(def))
+        {
+            if (!skillsManager)
+                skillsManager = SkillsManager.Instance;
+
+            if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(skillsManager, out _))
+            {
+                LogNoPrimarySpellSelectedThrottled();
+                return false;
+            }
+        }
 
         EnemyBaseController currentTarget = combat.CurrentTarget;
         bool hasLiveCurrentTarget =
@@ -3256,7 +3273,9 @@ public partial class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
+               || string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase)
+               || MagicStarterSpellRules.IsMagicStarterSpellId(id)
+               || IsChainLightningAbilityId(id);
     }
 
     private static bool UsesMeleeApproachOnActivate(AbilityDefinition def)
@@ -3296,7 +3315,9 @@ public partial class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        if (!combat.IsEnemyWithinApproachRange(target))
+        bool isMagicStarterSpell = MagicStarterSpellRules.IsMagicStarterSpellId(_pendingMeleeApproachAbilityId);
+        bool isChainLightning = IsChainLightningAbilityId(_pendingMeleeApproachAbilityId);
+        if (!isMagicStarterSpell && !isChainLightning && !combat.IsEnemyWithinApproachRange(target))
         {
             ClearPendingMeleeApproachAbility();
             return;
@@ -3309,6 +3330,25 @@ public partial class PlayerAbilityController : MonoBehaviour
         ClearPendingMeleeApproachAbility();
         if (def == null)
             return;
+
+        if (isMagicStarterSpell)
+        {
+            TryCastMagicStarterSpell(def, showLockedFeedback: false, out _, skipRangeApproach: true);
+            return;
+        }
+
+        if (isChainLightning)
+        {
+            if (!TryCastChainLightning(def, showLockedFeedback: false, skipRangeApproach: true))
+                return;
+
+            player?.TriggerAttackAnim();
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return;
+        }
 
         ExecuteMeleeApproachAbilityNow(def, showLockedFeedback: false);
     }
@@ -3938,15 +3978,12 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
         if (IsChainLightningAbilityId(def.abilityId))
         {
-            if (!CanHitAnyEnemyWithChainLightning())
-            {
-                if (showLockedFeedback)
-                    LogNoTargetsInRangeThrottled();
+            if (!TryCastChainLightning(def, showLockedFeedback, skipRangeApproach: false))
                 return false;
-            }
 
-            if (!TryCastChainLightning(def, showLockedFeedback))
-                return false;
+            if (!string.IsNullOrEmpty(_pendingMeleeApproachAbilityId) &&
+                IsChainLightningAbilityId(_pendingMeleeApproachAbilityId))
+                return true;
 
             player.TriggerAttackAnim();
             StartCooldown(def);
@@ -3957,7 +3994,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
         if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
         {
-            if (!TryCastMagicStarterSpell(def, showLockedFeedback))
+            if (!TryCastMagicStarterSpell(def, showLockedFeedback, out _, skipRangeApproach: false))
                 return false;
 
             return true;
@@ -9652,8 +9689,6 @@ public partial class PlayerAbilityController : MonoBehaviour
     private bool IsAbilityAllowedBySkillProgress(AbilityDefinition def)
     {
         if (!def)
-            return false;
-        if (CombatStarterAttackAbility.IsLegacyMagicAttackAbilityId(def.abilityId))
             return false;
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;

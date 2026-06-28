@@ -9,11 +9,11 @@ public static class CombatStarterAttackAbility
 {
     public const string MeleeAttackAbilityId = "melee_attack";
     public const string RangedAttackAbilityId = "ranged_attack";
-    /// <summary>Legacy id — magic no longer uses a starter Attack ability; Lv1 starter spells replace it.</summary>
     public const string MagicAttackAbilityId = "magic_attack";
 
     public const string TooltipShortDescription = "Auto attack enemies";
     public const string WrongWeaponEquippedLogMessage = "Wrong weapon equipped";
+    public const string NoPrimarySpellSelectedLogMessage = "Can't do that because no spell has been selected.";
 
     public static bool IsMeleeStarterAttack(AbilityDefinition ability) =>
         ability != null &&
@@ -39,14 +39,21 @@ public static class CombatStarterAttackAbility
         if (string.Equals(ability.abilityId, RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase))
             return mainHand != null && mainHand.weaponStats.attackSkill == AttackSkill.Ranged;
 
+        if (string.Equals(ability.abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase))
+            return mainHand != null && mainHand.weaponStats.attackSkill == AttackSkill.Magic;
+
         return false;
     }
+
+    public static bool IsMagicStarterAttack(AbilityDefinition ability) =>
+        ability != null &&
+        string.Equals(ability.abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsLegacyMagicAttackAbilityId(string abilityId) =>
         string.Equals(abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsCombatSkill(SkillType skillType) =>
-        skillType == SkillType.Melee || skillType == SkillType.Ranged;
+        skillType == SkillType.Melee || skillType == SkillType.Ranged || skillType == SkillType.Magic;
 
     public static bool IsCombatStarterAttack(AbilityDefinition ability)
     {
@@ -62,7 +69,8 @@ public static class CombatStarterAttackAbility
             return false;
 
         return string.Equals(abilityId, MeleeAttackAbilityId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(abilityId, RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase);
+               || string.Equals(abilityId, RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool TryGetCombatStarterAttackForSkill(SkillDefinition skill, out AbilityDefinition ability)
@@ -110,6 +118,7 @@ public static class CombatStarterAttackAbility
         // Slot 0 = primary hotkey; slot 1 holds the other combat Attack ability for weapon swaps.
         AppendAbilityAssignment(data, 0, MeleeAttackAbilityId);
         AppendAbilityAssignment(data, 1, RangedAttackAbilityId);
+        AppendAbilityAssignment(data, 2, MagicAttackAbilityId);
     }
 
     private static bool HasAnyAbilityBarAssignment(SaveData data)

@@ -64,12 +64,14 @@ public sealed class InMapTeleporter : MonoBehaviour
     {
         Register();
         WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
+        OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Cave, transform);
     }
 
     private void OnDisable()
     {
         Unregister();
         WorldFloorFollowerRegistry.Unregister(transform);
+        OffscreenMarkerTargetRegistry.Unregister(transform);
         _pendingTeleport = false;
         _pendingPlayer = null;
     }

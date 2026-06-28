@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_fire_ball
+  m_Name: Ability_magic_attack
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: fire_ball
-  displayName: Fire Ball
-  tag: 5
+  abilityId: magic_attack
+  displayName: Attack
+  tag: 1
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: 97a52048aa814570976ed277a43e59fe, type: 2}
-  cooldown: 2
+  presentation: {fileID: 11400000, guid: 5e1b0866111d4bd5a27fef00def50b25, type: 2}
+  cooldown: 0
   energyCost: 0
-  manaCost: 8
+  manaCost: 0
   healthCost: 0
   weaponDamageMultiplier: 0
   allDamageMultiplier: 1
@@ -33,6 +33,6 @@ MonoBehaviour:
   unlockLevel: 1
   requireRangeCheckToActivate: 1
   setsTargetOnHit: 1
-  supportRunesConsumedPerCast: 1
-  requiredChargedRuneElement: 1
   minionSpawnDefinition: {fileID: 0}
+  supportRunesConsumedPerCast: 0
+  requiredChargedRuneElement: 0

@@ -16,16 +16,35 @@ public partial class PlayerAbilityController
         return combat != null && combat.FindClosestEnemyInAttackRange() != null;
     }
 
-    private bool TryCastChainLightning(AbilityDefinition def, bool showLockedFeedback)
+    private bool TryCastChainLightning(AbilityDefinition def, bool showLockedFeedback, bool skipRangeApproach = false)
     {
         if (def == null || stats == null)
             return false;
 
-        if (!CanHitAnyEnemyWithChainLightning())
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return false;
+
+        EnemyBaseController target = combat.GetPrimaryEngagedEnemy();
+        if (target == null)
+            target = combat.FindClosestEnemyInAttackRange();
+        if (target == null)
+            target = combat.FindClosestLivingEnemyForEngage();
+
+        if (target == null || target.IsDead)
         {
             if (showLockedFeedback)
                 player?.ShowPopup("No targets in range.");
             return false;
+        }
+
+        if (!skipRangeApproach && !combat.IsEnemyWithinAttackRange(target))
+        {
+            combat.EngageTargetFromPlayerInput(target);
+            ClearPendingMeleeApproachAbility();
+            _pendingMeleeApproachAbilityId = def.abilityId;
+            return true;
         }
 
         if (!TryFindClosestEnemyInChainLightningSpellRange(out EnemyBaseController primary))
@@ -34,9 +53,6 @@ public partial class PlayerAbilityController
                 player?.ShowPopup("No targets in range.");
             return false;
         }
-
-        if (combat == null)
-            combat = GetComponent<PlayerCombatController>();
 
         if (combat != null && !combat.HasRequiredSpellRunesForAbility(def))
         {

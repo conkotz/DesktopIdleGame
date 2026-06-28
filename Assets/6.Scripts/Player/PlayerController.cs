@@ -1369,12 +1369,8 @@ public class PlayerController : MonoBehaviour
         if (!CanPollWorldInteractHotkey())
             return;
 
-        float px = transform.position.x;
-        float py = transform.position.y;
-
-        if (!WorldInteractRouter.TryFindClosestEnterAreaCollider(
-                px,
-                py,
+        if (!WorldInteractRouter.TryResolveEnterAreaColliderForPlayer(
+                this,
                 interactableMask,
                 WorldInteractRouter.InteractHotkeyHalfRangeX,
                 out Collider2D winner))

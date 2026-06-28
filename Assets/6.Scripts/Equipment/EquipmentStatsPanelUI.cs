@@ -193,6 +193,20 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private void Awake()
     {
         ResolveRefsIfNeeded();
+        EnsureRangeIndicatorToggle();
+    }
+
+    private void EnsureRangeIndicatorToggle()
+    {
+        Transform equipmentWindow = transform;
+        while (equipmentWindow != null && !string.Equals(equipmentWindow.name, "EquipmentWindow", System.StringComparison.Ordinal))
+            equipmentWindow = equipmentWindow.parent;
+
+        if (equipmentWindow == null)
+            equipmentWindow = transform;
+
+        if (equipmentWindow.GetComponent<EquipmentRangeIndicatorToggleUI>() == null)
+            equipmentWindow.gameObject.AddComponent<EquipmentRangeIndicatorToggleUI>();
     }
 
     private void ResolveRefsIfNeeded()

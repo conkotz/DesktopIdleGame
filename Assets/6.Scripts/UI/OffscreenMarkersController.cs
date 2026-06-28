@@ -69,6 +69,12 @@ public class OffscreenMarkersController : MonoBehaviour
     [Tooltip("How often to rescan the scene for markers (seconds).")]
     [SerializeField] private float refreshInterval = 0.08f;
 
+    [Header("Lane filter")]
+    [Tooltip("Only show markers for targets in the same play area as the player (main lane vs side areas).")]
+    [SerializeField] private bool filterMarkersToPlayerPlayArea = true;
+    [Tooltip("Optional. When empty, the local player is resolved at runtime.")]
+    [SerializeField] private PlayerController player;
+
     [Header("Palette (RGB only; alpha from OffscreenMarkerView)")]
     [SerializeField] private Color enemyColor = new Color(1f, 0f, 0f, 1f);
     [SerializeField] private Color npcColor = new Color(0.35f, 0.6f, 1f, 1f);
@@ -108,6 +114,8 @@ public class OffscreenMarkersController : MonoBehaviour
     private static readonly HashSet<int> s_collectSeenIds = new();
 
     private Aggregate _registryCollectAggregate;
+    private string _playerPlayAreaKey = string.Empty;
+    private bool _hasPlayerPlayAreaKey;
 
     private void Awake()
     {
@@ -304,6 +312,7 @@ public class OffscreenMarkersController : MonoBehaviour
         if (Time.unscaledTime >= _nextRefreshTime)
         {
             _nextRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, refreshInterval);
+            RefreshPlayerPlayAreaKey();
 
             Profiler.BeginSample("OffscreenMarkers.UpdateMarkers");
             try
@@ -631,6 +640,32 @@ public class OffscreenMarkersController : MonoBehaviour
         return vp.x < m || vp.x > 1f - m || vp.y < m || vp.y > 1f - m;
     }
 
+    private void RefreshPlayerPlayAreaKey()
+    {
+        _hasPlayerPlayAreaKey = false;
+        _playerPlayAreaKey = string.Empty;
+
+        if (!filterMarkersToPlayerPlayArea)
+            return;
+
+        if (!player)
+            player = FindFirstObjectByType<PlayerController>();
+
+        if (!player)
+            return;
+
+        _playerPlayAreaKey = PlayAreaBounds.GetPlayAreaKey(player.transform.position.x);
+        _hasPlayerPlayAreaKey = true;
+    }
+
+    private bool IsSamePlayAreaAsPlayer(float worldX)
+    {
+        if (!filterMarkersToPlayerPlayArea || !_hasPlayerPlayAreaKey)
+            return true;
+
+        return PlayAreaBounds.GetPlayAreaKey(worldX) == _playerPlayAreaKey;
+    }
+
     private void Add(ref Aggregate a, float worldX)
     {
         float camX = worldCamera ? worldCamera.transform.position.x : 0f;
@@ -663,6 +698,9 @@ public class OffscreenMarkersController : MonoBehaviour
                 continue;
 
             Vector3 p = ebc.transform.position;
+            if (!IsSamePlayAreaAsPlayer(p.x))
+                continue;
+
             if (!IsOffCamera(p))
                 continue;
 
@@ -681,6 +719,9 @@ public class OffscreenMarkersController : MonoBehaviour
     private void VisitRegistryTargetForCollect(int instanceId, Vector3 worldPos)
     {
         if (!s_collectSeenIds.Add(instanceId))
+            return;
+
+        if (!IsSamePlayAreaAsPlayer(worldPos.x))
             return;
 
         if (!IsOffCamera(worldPos))

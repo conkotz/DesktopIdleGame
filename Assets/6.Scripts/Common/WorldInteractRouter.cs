@@ -139,6 +139,27 @@ public static class WorldInteractRouter
         return winner != null;
     }
 
+    /// <summary>
+    /// Resolves the nearest enter-area collider (map portal or in-map teleporter) for the enter-area hotkey.
+    /// Falls back to the player's interact focus when it is a portal/teleporter (e.g. after clicking one).
+    /// </summary>
+    public static bool TryResolveEnterAreaColliderForPlayer(
+        PlayerController player,
+        LayerMask mask,
+        float halfRangeX,
+        out Collider2D winner)
+    {
+        winner = null;
+        if (!player)
+            return false;
+
+        Vector3 pos = player.transform.position;
+        if (TryFindClosestEnterAreaCollider(pos.x, pos.y, mask, halfRangeX, out winner))
+            return true;
+
+        return TryGetEnterAreaColliderFromInteractFocus(player, out winner);
+    }
+
     public static void RouteEnterArea(Collider2D winnerCol, PlayerController player) =>
         RouteContextPortalEnter(winnerCol, player);
 
@@ -612,6 +633,34 @@ public static class WorldInteractRouter
         }
 
         return best;
+    }
+
+    private static bool TryGetEnterAreaColliderFromInteractFocus(PlayerController player, out Collider2D winner)
+    {
+        winner = null;
+        if (!player)
+            return false;
+
+        PlayerWorldInteractFocus focus = player.GetComponent<PlayerWorldInteractFocus>();
+        Transform root = focus != null ? focus.CurrentFocusTransform : null;
+        if (!root)
+            return false;
+
+        MapNodePortalTeleporter portal = root.GetComponentInParent<MapNodePortalTeleporter>();
+        if (portal != null)
+        {
+            winner = portal.GetComponent<Collider2D>() ?? portal.GetComponentInChildren<Collider2D>(true);
+            return winner != null;
+        }
+
+        InMapTeleporter teleporter = root.GetComponentInParent<InMapTeleporter>();
+        if (teleporter != null)
+        {
+            winner = teleporter.GetComponent<Collider2D>() ?? teleporter.GetComponentInChildren<Collider2D>(true);
+            return winner != null;
+        }
+
+        return false;
     }
 
     private static float GetRoutableCenterX(Collider2D col)

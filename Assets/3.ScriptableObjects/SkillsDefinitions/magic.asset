@@ -23,7 +23,7 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Magic Combat
+    title: Beginner Magic Combat
     description: Can use tier 1 magic weapons
     icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
     unlockType: 2
@@ -35,7 +35,7 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: b1c2d3e4f5a6478990ab12cd34ef5678, type: 2}
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 1

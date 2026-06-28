@@ -65,6 +65,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private SkillCategory _categoryMode = SkillCategory.Combat;
     private bool _skipSelectionHubNotify;
     private Transform _activeSkillTabBarRoot;
+    private bool _topBarTabBarVisibilityCaptured;
+    private bool _combatSkillTabBarEnabledInHierarchy = true;
+    private bool _gatheringSkillTabBarEnabledInHierarchy = true;
     private readonly Dictionary<SkillType, Button> _tabButtonBySkillType = new();
     private readonly Dictionary<SkillType, UnityEngine.Events.UnityAction> _tabClickHandlers = new();
     private bool _skillsEventsSubscribed;
@@ -357,14 +360,18 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private void ApplyCategoryMode(bool showOnly)
     {
         if (combatSkillsTabBarRoot != null)
-            combatSkillsTabBarRoot.gameObject.SetActive(_categoryMode == SkillCategory.Combat);
+        {
+            combatSkillsTabBarRoot.gameObject.SetActive(
+                _combatSkillTabBarEnabledInHierarchy && _categoryMode == SkillCategory.Combat);
+        }
 
         if (gatheringSkillsTabBarRoot != null)
-            gatheringSkillsTabBarRoot.gameObject.SetActive(_categoryMode == SkillCategory.Gathering);
+        {
+            gatheringSkillsTabBarRoot.gameObject.SetActive(
+                _gatheringSkillTabBarEnabledInHierarchy && _categoryMode == SkillCategory.Gathering);
+        }
 
-        _activeSkillTabBarRoot = _categoryMode == SkillCategory.Gathering
-            ? gatheringSkillsTabBarRoot
-            : combatSkillsTabBarRoot;
+        ResolveActiveSkillTabBarRoot();
 
         if (!showOnly)
         {
@@ -375,9 +382,35 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         RefreshCategoryModeButtonVisuals();
     }
 
+    private void ResolveActiveSkillTabBarRoot()
+    {
+        _activeSkillTabBarRoot = null;
+        if (_categoryMode == SkillCategory.Gathering && _gatheringSkillTabBarEnabledInHierarchy)
+            _activeSkillTabBarRoot = gatheringSkillsTabBarRoot;
+        else if (_combatSkillTabBarEnabledInHierarchy)
+            _activeSkillTabBarRoot = combatSkillsTabBarRoot;
+        else if (_gatheringSkillTabBarEnabledInHierarchy)
+            _activeSkillTabBarRoot = gatheringSkillsTabBarRoot;
+    }
+
+    private void CaptureTopBarTabBarVisibilityFromHierarchyIfNeeded()
+    {
+        if (_topBarTabBarVisibilityCaptured)
+            return;
+
+        if (combatSkillsTabBarRoot == null && gatheringSkillsTabBarRoot == null)
+            return;
+
+        _combatSkillTabBarEnabledInHierarchy =
+            combatSkillsTabBarRoot != null && combatSkillsTabBarRoot.gameObject.activeSelf;
+        _gatheringSkillTabBarEnabledInHierarchy =
+            gatheringSkillsTabBarRoot != null && gatheringSkillsTabBarRoot.gameObject.activeSelf;
+        _topBarTabBarVisibilityCaptured = true;
+    }
+
     private void WireCategoryModeButtons()
     {
-        if (combatCategoryButton != null)
+        if (combatCategoryButton != null && combatCategoryButton.gameObject.activeInHierarchy)
         {
             if (_combatCategoryHandler != null)
                 combatCategoryButton.onClick.RemoveListener(_combatCategoryHandler);
@@ -386,7 +419,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             combatCategoryButton.onClick.AddListener(_combatCategoryHandler);
         }
 
-        if (gatheringCategoryButton != null)
+        if (gatheringCategoryButton != null && gatheringCategoryButton.gameObject.activeInHierarchy)
         {
             if (_gatheringCategoryHandler != null)
                 gatheringCategoryButton.onClick.RemoveListener(_gatheringCategoryHandler);
@@ -398,8 +431,11 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
     private void RefreshCategoryModeButtonVisuals()
     {
-        ApplyCategoryModeButtonVisual(combatCategoryButton, _categoryMode == SkillCategory.Combat);
-        ApplyCategoryModeButtonVisual(gatheringCategoryButton, _categoryMode == SkillCategory.Gathering);
+        if (combatCategoryButton != null && combatCategoryButton.gameObject.activeInHierarchy)
+            ApplyCategoryModeButtonVisual(combatCategoryButton, _categoryMode == SkillCategory.Combat);
+
+        if (gatheringCategoryButton != null && gatheringCategoryButton.gameObject.activeInHierarchy)
+            ApplyCategoryModeButtonVisual(gatheringCategoryButton, _categoryMode == SkillCategory.Gathering);
     }
 
     private static void ApplyCategoryModeButtonVisual(Button button, bool selected)
@@ -1139,6 +1175,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (editingText != null && !Application.isPlaying)
             editingText.gameObject.SetActive(false);
+
+        CaptureTopBarTabBarVisibilityFromHierarchyIfNeeded();
     }
 
     private static Transform FindChildByName(Transform root, string leafName)
@@ -1173,11 +1211,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     {
         _tabButtonBySkillType.Clear();
         if (_activeSkillTabBarRoot == null)
-            _activeSkillTabBarRoot = _categoryMode == SkillCategory.Gathering
-                ? gatheringSkillsTabBarRoot
-                : combatSkillsTabBarRoot;
+            ResolveActiveSkillTabBarRoot();
 
-        if (_activeSkillTabBarRoot == null)
+        if (_activeSkillTabBarRoot == null || !_activeSkillTabBarRoot.gameObject.activeInHierarchy)
             return;
 
         Button[] buttons = _activeSkillTabBarRoot.GetComponentsInChildren<Button>(true);

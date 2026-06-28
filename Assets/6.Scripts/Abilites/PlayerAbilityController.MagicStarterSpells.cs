@@ -2,8 +2,13 @@ using UnityEngine;
 
 public partial class PlayerAbilityController
 {
-    private bool TryCastMagicStarterSpell(AbilityDefinition def, bool showLockedFeedback)
+    private bool TryCastMagicStarterSpell(
+        AbilityDefinition def,
+        bool showLockedFeedback,
+        out bool spellExecuted,
+        bool skipRangeApproach = false)
     {
+        spellExecuted = false;
         if (def == null || stats == null)
             return false;
 
@@ -15,15 +20,25 @@ public partial class PlayerAbilityController
         if (combat == null)
             return false;
 
-        EnemyBaseController target = combat.CurrentTarget;
-        if (target == null || target.IsDead || !combat.IsEnemyWithinAttackRange(target))
+        EnemyBaseController target = combat.GetPrimaryEngagedEnemy();
+        if (target == null)
             target = combat.FindClosestEnemyInAttackRange();
+        if (target == null)
+            target = combat.FindClosestLivingEnemyForEngage();
 
         if (target == null || target.IsDead)
         {
             if (showLockedFeedback)
                 LogNoTargetsInRangeThrottled();
             return false;
+        }
+
+        if (!skipRangeApproach && !combat.IsEnemyWithinAttackRange(target))
+        {
+            combat.EngageTargetFromPlayerInput(target);
+            ClearPendingMeleeApproachAbility();
+            _pendingMeleeApproachAbilityId = def.abilityId;
+            return true;
         }
 
         if (def.SetsTargetOnHit())
@@ -73,7 +88,39 @@ public partial class PlayerAbilityController
             ApplyMagicStarterSpellHitDamage(target, def, element, split, wasCrit, sourceLabel);
         });
 
+        spellExecuted = true;
         return true;
+    }
+
+    /// <summary>
+    /// Magic weapon auto-attack cadence: repeatedly casts the committed Lv1 starter spell.
+    /// </summary>
+    public bool TryPerformMagicAutoAttack(bool showLockedFeedback, out bool spellExecuted)
+    {
+        spellExecuted = false;
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+
+        if (!MagicStarterSpellRules.TryGetCommittedStarterSpellAbilityId(skillsManager, out string spellId))
+        {
+            LogNoPrimarySpellSelectedThrottled();
+            return false;
+        }
+
+        AbilityDefinition def = GetAbilityDefinition(spellId);
+        if (def == null)
+            return false;
+
+        return TryCastMagicStarterSpell(def, showLockedFeedback, out spellExecuted, skipRangeApproach: false);
+    }
+
+    private void LogNoPrimarySpellSelectedThrottled()
+    {
+        if (Time.time < _nextNoPrimarySpellSelectedLogTime)
+            return;
+
+        _nextNoPrimarySpellSelectedLogTime = Time.time + NoPrimarySpellSelectedLogCooldownSeconds;
+        GameLog.Add(CombatStarterAttackAbility.NoPrimarySpellSelectedLogMessage, GameLog.CannotMessageColor);
     }
 
     private void ApplyMagicStarterSpellHitDamage(
