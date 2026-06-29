@@ -521,18 +521,23 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             string split = "";
 
             if (hasPhys)
-                split += $"P {Mathf.FloorToInt(min.physical)}-{Mathf.CeilToInt(max.physical)}";
+            {
+                CharacterStats.GetSplitLaneDisplayRange(min.physical, max.physical, out int physMin, out int physMax);
+                split += $"P {physMin}-{physMax}";
+            }
 
             if (hasMag)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"M {Mathf.FloorToInt(min.magic)}-{Mathf.CeilToInt(max.magic)}";
+                CharacterStats.GetSplitLaneDisplayRange(min.magic, max.magic, out int magMin, out int magMax);
+                split += $"M {magMin}-{magMax}";
             }
 
             if (hasCorruption)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"C {Mathf.FloorToInt(min.corruptionDamage)}-{Mathf.CeilToInt(max.corruptionDamage)}";
+                CharacterStats.GetSplitLaneDisplayRange(min.corruptionDamage, max.corruptionDamage, out int corrMin, out int corrMax);
+                split += $"C {corrMin}-{corrMax}";
             }
 
             string colouredTypeLabel = hasAnyDamage

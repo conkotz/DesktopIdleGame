@@ -1204,6 +1204,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
         }
 
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);
+        MagicStarterSpellRules.TryEnsureDefaultStarterSpellCommitted(this);
         OnSkillProgressionLoaded?.Invoke();
         NotifyWeaponSetPresetLinksChanged();
     }

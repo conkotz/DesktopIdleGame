@@ -1321,7 +1321,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     // Offensive (display) — floor min / ceil max per lane so % bonuses show on the stat sheet sooner.
-    public int MinDamage => SplitDamageToDisplayTotal(MinSplitDamage, forMinimum: true);
+    public int MinDamage
+    {
+        get
+        {
+            int min = SplitDamageToDisplayTotal(MinSplitDamage, forMinimum: true);
+            int max = SplitDamageToDisplayTotal(MaxSplitDamage, forMinimum: false);
+            return CapDisplayMinDamageToMax(min, max);
+        }
+    }
+
     public int MaxDamage => SplitDamageToDisplayTotal(MaxSplitDamage, forMinimum: false);
 
     public static int SplitDamageToDisplayTotal(SplitDamage split, bool forMinimum)
@@ -1331,6 +1340,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         int corr = forMinimum ? Mathf.FloorToInt(split.corruptionDamage) : Mathf.CeilToInt(split.corruptionDamage);
         return Mathf.Max(0, phys + mag + corr);
     }
+
+    /// <summary>One split lane for the stats panel (floor min, ceil max, min never above max).</summary>
+    public static void GetSplitLaneDisplayRange(float laneMin, float laneMax, out int displayMin, out int displayMax)
+    {
+        displayMax = Mathf.CeilToInt(laneMax);
+        displayMin = CapDisplayMinDamageToMax(Mathf.FloorToInt(laneMin), displayMax);
+    }
+
+    /// <summary>Displayed min damage cannot exceed displayed max (e.g. +min bonuses on a narrow weapon).</summary>
+    public static int CapDisplayMinDamageToMax(int displayMin, int displayMax) =>
+        Mathf.Min(displayMin, displayMax);
 
     public SplitDamage MinSplitDamage => GetMinSplitDamage();
     public SplitDamage MaxSplitDamage => GetMaxSplitDamage();

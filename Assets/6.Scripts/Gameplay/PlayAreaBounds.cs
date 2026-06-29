@@ -167,6 +167,8 @@ public static class PlayAreaBounds
         WorldFloorToUIEdge edge = WorldFloorToUIEdge.Active;
         if (edge != null && edge.FloorCollider != null)
         {
+            // Walk-surface anchor for entity collider bottoms (see PlayerController.AlignToActiveFloorForCurrentX).
+            // Spawn points are authored on the floor collider centerline — not bounds.max (that floats units up).
             y = edge.FloorCollider.bounds.center.y;
             return true;
         }

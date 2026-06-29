@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// Magic Lv1 row-pick spells used as the primary magic weapon attack (manual bar or auto-battle).
@@ -13,6 +15,8 @@ public static class MagicStarterSpellRules
     public const string FireBallAbilityId = "fire_ball";
     public const string IceShardAbilityId = "ice_shard";
     public const string EnergyBoltAbilityId = "energy_bolt";
+
+    public const int DefaultStarterSpellSiblingIndex = 0;
 
     public const float FireBallMinDamage = 8f;
     public const float FireBallMaxDamage = 10f;
@@ -31,11 +35,65 @@ public static class MagicStarterSpellRules
                || string.Equals(abilityId, EnergyBoltAbilityId, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Magic Lv1 starter row: auto-commit Fire Ball when no sibling is picked yet (special case for basic magic attack).
+    /// Does not override an existing pick — at most one Lv1 spell is active via row pick storage.
+    /// </summary>
+    public static bool TryEnsureDefaultStarterSpellCommitted(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return false;
+
+        if (!skillsManager.IsLevelUnlocked(SkillType.Magic, StarterSpellUnlockLevel))
+            return false;
+
+        SkillDatabase db = SkillDatabase.LoadDefault();
+        SkillDefinition magic = db != null ? db.Get(SkillType.Magic) : null;
+        if (magic == null)
+            return false;
+
+        int existingPick = skillsManager.GetSkillAbilityRowPick(
+            SkillType.Magic, StarterSpellUnlockLevel, -1);
+        if (existingPick >= 0)
+            return true;
+
+        List<AbilityDefinition> siblings =
+            SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(magic, StarterSpellUnlockLevel);
+        if (siblings == null || siblings.Count == 0)
+            return false;
+
+        int pick = SkillAbilityCommitRules.IndexOfAbilityInSiblingList(
+            siblings, ResolveDefaultStarterSpellAbility(siblings));
+        if (pick < 0)
+            pick = Mathf.Clamp(DefaultStarterSpellSiblingIndex, 0, siblings.Count - 1);
+
+        skillsManager.SetSkillAbilityRowPick(SkillType.Magic, StarterSpellUnlockLevel, pick);
+        return true;
+    }
+
+    private static AbilityDefinition ResolveDefaultStarterSpellAbility(List<AbilityDefinition> siblings)
+    {
+        if (siblings == null)
+            return null;
+
+        for (int i = 0; i < siblings.Count; i++)
+        {
+            AbilityDefinition def = siblings[i];
+            if (def != null
+                && string.Equals(def.abilityId, FireBallAbilityId, StringComparison.OrdinalIgnoreCase))
+                return def;
+        }
+
+        return siblings.Count > 0 ? siblings[DefaultStarterSpellSiblingIndex] : null;
+    }
+
     public static bool TryGetCommittedStarterSpellAbilityId(SkillsManager skillsManager, out string abilityId)
     {
         abilityId = null;
         if (skillsManager == null)
             return false;
+
+        TryEnsureDefaultStarterSpellCommitted(skillsManager);
 
         SkillDatabase db = SkillDatabase.LoadDefault();
         SkillDefinition magic = db != null ? db.Get(SkillType.Magic) : null;
