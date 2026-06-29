@@ -33,6 +33,20 @@ public class GoldPopup : MonoBehaviour
     [SerializeField] private float goldOutlineWidth = 0.28f;
     [SerializeField] private Color goldOutlineColor = new Color(0.12f, 0.08f, 0.02f, 1f);
 
+    [Header("Quest reward item popup")]
+    [Tooltip("Slower rise/linger/fade than +gold so players can read item names from quest claims.")]
+    [SerializeField] private float questRewardFloatUpPx = 24f;
+    [SerializeField] private float questRewardRiseDuration = 2f;
+    [SerializeField] private float questRewardLingerSeconds = 3.5f;
+    [SerializeField] private float questRewardFadeDuration = 1.2f;
+    [SerializeField, Range(0.1f, 1f)] private float questRewardScale = 0.28f;
+    [SerializeField] private float questRewardFontSize = 17f;
+    [SerializeField] private float questRewardMinWidth = 420f;
+    [SerializeField] private float questRewardHorizontalPadding = 16f;
+    [SerializeField] private Color questRewardItemColor = new Color(0.28f, 0.62f, 0.22f, 1f);
+    [SerializeField] private float questRewardOutlineWidth = 0.22f;
+    [SerializeField] private Color questRewardOutlineColor = new Color(0.04f, 0.1f, 0.03f, 1f);
+
     private RectTransform _rt;
     private Coroutine _co;
     private Color _sourceFadeBase = Color.white;
@@ -44,6 +58,10 @@ public class GoldPopup : MonoBehaviour
 
     /// <summary>Wall-clock duration for +gold popups using the combined rise/fade (unscaled).</summary>
     public float TotalGoldAnimationDuration => Mathf.Max(0.0001f, goldCombinedDuration);
+
+    /// <summary>Wall-clock duration for quest reward item popups (unscaled).</summary>
+    public float TotalQuestRewardItemAnimationDuration =>
+        Mathf.Max(0f, questRewardRiseDuration) + Mathf.Max(0f, questRewardLingerSeconds) + Mathf.Max(0f, questRewardFadeDuration);
 
     private void Awake()
     {
@@ -95,6 +113,33 @@ public class GoldPopup : MonoBehaviour
         PlayLocalTextCore(startAnchoredPos, text, color, applyGoldStroke: false, onComplete, useGoldLegacyFade: true);
     }
 
+    /// <summary>Quest reward items: slow float-up, green text, long linger (same anchor as gold gains).</summary>
+    public void PlayLocalQuestRewardItem(Vector2 startAnchoredPos, string text, Action onComplete)
+    {
+        _onComplete = onComplete;
+        gameObject.SetActive(true);
+
+        if (label)
+        {
+            label.text = text;
+            label.color = questRewardItemColor;
+            label.outlineWidth = questRewardOutlineWidth;
+            label.outlineColor = questRewardOutlineColor;
+            ConfigureQuestRewardItemLabelLayout(text);
+        }
+
+        ConfigureSourceLine(null);
+
+        if (_rt != null)
+        {
+            _rt.anchoredPosition = startAnchoredPos;
+            _rt.localScale = Vector3.one * questRewardScale;
+        }
+
+        if (_co != null) StopCoroutine(_co);
+        _co = StartCoroutine(AnimAnchoredQuestRewardItem(startAnchoredPos, questRewardItemColor));
+    }
+
     private void PlayLocalTextCore(Vector2 startAnchoredPos, string text, Color color, bool applyGoldStroke, Action onComplete, bool useGoldLegacyFade)
     {
         _onComplete = onComplete;
@@ -125,6 +170,34 @@ public class GoldPopup : MonoBehaviour
         _co = useGoldLegacyFade
             ? StartCoroutine(AnimAnchoredGoldLegacy(startAnchoredPos, color))
             : StartCoroutine(AnimAnchored(startAnchoredPos, color));
+    }
+
+    private void ConfigureQuestRewardItemLabelLayout(string text)
+    {
+        if (!label)
+            return;
+
+        label.enableAutoSizing = false;
+        label.fontSize = questRewardFontSize;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.overflowMode = TextOverflowModes.Overflow;
+        label.alignment = TextAlignmentOptions.Center;
+
+        float preferredWidth = label.GetPreferredValues(text).x;
+        float width = Mathf.Max(questRewardMinWidth, preferredWidth + questRewardHorizontalPadding);
+
+        if (_rt != null)
+            _rt.sizeDelta = new Vector2(width, _rt.sizeDelta.y);
+
+        RectTransform labelRt = label.rectTransform;
+        if (labelRt != null)
+        {
+            labelRt.anchorMin = new Vector2(0f, 0.5f);
+            labelRt.anchorMax = new Vector2(1f, 0.5f);
+            labelRt.pivot = new Vector2(0.5f, 0.5f);
+            labelRt.offsetMin = new Vector2(0f, labelRt.offsetMin.y);
+            labelRt.offsetMax = new Vector2(0f, labelRt.offsetMax.y);
+        }
     }
 
     private void ConfigureSourceLine(string line)
@@ -171,6 +244,51 @@ public class GoldPopup : MonoBehaviour
         float rise = Mathf.Max(0.0001f, riseDuration);
         float linger = Mathf.Max(0f, lingerAtApexSeconds);
         float fade = Mathf.Max(0.0001f, fadeDuration);
+
+        float t = 0f;
+        while (t < rise)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / rise);
+            float ease = 1f - Mathf.Pow(1f - u, 2f);
+            if (_rt != null)
+                _rt.anchoredPosition = Vector2.LerpUnclamped(start, apex, ease);
+            ApplyAlpha(baseColor, 1f);
+            yield return null;
+        }
+
+        if (_rt != null)
+            _rt.anchoredPosition = apex;
+
+        t = 0f;
+        while (t < linger)
+        {
+            t += Time.unscaledDeltaTime;
+            ApplyAlpha(baseColor, 1f);
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < fade)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / fade);
+            ApplyAlpha(baseColor, 1f - u);
+            yield return null;
+        }
+
+        var complete = _onComplete;
+        _onComplete = null;
+        complete?.Invoke();
+        gameObject.SetActive(false);
+    }
+
+    private IEnumerator AnimAnchoredQuestRewardItem(Vector2 start, Color baseColor)
+    {
+        Vector2 apex = start + Vector2.up * questRewardFloatUpPx;
+        float rise = Mathf.Max(0.0001f, questRewardRiseDuration);
+        float linger = Mathf.Max(0f, questRewardLingerSeconds);
+        float fade = Mathf.Max(0.0001f, questRewardFadeDuration);
 
         float t = 0f;
         while (t < rise)

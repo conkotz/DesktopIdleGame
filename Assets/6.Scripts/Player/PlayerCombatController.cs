@@ -2880,6 +2880,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 return FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback();
             }
 
+            if (IsMagicAttack())
+                return FindClosestEnemyInAttackRange(preferCurrentTarget: false);
+
             return FindClosestLivingEnemy();
         }
 
@@ -2900,7 +2903,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (ShouldSuppressIdleRetargetToCloserEnemy(current))
             return current;
 
-        EnemyBaseController closest = FindClosestLivingEnemy();
+        EnemyBaseController closest = IsMagicAttack()
+            ? FindClosestEnemyInAttackRange(preferCurrentTarget: false)
+            : FindClosestLivingEnemy();
         if (closest == null || closest == current)
             return current;
 

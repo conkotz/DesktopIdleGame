@@ -20,6 +20,11 @@ public class GoldPopupSpawner : MonoBehaviour
     [Tooltip("Extra world-space offset for +xp text vs gold (same base player anchor). E.g. slight -X / lower Y reads as behind the character in side view.")]
     [SerializeField] private Vector3 gatheringXpAnchorExtraWorld = new Vector3(-0.18f, -0.22f, 0f);
 
+    [Header("Quest reward item anchor")]
+    [Tooltip("Extra world-space offset for quest reward item popups — lower Y keeps text near the character, not the top of the strip.")]
+    [SerializeField] private Vector3 questRewardAnchorExtraWorld = new Vector3(0f, -0.72f, 0f);
+    [SerializeField] private float questRewardStackVerticalSpacing = 22f;
+
     [Header("Stacking")]
     [Tooltip("Extra vertical offset per concurrent popup so simultaneous messages do not overlap.")]
     [SerializeField] private float stackVerticalSpacing = 30f;
@@ -124,6 +129,26 @@ public class GoldPopupSpawner : MonoBehaviour
         ShowGatheringXpGained(amount);
     }
 
+    /// <summary>Quest reward items: slow green float at the same anchor as +gold (player + worldOffset).</summary>
+    public void ShowQuestRewardItemGained(string itemId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        if (!popupPrefab)
+            return;
+
+        if (!canvas || !playerWorld)
+            Rebind();
+
+        if (!canvas || !playerWorld)
+            return;
+
+        string label = ItemGainPopupNotifier.ResolveDisplayLabel(itemId, amount);
+        string text = amount > 1 ? $"+{amount} {label}" : $"+{label}";
+        SpawnQuestRewardItemPopupAtWorld(playerWorld.position + worldOffset + questRewardAnchorExtraWorld, text);
+    }
+
     /// <summary>World anchor = player + same base offset as gold + optional extra for XP; motion matches gold gains (rise + fade).</summary>
     public void ShowGatheringXpGained(int amount)
     {
@@ -168,6 +193,35 @@ public class GoldPopupSpawner : MonoBehaviour
         var popup = Instantiate(popupPrefab, targetCanvas.transform);
         BringPopupToFront(popup);
         popup.PlayLocalTextWithGoldGainMotion(stackedLocal, $"+{amount} xp", gatheringXpTextColor, () => ReleaseStackSlot(slot));
+    }
+
+    private void SpawnQuestRewardItemPopupAtWorld(Vector3 worldPos, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !popupPrefab)
+            return;
+
+        Rebind();
+
+        Camera cam = ResolveWorldProjectionCamera();
+        if (!cam)
+            return;
+
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
+            return;
+        RectTransform canvasRect = targetCanvas.transform as RectTransform;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
+            return;
+
+        int slot = AcquireStackSlot();
+        float stackSpacing = Mathf.Max(0f, questRewardStackVerticalSpacing);
+        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackSpacing);
+        var popup = Instantiate(popupPrefab, targetCanvas.transform);
+        BringPopupToFront(popup);
+        popup.PlayLocalQuestRewardItem(stackedLocal, text, () => ReleaseStackSlot(slot));
     }
 
     private void SpawnTextPopupAtWorld(Vector3 worldPos, string text, Color color)

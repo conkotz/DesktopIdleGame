@@ -2216,8 +2216,19 @@ public class PlayerController : MonoBehaviour
     /// <summary>Re-snap current position to active lane floor (use after visual scale changes).</summary>
     public void SnapToActiveLaneAtCurrentX()
     {
+        SnapToActiveLaneAtCurrentX(invalidateGroundColliderCache: false);
+    }
+
+    /// <param name="invalidateGroundColliderCache">
+    /// True after shrink-teleport scale restore — physics bounds can lag one frame at the previous scale.
+    /// </param>
+    public void SnapToActiveLaneAtCurrentX(bool invalidateGroundColliderCache)
+    {
         if (_isDead)
             return;
+
+        if (invalidateGroundColliderCache)
+            _groundAlignCollider = null;
 
         AlignToActiveFloorForCurrentX();
         SyncPlayerRigidbody2DPosition();

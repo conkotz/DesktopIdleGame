@@ -39,7 +39,7 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 0
   useDefaultSpawnOnMapTeleport: 0
-  defaultPlayerSpawnPointName: SpawnPoint5
+  defaultPlayerSpawnPointName: 
   enabledSidePlayAreaIds: []
   spawnGroupPlans:
   - groupId: AllSpawns

@@ -119,10 +119,42 @@ public class PlayerSpawnController : MonoBehaviour
         if (def != null)
             resolvedName = def.ResolveDefaultPlayerSpawnPointName();
 
+        Transform named = SpawnPointGroup.FindNamedPointInScene(resolvedName);
+        if (named != null)
+            return named.gameObject;
+
         GameObject spawn = GameObject.Find(resolvedName);
         if (spawn == null && !string.Equals(resolvedName, spawnPointName, StringComparison.Ordinal))
+        {
+            named = SpawnPointGroup.FindNamedPointInScene(spawnPointName);
+            if (named != null)
+                return named.gameObject;
             spawn = GameObject.Find(spawnPointName);
+        }
+
         return spawn;
+    }
+
+    /// <summary>
+    /// Maps with a custom default spawn (e.g. tutorial_3 → SpawnPoint5) author feet like NPC spawns.
+    /// Lane snap after spawn overrides that Y and can float the player above Merlin / quest NPCs.
+    /// </summary>
+    private static bool ShouldSkipLaneSnapForAuthoredMapSpawn(
+        bool isGameplay,
+        bool restoredFromSavedWorldPosition,
+        GameObject spawn)
+    {
+        if (!isGameplay || restoredFromSavedWorldPosition || !spawn)
+            return false;
+
+        MapNodeDefinition map = ActiveLevelContext.Current;
+        if (map == null || !map.UsesCustomDefaultPlayerSpawnPoint())
+            return false;
+
+        return string.Equals(
+            spawn.name,
+            map.ResolveDefaultPlayerSpawnPointName(),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -190,6 +222,9 @@ public class PlayerSpawnController : MonoBehaviour
 
         CanvasGroup loadFader = useScreenFade ? CreateOrResolveGameplayBlackFade() : null;
         LevelLoadScreenUI loadScreenUi = null;
+        PlayerLevelTransition levelTransition = GetComponent<PlayerLevelTransition>();
+        bool hadShrinkTeleportScaleRestoreAtStart =
+            levelTransition != null && levelTransition.PendingScaleRestore;
 
         try
         {
@@ -212,7 +247,6 @@ public class PlayerSpawnController : MonoBehaviour
             if (combat != null)
                 combat.SetIdleCombatEnabled(false);
 
-            var levelTransition = GetComponent<PlayerLevelTransition>();
             bool hideUntilScaleRestore = levelTransition != null && levelTransition.PendingScaleRestore;
 
             // When using full-screen load fade, avoid stacking the sprite fade on top
@@ -377,33 +411,34 @@ public class PlayerSpawnController : MonoBehaviour
             yield return new WaitForEndOfFrame();
             yield return new WaitForFixedUpdate();
 
-            // Restore full scale BEFORE ground snap. Snapping at teleport scale (~0.01) uses wrong collider bounds
-            // and places the root incorrectly relative to the ground.
-            levelTransition?.RestoreScaleAfterLevelChange();
-            Physics2D.SyncTransforms();
+            bool hadShrinkTeleportScaleRestore = hideUntilScaleRestore;
+            bool deferShrinkRevealUntilLoadScreenEnds = hadShrinkTeleportScaleRestore && loadFader != null;
 
             bool isGameplay = loadedScene.IsValid() &&
                               loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase);
             bool shouldSnapToGround = snapToGround || restoredFromSavedWorldPosition || isGameplay;
-            if (shouldSnapToGround)
-            {
-                // In gameplay maps, always use canonical lane snap so spawn near teleporter/signpost colliders
-                // cannot push the player upward.
-                if (isGameplay && playerController != null)
-                    playerController.SnapToActiveLaneAtCurrentX();
-                else
-                    SnapToGround_ColliderCast(!isBootstrap);
-            }
+
+            // Restore full scale + snap while still hidden. Defer only physics reveal and alpha — not placement.
+            // Staying at shrink scale through prewarm misaligns feet when WorldFloorToUIEdge moves the lane.
+            yield return CoApplyGameplaySpawnPlacement(
+                levelTransition,
+                playerController,
+                isGameplay,
+                shouldSnapToGround,
+                restoredFromSavedWorldPosition,
+                spawn,
+                isBootstrap,
+                hadShrinkTeleportScaleRestore);
 
             if (rb)
                 rb.position = transform.position;
             Physics2D.SyncTransforms();
 
             if (debugSnap)
-                Debug.Log($"[SpawnDebug] AFTER_SNAP pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) restoredX={restoredFromSavedWorldPosition}");
+                Debug.Log($"[SpawnDebug] AFTER_SNAP pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) restoredX={restoredFromSavedWorldPosition} deferReveal={deferShrinkRevealUntilLoadScreenEnds}");
 
-            // Clear motion + re-enable physics
-            if (rb)
+            // Shrink-teleport + load screen: keep physics frozen until after prewarm reveal.
+            if (rb && !deferShrinkRevealUntilLoadScreenEnds)
             {
                 rb.linearVelocity = Vector2.zero;
                 rb.simulated = true;
@@ -418,10 +453,10 @@ public class PlayerSpawnController : MonoBehaviour
             if (combat != null)
                 combat.NotifyPlayerTeleported();
 
-            // Fade in (optional)
+            // Fade in (optional). Shrink-teleport + load screen: stay hidden until finalize below.
             if (doFade)
                 yield return FadeIn();
-            else
+            else if (!deferShrinkRevealUntilLoadScreenEnds)
                 SetAlpha(1f);
 
             if (loadFader != null)
@@ -442,15 +477,38 @@ public class PlayerSpawnController : MonoBehaviour
                 if (extraHold > 0.001f)
                     yield return new WaitForSecondsRealtime(extraHold);
 
+                if (deferShrinkRevealUntilLoadScreenEnds)
+                    yield return CoRevealShrinkTeleportAfterPrewarm(
+                        playerController,
+                        isGameplay,
+                        shouldSnapToGround,
+                        restoredFromSavedWorldPosition,
+                        spawn,
+                        isBootstrap);
+
                 if (isGameplayScene)
                     CameraFollow.SnapToTargetHorizontalAfterSpawnPlacement();
 
                 loadScreenUi?.SetVisible(false);
                 yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);
             }
+            else if (deferShrinkRevealUntilLoadScreenEnds)
+            {
+                yield return CoRevealShrinkTeleportAfterPrewarm(
+                    playerController,
+                    isGameplay,
+                    shouldSnapToGround,
+                    restoredFromSavedWorldPosition,
+                    spawn,
+                    isBootstrap);
+                SetAlpha(1f);
+            }
         }
         finally
         {
+            if (isGameplayScene && playerController != null && hadShrinkTeleportScaleRestoreAtStart)
+                EnsureGameplaySpawnPlacementFinalized(levelTransition, playerController);
+
             if (playerController != null)
             {
                 playerController.SetTeleportDamageImmune(false);
@@ -466,6 +524,178 @@ public class PlayerSpawnController : MonoBehaviour
                 PlayerController.NotifyGameplayMapSpawnFinished();
 
             _running = null;
+        }
+    }
+
+    private void EnsureGameplaySpawnPlacementFinalized(
+        PlayerLevelTransition levelTransition,
+        PlayerController playerController)
+    {
+        if (!playerController)
+            return;
+
+        levelTransition?.RestoreScaleAfterGameplayLoad();
+        EnsureRootScaleIfStillShrunk();
+
+        const int maxAttempts = 20;
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            if (PlayAreaBounds.TryGetFloorTopYForWorldX(transform.position.x, out _))
+            {
+                ApplyLaneSnapAfterSpawn(playerController, invalidateGroundColliderCache: true);
+                break;
+            }
+
+            Physics2D.SyncTransforms();
+        }
+
+        if (rb)
+        {
+            rb.position = transform.position;
+            rb.linearVelocity = Vector2.zero;
+            rb.simulated = true;
+        }
+
+        Physics2D.SyncTransforms();
+    }
+
+    private void EnsureRootScaleIfStillShrunk()
+    {
+        Vector3 s = transform.localScale;
+        float uniform = (Mathf.Abs(s.x) + Mathf.Abs(s.y) + Mathf.Abs(s.z)) / 3f;
+        if (uniform >= 0.9f)
+            return;
+
+        float signX = Mathf.Approximately(s.x, 0f) ? 1f : Mathf.Sign(s.x);
+        transform.localScale = new Vector3(signX, 1f, 1f);
+        Physics2D.SyncTransforms();
+    }
+
+    private void ApplyLaneSnapAfterSpawn(PlayerController playerController, bool invalidateGroundColliderCache)
+    {
+        if (!playerController)
+            return;
+
+        playerController.SnapToActiveLaneAtCurrentX(invalidateGroundColliderCache);
+        if (rb)
+            rb.position = transform.position;
+        Physics2D.SyncTransforms();
+    }
+
+    private IEnumerator CoApplyGameplaySpawnPlacement(
+        PlayerLevelTransition levelTransition,
+        PlayerController playerController,
+        bool isGameplay,
+        bool shouldSnapToGround,
+        bool restoredFromSavedWorldPosition,
+        GameObject spawn,
+        bool isBootstrap,
+        bool invalidateGroundColliderCache)
+    {
+        levelTransition?.RestoreScaleAfterGameplayLoad();
+        Physics2D.SyncTransforms();
+
+        if (invalidateGroundColliderCache)
+        {
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            Physics2D.SyncTransforms();
+        }
+
+        ApplyGroundSnapAfterSpawn(
+            playerController,
+            isGameplay,
+            shouldSnapToGround,
+            restoredFromSavedWorldPosition,
+            spawn,
+            isBootstrap,
+            invalidateGroundColliderCache);
+    }
+
+    private void ApplyGroundSnapAfterSpawn(
+        PlayerController playerController,
+        bool isGameplay,
+        bool shouldSnapToGround,
+        bool restoredFromSavedWorldPosition,
+        GameObject spawn,
+        bool isBootstrap,
+        bool invalidateGroundColliderCache)
+    {
+        if (!shouldSnapToGround)
+            return;
+
+        bool skipLaneSnap = ShouldSkipLaneSnapForAuthoredMapSpawn(
+            isGameplay,
+            restoredFromSavedWorldPosition,
+            spawn);
+
+        if (isGameplay && playerController != null && !skipLaneSnap)
+            ApplyLaneSnapAfterSpawn(playerController, invalidateGroundColliderCache);
+        else if (!skipLaneSnap)
+            SnapToGround_ColliderCast(!isBootstrap);
+    }
+
+    private void RefreshSpawnAuthoredPosition(GameObject spawn, bool restoredFromSavedWorldPosition)
+    {
+        if (!spawn)
+            return;
+
+        Vector3 authored = spawn.transform.position;
+        if (restoredFromSavedWorldPosition)
+            transform.position = new Vector3(transform.position.x, authored.y, authored.z);
+        else
+            transform.position = authored;
+    }
+
+    /// <summary>
+    /// Quest shrink-teleport + load screen: lane may still be settling during prewarm — re-read spawn Y and re-snap before reveal.
+    /// </summary>
+    private IEnumerator CoRevealShrinkTeleportAfterPrewarm(
+        PlayerController playerController,
+        bool isGameplay,
+        bool shouldSnapToGround,
+        bool restoredFromSavedWorldPosition,
+        GameObject spawn,
+        bool isBootstrap)
+    {
+        RefreshSpawnAuthoredPosition(spawn, restoredFromSavedWorldPosition);
+        Physics2D.SyncTransforms();
+
+        yield return null;
+        yield return new WaitForEndOfFrame();
+        yield return new WaitForFixedUpdate();
+        Physics2D.SyncTransforms();
+
+        ApplyGroundSnapAfterSpawn(
+            playerController,
+            isGameplay,
+            shouldSnapToGround,
+            restoredFromSavedWorldPosition,
+            spawn,
+            isBootstrap,
+            invalidateGroundColliderCache: true);
+
+        if (rb)
+        {
+            rb.position = transform.position;
+            rb.linearVelocity = Vector2.zero;
+        }
+
+        Physics2D.SyncTransforms();
+        SetAlpha(1f);
+
+        if (rb)
+        {
+            rb.position = transform.position;
+            rb.linearVelocity = Vector2.zero;
+            rb.simulated = true;
+        }
+
+        if (debugSnap)
+        {
+            Debug.Log(
+                $"[SpawnDebug] SHRINK_REVEAL pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) " +
+                $"scale=({transform.localScale.x:F3},{transform.localScale.y:F3},{transform.localScale.z:F3})");
         }
     }
 

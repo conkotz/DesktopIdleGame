@@ -142,5 +142,49 @@ public class SpawnPointGroup : MonoBehaviour
         }
         return null;
     }
+
+    /// <summary>
+    /// Resolves a named spawn transform the same way <see cref="LevelSpawnDirector"/> does — scoped to
+    /// <see cref="SpawnPointGroup"/> children, preferring the canonical <c>AllSpawns</c> lane group.
+    /// </summary>
+    public static Transform FindNamedPointInScene(string spawnPointName)
+    {
+        if (string.IsNullOrWhiteSpace(spawnPointName))
+            return null;
+
+        string want = spawnPointName.Trim();
+        SpawnPointGroup[] groups = UnityEngine.Object.FindObjectsByType<SpawnPointGroup>(FindObjectsSortMode.None);
+        if (groups == null || groups.Length == 0)
+            return null;
+
+        for (int pass = 0; pass < 2; pass++)
+        {
+            for (int i = 0; i < groups.Length; i++)
+            {
+                SpawnPointGroup group = groups[i];
+                if (!group)
+                    continue;
+
+                bool isAllSpawns = string.Equals(
+                    group.groupId?.Trim(),
+                    AllSpawnsGroupId,
+                    StringComparison.OrdinalIgnoreCase);
+                if (pass == 0 && !isAllSpawns)
+                    continue;
+                if (pass == 1 && isAllSpawns)
+                    continue;
+
+                IReadOnlyList<Transform> points = group.Points;
+                for (int p = 0; p < points.Count; p++)
+                {
+                    Transform t = points[p];
+                    if (t && string.Equals(t.name, want, StringComparison.OrdinalIgnoreCase))
+                        return t;
+                }
+            }
+        }
+
+        return null;
+    }
 }
 

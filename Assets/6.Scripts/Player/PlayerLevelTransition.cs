@@ -88,8 +88,43 @@ public class PlayerLevelTransition : MonoBehaviour
         if (!_pendingRestore)
             return;
 
-        transform.localScale = _savedRootScale;
+        ApplySavedRootScale();
+    }
+
+    /// <summary>
+    /// Restores full size after shrink-then-load. Safe to call while the load screen is still black.
+    /// Also recovers if the pending flag was cleared but the root is still at teleport scale.
+    /// </summary>
+    public void RestoreScaleAfterGameplayLoad()
+    {
+        if (_pendingRestore)
+        {
+            ApplySavedRootScale();
+            return;
+        }
+
+        if (IsAtShrinkTeleportScale())
+            ApplySavedRootScale();
+    }
+
+    private bool IsAtShrinkTeleportScale()
+    {
+        Vector3 s = transform.localScale;
+        float uniform = (Mathf.Abs(s.x) + Mathf.Abs(s.y) + Mathf.Abs(s.z)) / 3f;
+        return uniform < 0.5f;
+    }
+
+    private void ApplySavedRootScale()
+    {
+        Vector3 saved = _savedRootScale;
+        float mag = Mathf.Max(Mathf.Abs(saved.x), Mathf.Abs(saved.y), Mathf.Abs(saved.z));
+        if (mag < 0.5f)
+            mag = 1f;
+
+        float signX = Mathf.Approximately(saved.x, 0f) ? 1f : Mathf.Sign(saved.x);
+        transform.localScale = new Vector3(signX * mag, mag, mag);
         _pendingRestore = false;
+        Physics2D.SyncTransforms();
 
         RestoreAnimators();
 
@@ -239,8 +274,9 @@ public class PlayerLevelTransition : MonoBehaviour
         }
 
         transform.localScale = _savedRootScale;
+        Physics2D.SyncTransforms();
         if (pc != null)
-            pc.SnapToActiveLaneAtCurrentX();
+            pc.SnapToActiveLaneAtCurrentX(invalidateGroundColliderCache: true);
         _shrinking = false;
 
         if (rb)

@@ -3333,7 +3333,7 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (isMagicStarterSpell)
         {
-            TryCastMagicStarterSpell(def, showLockedFeedback: false, out _, skipRangeApproach: true);
+            TryCastMagicStarterSpell(def, showLockedFeedback: false, out _);
             return;
         }
 
@@ -3483,6 +3483,12 @@ public partial class PlayerAbilityController : MonoBehaviour
 
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
         {
+            if (def.RequiresKeyboardRangeCheckToActivate())
+            {
+                target = combat != null ? combat.FindClosestEnemyInAttackRange() : null;
+                return target != null;
+            }
+
             target = combat != null ? combat.ResolveManualStarterAttackTarget() : null;
             return target != null;
         }
@@ -3994,7 +4000,7 @@ public partial class PlayerAbilityController : MonoBehaviour
         }
         if (MagicStarterSpellRules.IsMagicStarterSpellId(def.abilityId))
         {
-            if (!TryCastMagicStarterSpell(def, showLockedFeedback, out _, skipRangeApproach: false))
+            if (!TryCastMagicStarterSpell(def, showLockedFeedback, out _))
                 return false;
 
             return true;

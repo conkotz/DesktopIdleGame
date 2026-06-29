@@ -1387,6 +1387,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(rolledId))
             return;
 
+        TryShowQuestRewardItemPopup(rolledId, 1);
+
         var invTouched = new List<int>(4);
         int toInv = inv.AddPartial(rolledId, 1, null, notifyItemGainPopup: true, invTouched);
         for (int i = 0; i < invTouched.Count; i++)
@@ -1481,6 +1483,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (qty <= 0)
                 continue;
 
+            TryShowQuestRewardItemPopup(itemId, qty);
+
             var invTouched = new List<int>(8);
             int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true, invTouched);
             for (int i = 0; i < invTouched.Count; i++)
@@ -1506,6 +1510,16 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         AutoBattleLootHighlight.RefreshLootHighlightUIs();
+    }
+
+    private static void TryShowQuestRewardItemPopup(string itemId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        GoldPopupSpawner popups = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+        if (popups != null)
+            popups.ShowQuestRewardItemGained(itemId.Trim(), amount);
     }
 
     private void TryResetMerchantStockFromQuestReward(QuestDefinition q)
