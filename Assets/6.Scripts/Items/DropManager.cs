@@ -199,7 +199,8 @@ public class DropManager : MonoBehaviour
         Vector3 worldPosition,
         bool clampToDropFrame = false,
         bool alignToGround = false,
-        string sourceName = null)
+        string sourceName = null,
+        bool sweepOnMapExit = false)
     {
         if (!worldDropPrefab || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return;
@@ -217,6 +218,8 @@ public class DropManager : MonoBehaviour
         drop.Init(itemId, amount, icon);
         if (!string.IsNullOrWhiteSpace(sourceName))
             drop.SetSourceName(sourceName);
+        if (sweepOnMapExit)
+            drop.MarkSweepOnMapExit();
 
         if (hasGround)
         {

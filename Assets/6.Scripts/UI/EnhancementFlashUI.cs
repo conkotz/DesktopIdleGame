@@ -4,6 +4,9 @@ using UnityEngine.UI;
 
 public class EnhancementFlashUI : MonoBehaviour
 {
+    /// <summary>Above main menu windows (~10000) and tooltips (~10200); below level-load fader (short.MaxValue).</summary>
+    private const int OverlaySortOrder = 32000;
+
     private static EnhancementFlashUI _instance;
 
     [SerializeField] private Color successColor = new Color(0.15f, 1f, 0.25f, 0.45f);
@@ -70,7 +73,7 @@ public class EnhancementFlashUI : MonoBehaviour
 
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.overrideSorting = true;
-        canvas.sortingOrder = 5000;
+        canvas.sortingOrder = OverlaySortOrder;
     }
 
     private static void EnsureDedicatedOverlayParent(Transform flashTransform)

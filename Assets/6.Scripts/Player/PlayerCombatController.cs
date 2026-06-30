@@ -1041,7 +1041,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
-        _isClosingDistanceForAttack = false;
+        if (!PlayerController.IsScriptedHorizontalDashActive)
+            _isClosingDistanceForAttack = false;
+
         if (player.IsManualKeyboardSteering)
             player.StopMoveOnly();
         else if (player.IsPlayerSteeringMovement)
@@ -1053,7 +1055,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (!player.IsCombatMoveTargetNear(desiredX, CombatChaseRetargetEpsilon))
                 player.MoveToPointX_Combat(desiredX);
         }
-        else
+        else if (!PlayerController.IsScriptedHorizontalDashActive)
             player.StopMoveOnly();
 
         if (faceTargetWhenAttacking && inAttackRange)

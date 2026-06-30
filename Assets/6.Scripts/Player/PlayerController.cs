@@ -2098,13 +2098,14 @@ public class PlayerController : MonoBehaviour
         CookingClick.CancelPendingOpen();
     }
 
-    private static bool IsScriptedHorizontalDashActive =>
+    /// <summary>True while sprint dash or Flame Charge is driving horizontal position (locomotion targets are preserved).</summary>
+    public static bool IsScriptedHorizontalDashActive =>
         PlayerSprintInput.IsSprintDashing || PlayerAbilityController.IsFlameChargeDashing;
 
-    /// <summary>Interrupts gather/pickup paths when the player starts a scripted dash; click-to-move and combat chase keep their destination.</summary>
+    /// <summary>Interrupts active gathering when the player starts a scripted dash; click-to-move, combat chase, resource approach, and pickup paths keep their target.</summary>
     public void InterruptForSprintDash()
     {
-        if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
+        if (state == State.Gather)
         {
             NotifyPlayerInitiatedMovement();
             InterruptWorkIfNeeded();
@@ -2124,6 +2125,20 @@ public class PlayerController : MonoBehaviour
         if (state == State.MoveToPoint)
         {
             float dx = moveTargetX - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f)
+                return dx > 0f ? 1f : -1f;
+        }
+
+        if (state == State.MoveToTarget && targetNode != null && targetNode.workSpot != null)
+        {
+            float dx = targetNode.workSpot.position.x - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f)
+                return dx > 0f ? 1f : -1f;
+        }
+
+        if (state == State.MoveToPickup && _pickupTarget != null)
+        {
+            float dx = _pickupTarget.transform.position.x - transform.position.x;
             if (Mathf.Abs(dx) > 0.01f)
                 return dx > 0f ? 1f : -1f;
         }
@@ -2383,6 +2398,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToTarget()
     {
+        if (IsScriptedHorizontalDashActive)
+            return;
+
         if (movementLocked)
             return;
 
@@ -2512,6 +2530,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToPickup()
     {
+        if (IsScriptedHorizontalDashActive)
+            return;
+
         if (movementLocked)
             return;
 

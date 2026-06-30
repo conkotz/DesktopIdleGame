@@ -77,6 +77,14 @@ public class DevTestingPanelUI : MonoBehaviour
     private const string IdStoneChunk = "stone_chunk";
     private const string IdRawFish = "raw_fish";
     private const string IdSplitwoodLog = "splitwood_log";
+    private const string IdHardwoodLog = "hardwood_log";
+    private const string IdWildwoodLog = "wildwood_log";
+    private const string IdEmberOakLog = "ember_oak_log";
+    private const string IdSpiritwoodLog = "spiritwood_log";
+    private const string IdIronBar = "iron_bar";
+    private const string IdMythrilBar = "mythril_bar";
+    private const string IdRuniteBar = "runite_bar";
+    private const string IdCelestiumBar = "celestium_bar";
     private const string IdLinen = "linen";
     private const string IdLeather = "leather";
     private const string IdVialPoison = "vial_poison";
@@ -317,12 +325,21 @@ public class DevTestingPanelUI : MonoBehaviour
         AddToInventory(inv, fishDef, IdRawFish, n);
         AddToInventory(inv, logsDef, IdSplitwoodLog, n);
         AddToInventory(inv, stoneChunkDef, IdStoneChunk, n);
+        inv.Add(IdIronBar, n);
+        inv.Add(IdMythrilBar, n);
+        inv.Add(IdRuniteBar, n);
+        inv.Add(IdCelestiumBar, n);
+        inv.Add(IdHardwoodLog, n);
+        inv.Add(IdWildwoodLog, n);
+        inv.Add(IdEmberOakLog, n);
+        inv.Add(IdSpiritwoodLog, n);
         inv.Add(IdLinen, m);
         inv.Add(IdLeather, m);
         inv.Add(IdVialPoison, m);
         inv.Add(IdGemSapphire, m);
         inv.Add(IdFeather, 100);
-        Debug.Log($"[DevTestingPanel] +{n} fish/logs/stone, +{m} linen/leather/vial poison/sapphire, +100 feathers.");
+        Debug.Log(
+            $"[DevTestingPanel] +{n} fish/logs/stone/bars/tiered logs, +{m} linen/leather/vial poison/sapphire, +100 feathers.");
     }
 
     /// <summary>Same as AddGoldButton.</summary>

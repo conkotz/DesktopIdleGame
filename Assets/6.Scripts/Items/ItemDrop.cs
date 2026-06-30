@@ -41,6 +41,9 @@ public class ItemDrop : MonoBehaviour
     /// <summary>Optional human-readable origin used by the session tracker (e.g. "Splitwood Tree", "Spider").</summary>
     public string SourceName { get; private set; }
 
+    /// <summary>When true, voluntary map leave sweeps this pickup into inventory/storage (combat enemy loot only).</summary>
+    public bool SweepOnMapExit { get; private set; }
+
     private string _levelOneShotPickupClaimKey;
 
     private float _placedLevelRespawnDelay;
@@ -166,6 +169,12 @@ public class ItemDrop : MonoBehaviour
     public void SetSourceName(string sourceName)
     {
         SourceName = string.IsNullOrWhiteSpace(sourceName) ? null : sourceName.Trim();
+    }
+
+    /// <summary>Combat enemy loot: recovered when voluntarily leaving the map (not player drops or level-placed pickups).</summary>
+    public void MarkSweepOnMapExit()
+    {
+        SweepOnMapExit = true;
     }
 
     public void SnapVisualBottomToWorldY(float worldY, float skin = 0.01f)
@@ -593,7 +602,8 @@ public class ItemDrop : MonoBehaviour
     }
 
     /// <summary>
-    /// Voluntary map leave: inventory first, then Main storage tab. Does not respawn placed pickups.
+    /// Voluntary map leave: inventory first, then Main storage tab. Only called for <see cref="SweepOnMapExit"/> drops.
+    /// Does not respawn placed pickups.
     /// </summary>
     public void CollectForVoluntaryMapExit(Inventory inv, PlayerStorage storage)
     {

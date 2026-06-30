@@ -2137,7 +2137,7 @@ public class EnemyBaseController : MonoBehaviour
                 return;
 
             // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName());
+            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName(), sweepOnMapExit: true);
             return;
         }
 
@@ -2160,7 +2160,7 @@ public class EnemyBaseController : MonoBehaviour
                 continue;
 
             // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName());
+            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName(), sweepOnMapExit: true);
         }
     }
 
@@ -2388,7 +2388,7 @@ public class EnemyBaseController : MonoBehaviour
         ItemDefinition dropDef = itemDb != null ? itemDb.Get(dropItemId) : entry.item;
         Sprite dropIcon = dropDef != null && dropDef.icon != null ? dropDef.icon : entry.item.icon;
 
-        dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName);
+        dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName, sweepOnMapExit: true);
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)

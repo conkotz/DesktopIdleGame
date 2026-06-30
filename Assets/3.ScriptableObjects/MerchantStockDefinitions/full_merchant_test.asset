@@ -31,8 +31,8 @@ MonoBehaviour:
       amount: 5
       itemId: iron_bar
     - type: 1
-      amount: 50
-      itemId: splitwood_log
+      amount: 125
+      itemId: hardwood_log
     defaultQuantity: 1
   - itemId: mythril_axe
     costs:
@@ -43,8 +43,8 @@ MonoBehaviour:
       amount: 5
       itemId: mythril_bar
     - type: 1
-      amount: 50
-      itemId: hardwood_log
+      amount: 125
+      itemId: wildwood_log
     defaultQuantity: 1
   - itemId: runite_axe
     costs:
@@ -55,8 +55,8 @@ MonoBehaviour:
       amount: 5
       itemId: runite_bar
     - type: 1
-      amount: 50
-      itemId: hardwood_log
+      amount: 125
+      itemId: ember_oak_log
     defaultQuantity: 1
   - itemId: celestium_axe
     costs:
@@ -67,8 +67,8 @@ MonoBehaviour:
       amount: 5
       itemId: celestium_bar
     - type: 1
-      amount: 50
-      itemId: wildwood_log
+      amount: 125
+      itemId: spiritwood_log
     defaultQuantity: 1
   - itemId: stone_pickaxe
     costs:
@@ -85,7 +85,7 @@ MonoBehaviour:
       amount: 3000
       itemId: 
     - type: 1
-      amount: 50
+      amount: 25
       itemId: iron_bar
     - type: 1
       amount: 25
@@ -97,7 +97,7 @@ MonoBehaviour:
       amount: 8000
       itemId: 
     - type: 1
-      amount: 50
+      amount: 25
       itemId: mythril_bar
     - type: 1
       amount: 25
@@ -109,7 +109,7 @@ MonoBehaviour:
       amount: 15000
       itemId: 
     - type: 1
-      amount: 50
+      amount: 25
       itemId: runite_bar
     - type: 1
       amount: 25
@@ -121,7 +121,7 @@ MonoBehaviour:
       amount: 25000
       itemId: 
     - type: 1
-      amount: 50
+      amount: 25
       itemId: celestium_bar
     - type: 1
       amount: 25
@@ -133,7 +133,7 @@ MonoBehaviour:
       amount: 300
       itemId: 
     - type: 1
-      amount: 5
-      itemId: raw_fish
+      amount: 25
+      itemId: splitwood_log
     defaultQuantity: -1
   stockSaveKey: 

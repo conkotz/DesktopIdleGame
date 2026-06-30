@@ -16,11 +16,15 @@ MonoBehaviour:
   displayName: Verdant Vale
   description: Upgraded gathering resources.
   nodeType: 1
+  gatheringSubtype: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  isBossMap: 0
   mapCombatScalingEnabled: 0
   mapCombatScalingSpecialDropsByLevel: []
+  bossAreaScalingEnabled: 0
+  bossAreaScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
   eliteSpawnChance: 0

@@ -7,6 +7,18 @@ public static class GearUpgradeMaterialResolver
     private const float EnhancementCostScalePerSuccess = 0.25f;
     private const string PoisonVialItemId = "vial_poison";
 
+    private const int AxeWoodCost = 100;
+    private const int PickaxeWoodCost = 20;
+    private const int BowWoodCost = 150;
+    private const int FishingRodWoodCost = 150;
+    private const int WeaponWoodCost = 100;
+    private const int WeaponOreCost = 10;
+    private const int MagicFabricCost = 100;
+    private const int ArmourFabricCost = 80;
+    private const int AilmentWoodCost = 50;
+    private const int AilmentOreCost = 10;
+    private const int AilmentPoisonCost = 30;
+
     public static GearUpgradeMaterialFamily ResolveFamily(ItemDefinition gear)
     {
         if (gear == null)
@@ -21,7 +33,10 @@ public static class GearUpgradeMaterialResolver
             return GearUpgradeMaterialFamily.Linen;
         if (itemId.StartsWith("splitwood_", StringComparison.OrdinalIgnoreCase) ||
             itemId.StartsWith("hardwood_", StringComparison.OrdinalIgnoreCase) ||
-            itemId.StartsWith("wildwood_", StringComparison.OrdinalIgnoreCase))
+            itemId.StartsWith("wildwood_", StringComparison.OrdinalIgnoreCase) ||
+            itemId.StartsWith("ember_oak_", StringComparison.OrdinalIgnoreCase) ||
+            itemId.StartsWith("emberoak_", StringComparison.OrdinalIgnoreCase) ||
+            itemId.StartsWith("spiritwood_", StringComparison.OrdinalIgnoreCase))
             return GearUpgradeMaterialFamily.Wood;
 
         if (gear.IsWeapon && gear.weaponStats.attackSkill == AttackSkill.Magic)
@@ -74,20 +89,71 @@ public static class GearUpgradeMaterialResolver
         float scale = 1f + EnhancementCostScalePerSuccess * Mathf.Max(0, successfulEnhancements);
 
         if (gear.IsTool)
-            return ScaleRequirements(BuildToolRequirements(gear, tier), scale);
+            return ScaleRequirements(BuildToolRequirements(gear), scale);
 
         if (gear.IsWeapon)
         {
             if (UsesAilmentMaterialCost(option))
-                return ScaleRequirements(BuildAilmentWeaponRequirements(tier), scale);
+                return ScaleRequirements(BuildAilmentWeaponRequirements(gear), scale);
 
-            return ScaleRequirements(BuildWeaponRequirements(tier), scale);
+            if (gear.weaponStats.attackSkill == AttackSkill.Magic)
+                return ScaleRequirements(BuildMagicWeaponRequirements(gear), scale);
+
+            if (UsesBowEnhancementCost(gear))
+                return ScaleRequirements(BuildBowRequirements(gear), scale);
+
+            return ScaleRequirements(BuildWeaponRequirements(gear), scale);
         }
 
         if (gear.IsArmour || gear.IsOffhandCombatSupport)
-            return ScaleRequirements(BuildArmourRequirements(gear, tier), scale);
+            return ScaleRequirements(BuildArmourRequirements(gear), scale);
 
         return Array.Empty<GearUpgradeMaterialRequirement>();
+    }
+
+    /// <summary>Ore or stone used for enhancing gear at this equipment tier.</summary>
+    public static string ResolveOreItemId(EquipmentTierRank gearTier) =>
+        gearTier switch
+        {
+            EquipmentTierRank.Tier1 => "stone_chunk",
+            EquipmentTierRank.Tier2 => "iron_ore",
+            EquipmentTierRank.Tier3 => "mythril_ore",
+            EquipmentTierRank.Tier4 => "runite_ore",
+            EquipmentTierRank.Tier5 => "celestium_ore",
+            _ => "stone_chunk",
+        };
+
+    /// <summary>Wood log tier matched to the equipment rank being enhanced.</summary>
+    public static string ResolveWoodLogItemId(EquipmentTierRank gearTier) =>
+        gearTier switch
+        {
+            EquipmentTierRank.Tier1 => "splitwood_log",
+            EquipmentTierRank.Tier2 => "hardwood_log",
+            EquipmentTierRank.Tier3 => "wildwood_log",
+            EquipmentTierRank.Tier4 => "ember_oak_log",
+            EquipmentTierRank.Tier5 => "spiritwood_log",
+            _ => "splitwood_log",
+        };
+
+    /// <summary>Pickaxes and axes: ore cost drops by 10 per equipment tier (80 → 40).</summary>
+    public static int ResolveTieredOreCost(EquipmentTierRank gearTier) =>
+        gearTier switch
+        {
+            EquipmentTierRank.Tier1 => 80,
+            EquipmentTierRank.Tier2 => 70,
+            EquipmentTierRank.Tier3 => 60,
+            EquipmentTierRank.Tier4 => 50,
+            EquipmentTierRank.Tier5 => 40,
+            _ => 80,
+        };
+
+    private static bool UsesBowEnhancementCost(ItemDefinition gear)
+    {
+        if (gear == null || !gear.IsWeapon || gear.weaponStats.attackSkill != AttackSkill.Ranged)
+            return false;
+
+        string itemId = gear.itemId ?? string.Empty;
+        return itemId.Contains("bow", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool UsesAilmentMaterialCost(EnhancementOptionEntry option)
@@ -107,77 +173,80 @@ public static class GearUpgradeMaterialResolver
         };
     }
 
-    private static GearUpgradeMaterialRequirement[] BuildAilmentWeaponRequirements(EnhancementTier tier)
+    private static GearUpgradeMaterialRequirement[] BuildAilmentWeaponRequirements(ItemDefinition gear)
     {
-        string woodId = ResolveWoodLogId(tier);
+        EquipmentTierRank gearTier = gear.GetEquipmentTierRank();
         return new[]
         {
-            new GearUpgradeMaterialRequirement(woodId, 50),
-            new GearUpgradeMaterialRequirement("stone_chunk", 15),
-            new GearUpgradeMaterialRequirement(PoisonVialItemId, 30),
+            new GearUpgradeMaterialRequirement(ResolveWoodLogItemId(gearTier), AilmentWoodCost),
+            new GearUpgradeMaterialRequirement(ResolveOreItemId(gearTier), AilmentOreCost),
+            new GearUpgradeMaterialRequirement(PoisonVialItemId, AilmentPoisonCost),
         };
     }
 
-    private static GearUpgradeMaterialRequirement[] BuildWeaponRequirements(EnhancementTier tier) =>
-        tier switch
-        {
-            EnhancementTier.Intermediate => new[]
-            {
-                new GearUpgradeMaterialRequirement("hardwood_log", 100),
-                new GearUpgradeMaterialRequirement("stone_chunk", 30),
-            },
-            EnhancementTier.Advanced => new[]
-            {
-                new GearUpgradeMaterialRequirement("wildwood_log", 100),
-            },
-            _ => new[]
-            {
-                new GearUpgradeMaterialRequirement("splitwood_log", 100),
-                new GearUpgradeMaterialRequirement("stone_chunk", 30),
-            },
-        };
-
-    private static GearUpgradeMaterialRequirement[] BuildArmourRequirements(ItemDefinition gear, EnhancementTier tier)
+    private static GearUpgradeMaterialRequirement[] BuildBowRequirements(ItemDefinition gear)
     {
-        int baseAmount = EnhancementTierRules.GetMaterialCost(tier);
-        string materialId = ResolveMaterialItemId(ResolveFamily(gear));
+        EquipmentTierRank gearTier = gear.GetEquipmentTierRank();
+        return new[]
+        {
+            new GearUpgradeMaterialRequirement(ResolveWoodLogItemId(gearTier), BowWoodCost),
+        };
+    }
+
+    private static GearUpgradeMaterialRequirement[] BuildWeaponRequirements(ItemDefinition gear)
+    {
+        EquipmentTierRank gearTier = gear.GetEquipmentTierRank();
+        return new[]
+        {
+            new GearUpgradeMaterialRequirement(ResolveWoodLogItemId(gearTier), WeaponWoodCost),
+            new GearUpgradeMaterialRequirement(ResolveOreItemId(gearTier), WeaponOreCost),
+        };
+    }
+
+    private static GearUpgradeMaterialRequirement[] BuildMagicWeaponRequirements(ItemDefinition gear)
+    {
+        return new[]
+        {
+            new GearUpgradeMaterialRequirement("linen", MagicFabricCost),
+        };
+    }
+
+    private static GearUpgradeMaterialRequirement[] BuildArmourRequirements(ItemDefinition gear)
+    {
+        GearUpgradeMaterialFamily family = ResolveFamily(gear);
+        string materialId = ResolveMaterialItemId(family);
         if (string.IsNullOrWhiteSpace(materialId))
             return Array.Empty<GearUpgradeMaterialRequirement>();
 
-        return new[] { new GearUpgradeMaterialRequirement(materialId, baseAmount) };
+        return new[] { new GearUpgradeMaterialRequirement(materialId, ArmourFabricCost) };
     }
 
-    private static GearUpgradeMaterialRequirement[] BuildToolRequirements(ItemDefinition gear, EnhancementTier tier)
+    private static GearUpgradeMaterialRequirement[] BuildToolRequirements(ItemDefinition gear)
     {
-        string woodId = ResolveWoodLogId(tier);
+        EquipmentTierRank gearTier = gear.GetEquipmentTierRank();
+        string woodId = ResolveWoodLogItemId(gearTier);
+        string oreId = ResolveOreItemId(gearTier);
+        int oreCost = ResolveTieredOreCost(gearTier);
         ToolType toolType = gear.toolStats.toolType;
 
         return toolType switch
         {
             ToolType.Pickaxe => new[]
             {
-                new GearUpgradeMaterialRequirement("stone_chunk", 80),
-                new GearUpgradeMaterialRequirement(woodId, 20),
+                new GearUpgradeMaterialRequirement(oreId, oreCost),
+                new GearUpgradeMaterialRequirement(woodId, PickaxeWoodCost),
             },
             ToolType.FishingRod => new[]
             {
-                new GearUpgradeMaterialRequirement(woodId, 150),
+                new GearUpgradeMaterialRequirement(woodId, FishingRodWoodCost),
             },
             _ => new[]
             {
-                new GearUpgradeMaterialRequirement(woodId, 100),
-                new GearUpgradeMaterialRequirement("stone_chunk", 10),
+                new GearUpgradeMaterialRequirement(oreId, oreCost),
+                new GearUpgradeMaterialRequirement(woodId, AxeWoodCost),
             },
         };
     }
-
-    private static string ResolveWoodLogId(EnhancementTier tier) =>
-        tier switch
-        {
-            EnhancementTier.Intermediate => "hardwood_log",
-            EnhancementTier.Advanced => "wildwood_log",
-            _ => "splitwood_log",
-        };
 
     private static GearUpgradeMaterialRequirement[] ScaleRequirements(
         GearUpgradeMaterialRequirement[] requirements,

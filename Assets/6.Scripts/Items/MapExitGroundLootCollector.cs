@@ -1,8 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// When the player voluntarily leaves a map (teleport / travel), unclaimed ground loot is recovered
-/// into inventory first, then the Main storage tab. Death respawn does not call this.
+/// When the player voluntarily leaves a map (teleport / travel), combat enemy loot on the ground is recovered
+/// into inventory first, then the Main storage tab. Player inventory drops and level-placed map pickups are skipped.
+/// Death respawn does not call this.
 /// </summary>
 public static class MapExitGroundLootCollector
 {
@@ -21,7 +22,7 @@ public static class MapExitGroundLootCollector
         for (int i = 0; i < drops.Length; i++)
         {
             ItemDrop drop = drops[i];
-            if (drop != null)
+            if (drop != null && drop.SweepOnMapExit)
                 drop.CollectForVoluntaryMapExit(inventory, storage);
         }
     }

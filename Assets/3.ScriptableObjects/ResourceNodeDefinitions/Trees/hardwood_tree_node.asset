@@ -41,7 +41,7 @@ MonoBehaviour:
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
   energyCostFlatPerSwing: 0
-  energyCostPercentOfMaxPerSwing: 50
+  energyCostPercentOfMaxPerSwing: 38
   depletionGatherCount: 20
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3
