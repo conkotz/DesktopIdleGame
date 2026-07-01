@@ -12,7 +12,7 @@ public class RightEdgeResizer : MonoBehaviour,
     [Header("Limits")]
     [Tooltip("Strip cannot be resized narrower than this fraction of screen width.")]
     [Range(0.1f, 1f)]
-    [SerializeField] private float minWidthNormalized = 0.35f;
+    [SerializeField] private float minWidthNormalized = StripCameraController.MinStripWidthNormalized;
 
     [Tooltip("Extra normalized screen width to leave unused on the right edge.")]
     [Range(0f, 1f)]
@@ -29,6 +29,8 @@ public class RightEdgeResizer : MonoBehaviour,
     {
         if (!stripController)
             stripController = FindFirstObjectByType<StripCameraController>();
+
+        minWidthNormalized = Mathf.Max(minWidthNormalized, StripCameraController.MinStripWidthNormalized);
 
         if (!hoverLine)
         {

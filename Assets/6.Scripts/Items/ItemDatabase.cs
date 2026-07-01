@@ -271,7 +271,10 @@ public class ItemDatabase : ScriptableObject
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
             clone.randomStatsPendingIdentification = saved.randomStatsPendingIdentification;
-            clone.ClearRandomStatPool();
+            if (saved.randomStatsPendingIdentification && baseDef.HasRandomStatPool)
+                clone.CopyRandomStatPoolFrom(baseDef);
+            else
+                clone.ClearRandomStatPool();
             clone.NormalizeEnhancementState();
         }
     }

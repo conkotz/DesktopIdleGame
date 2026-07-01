@@ -27,6 +27,8 @@ public class HotkeySettingsPanelUI : MonoBehaviour
         EnsureEnterAreaHotkeyRow();
         EnsureStopMovementCombatHotkeyRow();
         RebuildRowCache();
+        HotkeySettingsRowUI.RebuildSerializedDefaultCatalog();
+        HotkeyBindingManager.NotifyInspectorDefaultsCatalogReady();
     }
 
     private void OnEnable()

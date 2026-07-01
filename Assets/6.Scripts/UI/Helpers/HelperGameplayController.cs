@@ -1006,6 +1006,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         PlayerPrefs.Save();
     }
 
+    /// <summary>Clears cross-session helper chat history (bootstrap full data wipe).</summary>
+    public static void ClearPersistedMessageHistoryForFullDataWipe() =>
+        ClearPersistedHelperMessageHistoryKey();
+
     private void SaveMessageHistoryToPlayerPrefs()
     {
         if (!HelpersPermittedBySettings())

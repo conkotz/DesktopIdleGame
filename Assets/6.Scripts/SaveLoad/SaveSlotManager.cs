@@ -201,11 +201,63 @@ public static class SaveSlotManager
         string savePath = GetSavePath(slotIndex);
         string metaPath = GetMetaPath(slotIndex);
 
-        if (File.Exists(savePath))
-            File.Delete(savePath);
+        TryDeleteFile(savePath);
+        TryDeleteFile(metaPath);
+        TryDeleteFile(savePath + ".bak");
+    }
 
-        if (File.Exists(metaPath))
-            File.Delete(metaPath);
+    /// <summary>
+    /// Deletes every slot save/meta/backup, activity log archive, and all <see cref="PlayerPrefs"/>.
+    /// Resets runtime slot session flags so Bootstrap behaves like a first launch.
+    /// </summary>
+    public static void WipeAllPersistedSaveData()
+    {
+        for (int i = 0; i < MaxSlots; i++)
+            DeleteSlot(i);
+
+        string dataDir = Application.persistentDataPath;
+        if (Directory.Exists(dataDir))
+        {
+            try
+            {
+                foreach (string path in Directory.GetFiles(dataDir, "slot_*.json"))
+                    TryDeleteFile(path);
+                foreach (string path in Directory.GetFiles(dataDir, "slot_*_meta.json"))
+                    TryDeleteFile(path);
+                foreach (string path in Directory.GetFiles(dataDir, "*.bak"))
+                    TryDeleteFile(path);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SaveSlotManager] Wipe scan failed: {e.Message}");
+            }
+        }
+
+        TryDeleteFile(Path.Combine(dataDir, "activity_log_archive.txt"));
+
+        PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+
+        ActiveSlotIndex = -1;
+        PendingStartMode = SlotStartMode.None;
+        PendingNewGamePlayerName = null;
+        LastConsumedStartMode = SlotStartMode.None;
+        ResetGameplaySpawnSessionFlags();
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            return;
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[SaveSlotManager] Failed to delete '{path}': {e.Message}");
+        }
     }
 
     public static int GetLastPlayedSlotIndex()

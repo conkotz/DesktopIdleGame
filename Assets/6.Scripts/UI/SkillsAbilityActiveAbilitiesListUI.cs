@@ -474,8 +474,15 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
             {
                 Transform abilityList = page.Find("BottomPanelBar/AbilityList");
                 if (abilityList != null)
+                {
+                    EnsureScrollRectWired(abilityList);
                     listContent = FindScrollContent(abilityList);
+                }
             }
+        }
+        else
+        {
+            EnsureScrollRectWired(listContent);
         }
 
         CachePlaceholderRoots();
@@ -556,20 +563,78 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
     private void RebuildAbilityListLayout()
     {
+        if (MainMenuUIPrewarm.UseBatchedInstantiation)
+            return;
+
         Transform rowsParent = _rowsContainer != null ? _rowsContainer : listContent;
         if (rowsParent is not RectTransform listRt)
             return;
 
-        Canvas.ForceUpdateCanvases();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
+        if (!CanRebuildLayout(listRt))
+            return;
+
+        ForceRebuildLayoutSafe(listRt);
 
         // Row heights depend on the name column width assigned by the horizontal layout group.
         if (_bottomPanelLayout != null && _bottomPanelLayout.IsExpanded)
             ApplyAbilityNameCompactLayout();
 
-        LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
-        if (listContent is RectTransform contentRt && contentRt != listRt)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRt);
+        ForceRebuildLayoutSafe(listRt);
+        if (listContent is RectTransform contentRt && contentRt != listRt && CanRebuildLayout(contentRt))
+            ForceRebuildLayoutSafe(contentRt);
+    }
+
+    private static bool CanRebuildLayout(RectTransform rt)
+    {
+        if (rt == null || !rt.gameObject.activeInHierarchy)
+            return false;
+
+        ScrollRect[] scrollRects = rt.GetComponentsInParent<ScrollRect>(true);
+        for (int i = 0; i < scrollRects.Length; i++)
+        {
+            ScrollRect scroll = scrollRects[i];
+            if (scroll == null)
+                continue;
+
+            if (scroll.viewport == null || scroll.content == null)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void ForceRebuildLayoutSafe(RectTransform rt)
+    {
+        if (rt == null || !CanRebuildLayout(rt))
+            return;
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+    }
+
+    private static void EnsureScrollRectWired(Transform root)
+    {
+        if (root == null)
+            return;
+
+        ScrollRect scroll = root.GetComponent<ScrollRect>();
+        if (scroll == null)
+            scroll = root.GetComponentInParent<ScrollRect>();
+        if (scroll == null)
+            return;
+
+        if (scroll.viewport == null)
+        {
+            Transform viewport = scroll.transform.Find("Viewport");
+            if (viewport is RectTransform viewportRt)
+                scroll.viewport = viewportRt;
+        }
+
+        if (scroll.content == null && scroll.viewport != null)
+        {
+            Transform content = scroll.viewport.Find("Content");
+            if (content is RectTransform contentRt)
+                scroll.content = contentRt;
+        }
     }
 
     private SkillsAbilityBottomPanelLayoutUI ResolveBottomPanelLayout()
@@ -619,6 +684,8 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
     {
         if (root == null)
             return null;
+
+        EnsureScrollRectWired(root);
 
         Transform scroll = root.Find("ScrollView");
         if (scroll != null)

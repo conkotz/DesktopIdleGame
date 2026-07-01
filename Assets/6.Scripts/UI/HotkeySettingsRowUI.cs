@@ -34,6 +34,10 @@ public class HotkeySettingsRowUI : MonoBehaviour
     private static KeyCode[] _keyScanOrder;
     private static HotkeySettingsRowUI _activeListener;
     private static readonly HashSet<HotkeySettingsRowUI> s_registeredRows = new();
+    private static readonly Dictionary<HotkeyBindId, HotkeyChord> s_serializedDefaultChords = new();
+
+    /// <summary>True once at least one row has registered inspector defaults (scene loaded or rebuilt).</summary>
+    public static bool HasSerializedDefaultCatalog => s_serializedDefaultChords.Count > 0;
 
     /// <summary>True while a row is waiting for a key — use to avoid action bar / gameplay consuming the same keys.</summary>
     public static bool IsRebinding => _activeListener != null;
@@ -190,6 +194,8 @@ public class HotkeySettingsRowUI : MonoBehaviour
             return _keyScanOrder;
         }
     }
+
+    private void Awake() => RegisterSerializedDefault(this);
 
     private void OnEnable()
     {
@@ -461,19 +467,38 @@ public class HotkeySettingsRowUI : MonoBehaviour
         return false;
     }
 
+    /// <summary>Collects inspector defaults from every row in loaded scenes (including inactive).</summary>
+    public static void RebuildSerializedDefaultCatalog()
+    {
+        s_serializedDefaultChords.Clear();
+        HotkeySettingsRowUI[] rows =
+            FindObjectsByType<HotkeySettingsRowUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < rows.Length; i++)
+        {
+            if (rows[i] != null)
+                RegisterSerializedDefault(rows[i]);
+        }
+    }
+
+    private static void RegisterSerializedDefault(HotkeySettingsRowUI row)
+    {
+        if (row == null)
+            return;
+
+        if (row.serializedDefaultKey == KeyCode.None && row.serializedDefaultModifiers == HotkeyModifier.None)
+            return;
+
+        HotkeyChord chord = HotkeyChord.FromKeyCode(row.serializedDefaultKey, row.serializedDefaultModifiers);
+        if (chord.IsEmpty)
+            return;
+
+        s_serializedDefaultChords[row.bindId] = chord;
+    }
+
     public static bool TryGetSerializedDefaultChord(HotkeyBindId id, out HotkeyChord chord)
     {
-        foreach (HotkeySettingsRowUI row in s_registeredRows)
-        {
-            if (row == null || row.bindId != id)
-                continue;
-
-            if (row.serializedDefaultKey == KeyCode.None && row.serializedDefaultModifiers == HotkeyModifier.None)
-                continue;
-
-            chord = HotkeyChord.FromKeyCode(row.serializedDefaultKey, row.serializedDefaultModifiers);
-            return !chord.IsEmpty;
-        }
+        if (s_serializedDefaultChords.TryGetValue(id, out chord) && !chord.IsEmpty)
+            return true;
 
         chord = default;
         return false;

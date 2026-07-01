@@ -12,6 +12,9 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
 {
     public const float StripHeightPercentNormal = 0.3333f;
 
+    /// <summary>Smallest strip width the player can resize to (fraction of screen width).</summary>
+    public const float MinStripWidthNormalized = 0.52f;
+
     [SerializeField] private Camera stripCamera;
 
     [Header("Viewport")]
@@ -94,6 +97,23 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private static float _sessionBaseOrthoSize;
     private static bool _ignoreSavedZoomOnceOnGameplayEntry;
 
+    /// <summary>Strip viewport rect the player chose this session (survives GamePlay scene reloads; not cold launch).</summary>
+    private static bool _sessionStripLayoutActive;
+    private static float _sessionStripHeightPercent;
+    private static float _sessionBottomNormalized;
+    private static float _sessionLeftNormalized;
+    private static float _sessionWidthNormalized;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSessionStatics()
+    {
+        _sessionOrthoActive = false;
+        _sessionBaseOrthoSize = 0f;
+        _ignoreSavedZoomOnceOnGameplayEntry = false;
+        _sessionLaneZoomBaselineStripAspect = -1f;
+        ClearSessionStripLayoutState();
+    }
+
     /// <summary>
     /// First strip <see cref="Camera.aspect"/> we see during play (after lane bounds exist).
     /// Narrower strips than baseline would otherwise allow much larger lane-fit ortho; we clamp max zoom-out so it never exceeds <c>lane / (2×baselineAspect)</c>.
@@ -163,7 +183,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     public float StripHeightPercent => Mathf.Clamp(stripHeightPercent, 0.1f, 1f);
     public float BottomNormalized => bottomNormalized;
     public float LeftNormalized => leftNormalized;
-    public float WidthNormalized => Mathf.Clamp(widthNormalized, 0.1f, 1f);
+    public float WidthNormalized => Mathf.Clamp(widthNormalized, MinStripWidthNormalized, 1f);
 
     /// <summary>Orthographic size captured from the prefab/scene at <see cref="Awake"/> — base for zoom % HUD.</summary>
     public float DefaultOrthoBaseline => _prefabOrthoAtAwake;
@@ -223,6 +243,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             // After the player has a session zoom (keyboard / slider), keep it across level changes.
             baseOrthoSize = _sessionOrthoActive ? _sessionBaseOrthoSize : DefaultOrthoBaseline;
             SyncTargetOrthoFromBase();
+            TryApplySessionStripLayoutIfAny();
         }
 
         Apply(force: true);
@@ -532,7 +553,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (s_stripLayoutLockedForExpandBackground)
             return;
 
-        widthNormalized = value;
+        widthNormalized = Mathf.Clamp(value, MinStripWidthNormalized, 1f);
         Apply(force: true);
     }
 
@@ -597,6 +618,13 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     {
         if (!persistStripLayout)
             return;
+
+        if (_sessionStripLayoutActive)
+        {
+            TryApplySessionStripLayoutIfAny();
+            Apply(force: true);
+            return;
+        }
 
         TryLoadSavedLayoutQuiet();
         Apply(force: true);
@@ -664,6 +692,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         PlayerPrefs.Save();
 
         ClearSessionOrthoZoomState();
+        ClearSessionStripLayoutState();
 
         StripCameraController[] list = UnityEngine.Object.FindObjectsByType<StripCameraController>(
             FindObjectsInactive.Include,
@@ -685,6 +714,42 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     {
         _sessionOrthoActive = false;
         _sessionLaneZoomBaselineStripAspect = -1f;
+    }
+
+    public static void ClearSessionStripLayoutState()
+    {
+        _sessionStripLayoutActive = false;
+        _sessionStripHeightPercent = StripHeightPercentNormal;
+        _sessionBottomNormalized = 0f;
+        _sessionLeftNormalized = 0f;
+        _sessionWidthNormalized = 1f;
+    }
+
+    private static void CaptureSessionStripLayout(
+        float stripHeight,
+        float bottom,
+        float left,
+        float width)
+    {
+        if (!Application.isPlaying || s_stripLayoutLockedForExpandBackground)
+            return;
+
+        _sessionStripLayoutActive = true;
+        _sessionStripHeightPercent = stripHeight;
+        _sessionBottomNormalized = bottom;
+        _sessionLeftNormalized = left;
+        _sessionWidthNormalized = width;
+    }
+
+    private void TryApplySessionStripLayoutIfAny()
+    {
+        if (!Application.isPlaying || !_sessionStripLayoutActive || s_stripLayoutLockedForExpandBackground)
+            return;
+
+        stripHeightPercent = _sessionStripHeightPercent;
+        bottomNormalized = _sessionBottomNormalized;
+        leftNormalized = _sessionLeftNormalized;
+        widthNormalized = _sessionWidthNormalized;
     }
 
     /// <summary>
@@ -923,7 +988,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         stripHeightPercent = Mathf.Clamp(stripHeightPercent, 0.1f, 1f);
         bottomNormalized = Mathf.Clamp01(bottomNormalized);
         leftNormalized = Mathf.Clamp01(leftNormalized);
-        widthNormalized = Mathf.Clamp(widthNormalized, 0.1f, 1f);
+        widthNormalized = Mathf.Clamp(widthNormalized, MinStripWidthNormalized, 1f);
 
         // When the game window covers the OS taskbar (see MonitorSwitcher.coverEntireMonitorIncludingTaskbar),
         // keep the strip's bottom edge above the taskbar so the EXP bar / BotomGameBar / UI_Frame floor doesn't get
@@ -993,7 +1058,10 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
 
         if (Application.isPlaying && persistStripLayout && layoutChanged &&
             !s_stripLayoutLockedForExpandBackground)
+        {
+            CaptureSessionStripLayout(stripHeightPercent, bottomNormalized, leftNormalized, widthNormalized);
             SaveLayoutToPrefs(forceImmediate: false);
+        }
 
         if (layoutChanged)
         {

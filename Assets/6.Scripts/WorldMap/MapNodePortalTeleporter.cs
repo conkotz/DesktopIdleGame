@@ -83,7 +83,7 @@ public class MapNodePortalTeleporter : MonoBehaviour
     private void OnEnable()
     {
         WorldFloorFollowerRegistry.Register(transform, WorldFloorFollowerRegistry.Category.Actor);
-        OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Cave, transform);
+        OffscreenMarkerTargetRegistry.Register(OffscreenMarkerTargetRegistry.Kind.Signpost, transform);
     }
 
     private void OnDisable()

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Profiling;
 
 /// <summary>
-/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, NoticeBoard, and Cave
+/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, NoticeBoard, Cave, and Signpost
 /// that are outside the gameplay camera. One row per category with aggregated counts.
 /// </summary>
 [DisallowMultipleComponent]
@@ -20,7 +20,8 @@ public class OffscreenMarkersController : MonoBehaviour
         Resource,
         Storage,
         NoticeBoard,
-        Cave
+        Cave,
+        Signpost
     }
 
     private struct Aggregate
@@ -82,6 +83,7 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private Color storageColor = new Color(0.95f, 0.72f, 0.2f, 1f);
     [SerializeField] private Color noticeBoardColor = new Color(0.85f, 0.5f, 1f, 1f);
     [SerializeField] private Color caveColor = new Color(0.78f, 0.65f, 0.46f, 1f);
+    [SerializeField] private Color signpostColor = new Color(0.92f, 0.72f, 0.38f, 1f);
 
     [Header("Marker label font sizes")]
     [Tooltip("When enabled, marker rows use the per-type font sizes below.")]
@@ -92,6 +94,7 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] [Min(1f)] private float storageLabelFontSize = 16f;
     [SerializeField] [Min(1f)] private float noticeBoardLabelFontSize = 16f;
     [SerializeField] [Min(1f)] private float caveLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float signpostLabelFontSize = 16f;
 
     [Header("Marker label names")]
     [SerializeField] private string enemyLabelName = "Enemy";
@@ -100,6 +103,7 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private string storageLabelName = "Storage";
     [SerializeField] private string noticeBoardLabelName = "Notice board";
     [SerializeField] private string caveLabelName = "Cave";
+    [SerializeField] private string signpostLabelName = "Signpost";
 
     private readonly List<OffscreenMarkerView> _pool = new();
 
@@ -323,6 +327,7 @@ public class OffscreenMarkersController : MonoBehaviour
                 Aggregate storages = default;
                 Aggregate noticeBoards = default;
                 Aggregate caves = default;
+                Aggregate signposts = default;
 
                 CollectEnemies(ref enemies);
                 CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Npc, ref npcs);
@@ -330,6 +335,7 @@ public class OffscreenMarkersController : MonoBehaviour
                 CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Storage, ref storages);
                 CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.NoticeBoard, ref noticeBoards);
                 CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Cave, ref caves);
+                CollectFromRegistry(OffscreenMarkerTargetRegistry.Kind.Signpost, ref signposts);
 
                 int need = 0;
                 need += CountRowsForAggregate(enemies);
@@ -338,6 +344,7 @@ public class OffscreenMarkersController : MonoBehaviour
                 need += CountRowsForAggregate(storages);
                 need += CountRowsForAggregate(noticeBoards);
                 need += CountRowsForAggregate(caves);
+                need += CountRowsForAggregate(signposts);
 
                 EnsurePoolSize(need);
                 for (int i = 0; i < _pool.Count; i++)
@@ -350,6 +357,7 @@ public class OffscreenMarkersController : MonoBehaviour
                 EmitRowsForAggregate(ref idx, OffscreenKind.Storage, storages);
                 EmitRowsForAggregate(ref idx, OffscreenKind.NoticeBoard, noticeBoards);
                 EmitRowsForAggregate(ref idx, OffscreenKind.Cave, caves);
+                EmitRowsForAggregate(ref idx, OffscreenKind.Signpost, signposts);
 
                 _activeMarkerRows = need;
                 _markerLayoutDirty = true;
@@ -582,6 +590,9 @@ public class OffscreenMarkersController : MonoBehaviour
             case OffscreenKind.Cave:
                 row.Apply(caveColor, $"{ResolveLabelName(OffscreenKind.Cave)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Cave));
                 break;
+            case OffscreenKind.Signpost:
+                row.Apply(signpostColor, $"{ResolveLabelName(OffscreenKind.Signpost)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Signpost));
+                break;
         }
     }
 
@@ -598,6 +609,7 @@ public class OffscreenMarkersController : MonoBehaviour
             OffscreenKind.Storage => storageLabelFontSize,
             OffscreenKind.NoticeBoard => noticeBoardLabelFontSize,
             OffscreenKind.Cave => caveLabelFontSize,
+            OffscreenKind.Signpost => signpostLabelFontSize,
             _ => -1f
         };
     }
@@ -612,6 +624,7 @@ public class OffscreenMarkersController : MonoBehaviour
             OffscreenKind.Storage => storageLabelName,
             OffscreenKind.NoticeBoard => noticeBoardLabelName,
             OffscreenKind.Cave => caveLabelName,
+            OffscreenKind.Signpost => signpostLabelName,
             _ => string.Empty
         };
 
@@ -626,6 +639,7 @@ public class OffscreenMarkersController : MonoBehaviour
             OffscreenKind.Storage => "Storage",
             OffscreenKind.NoticeBoard => "Notice board",
             OffscreenKind.Cave => "Cave",
+            OffscreenKind.Signpost => "Signpost",
             _ => "Marker"
         };
     }

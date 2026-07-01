@@ -14,7 +14,9 @@ public static class OffscreenMarkerTargetRegistry
         Resource,
         Storage,
         NoticeBoard,
-        Cave
+        Cave,
+        /// <summary>Map-travel signposts / <see cref="MapNodePortalTeleporter"/>.</summary>
+        Signpost
     }
 
     private struct Entry
@@ -31,6 +33,7 @@ public static class OffscreenMarkerTargetRegistry
         { Kind.Storage, new List<Entry>(8) },
         { Kind.NoticeBoard, new List<Entry>(8) },
         { Kind.Cave, new List<Entry>(8) },
+        { Kind.Signpost, new List<Entry>(8) },
     };
 
     private static bool _legacyBootstrapDone;

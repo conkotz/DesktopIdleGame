@@ -2551,6 +2551,20 @@ public class SaveManager : MonoBehaviour
         File.Delete(ActiveSavePath);
         _didInitialLoadOrCreate = false; // allow re-init on next scene load
     }
+
+    /// <summary>Clears in-memory save state after <see cref="SaveSlotManager.WipeAllPersistedSaveData"/>.</summary>
+    public void NotifyFullSaveDataWiped()
+    {
+        _lastLoadedData = null;
+        _hasPendingLoad = false;
+        _didFinalApplyForCurrentLoad = false;
+        _didInitialLoadOrCreate = false;
+        _isApplyingSaveData = false;
+        IsGameFullyLoaded = false;
+        SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
+        LoadAllSaveMetadata();
+        FireSaveSystemReady("FullDataWipe");
+    }
     public bool TryGetLastLoadedData(out SaveData data)
     {
         data = _lastLoadedData;

@@ -28,6 +28,10 @@ public class SaveSlotMenuUI : MonoBehaviour
     [SerializeField] private Button slot0ResumeButton;
     [SerializeField] private Button slot1ResumeButton;
 
+    [Header("Full Data Wipe")]
+    [Tooltip("Optional. Auto-finds DataWipeButton under Panel when empty.")]
+    [SerializeField] private Button dataWipeButton;
+
     [Header("Confirm New Game Popup")]
     [SerializeField] private GameObject confirmNewGamePopupRoot;
     [SerializeField] private TMP_Text confirmTitleText;
@@ -54,6 +58,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private int _pendingNewGameSlotIndex = -1;
     private int _pendingNameSlotIndex = -1;
+    private bool _pendingFullDataWipe;
     private bool _confirmPopupBound;
     private bool _resumeLoadInProgress;
     private bool _resumeClickLatch;
@@ -81,6 +86,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         BindNameSelectOnce();
         RewireResumeSlotButtons();
         RewireNewGameSlotButtons();
+        RewireDataWipeButton();
     }
 
     private void OnEnable()
@@ -96,6 +102,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         RewireResumeSlotButtons();
         RewireNewGameSlotButtons();
+        RewireDataWipeButton();
         RefreshUI();
 
         if (SaveManager.Instance != null)
@@ -129,6 +136,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         _resumeClickLatch = false;
         _resumeClickFrame = -1;
         SetResumeButtonsInteractable(true);
+        StripCameraController.ClearSessionStripLayoutState();
 
         // Keep diagnostics opt-in via hotkey only; avoid automatic console spam on every Bootstrap load.
         RefreshSlotsFromDisk();
@@ -168,6 +176,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         RefreshSlotInfoUI();
         RewireResumeSlotButtons();
         RewireNewGameSlotButtons();
+        RewireDataWipeButton();
         RefreshSlotButtonsState();
     }
 
@@ -193,6 +202,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (Wrong(confirmInfoLabelText)) confirmInfoLabelText = null;
         if (Wrong(confirmCancelButton)) confirmCancelButton = null;
         if (Wrong(confirmConfirmButton)) confirmConfirmButton = null;
+        if (Wrong(dataWipeButton)) dataWipeButton = null;
 
         if (confirmNewGamePopupRoot && confirmNewGamePopupRoot.scene != bs)
             confirmNewGamePopupRoot = null;
@@ -336,7 +346,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (confirmConfirmButton)
         {
             confirmConfirmButton.onClick.RemoveAllListeners();
-            confirmConfirmButton.onClick.AddListener(ConfirmNewGameNow);
+            confirmConfirmButton.onClick.AddListener(ConfirmPopupConfirmed);
         }
 
         // Ensure default state is closed.
@@ -344,10 +354,51 @@ public class SaveSlotMenuUI : MonoBehaviour
             confirmNewGamePopupRoot.SetActive(false);
     }
 
+    private void RewireDataWipeButton()
+    {
+        dataWipeButton ??= FindButtonUnder("Panel", "DataWipeButton");
+        if (!dataWipeButton)
+        {
+            Transform t = FindNamedTransformInBootstrapScene("DataWipeButton");
+            if (t)
+                dataWipeButton = t.GetComponent<Button>();
+        }
+
+        if (!dataWipeButton)
+            return;
+
+        dataWipeButton.onClick.RemoveAllListeners();
+        dataWipeButton.onClick.AddListener(OnClickFullDataWipe);
+    }
+
+    private void OnClickFullDataWipe() => OpenConfirmFullDataWipePopup();
+
+    private void OpenConfirmFullDataWipePopup()
+    {
+        BindConfirmPopupOnce();
+
+        _pendingNewGameSlotIndex = -1;
+        _pendingFullDataWipe = true;
+
+        if (confirmTitleText)
+            confirmTitleText.text = "Delete ALL Player Data?";
+
+        if (confirmBodyText)
+            confirmBodyText.text =
+                "Are you sure you want to delete ALL player data? This will also remove player preferences.";
+
+        if (confirmInfoLabelText)
+            confirmInfoLabelText.text = "This permanently deletes every save slot and cannot be undone.";
+
+        if (confirmNewGamePopupRoot)
+            confirmNewGamePopupRoot.SetActive(true);
+    }
+
     private void OpenConfirmNewGamePopup(int slotIndex)
     {
         BindConfirmPopupOnce();
 
+        _pendingFullDataWipe = false;
         _pendingNewGameSlotIndex = slotIndex;
 
         bool hasSave = File.Exists(SaveSlotManager.GetSavePath(slotIndex));
@@ -370,8 +421,41 @@ public class SaveSlotMenuUI : MonoBehaviour
     private void CloseConfirmNewGamePopup()
     {
         _pendingNewGameSlotIndex = -1;
+        _pendingFullDataWipe = false;
         if (confirmNewGamePopupRoot)
             confirmNewGamePopupRoot.SetActive(false);
+    }
+
+    private void ConfirmPopupConfirmed()
+    {
+        if (_pendingFullDataWipe)
+            ConfirmFullDataWipeNow();
+        else
+            ConfirmNewGameNow();
+    }
+
+    private void ConfirmFullDataWipeNow()
+    {
+        CloseConfirmNewGamePopup();
+        ClosePlayerNameSelectIfOpen();
+
+        SaveSlotManager.WipeAllPersistedSaveData();
+        GlobalUserSettings.RestoreAllToDefaults();
+        GameLog.Clear();
+
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.NotifyFullSaveDataWiped();
+
+        RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
+        RefreshUI();
+    }
+
+    private void ClosePlayerNameSelectIfOpen()
+    {
+        _pendingNameSlotIndex = -1;
+        if (playerNameSelectRoot)
+            playerNameSelectRoot.SetActive(false);
     }
 
     private void ConfirmNewGameNow()
@@ -957,6 +1041,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         AutoBindSlotButtonsIfNeeded();
         RewireResumeSlotButtons();
         RewireNewGameSlotButtons();
+        RewireDataWipeButton();
         RefreshSlotInfoUI();
         RefreshSlotButtonsState();
 

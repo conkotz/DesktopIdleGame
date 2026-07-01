@@ -100,6 +100,10 @@ public static class ItemRandomStatIdentification
                 baseline.miscEffects.enemyRespawnTimeReductionSeconds))
             count++;
 
+        // Legacy load bug cleared the pool while identification was still pending.
+        if (count == 0 && baseline != null && baseline.HasRandomStatPool)
+            return ItemRandomStatRoller.GetRollCountForRarity(rolled.rarity, rolled);
+
         return count;
     }
 

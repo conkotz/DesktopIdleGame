@@ -11,6 +11,8 @@ using UnityEngine;
 public sealed class HotkeyBindingManager : MonoBehaviour
 {
     public static HotkeyBindingManager Instance { get; private set; }
+    private static bool s_forceDefaultsOnNextInitialize;
+    private static bool s_pendingInspectorDefaultsApply;
 
     [Header("Bootstrap")]
     [Tooltip(
@@ -39,10 +41,65 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
         }
 
-        ApplyDefaultsWhereMissing();
-        LoadFromPlayerPrefs();
+        if (s_forceDefaultsOnNextInitialize)
+        {
+            ApplyHardDefaultsAndPersist();
+            s_forceDefaultsOnNextInitialize = false;
+        }
+        else
+        {
+            ApplyDefaultsWhereMissing();
+            LoadFromPlayerPrefs();
+            if (!HasAnyPersistedBindings())
+                s_pendingInspectorDefaultsApply = true;
+        }
+
         OnBindingsChanged?.Invoke();
     }
+
+    /// <summary>
+    /// Called when settings rows exist so factory defaults come from inspector <see cref="HotkeySettingsRowUI"/> values,
+    /// not hardcoded fallbacks. Needed after a data wipe (Bootstrap) before GamePlay has loaded.
+    /// </summary>
+    public static void NotifyInspectorDefaultsCatalogReady()
+    {
+        if (Instance == null)
+            return;
+
+        if (!s_pendingInspectorDefaultsApply && Instance.HasAnyPersistedBindings())
+            return;
+
+        Instance.ApplyHardDefaultsAndPersist();
+        Instance.OnBindingsChanged?.Invoke();
+    }
+
+    private void ApplyHardDefaultsAndPersist()
+    {
+        HotkeySettingsRowUI.RebuildSerializedDefaultCatalog();
+        _bindings.Clear();
+        foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
+            _bindings[id] = ResolveDefaultChord(id);
+
+        if (HotkeySettingsRowUI.HasSerializedDefaultCatalog)
+        {
+            SaveToPlayerPrefs();
+            s_pendingInspectorDefaultsApply = false;
+        }
+        else
+            s_pendingInspectorDefaultsApply = true;
+    }
+
+    private bool HasAnyPersistedBindings()
+    {
+        foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
+        {
+            if (PlayerPrefs.HasKey(PrefKey(id)))
+                return true;
+        }
+
+        return false;
+    }
+
 
     private void OnDestroy()
     {
@@ -175,6 +232,9 @@ public sealed class HotkeyBindingManager : MonoBehaviour
 
     public static void ResetPersistedBindingsToDefaults()
     {
+        s_forceDefaultsOnNextInitialize = true;
+        s_pendingInspectorDefaultsApply = true;
+
         foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
         {
             PlayerPrefs.DeleteKey(PrefKey(id));
@@ -183,11 +243,8 @@ public sealed class HotkeyBindingManager : MonoBehaviour
 
         if (Instance != null)
         {
-            Instance._bindings.Clear();
-            foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
-                Instance._bindings[id] = ResolveDefaultChord(id);
-
-            Instance.SaveToPlayerPrefs();
+            Instance.ApplyHardDefaultsAndPersist();
+            s_forceDefaultsOnNextInitialize = false;
             Instance.OnBindingsChanged?.Invoke();
         }
         else

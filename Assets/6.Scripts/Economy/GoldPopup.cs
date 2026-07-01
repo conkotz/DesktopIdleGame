@@ -43,9 +43,9 @@ public class GoldPopup : MonoBehaviour
     [SerializeField] private float questRewardFontSize = 17f;
     [SerializeField] private float questRewardMinWidth = 420f;
     [SerializeField] private float questRewardHorizontalPadding = 16f;
-    [SerializeField] private Color questRewardItemColor = new Color(0.28f, 0.62f, 0.22f, 1f);
+    [SerializeField] private Color questRewardItemColor = new Color(0.35f, 0.72f, 1f, 1f);
     [SerializeField] private float questRewardOutlineWidth = 0.22f;
-    [SerializeField] private Color questRewardOutlineColor = new Color(0.04f, 0.1f, 0.03f, 1f);
+    [SerializeField] private Color questRewardOutlineColor = new Color(0.05f, 0.12f, 0.2f, 1f);
 
     private RectTransform _rt;
     private Coroutine _co;
