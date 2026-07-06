@@ -38,7 +38,7 @@ public readonly struct BlacksmithingRecipe
 }
 
 /// <summary>
-/// Player-crafted gear at the anvil. Item costs mirror <c>blacksmith_merchant.asset</c> (gold excluded).
+/// Player-crafted gear at the anvil. Item costs mirror <c>full_merchant_test.asset</c> (gold excluded).
 /// </summary>
 public static class BlacksmithingRecipes
 {
@@ -61,7 +61,37 @@ public static class BlacksmithingRecipes
         new("stone_shield", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 40)),
         new("stone_platebody", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 50)),
         new("stone_helmet", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 30)),
+        new("stone_axe", "Stone", 1, DefaultCraftSeconds,
+            new BlacksmithingIngredient("stone_chunk", 5),
+            new BlacksmithingIngredient("splitwood_log", 50)),
+        new("stone_pickaxe", "Stone", 1, DefaultCraftSeconds,
+            new BlacksmithingIngredient("stone_chunk", 15),
+            new BlacksmithingIngredient("splitwood_log", 5)),
         new("stone_spear", "Iron", 10, DefaultCraftSeconds, new BlacksmithingIngredient("iron_bar", 30)),
+        new("iron_axe", "Iron", 10, DefaultCraftSeconds,
+            new BlacksmithingIngredient("iron_bar", 5),
+            new BlacksmithingIngredient("hardwood_log", 125)),
+        new("iron_pickaxe", "Iron", 10, DefaultCraftSeconds,
+            new BlacksmithingIngredient("iron_bar", 25),
+            new BlacksmithingIngredient("splitwood_log", 25)),
+        new("mythril_axe", "Mythril", 20, DefaultCraftSeconds,
+            new BlacksmithingIngredient("mythril_bar", 5),
+            new BlacksmithingIngredient("wildwood_log", 125)),
+        new("mythril_pickaxe", "Mythril", 20, DefaultCraftSeconds,
+            new BlacksmithingIngredient("mythril_bar", 25),
+            new BlacksmithingIngredient("hardwood_log", 25)),
+        new("runite_axe", "Runite", 30, DefaultCraftSeconds,
+            new BlacksmithingIngredient("runite_bar", 5),
+            new BlacksmithingIngredient("ember_oak_log", 125)),
+        new("runite_pickaxe", "Runite", 30, DefaultCraftSeconds,
+            new BlacksmithingIngredient("runite_bar", 25),
+            new BlacksmithingIngredient("hardwood_log", 25)),
+        new("celestium_axe", "Celestium", 40, DefaultCraftSeconds,
+            new BlacksmithingIngredient("celestium_bar", 5),
+            new BlacksmithingIngredient("spiritwood_log", 125)),
+        new("celestium_pickaxe", "Celestium", 40, DefaultCraftSeconds,
+            new BlacksmithingIngredient("celestium_bar", 25),
+            new BlacksmithingIngredient("wildwood_log", 25)),
         new("poison_dagger", "Special", 5, DefaultCraftSeconds,
             new BlacksmithingIngredient("stone_chunk", 1),
             new BlacksmithingIngredient("vial_poison", 25)),

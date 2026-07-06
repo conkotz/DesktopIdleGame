@@ -52,7 +52,7 @@ public class BlacksmithingUI : MonoBehaviour
     private TMP_Text _activeWorkButtonText;
 
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 6;
+    private const int UiLayoutVersion = 7;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -68,17 +68,20 @@ public class BlacksmithingUI : MonoBehaviour
     {
         All,
         Weapons,
-        Armour
+        Armour,
+        Tools
     }
 
     private RecipeGearFilter _recipeGearFilter = RecipeGearFilter.All;
     private Button _filterWeaponsButton;
     private Button _filterArmourButton;
+    private Button _filterToolsButton;
     private Image _filterWeaponsButtonImage;
     private Image _filterArmourButtonImage;
+    private Image _filterToolsButtonImage;
 
     private const string HelpBodyText =
-        "The blacksmithing anvil crafts weapons and armor from bars and materials.\n\n" +
+        "The blacksmithing anvil crafts weapons, armour, and tools from bars and materials.\n\n" +
         "Select a recipe, press Forge, and wait for the item to finish. Collect it before starting another craft.\n\n" +
         "Higher Blacksmithing level unlocks better gear and reduces resource costs.\n\n" +
         "Speed Up trims time from the current craft (3s cooldown).";
@@ -868,12 +871,20 @@ public class BlacksmithingUI : MonoBehaviour
         if (def == null)
             return true;
 
-        return _recipeGearFilter == RecipeGearFilter.Weapons ? def.IsWeapon : def.IsArmour;
+        return _recipeGearFilter switch
+        {
+            RecipeGearFilter.Weapons => def.IsWeapon,
+            RecipeGearFilter.Armour => def.IsArmour,
+            RecipeGearFilter.Tools => def.IsTool,
+            _ => true
+        };
     }
 
     private void OnWeaponsFilterClicked() => ToggleRecipeGearFilter(RecipeGearFilter.Weapons);
 
     private void OnArmourFilterClicked() => ToggleRecipeGearFilter(RecipeGearFilter.Armour);
+
+    private void OnToolsFilterClicked() => ToggleRecipeGearFilter(RecipeGearFilter.Tools);
 
     private void ToggleRecipeGearFilter(RecipeGearFilter filter)
     {
@@ -886,6 +897,7 @@ public class BlacksmithingUI : MonoBehaviour
     {
         ApplyRecipeFilterButtonStyle(_filterWeaponsButtonImage, _recipeGearFilter == RecipeGearFilter.Weapons);
         ApplyRecipeFilterButtonStyle(_filterArmourButtonImage, _recipeGearFilter == RecipeGearFilter.Armour);
+        ApplyRecipeFilterButtonStyle(_filterToolsButtonImage, _recipeGearFilter == RecipeGearFilter.Tools);
     }
 
     private static void ApplyRecipeFilterButtonStyle(Image image, bool selected)
@@ -956,8 +968,10 @@ public class BlacksmithingUI : MonoBehaviour
             _root = null;
             _filterWeaponsButton = null;
             _filterArmourButton = null;
+            _filterToolsButton = null;
             _filterWeaponsButtonImage = null;
             _filterArmourButtonImage = null;
+            _filterToolsButtonImage = null;
             _recipePickerRoot = null;
             _recipePickerScrollContent = null;
             _helpPanelRoot = null;
@@ -1169,6 +1183,7 @@ public class BlacksmithingUI : MonoBehaviour
 
         _filterWeaponsButton = CreateRecipeFilterButton(headerRow.transform, "Weapons", OnWeaponsFilterClicked, out _filterWeaponsButtonImage);
         _filterArmourButton = CreateRecipeFilterButton(headerRow.transform, "Armour", OnArmourFilterClicked, out _filterArmourButtonImage);
+        _filterToolsButton = CreateRecipeFilterButton(headerRow.transform, "Tools", OnToolsFilterClicked, out _filterToolsButtonImage);
         RefreshRecipeFilterButtonStyles();
 
         _recipePickerScrollContent = BuildScrollListPanel(panel, preferredHeight: 300f);

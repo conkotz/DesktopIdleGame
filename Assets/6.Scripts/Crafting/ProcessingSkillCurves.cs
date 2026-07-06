@@ -69,6 +69,11 @@ public static class ProcessingSkillCurves
             "mythril_bar" => 15,
             "runite_bar" => 20,
             "celestium_bar" => 25,
+            "splitwood_log" => 1,
+            "hardwood_log" => 2,
+            "wildwood_log" => 3,
+            "ember_oak_log" => 4,
+            "spiritwood_log" => 5,
             _ => 0
         };
     }

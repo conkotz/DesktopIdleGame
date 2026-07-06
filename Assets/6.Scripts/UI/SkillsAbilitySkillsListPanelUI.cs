@@ -123,7 +123,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
 
         WireProcessingEntry(processingCooking, ProcessingSkillDisplayCatalog.Id.Cooking);
         WireProcessingEntry(processingSmelting, ProcessingSkillDisplayCatalog.Id.Smelting);
-        WireProcessingPlaceholder(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
+        WireProcessingEntry(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
         WireProcessingPlaceholder(processingMagicCrafting, ProcessingSkillDisplayCatalog.Id.MagicCrafting);
         WireProcessingPlaceholder(processingRangerCrafting, ProcessingSkillDisplayCatalog.Id.RangedCrafting);
         WireProcessingPlaceholder(processingAlchemy, ProcessingSkillDisplayCatalog.Id.Alchemy);
@@ -321,7 +321,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     {
         WireProcessingEntry(processingCooking, ProcessingSkillDisplayCatalog.Id.Cooking);
         WireProcessingEntry(processingSmelting, ProcessingSkillDisplayCatalog.Id.Smelting);
-        WireProcessingPlaceholder(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
+        WireProcessingEntry(processingBlacksmithing, ProcessingSkillDisplayCatalog.Id.Blacksmithing);
         WireProcessingPlaceholder(processingMagicCrafting, ProcessingSkillDisplayCatalog.Id.MagicCrafting);
         WireProcessingPlaceholder(processingRangerCrafting, ProcessingSkillDisplayCatalog.Id.RangedCrafting);
         WireProcessingPlaceholder(processingAlchemy, ProcessingSkillDisplayCatalog.Id.Alchemy);
