@@ -274,6 +274,9 @@ public class SaveData
     [Tooltip("Ordered QuestDefinition.questId entries currently tracked in the quest tracker window.")]
     public List<string> trackedQuestIds = new();
 
+    [Tooltip("Town service ids unlocked via outpost quest rewards (e.g. blacksmith).")]
+    public List<string> unlockedTownServiceIds = new();
+
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();
 

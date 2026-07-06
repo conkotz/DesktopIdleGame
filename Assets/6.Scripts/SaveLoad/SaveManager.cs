@@ -325,6 +325,7 @@ public class SaveManager : MonoBehaviour
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
+        TownServiceUnlockStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLayoutBinding.RestoreAllPivotLayoutsForGameLoad();
         UIWindowLockStore.RestoreAfterSceneLayout();
 
@@ -509,6 +510,7 @@ public class SaveManager : MonoBehaviour
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
         UIWindowLockStore.ApplyFromSaveData(data);
+        TownServiceUnlockStore.ApplyFromSaveData(data);
     }
 
     /// <summary>
@@ -964,6 +966,7 @@ public class SaveManager : MonoBehaviour
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
+        TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
         return data;
     }
 
@@ -1059,6 +1062,7 @@ public class SaveManager : MonoBehaviour
         NpcPostDeathRespawnDialogueStore.WriteInto(data);
         NpcOneWayDialogueQueueStore.WriteInto(data);
         UIWindowLockStore.WriteInto(data);
+        TownServiceUnlockStore.WriteInto(data);
 
         if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
             TryRecordGameplayMapExitPosition(data);
@@ -2075,6 +2079,7 @@ public class SaveManager : MonoBehaviour
 
         PlayerMapExitPositionStore.EnsureLists(data);
         WorldObjectPositionStore.EnsureLists(data);
+        TownServiceUnlockStore.EnsureLists(data);
 
         if (data.actionBarSlotIndexes == null)
             data.actionBarSlotIndexes = new List<int>();
@@ -2637,6 +2642,7 @@ public class SaveManager : MonoBehaviour
             NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
+            TownServiceUnlockStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.RestoreAfterSceneLayout();
         }
         finally

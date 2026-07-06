@@ -110,6 +110,11 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("MerchantStock save key (usually the MerchantStock asset name, e.g. blacksmith_merchant).")]
     public string restockMerchantStockSaveKey = "";
 
+    [Tooltip(
+        "When set, claiming this quest reward unlocks the town service in Duskwood (merchant + linked stations). " +
+        "Use TownServiceIds values (e.g. blacksmith).")]
+    public string unlockTownServiceIdOnRewardClaim = "";
+
     [Header("Rules")]
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;

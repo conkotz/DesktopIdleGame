@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: -3861232571764350438}
   - component: {fileID: 991000000000000010}
   - component: {fileID: 991000000000000011}
+  - component: {fileID: 991000000000000012}
   m_Layer: 7
   m_Name: BlacksmithingAnvil
   m_TagString: NoticeBoard
@@ -268,6 +269,20 @@ MonoBehaviour:
   rangeCollider: {fileID: 0}
   openWhenWithinXDistance: 0.15
   closeWhenBeyondDistance: 5
+--- !u!114 &991000000000000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1301700847255990616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4e8f1a23c5d4678901234abcdef5678, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TownServiceSpawnGate
+  serviceId: blacksmith
+  spawnWhen: 0
 --- !u!1 &2690790343970341782
 GameObject:
   m_ObjectHideFlags: 0

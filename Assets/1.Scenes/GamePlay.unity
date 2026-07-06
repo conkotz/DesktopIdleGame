@@ -172223,7 +172223,7 @@ MonoBehaviour:
   storageLabelName: Storage
   noticeBoardLabelName: Notice board
   caveLabelName: Cave
-  signpostLabelName: Signpost
+  signpostLabelName: Post
 --- !u!114 &1044983572
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -318633,7 +318633,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2080243926
 RectTransform:
   m_ObjectHideFlags: 0

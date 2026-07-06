@@ -646,6 +646,9 @@ public class LevelSpawnDirector : MonoBehaviour
             if (!entry.TryResolveSpawnPrefab(out GameObject prefabAsset, out EnemyDefinition defForInit, this, logSpawns))
                 continue;
 
+            if (!TownServiceSpawnGate.ShouldSpawnPrefab(prefabAsset))
+                continue;
+
             string gid = ResolveSpawnGroupId(plan, entry);
             if (string.IsNullOrWhiteSpace(gid))
             {

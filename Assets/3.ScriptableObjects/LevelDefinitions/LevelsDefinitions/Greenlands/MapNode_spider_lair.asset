@@ -16,11 +16,15 @@ MonoBehaviour:
   displayName: Spider Lair
   description: A dark cave filled with spiders.. why would you want to go here.
   nodeType: 0
+  gatheringSubtype: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  isBossMap: 0
   mapCombatScalingEnabled: 1
   mapCombatScalingSpecialDropsByLevel: []
+  bossAreaScalingEnabled: 0
+  bossAreaScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 15
   eliteSpawnChance: 0.05
@@ -33,6 +37,8 @@ MonoBehaviour:
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
+  gatheringSkillGateMode: 0
+  gatheringRequiredLevel: 1
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
@@ -58,6 +64,19 @@ MonoBehaviour:
       teleporterLinkId: 
       teleporterDestinationLabel: 
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint_BlacksmithOutpost
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 75246e272b3820a4db1c4b59af3dfeac, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
       spawnPointName: SpawnPoint20_Middle
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 8347273920747777605, guid: b72fe15ec48f8ea4289bc2fdbea9eb81, type: 3}
@@ -68,6 +87,19 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: duskwood
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint50
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 75246e272b3820a4db1c4b59af3dfeac, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
       teleporterLinkId: 
       teleporterDestinationLabel: 
     shuffleSpawnPoints: 1

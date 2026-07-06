@@ -329,6 +329,7 @@ public static class SaveDataIntegrity
 
         PlayerMapExitPositionStore.RepairParallelLists(data);
         WorldObjectPositionStore.RepairParallelLists(data);
+        TownServiceUnlockStore.EnsureLists(data);
     }
 
     /// <summary>Make parallel lists the same length (pad ints or trim excess values).</summary>

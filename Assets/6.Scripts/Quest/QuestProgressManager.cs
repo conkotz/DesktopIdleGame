@@ -907,6 +907,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (q.restockMerchantStockOnRewardClaim)
             TryResetMerchantStockFromQuestReward(q);
 
+        TryUnlockTownServiceFromQuestReward(q);
+
         if (q.repeatable)
         {
             if (q.objectiveKind != QuestObjectiveKind.GatherItem)
@@ -966,6 +968,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         GrantRewards(q);
         if (q.restockMerchantStockOnRewardClaim)
             TryResetMerchantStockFromQuestReward(q);
+
+        TryUnlockTownServiceFromQuestReward(q);
 
         if (q.repeatable)
         {
@@ -1543,6 +1547,26 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             m.ResetStockToDefaults(persistToDisk: true);
             return;
         }
+    }
+
+    private void TryUnlockTownServiceFromQuestReward(QuestDefinition q)
+    {
+        if (q == null)
+            return;
+
+        string serviceId = q.unlockTownServiceIdOnRewardClaim != null
+            ? q.unlockTownServiceIdOnRewardClaim.Trim()
+            : "";
+        if (string.IsNullOrEmpty(serviceId))
+            return;
+
+        if (!TownServiceUnlockStore.Unlock(serviceId, out bool wasNew) || !wasNew)
+            return;
+
+        string message = string.Equals(serviceId, TownServiceIds.Blacksmith, StringComparison.OrdinalIgnoreCase)
+            ? "Draven the Blacksmith has returned to Duskwood."
+            : $"A town service is now available in Duskwood.";
+        GameLog.Add(message, GameLog.RegionUnlockedColor);
     }
 
     /// <summary>
