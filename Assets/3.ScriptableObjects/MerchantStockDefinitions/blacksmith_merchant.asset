@@ -16,27 +16,21 @@ MonoBehaviour:
   - itemId: smelting_coal
     costs:
     - type: 0
-      amount: 100
+      amount: 200
       itemId: 
     defaultQuantity: -1
   - itemId: stone_sword
     costs:
     - type: 0
-      amount: 2500
+      amount: 4000
       itemId: 
     defaultQuantity: 2
   - itemId: stone_dagger
     costs:
     - type: 0
-      amount: 2500
+      amount: 4000
       itemId: 
     defaultQuantity: 2
-  - itemId: poison_dagger
-    costs:
-    - type: 0
-      amount: 2500
-      itemId: 
-    defaultQuantity: 3
   - itemId: stone_spear
     costs:
     - type: 0
@@ -58,19 +52,19 @@ MonoBehaviour:
   - itemId: stone_shield
     costs:
     - type: 0
-      amount: 2500
+      amount: 5000
       itemId: 
     defaultQuantity: 1
   - itemId: stone_platebody
     costs:
     - type: 0
-      amount: 2500
+      amount: 6000
       itemId: 
     defaultQuantity: 1
   - itemId: stone_helmet
     costs:
     - type: 0
-      amount: 2500
+      amount: 4000
       itemId: 
     defaultQuantity: 1
   stockSaveKey: 

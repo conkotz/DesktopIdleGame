@@ -22,6 +22,7 @@ public static class WorldContextMenuBuilder
         if (storage != null)
         {
             entries.Add(new ContextMenuEntry("Open", () => WorldInteractRouter.RouteContextStorageOpen(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -50,6 +51,7 @@ public static class WorldContextMenuBuilder
         if (blacksmithing != null)
         {
             entries.Add(new ContextMenuEntry("Smith", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -58,6 +60,7 @@ public static class WorldContextMenuBuilder
         if (furnace != null)
         {
             entries.Add(new ContextMenuEntry("Smelt", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -66,6 +69,7 @@ public static class WorldContextMenuBuilder
         if (cooking != null)
         {
             entries.Add(new ContextMenuEntry("Cook", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -73,6 +77,7 @@ public static class WorldContextMenuBuilder
         if (WorldInteractRouter.IsNoticeBoardCollider(col))
         {
             entries.Add(new ContextMenuEntry("Read", () => WorldInteractRouter.RouteContextRead(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -83,7 +88,7 @@ public static class WorldContextMenuBuilder
         if (merchant != null && npc != null)
         {
             entries.Add(new ContextMenuEntry("Shop", () => WorldInteractRouter.RouteContextShop(col, player)));
-            entries.Add(new ContextMenuEntry("Talk", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -91,6 +96,7 @@ public static class WorldContextMenuBuilder
         if (merchant != null)
         {
             entries.Add(new ContextMenuEntry("Shop", () => WorldInteractRouter.RouteContextShop(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -98,6 +104,7 @@ public static class WorldContextMenuBuilder
         if (npc != null)
         {
             entries.Add(new ContextMenuEntry("Talk", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
             return entries;
         }
@@ -106,6 +113,7 @@ public static class WorldContextMenuBuilder
         if (questGiver != null)
         {
             entries.Add(new ContextMenuEntry("Talk", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            WorldContextMenuEntries.AddMoveObjectIfAllowed(entries, col, player);
             AddWalkHere(entries, col, player);
         }
 

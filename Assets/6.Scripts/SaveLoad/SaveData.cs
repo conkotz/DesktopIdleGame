@@ -85,6 +85,10 @@ public class SaveData
     public List<float> mapExitPositionY = new();
     public List<float> mapExitPositionZ = new();
 
+    [Tooltip("Parallel lists: player-moved world interactable X positions (key = mapNodeId:spawnPointName).")]
+    public List<string> worldObjectPositionKeys = new();
+    public List<float> worldObjectPositionX = new();
+
     [Header("Currency")]
     public int gold = 0;
 

@@ -70,7 +70,7 @@ public class FurnaceUI : MonoBehaviour
 
     private SidePickerMode _pickerMode;
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 6;
+    private const int UiLayoutVersion = 7;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -683,13 +683,14 @@ public class FurnaceUI : MonoBehaviour
             body = def.description;
 
         var enhancementRt = _enhancementButton.GetComponent<RectTransform>();
+        RectTransform boundsRect = _canvas != null ? _canvas.transform as RectTransform : _root;
         if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper))
         {
-            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Left);
+            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Right);
             flipper.SetMeasureRect(enhancementRt);
             flipper.SetHeightRect(enhancementRt);
-            if (_root != null)
-                flipper.SetBoundsRect(_root);
+            if (boundsRect != null)
+                flipper.SetBoundsRect(boundsRect);
         }
 
         _sharedTooltip.ShowTextAt(
@@ -698,7 +699,7 @@ public class FurnaceUI : MonoBehaviour
             body,
             measureRect: enhancementRt,
             heightRect: enhancementRt,
-            preferredSide: FlipInsideBounds.PreferredSide.Left);
+            preferredSide: FlipInsideBounds.PreferredSide.Right);
         // ShowText resets overlay sort to inventory default; re-apply above this station panel.
         _sharedTooltip.PushOverlaySortOrder(CanvasSortingOrder + 100);
     }
@@ -706,6 +707,14 @@ public class FurnaceUI : MonoBehaviour
     private void HideEnhancementSlotTooltip()
     {
         _sharedTooltip?.Hide();
+    }
+
+    private void ShowFuelSlotTooltip()
+    {
+        if (_smelter == null || _smelter.StoredFuelAmount <= 0)
+            return;
+
+        ShowItemTooltip(_fuelButton.transform, _smelter.StoredFuelItemId, FlipInsideBounds.PreferredSide.Left);
     }
 
     private void OnHelpClicked()
@@ -1561,6 +1570,8 @@ public class FurnaceUI : MonoBehaviour
         fuelIconRt.sizeDelta = new Vector2(40f, 40f);
         var fuelTrigger = _fuelButton.gameObject.AddComponent<FurnaceFuelSlotInteractions>();
         fuelTrigger.Initialize(this);
+        var fuelHover = _fuelButton.gameObject.AddComponent<FurnaceFuelSlotHover>();
+        fuelHover.Initialize(this);
 
         _fuelClearButton = CreateButton(_fuelButton.transform, "FuelClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
         var fuelClearRt = _fuelClearButton.GetComponent<RectTransform>();
@@ -2015,6 +2026,17 @@ public class FurnaceUI : MonoBehaviour
         public void OnPointerExit(PointerEventData eventData) => _owner?.HideEnhancementSlotTooltip();
     }
 
+    private sealed class FurnaceFuelSlotHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    {
+        private FurnaceUI _owner;
+
+        public void Initialize(FurnaceUI owner) => _owner = owner;
+
+        public void OnPointerEnter(PointerEventData eventData) => _owner?.ShowFuelSlotTooltip();
+
+        public void OnPointerExit(PointerEventData eventData) => _owner?.HideItemTooltip();
+    }
+
     private sealed class FurnaceEnhancementSlotInteractions : MonoBehaviour, IDropHandler
     {
         private FurnaceUI _owner;
@@ -2115,7 +2137,10 @@ public class FurnaceUI : MonoBehaviour
         }
     }
 
-    internal void ShowItemTooltip(Transform anchor, string itemId)
+    internal void ShowItemTooltip(
+        Transform anchor,
+        string itemId,
+        FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right)
     {
         if (string.IsNullOrWhiteSpace(itemId))
             return;
@@ -2132,7 +2157,7 @@ public class FurnaceUI : MonoBehaviour
         RectTransform boundsRect = _canvas != null ? _canvas.transform as RectTransform : _root;
         if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper) && anchorRt != null && boundsRect != null)
         {
-            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Right);
+            flipper.SetPreferredSide(preferredSide);
             flipper.SetMeasureRect(anchorRt);
             flipper.SetHeightRect(anchorRt);
             flipper.SetBoundsRect(boundsRect);

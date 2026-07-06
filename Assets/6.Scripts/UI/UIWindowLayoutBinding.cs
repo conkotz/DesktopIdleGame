@@ -377,6 +377,9 @@ public sealed class UIWindowLayoutBinding : MonoBehaviour
     /// <summary>Saved pivot layout for move-pivots ghosts — never the player's in-session window position.</summary>
     public UIWindowLayoutPrefs.Snapshot GetSavedPivotSnapshotForEditing()
     {
+        if (IsProcessingSkillsWindow(memoryKey))
+            return ProcessingSkillsWindowLayout.ResolveGhostEditSnapshot(windowRect);
+
         if (UIWindowLayoutPrefs.TryLoad(memoryKey, out UIWindowLayoutPrefs.Snapshot snapshot))
             return snapshot;
 

@@ -73,25 +73,28 @@ public class PlayerClickMoveDestinationMarker : MonoBehaviour
         float scale = Mathf.Max(0.01f, markerWorldScale);
         _markerRoot.localScale = new Vector3(scale, scale, scale);
 
-        float floorBottomY = LaneGroundEffectPlacement.GetLaneFloorTopWorldY() + floorYOffset;
-        SnapMarkerSpriteBottomToWorld(worldX, floorBottomY);
+        float laneLineY = ResolveLaneLineY(worldX) + floorYOffset;
+        SnapMarkerSpriteBottomToWorld(worldX, laneLineY);
     }
 
-    private void SnapMarkerSpriteBottomToWorld(float worldX, float bottomWorldY)
+    private static float ResolveLaneLineY(float worldX)
+    {
+        if (PlayAreaBounds.TryGetFloorTopYForWorldX(worldX, out float laneY))
+            return laneY;
+
+        return LaneGroundEffectPlacement.GetLaneFloorTopWorldY();
+    }
+
+    private void SnapMarkerSpriteBottomToWorld(float worldX, float laneLineY)
     {
         Transform parent = LaneGroundEffectPlacement.ResolveGroundEffectsRoot()
             ?? LaneGroundEffectPlacement.ResolveLaneFloorTransform();
         if (parent != null && _markerRoot.parent != parent)
             _markerRoot.SetParent(parent, true);
 
-        Vector3 pos = _markerRoot.position;
-        pos.x = worldX;
-        pos.z = 0f;
-        _markerRoot.position = pos;
-
-        float deltaY = bottomWorldY - _markerRenderer.bounds.min.y;
-        if (Mathf.Abs(deltaY) > 1e-5f)
-            _markerRoot.position += new Vector3(0f, deltaY, 0f);
+        float scale = _markerRoot.lossyScale.y;
+        float pivotToBottom = markerSprite != null ? -markerSprite.bounds.min.y * scale : 0f;
+        _markerRoot.position = new Vector3(worldX, laneLineY + pivotToBottom, 0f);
     }
 
     private void Hide()

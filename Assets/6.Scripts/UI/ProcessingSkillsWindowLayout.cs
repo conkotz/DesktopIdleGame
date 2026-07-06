@@ -52,6 +52,23 @@ public static class ProcessingSkillsWindowLayout
         return prepared;
     }
 
+    /// <summary>
+    /// Where the processing ghost should start in move-pivots — matches <see cref="ApplyLayoutToOpenPanel"/> priority.
+    /// </summary>
+    public static UIWindowLayoutPrefs.Snapshot ResolveGhostEditSnapshot(RectTransform proxy)
+    {
+        if (UIWindowSessionLayoutMemory.TryGet(ProcessingWindowKey, out UIWindowLayoutPrefs.Snapshot session))
+            return PrepareGhostSnapshot(session);
+
+        if (UIWindowLayoutPrefs.TryLoad(ProcessingWindowKey, out UIWindowLayoutPrefs.Snapshot saved))
+            return PrepareGhostSnapshot(saved);
+
+        if (proxy != null)
+            return PrepareGhostSnapshot(UIWindowLayoutPrefs.Capture(proxy));
+
+        return PrepareGhostSnapshot(default);
+    }
+
     public static void ApplyLayoutToOpenPanel(RectTransform panel, Canvas panelCanvas)
     {
         if (!panel || !panelCanvas)
@@ -115,18 +132,25 @@ public static class ProcessingSkillsWindowLayout
             return true;
         }
 
+        if (BlacksmithingUI.IsOpen && BlacksmithingUI.Instance != null
+            && TryCaptureOpenPanelSnapshot(BlacksmithingUI.Instance.GetLayoutPanel(), BlacksmithingUI.Instance.GetLayoutCanvas(), out snapshot))
+        {
+            return true;
+        }
+
         return false;
     }
 
     public static void ShowTestPreview()
     {
-        FurnaceUI ui = FurnaceUI.EnsureInstance();
-        ui.ShowLayoutPreview();
-        SyncProxyFromVisiblePanel(ui.GetLayoutPanel(), ui.GetLayoutCanvas());
+        BlacksmithingUI blacksmith = BlacksmithingUI.EnsureInstance();
+        blacksmith.ShowLayoutPreview();
+        SyncProxyFromVisiblePanel(blacksmith.GetLayoutPanel(), blacksmith.GetLayoutCanvas());
     }
 
     public static void HideTestPreview()
     {
+        BlacksmithingUI.Instance?.HideLayoutPreview();
         FurnaceUI.Instance?.HideLayoutPreview();
         CookingUI.Instance?.HideLayoutPreview();
     }

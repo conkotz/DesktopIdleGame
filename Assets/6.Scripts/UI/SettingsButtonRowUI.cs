@@ -66,6 +66,10 @@ public class SettingsButtonRowUI : MonoBehaviour
             case SettingsButtonActionId.FactoryResetAllSettings:
                 GlobalUserSettings.RestoreAllToDefaults();
                 break;
+
+            case SettingsButtonActionId.ResetTownObjectsToOriginalPositions:
+                WorldObjectPositionStore.ResetTownObjectsToOriginalPositions();
+                break;
         }
     }
 
@@ -155,7 +159,9 @@ public class SettingsButtonRowUI : MonoBehaviour
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Resets all windows - size and position",
             SettingsButtonActionId.SwapGameScreen => "Change game screen",
             SettingsButtonActionId.FactoryResetAllSettings =>
-                "Reset to defaults(toggles, sliders, hotkeys, window positions)",
+                "Reset ALL settings to defaults (toggles, sliders, hotkeys, window positions)",
+            SettingsButtonActionId.ResetTownObjectsToOriginalPositions =>
+                "Reset town objects to original positions",
             _ => id.ToString()
         };
     }
@@ -167,6 +173,7 @@ public class SettingsButtonRowUI : MonoBehaviour
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Reset",
             SettingsButtonActionId.SwapGameScreen => "Swap",
             SettingsButtonActionId.FactoryResetAllSettings => "Reset",
+            SettingsButtonActionId.ResetTownObjectsToOriginalPositions => "Reset",
             _ => "Run"
         };
     }

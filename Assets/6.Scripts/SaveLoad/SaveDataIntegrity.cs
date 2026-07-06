@@ -328,6 +328,7 @@ public static class SaveDataIntegrity
             padValue: 0);
 
         PlayerMapExitPositionStore.RepairParallelLists(data);
+        WorldObjectPositionStore.RepairParallelLists(data);
     }
 
     /// <summary>Make parallel lists the same length (pad ints or trim excess values).</summary>

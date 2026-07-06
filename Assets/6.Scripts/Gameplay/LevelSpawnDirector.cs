@@ -719,6 +719,9 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (alignSpawnPointToColliderBottom)
                     AlignBottomOfColliderToPoint(inst.transform, p.position);
 
+                if (defForInit == null && saveDef != null && !string.IsNullOrWhiteSpace(entry.spawnPointName))
+                    WorldObjectMovable.TryBindSpawnedInstance(inst, saveDef.nodeId, entry.spawnPointName, p.position);
+
                 if (preventOverlappingSpawns)
                     ReservePoint(p.position);
 
@@ -1524,6 +1527,9 @@ public class LevelSpawnDirector : MonoBehaviour
         int y = Mathf.RoundToInt(worldPos.y / s);
         return new Vector2Int(x, y);
     }
+
+    public static void AlignBottomOfColliderToPointPublic(Transform root, Vector3 worldPoint) =>
+        AlignBottomOfColliderToPoint(root, worldPoint);
 
     private static void AlignBottomOfColliderToPoint(Transform root, Vector3 worldPoint)
     {

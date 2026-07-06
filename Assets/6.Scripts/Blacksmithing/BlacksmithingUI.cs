@@ -103,6 +103,7 @@ public class BlacksmithingUI : MonoBehaviour
         if (_root == null)
             return;
 
+        ShowRecipePicker();
         ProcessingSkillsWindowLayout.ApplyLayoutToOpenPanel(_root, _canvas);
         _root.gameObject.SetActive(true);
     }

@@ -320,6 +320,7 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
         LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
+        WorldObjectPositionStore.ApplyFromSaveData(_lastLoadedData);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
@@ -503,6 +504,7 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.ApplyFromSaveData(data);
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
+        WorldObjectPositionStore.ApplyFromSaveData(data);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
@@ -961,6 +963,7 @@ public class SaveManager : MonoBehaviour
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
+        WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         return data;
     }
 
@@ -1051,6 +1054,7 @@ public class SaveManager : MonoBehaviour
         HelperProgressStore.WriteDismissedInto(data);
         HelperProgressStore.WriteNewBadgeSuppressedInto(data);
         LevelItemPickupSaveStore.WriteInto(data);
+        WorldObjectPositionStore.WriteInto(data);
         PermanentEnemyDeathSaveStore.WriteInto(data);
         NpcPostDeathRespawnDialogueStore.WriteInto(data);
         NpcOneWayDialogueQueueStore.WriteInto(data);
@@ -2070,6 +2074,7 @@ public class SaveManager : MonoBehaviour
             data.toolbeltItemIds = new List<string>();
 
         PlayerMapExitPositionStore.EnsureLists(data);
+        WorldObjectPositionStore.EnsureLists(data);
 
         if (data.actionBarSlotIndexes == null)
             data.actionBarSlotIndexes = new List<int>();
@@ -2627,6 +2632,7 @@ public class SaveManager : MonoBehaviour
 
             HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
             LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
+            WorldObjectPositionStore.ApplyFromSaveData(_lastLoadedData);
             PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
             NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);

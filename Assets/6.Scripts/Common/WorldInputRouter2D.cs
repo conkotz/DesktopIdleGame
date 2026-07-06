@@ -47,15 +47,17 @@ public class WorldInputRouter2D : MonoBehaviour
             stripCamera &&
             !stripCamera.pixelRect.Contains(Input.mousePosition);
 
+        bool moveObjectMode = WorldObjectMoveModeController.IsActive;
+
         Collider2D winnerCol = null;
-        if (!overUI && !expandOutsideStrip)
+        if (!moveObjectMode && !overUI && !expandOutsideStrip)
             winnerCol = PickWinnerUnderMouse();
-        else if (whitelistTutorialRoutesWorld && EventSystem.current != null && !expandOutsideStrip)
+        else if (!moveObjectMode && whitelistTutorialRoutesWorld && EventSystem.current != null && !expandOutsideStrip)
             winnerCol = PickWinnerUnderMouse();
 
         if (enableHoverHighlight)
         {
-            bool allowHoverWinner = winnerCol;
+            bool allowHoverWinner = !moveObjectMode && winnerCol;
             if (whitelistTutorialRoutesWorld)
                 allowHoverWinner = winnerCol && HelperGameplayController.IsWhitelistedWorldPick(winnerCol);
 
@@ -74,6 +76,12 @@ public class WorldInputRouter2D : MonoBehaviour
         bool whitelistTutorialRoutesWorld,
         bool overUI)
     {
+        if (WorldObjectMoveModeController.SuppressesWorldLeftClick)
+            return;
+
+        if (WorldObjectMoveModeController.TryConsumeWorldLeftClick())
+            return;
+
         if (!TryPrepareWorldClick(whitelistTutorialRoutesWorld, overUI, out Collider2D winnerCol))
             return;
 
@@ -108,6 +116,9 @@ public class WorldInputRouter2D : MonoBehaviour
         bool whitelistTutorialRoutesWorld,
         bool overUI)
     {
+        if (WorldObjectMoveModeController.TryConsumeWorldRightClick())
+            return;
+
         if (!TryPrepareWorldClick(whitelistTutorialRoutesWorld, overUI, out Collider2D winnerCol))
             return;
 

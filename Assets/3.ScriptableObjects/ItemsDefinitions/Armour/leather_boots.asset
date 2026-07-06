@@ -207,8 +207,8 @@ MonoBehaviour:
     secondaryMaxValue: 0
   - stat: 13
     weight: 1
-    minValue: 1
-    maxValue: 3
+    minValue: 2
+    maxValue: 10
     valueKind: 3
     rollSecondaryValue: 0
     secondaryMinValue: 0
@@ -221,7 +221,9 @@ MonoBehaviour:
     rollSecondaryValue: 0
     secondaryMinValue: 0
     secondaryMaxValue: 0
-  useDefaultRandomStatPoolPackage: 1
+  jewelryEquipmentTier: 0
+  jewelryGemType: 0
+  useDefaultRandomStatPoolPackage: 0
   extraRandomStatPoolPackages: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
@@ -240,6 +242,9 @@ MonoBehaviour:
       hideFromBuffPanel: 0
     baitTier: 0
     fishingSpeedPercentBonus: 0
+    processingSkillTarget: 0
+    processingFlatSecondsReduction: 0
+    processingBurnChanceReductionPercent: 0
     mapEnhancementTier: 0
     mapEnhancementModRolls: []
     openRequiredAmount: 0
@@ -274,3 +279,6 @@ MonoBehaviour:
     cookedResultAmount: 0
     requiredCookingLevel: 0
     cookingXp: 0
+    cookingTimeSeconds: 0
+  smeltableStats:
+    requiredSmeltingLevel: 0

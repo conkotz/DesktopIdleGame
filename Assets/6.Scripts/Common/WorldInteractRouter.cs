@@ -10,6 +10,9 @@ public static class WorldInteractRouter
 
     private static readonly Collider2D[] s_overlapScratch = new Collider2D[64];
 
+    private static bool IsMoveObjectModeBlocking() =>
+        WorldObjectMoveModeController.IsActive;
+
     /// <summary>
     /// True when the player's X is within ±<see cref="InteractHotkeyHalfRangeX"/> of the interactable's routable center.
     /// Used to open dialogue/shop immediately instead of walking to the collider edge.
@@ -165,7 +168,7 @@ public static class WorldInteractRouter
 
     public static void RouteInteract(Collider2D winnerCol, PlayerController player)
     {
-        if (!winnerCol || !player)
+        if (!winnerCol || !player || IsMoveObjectModeBlocking())
             return;
 
         StorageClick targetStorage = winnerCol.GetComponentInParent<StorageClick>();
@@ -382,7 +385,7 @@ public static class WorldInteractRouter
 
     public static void RouteContextShop(Collider2D col, PlayerController player)
     {
-        if (!col || !player)
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         MerchantClick merchant = col.GetComponentInParent<MerchantClick>();
@@ -396,7 +399,7 @@ public static class WorldInteractRouter
 
     public static void RouteContextTalk(Collider2D col, PlayerController player)
     {
-        if (!col || !player)
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         PrepareForContextAction(col, player);
@@ -438,9 +441,22 @@ public static class WorldInteractRouter
     public static void RouteContextRead(Collider2D col, PlayerController player) =>
         RouteContextTalk(col, player);
 
-    public static void RouteContextStorageOpen(Collider2D col, PlayerController player)
+    public static void RouteContextMoveObject(Collider2D col, PlayerController player)
     {
         if (!col || !player)
+            return;
+
+        if (!WorldObjectMovable.TryGetFromCollider(col, out WorldObjectMovable movable))
+            return;
+
+        PrepareForContextAction(col, player);
+        ApplyCombatTargetWhenInteractingNonEnemy(player);
+        WorldObjectMoveModeController.BeginMove(movable);
+    }
+
+    public static void RouteContextStorageOpen(Collider2D col, PlayerController player)
+    {
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         StorageClick storage = col.GetComponentInParent<StorageClick>();
@@ -454,7 +470,7 @@ public static class WorldInteractRouter
 
     public static void RouteContextPortalEnter(Collider2D col, PlayerController player)
     {
-        if (!col || !player)
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         MapNodePortalTeleporter portal = col.GetComponentInParent<MapNodePortalTeleporter>();
@@ -475,7 +491,7 @@ public static class WorldInteractRouter
 
     public static void RouteContextAttack(Collider2D col, PlayerController player)
     {
-        if (!col || !player)
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         EnemyClick enemyClick = col.GetComponentInParent<EnemyClick>();
@@ -493,7 +509,7 @@ public static class WorldInteractRouter
 
     public static void RouteContextGather(Collider2D col, PlayerController player)
     {
-        if (!col || !player)
+        if (!col || !player || IsMoveObjectModeBlocking())
             return;
 
         ResourceNode node = col.GetComponentInParent<ResourceNode>();
@@ -507,7 +523,7 @@ public static class WorldInteractRouter
     /// <summary>Moves the player toward an interactable without triggering its primary action.</summary>
     public static void WalkPlayerToCollider(PlayerController player, Collider2D col)
     {
-        if (!player || !col)
+        if (!player || !col || IsMoveObjectModeBlocking())
             return;
 
         MerchantClick.CancelPendingOpen();

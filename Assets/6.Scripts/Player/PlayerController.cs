@@ -1431,6 +1431,8 @@ public class PlayerController : MonoBehaviour
             return false;
         if (HelperGameplayController.BlocksStripGameplay)
             return false;
+        if (WorldObjectMoveModeController.IsActive)
+            return false;
         return !IsTypingIntoInputField();
     }
 
@@ -1439,6 +1441,8 @@ public class PlayerController : MonoBehaviour
         if (HotkeySettingsRowUI.IsRebinding)
             return false;
         if (HelperGameplayController.BlocksStripGameplay)
+            return false;
+        if (WorldObjectMoveModeController.IsActive)
             return false;
         if (IsTypingIntoInputField())
             return false;
@@ -1947,7 +1951,8 @@ public class PlayerController : MonoBehaviour
 
     private void HandleClickToMove()
     {
-        if (movementLocked)
+        if (movementLocked || WorldObjectMoveModeController.IsActive ||
+            WorldObjectMoveModeController.SuppressesWorldLeftClick)
             return;
 
         if (_isDead) return;
@@ -2031,7 +2036,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>Walk-to-point from a screen position (context menu Walk here on empty ground).</summary>
     public void RequestWalkToScreenPosition(Vector3 screenPosition)
     {
-        if (movementLocked || _isDead)
+        if (movementLocked || _isDead || WorldObjectMoveModeController.IsActive)
             return;
 
         if (restrictClicksToStrip && !IsGameplayClickAllowedAtScreen(screenPosition))
