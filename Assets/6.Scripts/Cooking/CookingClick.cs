@@ -41,7 +41,7 @@ public class CookingClick : MonoBehaviour
         if (_active == this)
         {
             if (CookingUI.IsOpen && CookingUI.Instance != null)
-                CookingUI.Instance.Close();
+                CookingUI.Instance.Close(recordLayout: false);
             _active = null;
         }
 

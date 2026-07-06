@@ -235,7 +235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8f4e2c91d0b4e6f8a1b3c5d7e9f0a2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NpcIdentity
-  characterName: Blacksmithing Anvil
+  characterName: Blacksmithing\nAnvil
   role: 
   nameLabel: {fileID: 3979667164614100145}
 --- !u!114 &991000000000000010
@@ -406,7 +406,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: <b>Blacksmithing Anvil</b>
+  m_text: <b>Blacksmithing\nAnvil</b>
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

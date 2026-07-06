@@ -305,6 +305,12 @@ public class MerchantClick : MonoBehaviour
     {
         CacheRefs();
 
+        if (shopUI)
+        {
+            shopUI.ClampWindowToCanvas();
+            return;
+        }
+
         if (!shopRect || !canvasRect)
             return;
 

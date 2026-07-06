@@ -41,7 +41,7 @@ public class FurnaceClick : MonoBehaviour
         if (_active == this)
         {
             if (FurnaceUI.IsOpen && FurnaceUI.Instance != null)
-                FurnaceUI.Instance.Close();
+                FurnaceUI.Instance.Close(recordLayout: false);
             _active = null;
         }
 

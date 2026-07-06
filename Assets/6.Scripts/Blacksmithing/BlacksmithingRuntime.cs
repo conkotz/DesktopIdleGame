@@ -286,7 +286,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         public bool TryActiveWork(out string failureReason) =>
             ProcessingProficiencyRuntime.EnsureInstance().TryApplyBlacksmithingActiveWork(this, out failureReason);
 
-        public bool TryCollectOutput(out string failureReason)
+        public bool CanCollectOutput(out string failureReason)
         {
             failureReason = null;
             if (!HasReadyOutput)
@@ -302,16 +302,30 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
-            int before = inv.GetTotalAmount(_readyOutputItemId);
-            inv.Add(_readyOutputItemId, 1, notifyItemGainPopup: true);
-            int added = inv.GetTotalAmount(_readyOutputItemId) - before;
+            if (inv.GetReceivableAmount(_readyOutputItemId, 1) <= 0)
+            {
+                failureReason = "Inventory full.";
+                return false;
+            }
+
+            return true;
+        }
+
+        public bool TryCollectOutput(out string failureReason)
+        {
+            if (!CanCollectOutput(out failureReason))
+                return false;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            string outputItemId = _readyOutputItemId;
+            int added = inv.AddPartial(outputItemId, 1, notifyItemGainPopup: true);
             if (added <= 0)
             {
                 failureReason = "Inventory full.";
                 return false;
             }
 
-            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Blacksmithing", _readyOutputItemId, added);
+            SessionTrackerData.EnsureInstance()?.RegisterLootChange("Blacksmithing", outputItemId, added);
             _readyOutputItemId = "";
             NotifyChanged();
             RequestSaveDebounced();

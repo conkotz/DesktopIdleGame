@@ -279,7 +279,9 @@ public class CookingUI : MonoBehaviour
             LogCookingBlocked("Collect cooked food before cooking again.");
     }
 
-    public void Close()
+    public void Close() => Close(recordLayout: true);
+
+    public void Close(bool recordLayout)
     {
         HideFishPicker();
         HideHelpPanel();
@@ -289,7 +291,8 @@ public class CookingUI : MonoBehaviour
         if (_station != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
 
-        ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
+        if (recordLayout)
+            ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;

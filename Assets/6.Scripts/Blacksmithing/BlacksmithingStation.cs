@@ -56,6 +56,11 @@ public class BlacksmithingStation : MonoBehaviour
 
     public void StopCrafting() => _row?.StopCrafting();
 
+    public bool CanCollectOutput(out string failureReason) =>
+        _row != null
+            ? _row.CanCollectOutput(out failureReason)
+            : Fail(out failureReason, "Anvil not ready.");
+
     public bool TryCollectOutput(out string failureReason) =>
         _row != null
             ? _row.TryCollectOutput(out failureReason)

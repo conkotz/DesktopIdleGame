@@ -281,17 +281,93 @@ public static class ProcessingSkillsWindowLayout
         return proxy != null;
     }
 
+    private static Transform _cachedWindowsArea;
+    private static int _cachedWindowsAreaSceneHandle = -1;
+
     private static Transform ResolveWindowsArea()
     {
-        GameObject area = GameObject.Find("WindowsArea");
-        if (area)
-            return area.transform;
+        if (TryGetCachedWindowsArea(out Transform cached))
+            return cached;
 
-        GameObject canvas = GameObject.Find("FullWindowCanvas");
-        if (!canvas)
-            canvas = GameObject.FindWithTag("FullWindowCanvas");
+        Transform found = FindWindowsAreaInLoadedScenes();
+        if (found != null)
+            CacheWindowsArea(found);
 
-        return canvas != null ? canvas.transform.Find("WindowsArea") : null;
+        return found;
+    }
+
+    private static bool TryGetCachedWindowsArea(out Transform windowsArea)
+    {
+        windowsArea = null;
+        if (_cachedWindowsArea == null)
+            return false;
+
+        if (!_cachedWindowsArea)
+        {
+            _cachedWindowsArea = null;
+            _cachedWindowsAreaSceneHandle = -1;
+            return false;
+        }
+
+        if (!_cachedWindowsArea.gameObject.scene.IsValid()
+            || _cachedWindowsArea.gameObject.scene.handle != _cachedWindowsAreaSceneHandle)
+        {
+            _cachedWindowsArea = null;
+            _cachedWindowsAreaSceneHandle = -1;
+            return false;
+        }
+
+        windowsArea = _cachedWindowsArea;
+        return true;
+    }
+
+    private static void CacheWindowsArea(Transform windowsArea)
+    {
+        _cachedWindowsArea = windowsArea;
+        _cachedWindowsAreaSceneHandle = windowsArea != null && windowsArea.gameObject.scene.IsValid()
+            ? windowsArea.gameObject.scene.handle
+            : -1;
+    }
+
+    /// <summary>
+    /// Avoids <see cref="GameObject.Find"/> — Unity asserts if that runs while objects are being disabled.
+    /// </summary>
+    private static Transform FindWindowsAreaInLoadedScenes()
+    {
+        GameObject canvas = GameObject.FindGameObjectWithTag("FullWindowCanvas");
+        if (canvas != null)
+        {
+            Transform windowsArea = canvas.transform.Find("WindowsArea");
+            if (windowsArea != null)
+                return windowsArea;
+        }
+
+        return FindNamedTransformInLoadedScenes("WindowsArea");
+    }
+
+    private static Transform FindNamedTransformInLoadedScenes(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return null;
+
+        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform t = transforms[i];
+            if (!t || t.hideFlags != HideFlags.None)
+                continue;
+
+            GameObject go = t.gameObject;
+            if (!go.scene.IsValid())
+                continue;
+
+            if (!string.Equals(t.name, objectName, System.StringComparison.Ordinal))
+                continue;
+
+            return t;
+        }
+
+        return null;
     }
 
     private static Vector2 MeasureDefaultPanelFootprintInWindowsArea()

@@ -41,7 +41,7 @@ public class BlacksmithingClick : MonoBehaviour
         if (_active == this)
         {
             if (BlacksmithingUI.IsOpen && BlacksmithingUI.Instance != null)
-                BlacksmithingUI.Instance.Close();
+                BlacksmithingUI.Instance.Close(recordLayout: false);
             _active = null;
         }
 

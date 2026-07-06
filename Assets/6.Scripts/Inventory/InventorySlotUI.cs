@@ -915,27 +915,9 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void PerformStoreAction() => TryDoubleClickDepositToStorage();
 
-    public string GetMerchantSellContextMenuLabel()
+    public bool CanSellToActiveMerchant(out string cantSellLabel)
     {
-        if (!HasItemContext || _inventory == null)
-            return "Sell";
-
-        int valuePerItem = _inventory.GetItemValue(_itemId);
-        if (valuePerItem <= 0)
-            return "Sell";
-
-        var slot = _inventory.GetSlot(_slotIndex);
-        int totalGold = valuePerItem * slot.amount;
-        string goldText = totalGold >= 1000
-            ? $"{(totalGold / 1000f):0.#}k g"
-            : $"{totalGold:N0}g";
-
-        return $"Sell (<size=75%>{goldText}</size>)";
-    }
-
-    public bool CanSellToActiveMerchant(out string sellLabel)
-    {
-        sellLabel = "Sell";
+        cantSellLabel = "Can't sell here";
 
         if (!HasItemContext || _inventory == null)
             return false;
@@ -945,18 +927,18 @@ public class InventorySlotUI : MonoBehaviour,
 
         int valuePerItem = _inventory.GetItemValue(_itemId);
         if (valuePerItem <= 0 || !merchant.CanBuyItemFromPlayer(_itemId))
-        {
-            sellLabel = "Can't sell here";
             return false;
-        }
 
-        sellLabel = MerchantClick.IsShopOpen
-            ? GetMerchantSellContextMenuLabel()
-            : "Sell";
         return true;
     }
 
-    public void PerformSellAction()
+    public void PerformSellOneAction() => PerformSellAtAmount(1);
+
+    public void PerformSellAllAction() => PerformSellAtAmount(int.MaxValue);
+
+    public void PerformSellAction() => PerformSellAllAction();
+
+    private void PerformSellAtAmount(int amount)
     {
         if (_inventory == null || wallet == null || _slotIndex < 0)
             return;
@@ -979,7 +961,8 @@ public class InventorySlotUI : MonoBehaviour,
         if (valuePerItem <= 0)
             return;
 
-        int removed = _inventory.RemoveAmountAtSlot(_slotIndex, slot.amount);
+        int toRemove = Mathf.Min(amount, slot.amount);
+        int removed = _inventory.RemoveAmountAtSlot(_slotIndex, toRemove);
         if (removed <= 0)
             return;
 

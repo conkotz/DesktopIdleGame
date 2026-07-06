@@ -264,7 +264,9 @@ public class FurnaceUI : MonoBehaviour
             LogFurnaceBlocked("Collect furnace bars before smelting.");
     }
 
-    public void Close()
+    public void Close() => Close(recordLayout: true);
+
+    public void Close(bool recordLayout)
     {
         HideOrePicker();
         HideHelpPanel();
@@ -274,7 +276,8 @@ public class FurnaceUI : MonoBehaviour
         if (_smelter != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
 
-        ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
+        if (recordLayout)
+            ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;

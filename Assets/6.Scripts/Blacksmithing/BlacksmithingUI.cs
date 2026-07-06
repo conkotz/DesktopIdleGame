@@ -203,7 +203,9 @@ public class BlacksmithingUI : MonoBehaviour
             LogBlocked("Collect the finished item before forging again.");
     }
 
-    public void Close()
+    public void Close() => Close(recordLayout: true);
+
+    public void Close(bool recordLayout)
     {
         HideRecipePicker();
         HideHelpPanel();
@@ -212,7 +214,8 @@ public class BlacksmithingUI : MonoBehaviour
         if (_station != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
 
-        ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
+        if (recordLayout)
+            ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;
@@ -371,8 +374,17 @@ public class BlacksmithingUI : MonoBehaviour
 
         if (_station.HasReadyOutput)
         {
-            _ingredientsSummaryText.text = "Ready to collect.";
-            _ingredientsSummaryText.color = Accent;
+            if (!_station.CanCollectOutput(out _))
+            {
+                _ingredientsSummaryText.text = "Inventory full.";
+                _ingredientsSummaryText.color = StopAccent;
+            }
+            else
+            {
+                _ingredientsSummaryText.text = "Ready to collect.";
+                _ingredientsSummaryText.color = Accent;
+            }
+
             return;
         }
 
@@ -436,8 +448,9 @@ public class BlacksmithingUI : MonoBehaviour
         else if (_station.HasReadyOutput)
         {
             _actionButtonText.text = "COLLECT";
-            _actionButtonText.color = Accent;
-            _actionButton.interactable = true;
+            bool canCollect = _station.CanCollectOutput(out _);
+            _actionButtonText.color = canCollect ? Accent : StopAccent;
+            _actionButton.interactable = canCollect;
         }
         else
         {

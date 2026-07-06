@@ -95,6 +95,29 @@ public class ShopUI : MonoBehaviour
         ? ResolveWindowRoot().transform as RectTransform
         : null;
 
+    public bool IsUndoWindowOpen => undoShopWindow != null && undoShopWindow.IsOpen;
+
+    /// <summary>Keeps the shop window on-screen; includes the undo panel when it is open.</summary>
+    public void ClampWindowToCanvas()
+    {
+        RectTransform window = WindowRectTransform;
+        if (!window)
+            return;
+
+        Canvas canvas = window.GetComponentInParent<Canvas>();
+        if (!canvas)
+            return;
+
+        RectTransform canvasRect = canvas.transform as RectTransform;
+        if (!canvasRect)
+            return;
+
+        if (IsUndoWindowOpen)
+            UIPinNextToMenuWindow.ClampSubtreeToCanvas(window, canvasRect);
+        else
+            UIPinNextToMenuWindow.ClampToCanvas(window, canvasRect);
+    }
+
     /// <summary>Root <see cref="RectTransform"/> of the shop item section (ShopSection).</summary>
     public RectTransform PanelRectTransform => panelRoot != null ? panelRoot.transform as RectTransform : null;
 

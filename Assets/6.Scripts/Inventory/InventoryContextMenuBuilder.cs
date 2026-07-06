@@ -16,8 +16,14 @@ public static class InventoryContextMenuBuilder
 
         if (MerchantClick.MerchantModeOpen)
         {
-            bool canSell = slot.CanSellToActiveMerchant(out string sellLabel);
-            entries.Add(new ContextMenuEntry(sellLabel, slot.PerformSellAction, disabled: !canSell));
+            bool canSell = slot.CanSellToActiveMerchant(out string cantSellLabel);
+            if (canSell)
+            {
+                entries.Add(new ContextMenuEntry("Sell 1", slot.PerformSellOneAction));
+                entries.Add(new ContextMenuEntry("Sell All", slot.PerformSellAllAction));
+            }
+            else
+                entries.Add(new ContextMenuEntry(cantSellLabel, null, disabled: true));
             if (slot.CanIdentifyStats())
                 entries.Add(new ContextMenuEntry("Identify Stats", slot.PerformIdentifyStatsAction));
             entries.Add(new ContextMenuEntry("Lookup", slot.PerformLookupAction));

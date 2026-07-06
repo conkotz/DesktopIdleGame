@@ -208,7 +208,19 @@ public class UndoShopWindowUI : MonoBehaviour
         {
             shopUI.RefreshShopRaycastTargets();
             shopUI.EnsureShopDragHandleOnTop();
+            StartCoroutine(ClampShopWindowAfterOpen());
         }
+    }
+
+    private IEnumerator ClampShopWindowAfterOpen()
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+        }
+
+        shopUI?.ClampWindowToCanvas();
     }
 
     private void OnRectTransformDimensionsChange()

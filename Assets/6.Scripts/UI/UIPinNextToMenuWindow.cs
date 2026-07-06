@@ -151,36 +151,133 @@ public static class UIPinNextToMenuWindow
 
         Canvas.ForceUpdateCanvases();
 
-        Vector3[] rectCorners = new Vector3[4];
+        if (!TryGetRectWorldBounds(rect, out float rectLeft, out float rectBottom, out float rectRight, out float rectTop))
+            return;
+
+        Vector3 offset = ComputeCanvasClampOffset(
+            rectLeft, rectBottom, rectRight, rectTop, canvas, out _);
+
+        rect.position += offset;
+    }
+
+    /// <summary>
+    /// Shifts <paramref name="root"/> so every active child <see cref="RectTransform"/> fits inside the canvas.
+    /// </summary>
+    public static void ClampSubtreeToCanvas(RectTransform root, RectTransform canvas)
+    {
+        if (!root || !canvas)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        if (!TryGetSubtreeWorldBounds(root, out float boundsLeft, out float boundsBottom, out float boundsRight, out float boundsTop))
+        {
+            ClampToCanvas(root, canvas);
+            return;
+        }
+
+        Vector3 offset = ComputeCanvasClampOffset(
+            boundsLeft, boundsBottom, boundsRight, boundsTop, canvas, out _);
+
+        root.position += offset;
+    }
+
+    private static Vector3 ComputeCanvasClampOffset(
+        float boundsLeft,
+        float boundsBottom,
+        float boundsRight,
+        float boundsTop,
+        RectTransform canvas,
+        out bool needsClamp)
+    {
+        needsClamp = false;
+
         Vector3[] canvasCorners = new Vector3[4];
-
-        rect.GetWorldCorners(rectCorners);
         canvas.GetWorldCorners(canvasCorners);
-
-        Vector3 offset = Vector3.zero;
-
-        float rectLeft = rectCorners[0].x;
-        float rectBottom = rectCorners[0].y;
-        float rectRight = rectCorners[2].x;
-        float rectTop = rectCorners[2].y;
 
         float canvasLeft = canvasCorners[0].x;
         float canvasBottom = canvasCorners[0].y;
         float canvasRight = canvasCorners[2].x;
         float canvasTop = canvasCorners[2].y;
 
-        if (rectLeft < canvasLeft)
-            offset.x += canvasLeft - rectLeft;
+        Vector3 offset = Vector3.zero;
 
-        if (rectRight > canvasRight)
-            offset.x -= rectRight - canvasRight;
+        if (boundsLeft < canvasLeft)
+        {
+            offset.x += canvasLeft - boundsLeft;
+            needsClamp = true;
+        }
 
-        if (rectBottom < canvasBottom)
-            offset.y += canvasBottom - rectBottom;
+        if (boundsRight > canvasRight)
+        {
+            offset.x -= boundsRight - canvasRight;
+            needsClamp = true;
+        }
 
-        if (rectTop > canvasTop)
-            offset.y -= rectTop - canvasTop;
+        if (boundsBottom < canvasBottom)
+        {
+            offset.y += canvasBottom - boundsBottom;
+            needsClamp = true;
+        }
 
-        rect.position += offset;
+        if (boundsTop > canvasTop)
+        {
+            offset.y -= boundsTop - canvasTop;
+            needsClamp = true;
+        }
+
+        return offset;
+    }
+
+    private static bool TryGetRectWorldBounds(
+        RectTransform rect,
+        out float minX,
+        out float minY,
+        out float maxX,
+        out float maxY)
+    {
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        minX = corners[0].x;
+        minY = corners[0].y;
+        maxX = corners[2].x;
+        maxY = corners[2].y;
+        return true;
+    }
+
+    private static bool TryGetSubtreeWorldBounds(
+        RectTransform root,
+        out float minX,
+        out float minY,
+        out float maxX,
+        out float maxY)
+    {
+        minX = float.PositiveInfinity;
+        minY = float.PositiveInfinity;
+        maxX = float.NegativeInfinity;
+        maxY = float.NegativeInfinity;
+
+        bool any = false;
+        Vector3[] corners = new Vector3[4];
+        RectTransform[] rects = root.GetComponentsInChildren<RectTransform>(true);
+
+        for (int i = 0; i < rects.Length; i++)
+        {
+            RectTransform rt = rects[i];
+            if (!rt || !rt.gameObject.activeInHierarchy)
+                continue;
+
+            rt.GetWorldCorners(corners);
+            for (int c = 0; c < 4; c++)
+            {
+                any = true;
+                if (corners[c].x < minX) minX = corners[c].x;
+                if (corners[c].y < minY) minY = corners[c].y;
+                if (corners[c].x > maxX) maxX = corners[c].x;
+                if (corners[c].y > maxY) maxY = corners[c].y;
+            }
+        }
+
+        return any;
     }
 }
