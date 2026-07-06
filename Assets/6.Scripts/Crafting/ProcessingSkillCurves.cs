@@ -40,4 +40,20 @@ public static class ProcessingSkillCurves
             _ => 10
         };
     }
+
+    public static int GetBlacksmithingCraftXp(BlacksmithingRecipe recipe)
+    {
+        string outputId = recipe.OutputItemId;
+        if (string.IsNullOrWhiteSpace(outputId))
+            return 15;
+
+        return outputId.ToLowerInvariant() switch
+        {
+            "stone_sword" or "stone_dagger" or "stone_shield" or "stone_helmet" or "stone_platebody" => 12,
+            "stone_spear" or "poison_dagger" => 18,
+            "knights_polearm" => 28,
+            "ghorrocks_mace" => 35,
+            _ => 15
+        };
+    }
 }

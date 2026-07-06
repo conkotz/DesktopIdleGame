@@ -23,8 +23,11 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  isBossMap: 0
   mapCombatScalingEnabled: 0
   mapCombatScalingSpecialDropsByLevel: []
+  bossAreaScalingEnabled: 0
+  bossAreaScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 5
   eliteSpawnChance: 0
@@ -108,6 +111,19 @@ MonoBehaviour:
       spawnPointName: SpawnPoint-5
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+      teleporterLinkId: 
+      teleporterDestinationLabel: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-3
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1301700847255990616, guid: e53450ed1f6229f4db27a8185f70bcf1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       itemRespawnTimer: 0

@@ -3,4 +3,5 @@ public enum ProcessingSkillType
 {
     Smelting = 0,
     Cooking = 1,
+    Blacksmithing = 2,
 }

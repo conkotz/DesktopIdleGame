@@ -57,7 +57,7 @@ public static class ProcessingSkillDisplayCatalog
         };
 
     public static bool HasProficiency(Id id) =>
-        id == Id.Cooking || id == Id.Smelting;
+        id == Id.Cooking || id == Id.Smelting || id == Id.Blacksmithing;
 
     public static bool TryGetProficiencyType(Id id, out ProcessingSkillType type)
     {
@@ -68,6 +68,9 @@ public static class ProcessingSkillDisplayCatalog
                 return true;
             case Id.Smelting:
                 type = ProcessingSkillType.Smelting;
+                return true;
+            case Id.Blacksmithing:
+                type = ProcessingSkillType.Blacksmithing;
                 return true;
             default:
                 type = default;

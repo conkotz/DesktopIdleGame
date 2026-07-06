@@ -279,6 +279,8 @@ public class SaveData
     [Header("Cooking stations")]
     public List<CookingStationSave> cookingStations = new();
 
+    public List<BlacksmithingStationSave> blacksmithingStations = new();
+
     [Header("Processing proficiencies")]
     public List<ProcessingProficiencySave> processingProficiency = new();
 
@@ -324,6 +326,18 @@ public class SaveData
         public float fuelSecondsBurnedFromCurrentLog;
         public float cookProgressSeconds;
         public bool isCooking;
+    }
+
+    [Serializable]
+    public class BlacksmithingStationSave
+    {
+        public string stationId;
+        public string selectedRecipeOutputId;
+        public string activeRecipeOutputId;
+        public string readyOutputItemId;
+        public float craftProgressSeconds;
+        public bool isCrafting;
+        public float lockedCraftDurationSeconds;
     }
 
     [Serializable]

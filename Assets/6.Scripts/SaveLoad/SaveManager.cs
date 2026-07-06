@@ -162,6 +162,7 @@ public class SaveManager : MonoBehaviour
         DontDestroyOnLoad(transform.root.gameObject);
         FurnaceSmeltingRuntime.EnsureInstance();
         CookingRuntime.EnsureInstance();
+        BlacksmithingRuntime.EnsureInstance();
         ProcessingProficiencyRuntime.EnsureInstance();
         MerchantStockRuntime.EnsureInstance();
         LoadAllSaveMetadata();
@@ -224,6 +225,7 @@ public class SaveManager : MonoBehaviour
             HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
             FurnaceClick.ForceClose();
             CookingClick.ForceClose();
+            BlacksmithingClick.ForceClose();
             RepairBootstrapUiAfterReturningFromGameplay();
             SaveSlotManager.ResetGameplaySpawnSessionFlags();
             RefreshSaveSlots();
@@ -1754,6 +1756,7 @@ public class SaveManager : MonoBehaviour
         MainMenuWindowUI.CancelPersistedOpenRestore();
         FurnaceClick.ForceClose();
         CookingClick.ForceClose();
+        BlacksmithingClick.ForceClose();
         DestroyDeathRespawnFullScreenFaderIfAny();
 
         SceneManager.LoadScene(scene, LoadSceneMode.Single);

@@ -202,6 +202,17 @@ public static class WorldInteractRouter
             return;
         }
 
+        BlacksmithingClick blacksmithing = winnerCol.GetComponentInParent<BlacksmithingClick>();
+        if (blacksmithing != null)
+        {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
+            NPCInteractionSettings anvilNpc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+            if (anvilNpc != null)
+                anvilNpc.Interact();
+            blacksmithing.Open();
+            return;
+        }
+
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {
@@ -277,9 +288,11 @@ public static class WorldInteractRouter
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
         CookingClick.CancelPendingOpen();
+        BlacksmithingClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         FurnaceClick.ForceClose();
         CookingClick.ForceClose();
+        BlacksmithingClick.ForceClose();
 
         if (targetStorage == null || !StorageClick.IsActiveInstance(targetStorage))
             StorageClick.ForceCloseStorageMode();
@@ -338,6 +351,7 @@ public static class WorldInteractRouter
         if (col.GetComponentInParent<StorageClick>()) return true;
         if (col.GetComponentInParent<FurnaceClick>()) return true;
         if (col.GetComponentInParent<CookingClick>()) return true;
+        if (col.GetComponentInParent<BlacksmithingClick>()) return true;
         if (col.GetComponentInParent<ItemDrop>()) return true;
         if (col.GetComponentInParent<ResourceNode>()) return true;
         if (col.GetComponentInParent<NPCInteractionSettings>()) return true;
@@ -399,6 +413,13 @@ public static class WorldInteractRouter
         if (cooking != null)
         {
             cooking.Open();
+            return;
+        }
+
+        BlacksmithingClick blacksmithing = col.GetComponentInParent<BlacksmithingClick>();
+        if (blacksmithing != null)
+        {
+            blacksmithing.Open();
             return;
         }
 
@@ -492,6 +513,7 @@ public static class WorldInteractRouter
         MerchantClick.CancelPendingOpen();
         FurnaceClick.CancelPendingOpen();
         CookingClick.CancelPendingOpen();
+        BlacksmithingClick.CancelPendingOpen();
         NPCInteractionSettings.CancelPendingInteract();
         MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
         InMapTeleporter.CancelPendingApproachForPlayer(player);

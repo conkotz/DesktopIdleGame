@@ -57,6 +57,8 @@ public static class InventoryDragIconPool
             s_overlayCanvas.sortingOrder = FurnaceUI.CanvasSortingOrder + 1;
         else if (CookingUI.IsOpen && CookingUI.ContainsScreenPoint(screenPoint, eventCamera))
             s_overlayCanvas.sortingOrder = CookingUI.CanvasSortingOrder + 1;
+        else if (BlacksmithingUI.IsOpen && BlacksmithingUI.ContainsScreenPoint(screenPoint, eventCamera))
+            s_overlayCanvas.sortingOrder = BlacksmithingUI.CanvasSortingOrder + 1;
         else
             s_overlayCanvas.sortingOrder = s_baseSortOrder;
     }

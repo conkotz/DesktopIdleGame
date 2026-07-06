@@ -133,6 +133,7 @@ public class FurnaceClick : MonoBehaviour
         CacheRefs();
         MerchantClick.ForceCloseMerchantMode();
         CookingClick.ForceClose();
+        BlacksmithingClick.ForceClose();
         StorageClick.ForceCloseStorageMode();
 
         _active = this;

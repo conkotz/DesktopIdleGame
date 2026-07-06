@@ -392,6 +392,8 @@ public sealed class MovePivotsModeController : MonoBehaviour
             FurnaceUI.Instance?.Close();
         if (CookingUI.IsOpen)
             CookingUI.Instance?.Close();
+        if (BlacksmithingUI.IsOpen)
+            BlacksmithingUI.Instance?.Close();
 
         if (QuickMenuPanelToggleUI.IsOpen)
         {

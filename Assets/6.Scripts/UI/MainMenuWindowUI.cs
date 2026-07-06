@@ -497,6 +497,7 @@ public class MainMenuWindowUI : MonoBehaviour
         StorageClick.ForceCloseStorageMode();
         FurnaceClick.ForceClose();
         CookingClick.ForceClose();
+        BlacksmithingClick.ForceClose();
 
         if (!mainMenuWindow)
         {
@@ -604,6 +605,7 @@ public class MainMenuWindowUI : MonoBehaviour
             StorageClick.ForceCloseStorageMode();
         FurnaceClick.ForceClose();
         CookingClick.ForceClose();
+        BlacksmithingClick.ForceClose();
 
         if (targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();

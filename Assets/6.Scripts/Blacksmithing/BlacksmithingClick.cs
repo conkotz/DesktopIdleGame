@@ -2,34 +2,34 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
-public class CookingClick : MonoBehaviour
+public class BlacksmithingClick : MonoBehaviour
 {
-    [SerializeField] private CookingStation station;
+    [SerializeField] private BlacksmithingStation station;
     [SerializeField] private PlayerController player;
     [SerializeField] private Collider2D rangeCollider;
     [SerializeField] private float openWhenWithinXDistance = 0.15f;
     [SerializeField] private float closeWhenBeyondDistance = 5f;
 
-    private static CookingClick _active;
-    private static CookingClick _pendingOpen;
+    private static BlacksmithingClick _active;
+    private static BlacksmithingClick _pendingOpen;
     private Coroutine _openWhenArrivedRoutine;
 
-    public static CookingClick PendingOpen => _pendingOpen;
-    public static bool IsCookingOpen => _active != null && CookingUI.IsOpen;
+    public static BlacksmithingClick PendingOpen => _pendingOpen;
+    public static bool IsBlacksmithingOpen => _active != null && BlacksmithingUI.IsOpen;
 
-    public bool IsEngagedWithPlayer() => _active == this && CookingUI.IsOpen;
+    public bool IsEngagedWithPlayer() => _active == this && BlacksmithingUI.IsOpen;
 
     private void Awake()
     {
         CacheRefs();
         if (!GetComponent<Collider2D>())
-            Debug.LogError("[CookingClick] Missing Collider2D.", this);
+            Debug.LogError("[BlacksmithingClick] Missing Collider2D.", this);
     }
 
     private void CacheRefs()
     {
         if (!station)
-            station = GetComponent<CookingStation>();
+            station = GetComponent<BlacksmithingStation>();
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (!rangeCollider)
@@ -40,8 +40,8 @@ public class CookingClick : MonoBehaviour
     {
         if (_active == this)
         {
-            if (CookingUI.IsOpen && CookingUI.Instance != null)
-                CookingUI.Instance.Close();
+            if (BlacksmithingUI.IsOpen && BlacksmithingUI.Instance != null)
+                BlacksmithingUI.Instance.Close();
             _active = null;
         }
 
@@ -51,7 +51,7 @@ public class CookingClick : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (_active != this || !CookingUI.IsOpen)
+        if (_active != this || !BlacksmithingUI.IsOpen)
             return;
 
         CacheRefs();
@@ -70,10 +70,8 @@ public class CookingClick : MonoBehaviour
         if (player == null)
             return float.MaxValue;
 
-        Vector2 furnacePos = rangeCollider != null
-            ? rangeCollider.bounds.center
-            : transform.position;
-        return Vector2.Distance(player.transform.position, furnacePos);
+        Vector2 pos = rangeCollider != null ? rangeCollider.bounds.center : transform.position;
+        return Vector2.Distance(player.transform.position, pos);
     }
 
     public void Open()
@@ -81,11 +79,11 @@ public class CookingClick : MonoBehaviour
         CacheRefs();
         if (!station)
         {
-            Debug.LogError("[CookingClick] CookingStation not found.", this);
+            Debug.LogError("[BlacksmithingClick] BlacksmithingStation not found.", this);
             return;
         }
 
-        if (_active == this && CookingUI.IsOpen)
+        if (_active == this && BlacksmithingUI.IsOpen)
             return;
 
         CancelPendingOpen();
@@ -133,17 +131,17 @@ public class CookingClick : MonoBehaviour
         CacheRefs();
         MerchantClick.ForceCloseMerchantMode();
         FurnaceClick.ForceClose();
-        BlacksmithingClick.ForceClose();
+        CookingClick.ForceClose();
         StorageClick.ForceCloseStorageMode();
 
         _active = this;
-        CookingUI.EnsureInstance().Open(station, this);
+        BlacksmithingUI.EnsureInstance().Open(station, this);
     }
 
     public static void ForceClose()
     {
-        CookingUI ui = CookingUI.Instance;
-        if (ui != null && CookingUI.IsOpen)
+        BlacksmithingUI ui = BlacksmithingUI.Instance;
+        if (ui != null && BlacksmithingUI.IsOpen)
             ui.Close();
 
         _active = null;
@@ -155,7 +153,7 @@ public class CookingClick : MonoBehaviour
         if (_pendingOpen == null)
             return;
 
-        CookingClick pending = _pendingOpen;
+        BlacksmithingClick pending = _pendingOpen;
         _pendingOpen = null;
         if (pending != null && pending._openWhenArrivedRoutine != null)
         {

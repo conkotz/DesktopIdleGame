@@ -50,6 +50,7 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
         DontDestroyOnLoad(gameObject);
         EnsureSkill(ProcessingSkillType.Smelting);
         EnsureSkill(ProcessingSkillType.Cooking);
+        EnsureSkill(ProcessingSkillType.Blacksmithing);
     }
 
     private void OnDestroy()
@@ -85,6 +86,9 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
 
     public CookingProficiencyBonuses GetCookingBonuses() =>
         CookingProficiencyBonuses.ForLevel(GetLevel(ProcessingSkillType.Cooking));
+
+    public BlacksmithingProficiencyBonuses GetBlacksmithingBonuses() =>
+        BlacksmithingProficiencyBonuses.ForLevel(GetLevel(ProcessingSkillType.Blacksmithing));
 
     public float GetActiveWorkCooldownRemaining() =>
         Mathf.Max(0f, _nextActiveWorkUnscaledTime - Time.unscaledTime);
@@ -139,6 +143,33 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
 
     public void AddSmeltingBarXp(SmeltingRecipe recipe) =>
         AddXp(ProcessingSkillType.Smelting, ProcessingSkillCurves.GetSmeltingBarXp(recipe));
+
+    public bool TryApplyBlacksmithingActiveWork(BlacksmithingRuntime.BlacksmithingRow row, out string failureReason)
+    {
+        failureReason = null;
+        if (row == null || !row.IsCrafting)
+        {
+            failureReason = "No forging in progress.";
+            return false;
+        }
+
+        if (Time.unscaledTime < _nextActiveWorkUnscaledTime)
+        {
+            failureReason = "Speed Up on cooldown.";
+            return false;
+        }
+
+        float reduction = GetBlacksmithingBonuses().ActiveWorkSecondsPerClick;
+        if (row.TickCrafting(reduction))
+            RequestSaveDebounced();
+
+        _nextActiveWorkUnscaledTime = Time.unscaledTime + ActiveWorkCooldownSeconds;
+        Changed?.Invoke();
+        return true;
+    }
+
+    public void AddBlacksmithingCraftXp(BlacksmithingRecipe recipe) =>
+        AddXp(ProcessingSkillType.Blacksmithing, ProcessingSkillCurves.GetBlacksmithingCraftXp(recipe));
 
     public void AddCookingFishXp(CookingRecipe recipe) =>
         AddXp(ProcessingSkillType.Cooking, ProcessingSkillCurves.GetCookingFishXp(recipe));
@@ -208,6 +239,8 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
                 GameLog.Add($"Smelting level {state.Level}!", GameLog.LevelAvailableColor);
             else if (type == ProcessingSkillType.Cooking)
                 GameLog.Add($"Cooking level {state.Level}!", GameLog.LevelAvailableColor);
+            else if (type == ProcessingSkillType.Blacksmithing)
+                GameLog.Add($"Blacksmithing level {state.Level}!", GameLog.LevelAvailableColor);
         }
 
         if (state.Level >= ProcessingSkillCurves.MaxLevel)
@@ -248,6 +281,7 @@ public sealed class ProcessingProficiencyRuntime : MonoBehaviour, ISaveable
         _skills.Clear();
         EnsureSkill(ProcessingSkillType.Smelting);
         EnsureSkill(ProcessingSkillType.Cooking);
+        EnsureSkill(ProcessingSkillType.Blacksmithing);
 
         if (data?.processingProficiency == null)
             return;
