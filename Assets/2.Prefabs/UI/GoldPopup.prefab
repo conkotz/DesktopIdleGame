@@ -166,6 +166,19 @@ MonoBehaviour:
   sourceLineColor: {r: 0.74, g: 0.77, b: 0.82, a: 1}
   goldOutlineWidth: 0.28
   goldOutlineColor: {r: 0.12, g: 0.08, b: 0.02, a: 1}
+  questRewardFloatUpPx: 44
+  questRewardFadeInDuration: 0.25
+  questRewardRiseDuration: 0.85
+  questRewardLingerSeconds: 4
+  questRewardFadeDuration: 1
+  questRewardScale: 0.28
+  questRewardFontSize: 17
+  questRewardMinWidth: 420
+  questRewardHorizontalPadding: 16
+  questRewardItemColor: {r: 0.35, g: 0.72, b: 1, a: 1}
+  questRewardOutlineWidth: 0.22
+  questRewardOutlineColor: {r: 0.05, g: 0.12, b: 0.2, a: 1}
+  questRewardStackLineGap: 1
 --- !u!1 &9123456780123456790
 GameObject:
   m_ObjectHideFlags: 0

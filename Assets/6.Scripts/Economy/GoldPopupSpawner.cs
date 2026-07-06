@@ -23,10 +23,11 @@ public class GoldPopupSpawner : MonoBehaviour
 
     [Header("Quest reward item anchor")]
     [Tooltip("Extra world-space offset for quest reward item popups — lower Y keeps text near the character, not the top of the strip.")]
-    [SerializeField] private Vector3 questRewardAnchorExtraWorld = new Vector3(0f, -0.72f, 0f);
-    [SerializeField] private float questRewardStackVerticalSpacing = 22f;
-    [Tooltip("Delay between sequential quest reward item popups so multiple rewards do not spawn on top of each other.")]
-    [SerializeField] private float questRewardPopupSpawnInterval = 0.5f;
+    [SerializeField] private Vector3 questRewardAnchorExtraWorld = new Vector3(0f, -0.55f, 0f);
+    [Tooltip("Vertical gap between stacked quest reward lines at apex (0 = auto from popup height).")]
+    [SerializeField] private float questRewardStackVerticalSpacing = 0f;
+    [Tooltip("Delay between sequential quest reward popups (each fades in and floats to its stack slot).")]
+    [SerializeField] private float questRewardPopupSpawnInterval = 0.4f;
 
     [Header("Gathering XP sequence")]
     [Tooltip("Delay between sequential +xp popups so simultaneous gains do not stack awkwardly.")]
@@ -51,6 +52,7 @@ public class GoldPopupSpawner : MonoBehaviour
 
     private Camera _cam;
     private readonly List<bool> _stackSlotBusy = new List<bool>();
+    private readonly List<bool> _questRewardStackSlotBusy = new List<bool>();
     private Canvas _topPopupCanvas;
     private bool _subscribedXpGained;
     private readonly Queue<QueuedQuestRewardPopup> _queuedQuestRewardPopups = new();
@@ -60,7 +62,6 @@ public class GoldPopupSpawner : MonoBehaviour
 
     private struct QueuedQuestRewardPopup
     {
-        public Vector3 WorldPos;
         public string Text;
     }
 
@@ -170,7 +171,7 @@ public class GoldPopupSpawner : MonoBehaviour
 
         string label = ItemGainPopupNotifier.ResolveDisplayLabel(itemId, amount);
         string text = amount > 1 ? $"+{amount} {label}" : $"+{label}";
-        EnqueueQuestRewardPopup(playerWorld.position + worldOffset + questRewardAnchorExtraWorld, text);
+        EnqueueQuestRewardPopup(text);
     }
 
     /// <summary>World anchor = player + same base offset as gold + optional extra for XP; motion matches gold gains (rise + fade).</summary>
@@ -191,14 +192,13 @@ public class GoldPopupSpawner : MonoBehaviour
         EnqueueGatheringXpPopup(playerWorld.position + worldOffset + gatheringXpAnchorExtraWorld, amount);
     }
 
-    private void EnqueueQuestRewardPopup(Vector3 worldPos, string text)
+    private void EnqueueQuestRewardPopup(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
 
         _queuedQuestRewardPopups.Enqueue(new QueuedQuestRewardPopup
         {
-            WorldPos = worldPos,
             Text = text
         });
 
@@ -211,7 +211,10 @@ public class GoldPopupSpawner : MonoBehaviour
         while (_queuedQuestRewardPopups.Count > 0)
         {
             QueuedQuestRewardPopup next = _queuedQuestRewardPopups.Dequeue();
-            SpawnQuestRewardItemPopupAtWorld(next.WorldPos, next.Text);
+            SpawnQuestRewardItemPopup(next.Text);
+
+            if (_queuedQuestRewardPopups.Count == 0)
+                break;
 
             float wait = Mathf.Max(0f, questRewardPopupSpawnInterval);
             if (wait > 0f)
@@ -281,30 +284,38 @@ public class GoldPopupSpawner : MonoBehaviour
         popup.PlayLocalTextWithGoldGainMotion(localPoint, $"+{amount} xp", gatheringXpTextColor, null);
     }
 
-    private void SpawnQuestRewardItemPopupAtWorld(Vector3 worldPos, string text)
+    private void SpawnQuestRewardItemPopup(string text)
     {
         if (string.IsNullOrWhiteSpace(text) || !popupPrefab)
             return;
 
         Rebind();
 
+        if (!playerWorld)
+            return;
+
         Camera cam = ResolveWorldProjectionCamera();
         if (!cam)
             return;
 
-        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
         Canvas targetCanvas = GetPopupTargetCanvas();
         if (targetCanvas == null)
             return;
         RectTransform canvasRect = targetCanvas.transform as RectTransform;
 
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
-            return;
-
+        int slot = AcquireQuestRewardStackSlot();
         var popup = Instantiate(popupPrefab, targetCanvas.transform);
         BringPopupToFront(popup);
-        popup.PlayLocalQuestRewardItem(localPoint, text, null);
+        popup.PlayLocalQuestRewardItem(
+            playerWorld,
+            worldOffset + questRewardAnchorExtraWorld,
+            text,
+            slot,
+            questRewardStackVerticalSpacing,
+            cam,
+            canvasRect,
+            GetRectEventCamera(targetCanvas),
+            () => ReleaseQuestRewardStackSlot(slot));
     }
 
     private void SpawnTextPopupAtWorld(Vector3 worldPos, string text, Color color)
@@ -548,6 +559,28 @@ public class GoldPopupSpawner : MonoBehaviour
         if (slot < 0 || slot >= _stackSlotBusy.Count)
             return;
         _stackSlotBusy[slot] = false;
+    }
+
+    private int AcquireQuestRewardStackSlot()
+    {
+        for (int i = 0; i < _questRewardStackSlotBusy.Count; i++)
+        {
+            if (!_questRewardStackSlotBusy[i])
+            {
+                _questRewardStackSlotBusy[i] = true;
+                return i;
+            }
+        }
+
+        _questRewardStackSlotBusy.Add(true);
+        return _questRewardStackSlotBusy.Count - 1;
+    }
+
+    private void ReleaseQuestRewardStackSlot(int slot)
+    {
+        if (slot < 0 || slot >= _questRewardStackSlotBusy.Count)
+            return;
+        _questRewardStackSlotBusy[slot] = false;
     }
 
     private void ClearPopupQueues()

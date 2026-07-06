@@ -35,10 +35,11 @@ public class GoldPopup : MonoBehaviour
 
     [Header("Quest reward item popup")]
     [Tooltip("Slower rise/linger/fade than +gold so players can read item names from quest claims.")]
-    [SerializeField] private float questRewardFloatUpPx = 24f;
-    [SerializeField] private float questRewardRiseDuration = 2f;
-    [SerializeField] private float questRewardLingerSeconds = 3.5f;
-    [SerializeField] private float questRewardFadeDuration = 1.2f;
+    [SerializeField] private float questRewardFloatUpPx = 44f;
+    [SerializeField] private float questRewardFadeInDuration = 0.25f;
+    [SerializeField] private float questRewardRiseDuration = 0.85f;
+    [SerializeField] private float questRewardLingerSeconds = 4f;
+    [SerializeField] private float questRewardFadeDuration = 1f;
     [SerializeField, Range(0.1f, 1f)] private float questRewardScale = 0.28f;
     [SerializeField] private float questRewardFontSize = 17f;
     [SerializeField] private float questRewardMinWidth = 420f;
@@ -46,11 +47,22 @@ public class GoldPopup : MonoBehaviour
     [SerializeField] private Color questRewardItemColor = new Color(0.35f, 0.72f, 1f, 1f);
     [SerializeField] private float questRewardOutlineWidth = 0.22f;
     [SerializeField] private Color questRewardOutlineColor = new Color(0.05f, 0.12f, 0.2f, 1f);
+    [Tooltip("Extra pixels between stacked quest reward lines (parent canvas space).")]
+    [SerializeField] private float questRewardStackLineGap = 1f;
 
     private RectTransform _rt;
     private Coroutine _co;
     private Color _sourceFadeBase = Color.white;
     private Action _onComplete;
+
+    private bool _useQuestWorldFollow;
+    private Transform _questFollowTarget;
+    private Vector3 _questWorldOffset;
+    private float _questStackApexDownOffset;
+    private Vector2 _fallbackLocalStart;
+    private Camera _questWorldCam;
+    private RectTransform _questParentRect;
+    private Camera _questOverlayEventCam;
 
     /// <summary>Wall-clock duration for message-style popups (unscaled).</summary>
     public float TotalPhasedAnimationDuration =>
@@ -61,7 +73,10 @@ public class GoldPopup : MonoBehaviour
 
     /// <summary>Wall-clock duration for quest reward item popups (unscaled).</summary>
     public float TotalQuestRewardItemAnimationDuration =>
-        Mathf.Max(0f, questRewardRiseDuration) + Mathf.Max(0f, questRewardLingerSeconds) + Mathf.Max(0f, questRewardFadeDuration);
+        Mathf.Max(0f, questRewardFadeInDuration)
+        + Mathf.Max(0f, questRewardRiseDuration)
+        + Mathf.Max(0f, questRewardLingerSeconds)
+        + Mathf.Max(0f, questRewardFadeDuration);
 
     private void Awake()
     {
@@ -116,6 +131,52 @@ public class GoldPopup : MonoBehaviour
     /// <summary>Quest reward items: slow float-up, green text, long linger (same anchor as gold gains).</summary>
     public void PlayLocalQuestRewardItem(Vector2 startAnchoredPos, string text, Action onComplete)
     {
+        PlayLocalQuestRewardItem(startAnchoredPos, text, 0, 0f, onComplete);
+    }
+
+    /// <param name="stackSlot">0 = highest apex; each additional reward stacks below with <paramref name="stackSpacing"/> gap.</param>
+    public void PlayLocalQuestRewardItem(Vector2 startAnchoredPos, string text, int stackSlot, float stackSpacing, Action onComplete)
+    {
+        BeginQuestRewardItem(text, stackSlot, stackSpacing, onComplete);
+        _useQuestWorldFollow = false;
+        _fallbackLocalStart = startAnchoredPos;
+
+        if (_rt != null)
+            _rt.anchoredPosition = startAnchoredPos;
+
+        if (_co != null) StopCoroutine(_co);
+        _co = StartCoroutine(AnimAnchoredQuestRewardItem(questRewardItemColor));
+    }
+
+    /// <summary>Quest rewards anchored to a moving world target (e.g. player).</summary>
+    public void PlayLocalQuestRewardItem(
+        Transform followTarget,
+        Vector3 worldOffset,
+        string text,
+        int stackSlot,
+        float stackSpacing,
+        Camera worldCam,
+        RectTransform parentRect,
+        Camera overlayEventCam,
+        Action onComplete)
+    {
+        BeginQuestRewardItem(text, stackSlot, stackSpacing, onComplete);
+        _useQuestWorldFollow = followTarget != null && worldCam != null && parentRect != null;
+        _questFollowTarget = followTarget;
+        _questWorldOffset = worldOffset;
+        _questWorldCam = worldCam;
+        _questParentRect = parentRect;
+        _questOverlayEventCam = overlayEventCam;
+
+        if (_rt != null)
+            _rt.anchoredPosition = GetQuestStartLocal();
+
+        if (_co != null) StopCoroutine(_co);
+        _co = StartCoroutine(AnimAnchoredQuestRewardItem(questRewardItemColor));
+    }
+
+    private void BeginQuestRewardItem(string text, int stackSlot, float stackSpacing, Action onComplete)
+    {
         _onComplete = onComplete;
         gameObject.SetActive(true);
 
@@ -131,13 +192,59 @@ public class GoldPopup : MonoBehaviour
         ConfigureSourceLine(null);
 
         if (_rt != null)
-        {
-            _rt.anchoredPosition = startAnchoredPos;
             _rt.localScale = Vector3.one * questRewardScale;
-        }
 
-        if (_co != null) StopCoroutine(_co);
-        _co = StartCoroutine(AnimAnchoredQuestRewardItem(startAnchoredPos, questRewardItemColor));
+        float stackStep = ResolveQuestRewardStackStep(stackSpacing, text);
+        _questStackApexDownOffset = Mathf.Max(0, stackSlot) * stackStep;
+    }
+
+    private Vector2 GetQuestStartLocal()
+    {
+        if (_useQuestWorldFollow)
+            return GetQuestBaseLocal();
+
+        return _fallbackLocalStart;
+    }
+
+    private Vector2 GetQuestApexLocal()
+    {
+        Vector2 start = GetQuestStartLocal();
+        return start + Vector2.up * questRewardFloatUpPx - Vector2.up * _questStackApexDownOffset;
+    }
+
+    private Vector2 GetQuestBaseLocal()
+    {
+        if (!_questFollowTarget || !_questParentRect || !_questWorldCam)
+            return _rt != null ? _rt.anchoredPosition : Vector2.zero;
+
+        Vector3 world = _questFollowTarget.position + _questWorldOffset;
+        Vector3 screen = _questWorldCam.WorldToScreenPoint(world);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _questParentRect, screen, _questOverlayEventCam, out Vector2 local))
+            return local;
+
+        return _rt != null ? _rt.anchoredPosition : Vector2.zero;
+    }
+
+    private void ClearQuestWorldFollow()
+    {
+        _useQuestWorldFollow = false;
+        _questFollowTarget = null;
+        _questWorldCam = null;
+        _questParentRect = null;
+        _questOverlayEventCam = null;
+    }
+
+    private float ResolveQuestRewardStackStep(float stackSpacing, string text)
+    {
+        if (stackSpacing > 0f)
+            return stackSpacing;
+
+        float lineHeight = questRewardFontSize;
+        if (label && !string.IsNullOrEmpty(text))
+            lineHeight = label.GetPreferredValues(text).y;
+
+        return Mathf.Max(4f, lineHeight * questRewardScale + questRewardStackLineGap);
     }
 
     private void PlayLocalTextCore(Vector2 startAnchoredPos, string text, Color color, bool applyGoldStroke, Action onComplete, bool useGoldLegacyFade)
@@ -184,10 +291,11 @@ public class GoldPopup : MonoBehaviour
         label.alignment = TextAlignmentOptions.Center;
 
         float preferredWidth = label.GetPreferredValues(text).x;
+        float preferredHeight = label.GetPreferredValues(text).y;
         float width = Mathf.Max(questRewardMinWidth, preferredWidth + questRewardHorizontalPadding);
 
         if (_rt != null)
-            _rt.sizeDelta = new Vector2(width, _rt.sizeDelta.y);
+            _rt.sizeDelta = new Vector2(width, preferredHeight);
 
         RectTransform labelRt = label.rectTransform;
         if (labelRt != null)
@@ -283,40 +391,60 @@ public class GoldPopup : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private IEnumerator AnimAnchoredQuestRewardItem(Vector2 start, Color baseColor)
+    private IEnumerator AnimAnchoredQuestRewardItem(Color baseColor)
     {
-        Vector2 apex = start + Vector2.up * questRewardFloatUpPx;
+        float fadeIn = Mathf.Max(0.0001f, questRewardFadeInDuration);
         float rise = Mathf.Max(0.0001f, questRewardRiseDuration);
         float linger = Mathf.Max(0f, questRewardLingerSeconds);
         float fade = Mathf.Max(0.0001f, questRewardFadeDuration);
 
-        float t = 0f;
-        while (t < rise)
+        ApplyAlpha(baseColor, 0f);
+        if (_rt != null)
+            _rt.anchoredPosition = GetQuestStartLocal();
+
+        float riseElapsed = 0f;
+        while (riseElapsed < rise)
         {
-            t += Time.unscaledDeltaTime;
-            float u = Mathf.Clamp01(t / rise);
+            riseElapsed += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(riseElapsed / rise);
             float ease = 1f - Mathf.Pow(1f - u, 2f);
             if (_rt != null)
+            {
+                Vector2 start = GetQuestStartLocal();
+                Vector2 apex = GetQuestApexLocal();
                 _rt.anchoredPosition = Vector2.LerpUnclamped(start, apex, ease);
-            ApplyAlpha(baseColor, 1f);
+            }
+
+            float alpha = riseElapsed < fadeIn ? Mathf.Clamp01(riseElapsed / fadeIn) : 1f;
+            ApplyAlpha(baseColor, alpha);
             yield return null;
         }
 
-        if (_rt != null)
-            _rt.anchoredPosition = apex;
+        yield return LingerAndFadeQuestReward(baseColor, linger, fade);
+    }
 
-        t = 0f;
+    private IEnumerator LingerAndFadeQuestReward(Color baseColor, float linger, float fade)
+    {
+        if (_rt != null)
+            _rt.anchoredPosition = GetQuestApexLocal();
+
+        float t = 0f;
         while (t < linger)
         {
             t += Time.unscaledDeltaTime;
+            if (_rt != null)
+                _rt.anchoredPosition = GetQuestApexLocal();
             ApplyAlpha(baseColor, 1f);
             yield return null;
         }
 
         t = 0f;
+        fade = Mathf.Max(0.0001f, fade);
         while (t < fade)
         {
             t += Time.unscaledDeltaTime;
+            if (_rt != null)
+                _rt.anchoredPosition = GetQuestApexLocal();
             float u = Mathf.Clamp01(t / fade);
             ApplyAlpha(baseColor, 1f - u);
             yield return null;
@@ -324,6 +452,7 @@ public class GoldPopup : MonoBehaviour
 
         var complete = _onComplete;
         _onComplete = null;
+        ClearQuestWorldFollow();
         complete?.Invoke();
         gameObject.SetActive(false);
     }
