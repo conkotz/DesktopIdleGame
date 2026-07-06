@@ -66,10 +66,10 @@ public readonly struct BlacksmithingProficiencyBonuses
     public static readonly ProcessingProficiencyUnlockLines.Row[] ContentUnlockRows =
     {
         new(1, "Can craft stone gear"),
-        new(5, "Can craft iron gear"),
-        new(10, "Can craft mythril gear"),
-        new(20, "Can craft runite gear"),
-        new(30, "Can craft celestium gear"),
+        new(10, "Can craft iron gear"),
+        new(20, "Can craft mythril gear"),
+        new(30, "Can craft runite gear"),
+        new(40, "Can craft celestium gear"),
     };
 
     public static readonly UnlockRow[] UnlockRows =

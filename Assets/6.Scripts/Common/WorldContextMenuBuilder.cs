@@ -46,6 +46,30 @@ public static class WorldContextMenuBuilder
         if (node != null)
             return ResourceContextMenuBuilder.Build(node, player);
 
+        BlacksmithingClick blacksmithing = col.GetComponentInParent<BlacksmithingClick>();
+        if (blacksmithing != null)
+        {
+            entries.Add(new ContextMenuEntry("Smith", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            AddWalkHere(entries, col, player);
+            return entries;
+        }
+
+        FurnaceClick furnace = col.GetComponentInParent<FurnaceClick>();
+        if (furnace != null)
+        {
+            entries.Add(new ContextMenuEntry("Smelt", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            AddWalkHere(entries, col, player);
+            return entries;
+        }
+
+        CookingClick cooking = col.GetComponentInParent<CookingClick>();
+        if (cooking != null)
+        {
+            entries.Add(new ContextMenuEntry("Cook", () => WorldInteractRouter.RouteContextTalk(col, player)));
+            AddWalkHere(entries, col, player);
+            return entries;
+        }
+
         if (WorldInteractRouter.IsNoticeBoardCollider(col))
         {
             entries.Add(new ContextMenuEntry("Read", () => WorldInteractRouter.RouteContextRead(col, player)));

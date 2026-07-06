@@ -41,19 +41,35 @@ public static class ProcessingSkillCurves
         };
     }
 
+    /// <summary>Blacksmithing XP from recipe ingredients (base amounts).</summary>
     public static int GetBlacksmithingCraftXp(BlacksmithingRecipe recipe)
     {
-        string outputId = recipe.OutputItemId;
-        if (string.IsNullOrWhiteSpace(outputId))
-            return 15;
+        if (recipe.Ingredients == null || recipe.Ingredients.Length == 0)
+            return 1;
 
-        return outputId.ToLowerInvariant() switch
+        int total = 0;
+        for (int i = 0; i < recipe.Ingredients.Length; i++)
         {
-            "stone_sword" or "stone_dagger" or "stone_shield" or "stone_helmet" or "stone_platebody" => 12,
-            "stone_spear" or "poison_dagger" => 18,
-            "knights_polearm" => 28,
-            "ghorrocks_mace" => 35,
-            _ => 15
+            BlacksmithingIngredient ing = recipe.Ingredients[i];
+            total += GetBlacksmithingIngredientXpPerUnit(ing.ItemId) * ing.Amount;
+        }
+
+        return Mathf.Max(1, total);
+    }
+
+    public static int GetBlacksmithingIngredientXpPerUnit(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        return itemId.Trim().ToLowerInvariant() switch
+        {
+            "stone_chunk" => 1,
+            "iron_bar" => 10,
+            "mythril_bar" => 15,
+            "runite_bar" => 20,
+            "celestium_bar" => 25,
+            _ => 0
         };
     }
 }

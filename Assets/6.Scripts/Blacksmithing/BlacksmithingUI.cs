@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -23,6 +24,7 @@ public class BlacksmithingUI : MonoBehaviour
     private BlacksmithingClick _clickSource;
     private Inventory _inventory;
     private ItemDatabase _itemDb;
+    private SharedTooltipUI _sharedTooltip;
 
     private Canvas _canvas;
     private RectTransform _root;
@@ -40,6 +42,7 @@ public class BlacksmithingUI : MonoBehaviour
     private Button _actionButton;
     private Button _recipeButton;
     private Button _outputButton;
+    private BlacksmithingItemTooltipHover _outputTooltipHover;
     private Button _helpButton;
     private Button _blacksmithingLevelButton;
     private TMP_Text _blacksmithingLevelButtonText;
@@ -49,7 +52,7 @@ public class BlacksmithingUI : MonoBehaviour
     private TMP_Text _activeWorkButtonText;
 
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 1;
+    private const int UiLayoutVersion = 6;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -60,6 +63,19 @@ public class BlacksmithingUI : MonoBehaviour
     private float _nextBlockedLogTime;
     private bool _proficiencySubscribed;
     private string _selectedPickerOutputId = "";
+
+    private enum RecipeGearFilter
+    {
+        All,
+        Weapons,
+        Armour
+    }
+
+    private RecipeGearFilter _recipeGearFilter = RecipeGearFilter.All;
+    private Button _filterWeaponsButton;
+    private Button _filterArmourButton;
+    private Image _filterWeaponsButtonImage;
+    private Image _filterArmourButtonImage;
 
     private const string HelpBodyText =
         "The blacksmithing anvil crafts weapons and armor from bars and materials.\n\n" +
@@ -216,6 +232,7 @@ public class BlacksmithingUI : MonoBehaviour
 
         if (recordLayout)
             ProcessingSkillsWindowLayout.RecordSessionFromPanel(_root, _canvas);
+        HideItemTooltip();
         HideImmediate();
         _clickSource?.NotifyClosed();
         _clickSource = null;
@@ -239,6 +256,15 @@ public class BlacksmithingUI : MonoBehaviour
             _inventory = Inventory.ResolvePlayer();
         if (!_itemDb)
             _itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        EnsureSharedTooltip();
+    }
+
+    private void EnsureSharedTooltip()
+    {
+        if (_sharedTooltip != null)
+            return;
+
+        _sharedTooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
     }
 
     private void Refresh()
@@ -306,6 +332,7 @@ public class BlacksmithingUI : MonoBehaviour
         string itemId = ResolveOutputSlotItemId();
         int amount = _station.HasReadyOutput ? 1 : 0;
         ApplySlot(_outputIcon, _outputAmountText, itemId, amount, "Output", _itemDb);
+        _outputTooltipHover?.SetItemId(itemId);
     }
 
     private string ResolveOutputSlotItemId()
@@ -731,6 +758,7 @@ public class BlacksmithingUI : MonoBehaviour
         if (_recipePickerScrollContent == null)
             return;
 
+        HideItemTooltip();
         CacheRefs();
         for (int i = _recipePickerScrollContent.childCount - 1; i >= 0; i--)
             Destroy(_recipePickerScrollContent.GetChild(i).gameObject);
@@ -746,10 +774,19 @@ public class BlacksmithingUI : MonoBehaviour
             if (recipes.Count == 0)
                 continue;
 
-            CreateRecipeCategoryHeader(category);
+            bool categoryHeaderCreated = false;
             for (int i = 0; i < recipes.Count; i++)
             {
                 BlacksmithingRecipe recipe = recipes[i];
+                if (!RecipeMatchesGearFilter(recipe))
+                    continue;
+
+                if (!categoryHeaderCreated)
+                {
+                    CreateRecipeCategoryHeader(category);
+                    categoryHeaderCreated = true;
+                }
+
                 bool levelTooLow = playerLevel < recipe.RequiredLevel;
                 bool selected = string.Equals(_station != null ? _station.SelectedRecipeOutputId : "", recipe.OutputItemId, StringComparison.OrdinalIgnoreCase);
                 CreateRecipePickerRow(recipe, levelTooLow, selected);
@@ -798,11 +835,12 @@ public class BlacksmithingUI : MonoBehaviour
         string outputId = recipe.OutputItemId;
         string outputName = GetItemDisplayName(outputId, outputId);
         string ingredients = BuildIngredientSummary(recipe);
+        int xp = ProcessingSkillCurves.GetBlacksmithingCraftXp(recipe);
 
         var row = CreateUiObject("RecipeRow", _recipePickerScrollContent, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
         var rowLe = row.GetComponent<LayoutElement>();
-        rowLe.preferredHeight = 54f;
-        rowLe.minHeight = 54f;
+        rowLe.preferredHeight = 66f;
+        rowLe.minHeight = 66f;
         row.GetComponent<Image>().color = selected ? PickerRowSelectedBg : PickerRowBg;
 
         var button = row.GetComponent<Button>();
@@ -814,7 +852,47 @@ public class BlacksmithingUI : MonoBehaviour
         textRt.offsetMin = new Vector2(8f, 4f);
         textRt.offsetMax = new Vector2(-8f, -4f);
         text.textWrappingMode = TextWrappingModes.Normal;
-        text.text = $"{outputName}\nLv {recipe.RequiredLevel} — {ingredients}";
+        text.text = $"{outputName}\nLv {recipe.RequiredLevel}\nReq: {ingredients} ({xp} XP)";
+
+        var hover = row.AddComponent<BlacksmithingItemTooltipHover>();
+        hover.Initialize(this, outputId);
+    }
+
+    private bool RecipeMatchesGearFilter(BlacksmithingRecipe recipe)
+    {
+        if (_recipeGearFilter == RecipeGearFilter.All)
+            return true;
+
+        ItemDefinition def = _itemDb != null ? _itemDb.Get(recipe.OutputItemId) : null;
+        if (def == null)
+            return true;
+
+        return _recipeGearFilter == RecipeGearFilter.Weapons ? def.IsWeapon : def.IsArmour;
+    }
+
+    private void OnWeaponsFilterClicked() => ToggleRecipeGearFilter(RecipeGearFilter.Weapons);
+
+    private void OnArmourFilterClicked() => ToggleRecipeGearFilter(RecipeGearFilter.Armour);
+
+    private void ToggleRecipeGearFilter(RecipeGearFilter filter)
+    {
+        _recipeGearFilter = _recipeGearFilter == filter ? RecipeGearFilter.All : filter;
+        RefreshRecipeFilterButtonStyles();
+        RebuildRecipePicker();
+    }
+
+    private void RefreshRecipeFilterButtonStyles()
+    {
+        ApplyRecipeFilterButtonStyle(_filterWeaponsButtonImage, _recipeGearFilter == RecipeGearFilter.Weapons);
+        ApplyRecipeFilterButtonStyle(_filterArmourButtonImage, _recipeGearFilter == RecipeGearFilter.Armour);
+    }
+
+    private static void ApplyRecipeFilterButtonStyle(Image image, bool selected)
+    {
+        if (!image)
+            return;
+
+        image.color = selected ? PickerRowSelectedBg : PickerRowBg;
     }
 
     private void OnRecipeRowClicked(string outputItemId)
@@ -822,6 +900,7 @@ public class BlacksmithingUI : MonoBehaviour
         if (_station == null)
             return;
 
+        HideItemTooltip();
         _station.SelectRecipe(outputItemId);
         Refresh();
     }
@@ -874,6 +953,10 @@ public class BlacksmithingUI : MonoBehaviour
         {
             Destroy(_root.gameObject);
             _root = null;
+            _filterWeaponsButton = null;
+            _filterArmourButton = null;
+            _filterWeaponsButtonImage = null;
+            _filterArmourButtonImage = null;
             _recipePickerRoot = null;
             _recipePickerScrollContent = null;
             _helpPanelRoot = null;
@@ -888,6 +971,7 @@ public class BlacksmithingUI : MonoBehaviour
             _actionButtonText = null;
             _recipeButton = null;
             _outputButton = null;
+            _outputTooltipHover = null;
             _helpButton = null;
             _blacksmithingLevelButton = null;
             _blacksmithingLevelButtonText = null;
@@ -993,6 +1077,8 @@ public class BlacksmithingUI : MonoBehaviour
         arrowText.rectTransform.sizeDelta = new Vector2(28f, 28f);
 
         _outputButton = CreateSlotButton(slotsRow.transform, "Output", out _outputIcon, out _outputAmountText, OnOutputClicked);
+        _outputTooltipHover = _outputButton.gameObject.AddComponent<BlacksmithingItemTooltipHover>();
+        _outputTooltipHover.Initialize(this, "");
 
         var progressBg = CreateUiObject("ProgressBg", _root, typeof(RectTransform), typeof(Image));
         var progressBgRt = progressBg.GetComponent<RectTransform>();
@@ -1061,14 +1147,55 @@ public class BlacksmithingUI : MonoBehaviour
         layout.childControlHeight = true;
         layout.childForceExpandHeight = false;
 
-        var headerRow = CreateUiObject("Header", panel, typeof(RectTransform), typeof(LayoutElement));
-        headerRow.GetComponent<LayoutElement>().preferredHeight = 24f;
-        var headerText = CreateTmpText("Title", headerRow.transform, 16f, Accent, TextAlignmentOptions.MidlineLeft);
+        var headerRow = CreateUiObject("Header", panel, typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+        headerRow.GetComponent<LayoutElement>().preferredHeight = 26f;
+        var headerLayout = headerRow.GetComponent<HorizontalLayoutGroup>();
+        headerLayout.spacing = 3f;
+        headerLayout.childAlignment = TextAnchor.MiddleLeft;
+        headerLayout.childControlWidth = true;
+        headerLayout.childControlHeight = true;
+        headerLayout.childForceExpandWidth = false;
+        headerLayout.childForceExpandHeight = false;
+
+        var titleGo = CreateUiObject("Title", headerRow.transform, typeof(RectTransform), typeof(LayoutElement));
+        var titleLe = titleGo.GetComponent<LayoutElement>();
+        titleLe.preferredWidth = 58f;
+        titleLe.flexibleWidth = 1f;
+        var headerText = CreateTmpText("Label", titleGo.transform, 14f, Accent, TextAlignmentOptions.MidlineLeft);
         StretchFull(headerText.rectTransform);
         headerText.fontStyle = FontStyles.Bold;
         headerText.text = "Recipes";
 
-        _recipePickerScrollContent = BuildScrollListPanel(panel, preferredHeight: 320f);
+        _filterWeaponsButton = CreateRecipeFilterButton(headerRow.transform, "Weapons", OnWeaponsFilterClicked, out _filterWeaponsButtonImage);
+        _filterArmourButton = CreateRecipeFilterButton(headerRow.transform, "Armour", OnArmourFilterClicked, out _filterArmourButtonImage);
+        RefreshRecipeFilterButtonStyles();
+
+        _recipePickerScrollContent = BuildScrollListPanel(panel, preferredHeight: 300f);
+    }
+
+    private Button CreateRecipeFilterButton(
+        Transform parent,
+        string label,
+        UnityEngine.Events.UnityAction onClick,
+        out Image backgroundImage)
+    {
+        var go = CreateUiObject(label + "Filter", parent, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+        var layoutElement = go.GetComponent<LayoutElement>();
+        layoutElement.preferredWidth = 40f;
+        layoutElement.minWidth = 40f;
+        layoutElement.flexibleWidth = 0f;
+        layoutElement.preferredHeight = 20f;
+        backgroundImage = go.GetComponent<Image>();
+        backgroundImage.color = PickerRowBg;
+
+        var button = go.GetComponent<Button>();
+        button.onClick.AddListener(onClick);
+
+        var text = CreateTmpText("Label", go.transform, 9f, TextLight, TextAlignmentOptions.Center);
+        StretchFull(text.rectTransform);
+        text.overflowMode = TextOverflowModes.Truncate;
+        text.text = label;
+        return button;
     }
 
     private void BuildBlacksmithingXpBar(RectTransform parent)
@@ -1345,5 +1472,92 @@ public class BlacksmithingUI : MonoBehaviour
         if (go.TryGetComponent(out RectTransform rt))
             rt.localScale = Vector3.one;
         return go;
+    }
+
+    internal void ShowItemTooltip(Transform anchor, string itemId)
+    {
+        if (!anchor || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        CacheRefs();
+        if (_sharedTooltip == null || _itemDb == null)
+            return;
+
+        ItemDefinition def = _itemDb.Get(itemId);
+        if (def == null)
+            return;
+
+        var anchorRt = anchor as RectTransform ?? anchor.GetComponent<RectTransform>();
+        RectTransform boundsRect = _canvas != null ? _canvas.transform as RectTransform : _root;
+        if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper) && anchorRt != null && boundsRect != null)
+        {
+            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Right);
+            flipper.SetMeasureRect(anchorRt);
+            flipper.SetHeightRect(anchorRt);
+            flipper.SetBoundsRect(boundsRect);
+        }
+
+        _sharedTooltip.ShowAt(
+            anchor,
+            def,
+            1,
+            compact: false,
+            maskUnrolledRandomStats: def.HasRandomStatPool);
+        _sharedTooltip.PushOverlaySortOrder(CanvasSortingOrder + 100);
+    }
+
+    internal void HideItemTooltip()
+    {
+        EnsureSharedTooltip();
+        if (_sharedTooltip == null)
+            return;
+
+        _sharedTooltip.Hide();
+    }
+
+    private sealed class BlacksmithingItemTooltipHover : MonoBehaviour,
+        IPointerEnterHandler,
+        IPointerExitHandler,
+        IItemTooltipHoverSource
+    {
+        private BlacksmithingUI _owner;
+        private string _itemId = "";
+
+        public void Initialize(BlacksmithingUI owner, string itemId)
+        {
+            _owner = owner;
+            _itemId = itemId ?? "";
+        }
+
+        public void SetItemId(string itemId) => _itemId = itemId ?? "";
+
+        private void OnDestroy()
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            ItemTooltipHoverRegistry.SetHovered(this, true);
+            _owner?.ShowItemTooltip(transform, _itemId);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void RefreshTooltipIfHovered()
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            _owner?.ShowItemTooltip(transform, _itemId);
+        }
     }
 }

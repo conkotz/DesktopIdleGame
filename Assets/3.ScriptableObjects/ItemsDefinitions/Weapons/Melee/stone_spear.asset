@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 1
   maxStack: 1
   itemId: stone_spear
-  displayName: Stone Spear
+  displayName: Iron Spear
   displayNameSingular: 
   icon: {fileID: 21300134, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}

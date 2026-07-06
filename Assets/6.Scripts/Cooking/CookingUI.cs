@@ -50,6 +50,8 @@ public class CookingUI : MonoBehaviour
     private Button _actionButton;
     private Button _fishButton;
     private Button _cookedButton;
+    private CookingItemTooltipHover _fishTooltipHover;
+    private CookingItemTooltipHover _cookedTooltipHover;
     private Button _fishClearButton;
     private Button _helpButton;
     private Button _cookingLevelButton;
@@ -70,7 +72,7 @@ public class CookingUI : MonoBehaviour
 
     private SidePickerMode _pickerMode;
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 11;
+    private const int UiLayoutVersion = 12;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -287,6 +289,7 @@ public class CookingUI : MonoBehaviour
         HideHelpPanel();
         HideProficiencyPanel();
         HideEnhancementSlotTooltip();
+        HideItemTooltip();
         UnsubscribeProficiency();
         if (_station != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
@@ -412,10 +415,12 @@ public class CookingUI : MonoBehaviour
         int fishAmt = _station.StoredRawAmount;
         string fishId = fishAmt > 0 ? _station.StoredRawItemId : "";
         ApplySlot(_fishIcon, _fishAmountText, fishId, fishAmt, "Fish", _itemDb);
+        _fishTooltipHover?.SetItemId(fishId);
 
         int cookedAmt = _station.ReadyCookedAmount;
         string cookedId = ResolveCookedSlotItemId(fishAmt, cookedAmt);
         ApplySlot(_cookedIcon, _cookedAmountText, cookedId, cookedAmt, "Cooked", _itemDb);
+        _cookedTooltipHover?.SetItemId(cookedId);
     }
 
     private string ResolveCookedSlotItemId(int fishAmt, int cookedAmt)
@@ -1549,6 +1554,8 @@ public class CookingUI : MonoBehaviour
             _actionButtonText = null;
             _fishButton = null;
             _cookedButton = null;
+            _fishTooltipHover = null;
+            _cookedTooltipHover = null;
             _fishClearButton = null;
             _helpButton = null;
             _cookingLevelButton = null;
@@ -1679,6 +1686,8 @@ public class CookingUI : MonoBehaviour
         _fishButton = CreateSlotButton(slotsRow.transform, "Fish", out _fishIcon, out _fishAmountText, OnFishClicked);
         var oresTrigger = _fishButton.gameObject.AddComponent<CookingFishSlotInteractions>();
         oresTrigger.Initialize(this);
+        _fishTooltipHover = _fishButton.gameObject.AddComponent<CookingItemTooltipHover>();
+        _fishTooltipHover.Initialize(this, "");
 
         _fishClearButton = CreateButton(_fishButton.transform, "OreClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
         var clearRt = _fishClearButton.GetComponent<RectTransform>();
@@ -1708,6 +1717,8 @@ public class CookingUI : MonoBehaviour
         _cookedButton = CreateSlotButton(slotsRow.transform, "Cooked", out _cookedIcon, out _cookedAmountText, null);
         var barsTrigger = _cookedButton.gameObject.AddComponent<CookingFoodContextTrigger>();
         barsTrigger.Initialize(this);
+        _cookedTooltipHover = _cookedButton.gameObject.AddComponent<CookingItemTooltipHover>();
+        _cookedTooltipHover.Initialize(this, "");
 
         _burnChanceText = CreateTmpText("BurnChance", _root, 11f, StopAccent, TextAlignmentOptions.Center);
         var burnRt = _burnChanceText.rectTransform;
@@ -1907,7 +1918,7 @@ public class CookingUI : MonoBehaviour
         labelRt.anchorMax = new Vector2(1f, 1f);
         labelRt.offsetMin = Vector2.zero;
         labelRt.offsetMax = new Vector2(-20f, 0f);
-        label.text = "Show logs:";
+        label.text = "Show burnt";
 
         var toggleGo = CreateUiObject("Toggle", row.transform, typeof(RectTransform), typeof(Toggle), typeof(Image));
         var toggleRt = toggleGo.GetComponent<RectTransform>();
@@ -2262,6 +2273,90 @@ public class CookingUI : MonoBehaviour
 
             if (eventData.button == PointerEventData.InputButton.Right)
                 _owner.OnCookedRightClicked(eventData);
+        }
+    }
+
+    internal void ShowItemTooltip(Transform anchor, string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        CacheRefs();
+        if (_sharedTooltip == null || _itemDb == null)
+            return;
+
+        ItemDefinition def = _itemDb.Get(itemId);
+        if (def == null)
+            return;
+
+        var anchorRt = anchor as RectTransform ?? anchor.GetComponent<RectTransform>();
+        RectTransform boundsRect = _canvas != null ? _canvas.transform as RectTransform : _root;
+        if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper) && anchorRt != null && boundsRect != null)
+        {
+            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Right);
+            flipper.SetMeasureRect(anchorRt);
+            flipper.SetHeightRect(anchorRt);
+            flipper.SetBoundsRect(boundsRect);
+        }
+
+        _sharedTooltip.ShowAt(
+            anchor,
+            def,
+            1,
+            compact: false,
+            maskUnrolledRandomStats: def.HasRandomStatPool);
+        _sharedTooltip.PushOverlaySortOrder(CanvasSortingOrder + 100);
+    }
+
+    internal void HideItemTooltip()
+    {
+        CacheRefs();
+        _sharedTooltip?.Hide();
+    }
+
+    private sealed class CookingItemTooltipHover : MonoBehaviour,
+        IPointerEnterHandler,
+        IPointerExitHandler,
+        IItemTooltipHoverSource
+    {
+        private CookingUI _owner;
+        private string _itemId = "";
+
+        public void Initialize(CookingUI owner, string itemId)
+        {
+            _owner = owner;
+            _itemId = itemId ?? "";
+        }
+
+        public void SetItemId(string itemId) => _itemId = itemId ?? "";
+
+        private void OnDestroy()
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            ItemTooltipHoverRegistry.SetHovered(this, true);
+            _owner?.ShowItemTooltip(transform, _itemId);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void RefreshTooltipIfHovered()
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            _owner?.ShowItemTooltip(transform, _itemId);
         }
     }
 }

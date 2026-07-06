@@ -41,6 +41,8 @@ public class FurnaceUI : MonoBehaviour
     private Button _actionButton;
     private Button _oresButton;
     private Button _barsButton;
+    private FurnaceItemTooltipHover _oreTooltipHover;
+    private FurnaceItemTooltipHover _barTooltipHover;
     private Button _oreClearButton;
     private Button _helpButton;
     private Button _smeltingLevelButton;
@@ -68,7 +70,7 @@ public class FurnaceUI : MonoBehaviour
 
     private SidePickerMode _pickerMode;
     private const float ScrollSensitivity = 8f;
-    private const int UiLayoutVersion = 5;
+    private const int UiLayoutVersion = 6;
     private int _builtUiLayoutVersion;
 
     private RectTransform _helpPanelRoot;
@@ -272,6 +274,7 @@ public class FurnaceUI : MonoBehaviour
         HideHelpPanel();
         HideProficiencyPanel();
         HideEnhancementSlotTooltip();
+        HideItemTooltip();
         UnsubscribeProficiency();
         if (_smelter != null && SaveManager.Instance != null)
             SaveManager.Instance.NotifyInventoryChangedDebounced();
@@ -386,10 +389,12 @@ public class FurnaceUI : MonoBehaviour
         int oreAmt = _smelter.StoredOreAmount;
         string oreId = oreAmt > 0 ? _smelter.StoredOreItemId : "";
         ApplySlot(_oreIcon, _oreAmountText, oreId, oreAmt, "Ores", _itemDb);
+        _oreTooltipHover?.SetItemId(oreId);
 
         int barAmt = _smelter.ReadyBarAmount;
         string barId = ResolveBarSlotItemId(oreAmt, barAmt);
         ApplySlot(_barIcon, _barAmountText, barId, barAmt, "Bars", _itemDb);
+        _barTooltipHover?.SetItemId(barId);
     }
 
     private string ResolveBarSlotItemId(int oreAmt, int barAmt)
@@ -1464,6 +1469,8 @@ public class FurnaceUI : MonoBehaviour
             _actionButtonText = null;
             _oresButton = null;
             _barsButton = null;
+            _oreTooltipHover = null;
+            _barTooltipHover = null;
             _oreClearButton = null;
             _helpButton = null;
             _smeltingLevelButton = null;
@@ -1593,6 +1600,8 @@ public class FurnaceUI : MonoBehaviour
         _oresButton = CreateSlotButton(slotsRow.transform, "Ores", out _oreIcon, out _oreAmountText, OnOresClicked);
         var oresTrigger = _oresButton.gameObject.AddComponent<FurnaceOreSlotInteractions>();
         oresTrigger.Initialize(this);
+        _oreTooltipHover = _oresButton.gameObject.AddComponent<FurnaceItemTooltipHover>();
+        _oreTooltipHover.Initialize(this, "");
 
         _oreClearButton = CreateButton(_oresButton.transform, "OreClear", "×", new Vector2(22f, 22f), new Vector2(1f, 1f));
         var clearRt = _oreClearButton.GetComponent<RectTransform>();
@@ -1622,6 +1631,8 @@ public class FurnaceUI : MonoBehaviour
         _barsButton = CreateSlotButton(slotsRow.transform, "Bars", out _barIcon, out _barAmountText, null);
         var barsTrigger = _barsButton.gameObject.AddComponent<FurnaceBarsContextTrigger>();
         barsTrigger.Initialize(this);
+        _barTooltipHover = _barsButton.gameObject.AddComponent<FurnaceItemTooltipHover>();
+        _barTooltipHover.Initialize(this, "");
 
         var progressBg = CreateUiObject("ProgressBg", _root, typeof(RectTransform), typeof(Image));
         var progressBgRt = progressBg.GetComponent<RectTransform>();
@@ -2101,6 +2112,90 @@ public class FurnaceUI : MonoBehaviour
 
             if (eventData.button == PointerEventData.InputButton.Right)
                 _owner.OnBarsRightClicked(eventData);
+        }
+    }
+
+    internal void ShowItemTooltip(Transform anchor, string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        CacheRefs();
+        if (_sharedTooltip == null || _itemDb == null)
+            return;
+
+        ItemDefinition def = _itemDb.Get(itemId);
+        if (def == null)
+            return;
+
+        var anchorRt = anchor as RectTransform ?? anchor.GetComponent<RectTransform>();
+        RectTransform boundsRect = _canvas != null ? _canvas.transform as RectTransform : _root;
+        if (_sharedTooltip.TryGetComponent(out FlipInsideBounds flipper) && anchorRt != null && boundsRect != null)
+        {
+            flipper.SetPreferredSide(FlipInsideBounds.PreferredSide.Right);
+            flipper.SetMeasureRect(anchorRt);
+            flipper.SetHeightRect(anchorRt);
+            flipper.SetBoundsRect(boundsRect);
+        }
+
+        _sharedTooltip.ShowAt(
+            anchor,
+            def,
+            1,
+            compact: false,
+            maskUnrolledRandomStats: def.HasRandomStatPool);
+        _sharedTooltip.PushOverlaySortOrder(CanvasSortingOrder + 100);
+    }
+
+    internal void HideItemTooltip()
+    {
+        CacheRefs();
+        _sharedTooltip?.Hide();
+    }
+
+    private sealed class FurnaceItemTooltipHover : MonoBehaviour,
+        IPointerEnterHandler,
+        IPointerExitHandler,
+        IItemTooltipHoverSource
+    {
+        private FurnaceUI _owner;
+        private string _itemId = "";
+
+        public void Initialize(FurnaceUI owner, string itemId)
+        {
+            _owner = owner;
+            _itemId = itemId ?? "";
+        }
+
+        public void SetItemId(string itemId) => _itemId = itemId ?? "";
+
+        private void OnDestroy()
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            ItemTooltipHoverRegistry.SetHovered(this, true);
+            _owner?.ShowItemTooltip(transform, _itemId);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            ItemTooltipHoverRegistry.SetHovered(this, false);
+            _owner?.HideItemTooltip();
+        }
+
+        public void RefreshTooltipIfHovered()
+        {
+            if (string.IsNullOrWhiteSpace(_itemId))
+                return;
+
+            _owner?.ShowItemTooltip(transform, _itemId);
         }
     }
 }

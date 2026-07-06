@@ -61,14 +61,14 @@ public static class BlacksmithingRecipes
         new("stone_shield", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 40)),
         new("stone_platebody", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 50)),
         new("stone_helmet", "Stone", 1, DefaultCraftSeconds, new BlacksmithingIngredient("stone_chunk", 30)),
-        new("stone_spear", "Iron", 5, DefaultCraftSeconds, new BlacksmithingIngredient("iron_bar", 30)),
+        new("stone_spear", "Iron", 10, DefaultCraftSeconds, new BlacksmithingIngredient("iron_bar", 30)),
         new("poison_dagger", "Special", 5, DefaultCraftSeconds,
             new BlacksmithingIngredient("stone_chunk", 1),
             new BlacksmithingIngredient("vial_poison", 25)),
-        new("knights_polearm", "Runite", 20, DefaultCraftSeconds,
+        new("knights_polearm", "Runite", 30, DefaultCraftSeconds,
             new BlacksmithingIngredient("mythril_bar", 20),
             new BlacksmithingIngredient("runite_bar", 30)),
-        new("ghorrocks_mace", "Celestium", 30, DefaultCraftSeconds, new BlacksmithingIngredient("celestium_bar", 80)),
+        new("ghorrocks_mace", "Celestium", 40, DefaultCraftSeconds, new BlacksmithingIngredient("celestium_bar", 80)),
     };
 
     private static readonly Dictionary<string, BlacksmithingRecipe> ByOutput = BuildMap();
