@@ -347,7 +347,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     public void EnsureSlotCount(int count)
     {
         int minimum = ComputeTotalSlotCount();
-        count = Mathf.Max(minimum, Mathf.Max(1, count));
+        // Hard upper bound against corrupt saves (int.MaxValue) while allowing tab unlock growth.
+        const int absoluteMax = 2048;
+        count = Mathf.Clamp(Mathf.Max(minimum, Mathf.Max(1, count)), 1, absoluteMax);
 
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
@@ -617,6 +619,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
         if (toStorageSlot < 0 || toStorageSlot >= _slots.Count) return 0;
+        if (fromInvSlot < 0 || fromInvSlot >= inv.SlotCount) return 0;
 
         var from = inv.GetSlot(fromInvSlot);
         if (from.IsEmpty) return 0;
@@ -780,6 +783,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
         if (fromStorageSlot < 0 || fromStorageSlot >= _slots.Count) return 0;
+        if (toInvSlot < 0 || toInvSlot >= inv.SlotCount) return 0;
 
         var from = _slots[fromStorageSlot];
         if (from.IsEmpty) return 0;
@@ -829,6 +833,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return false;
         if (storageSlot < 0 || storageSlot >= _slots.Count) return false;
+        if (invSlot < 0 || invSlot >= inv.SlotCount) return false;
 
         var a = inv.GetSlot(invSlot);
         var b = _slots[storageSlot];
@@ -1231,7 +1236,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         int savedCount = data.storageSlotCount > 0 ? data.storageSlotCount : ComputeTotalSlotCount();
-        savedCount = Mathf.Max(1, savedCount);
+        savedCount = Mathf.Clamp(savedCount, 1, 2048);
         bool legacyUniformLayout = savedCount >= LegacyTotalSlotCount;
         EnsureSlotCount(Mathf.Max(savedCount, ComputeTotalSlotCount()));
 
