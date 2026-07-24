@@ -602,26 +602,43 @@ public class ItemDrop : MonoBehaviour
     }
 
     /// <summary>
-    /// Voluntary map leave: inventory first, then Main storage tab. Only called for <see cref="SweepOnMapExit"/> drops.
-    /// Does not respawn placed pickups.
+    /// Voluntary map leave: inventory first, then storage (affinity tab then Main).
+    /// Only called for <see cref="SweepOnMapExit"/> drops. Does not respawn placed pickups.
+    /// Remainder that cannot fit is queued for later recovery instead of being destroyed.
     /// </summary>
     public void CollectForVoluntaryMapExit(Inventory inv, PlayerStorage storage)
     {
-        if (inv == null || storage == null || Amount <= 0 || string.IsNullOrWhiteSpace(ItemId))
+        if (Amount <= 0 || string.IsNullOrWhiteSpace(ItemId))
         {
             Destroy(gameObject);
             return;
         }
 
-        int addedToInventory = inv.AddPartial(ItemId, Amount, null, true, null);
-        int remaining = Amount - addedToInventory;
-
-        if (addedToInventory > 0)
-            SessionTrackerData.EnsureInstance().RegisterLootGain(SourceName, ItemId, addedToInventory);
-
-        if (remaining > 0)
+        if (inv == null && storage == null)
         {
-            int deposited = storage.TryDepositAmountToTab(ItemId, remaining, StorageTabKind.Main);
+            PendingLootRecoveryStore.Enqueue(ItemId, Amount);
+            GameLog.CannotObtainInventoryAndStorageFull(
+                ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, Amount),
+                Amount);
+            Destroy(gameObject);
+            return;
+        }
+
+        int remaining = Amount;
+
+        if (inv != null)
+        {
+            int addedToInventory = inv.AddPartial(ItemId, remaining, null, true, null);
+            remaining -= addedToInventory;
+
+            if (addedToInventory > 0)
+                SessionTrackerData.EnsureInstance().RegisterLootGain(SourceName, ItemId, addedToInventory);
+        }
+
+        if (remaining > 0 && storage != null)
+        {
+            // Affinity tab (Enhance for map enhancements) then Main — not Main-only.
+            int deposited = storage.TryDepositAmountFromExternal(ItemId, remaining);
             remaining -= deposited;
 
             if (deposited > 0)
@@ -629,12 +646,17 @@ public class ItemDrop : MonoBehaviour
                 string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, deposited);
                 GameLog.ItemRecoveredToMainStorageOnMapLeave(label, deposited);
             }
+        }
 
-            if (remaining > 0)
-            {
-                string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, remaining);
-                GameLog.CannotObtainInventoryAndStorageFull(label, remaining);
-            }
+        if (remaining > 0)
+        {
+            PendingLootRecoveryStore.Enqueue(ItemId, remaining);
+            string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, remaining);
+            GameLog.CannotObtainInventoryAndStorageFull(label, remaining);
+            GameLog.Add(
+                "Held unrecovered map loot until you free inventory or storage space.",
+                GameLog.CannotMessageColor);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
         }
 
         if (!string.IsNullOrEmpty(_levelOneShotPickupClaimKey))
