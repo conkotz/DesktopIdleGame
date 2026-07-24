@@ -178,6 +178,12 @@ public class SaveManager : MonoBehaviour
         FireSaveSystemReady("Awake");
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
