@@ -576,6 +576,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         if (to.IsEmpty)
         {
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+            move = Mathf.Min(move, maxStack);
+            if (move <= 0) return 0;
+
             to.itemId = from.itemId;
             to.amount = move;
             from.amount -= move;
@@ -632,12 +636,17 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         {
             if (to.IsEmpty)
             {
+                // Match merge path / TryDepositAmountToTab: never write over-max into an empty slot.
+                int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+                int move = Mathf.Min(amount, maxStack);
+                if (move <= 0) return 0;
+
                 to.itemId = from.itemId;
-                to.amount = amount;
+                to.amount = move;
                 _slots[toStorageSlot] = to;
-                inv.RemoveAmountAtSlot(fromInvSlot, amount);
+                inv.RemoveAmountAtSlot(fromInvSlot, move);
                 MarkSlotChanged(toStorageSlot);
-                return amount;
+                return move;
             }
 
             if (to.itemId == from.itemId)
