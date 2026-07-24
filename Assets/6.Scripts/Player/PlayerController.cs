@@ -3025,24 +3025,7 @@ public class PlayerController : MonoBehaviour
 
             if (overflow > 0)
             {
-                if (dropOverflowToGround)
-                {
-                    var itemDef = inventory.GetItemDef(d.itemId);
-                    Sprite icon = itemDef ? itemDef.icon : null;
-
-                    if (DropManager.Instance != null)
-                        DropManager.Instance.Spawn(d.itemId, overflow, icon, def.displayName);
-                    else if (worldDropPrefab != null)
-                    {
-                        float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
-                        Vector3 spawnPos = transform.position + new Vector3(scatterX, 0.1f, 0f);
-
-                        var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
-                        drop.Init(d.itemId, overflow, icon);
-                        drop.SetSourceName(def.displayName);
-                    }
-                }
-
+                PreserveGatherOverflow(d.itemId, overflow, def.displayName, transform.position);
                 ShowPopup("Inventory Full!");
             }
         }
@@ -3232,23 +3215,8 @@ public class PlayerController : MonoBehaviour
         if (added > 0)
             SessionTrackerData.EnsureInstance().RegisterLootGain(nodeDef.displayName, yieldId, added);
 
-        if (overflow > 0 && dropOverflowToGround)
-        {
-            var itemDef = inventory.GetItemDef(yieldId);
-            Sprite icon = itemDef ? itemDef.icon : null;
-
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(yieldId, overflow, icon, nodeDef.displayName);
-            else if (worldDropPrefab != null)
-            {
-                float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
-                Vector3 spawnPos = node.transform.position + new Vector3(scatterX, 0.1f, 0f);
-
-                var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
-                drop.Init(yieldId, overflow, icon);
-                drop.SetSourceName(nodeDef.displayName);
-            }
-        }
+        if (overflow > 0)
+            PreserveGatherOverflow(yieldId, overflow, nodeDef.displayName, node.transform.position);
 
         // Final depletion check: matches the primary-tick contract — if this swing was the cap hit, the
         // tree now flips to depleted (visual overlay, regen timer, etc.) and drops out of the cleave set
@@ -3292,25 +3260,46 @@ public class PlayerController : MonoBehaviour
         if (overflow <= 0)
             return;
 
+        PreserveGatherOverflow(itemId, overflow, sourceDisplayName, transform.position);
+        ShowPopup("Inventory Full!");
+    }
+
+    /// <summary>
+    /// Routes gather overflow to world drops when configured; otherwise holds it in
+    /// <see cref="PendingLootRecoveryStore"/> so full-bag gathering never silently deletes loot.
+    /// </summary>
+    private void PreserveGatherOverflow(string itemId, int amount, string sourceDisplayName, Vector3 nearWorldPos)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return;
+
         if (dropOverflowToGround)
         {
-            var itemDef = inventory.GetItemDef(itemId);
+            var itemDef = inventory != null ? inventory.GetItemDef(itemId) : null;
             Sprite icon = itemDef ? itemDef.icon : null;
 
             if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(itemId, overflow, icon, sourceDisplayName);
-            else if (worldDropPrefab != null)
+            {
+                DropManager.Instance.Spawn(itemId, amount, icon, sourceDisplayName);
+                return;
+            }
+
+            if (worldDropPrefab != null)
             {
                 float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
-                Vector3 spawnPos = transform.position + new Vector3(scatterX, 0.1f, 0f);
+                Vector3 spawnPos = nearWorldPos + new Vector3(scatterX, 0.1f, 0f);
 
                 var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
-                drop.Init(itemId, overflow, icon);
+                drop.Init(itemId, amount, icon);
                 drop.SetSourceName(sourceDisplayName);
+                return;
             }
         }
 
-        ShowPopup("Inventory Full!");
+        PendingLootRecoveryStore.Enqueue(itemId, amount);
+        GameLog.Add(
+            $"Inventory full — held {amount}x {ItemGainPopupNotifier.ResolveDisplayLabel(itemId, amount)} until you free space.",
+            GameLog.CannotMessageColor);
     }
 
     /// <summary>
