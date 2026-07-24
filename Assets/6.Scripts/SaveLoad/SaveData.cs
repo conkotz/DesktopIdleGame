@@ -277,6 +277,11 @@ public class SaveData
     [Tooltip("Town service ids unlocked via outpost quest rewards (e.g. blacksmith).")]
     public List<string> unlockedTownServiceIds = new();
 
+    [Tooltip("Parallel lists: item stacks held when inventory/storage could not accept them (map-exit sweep / quest rewards).")]
+    public List<string> pendingLootRecoveryItemIds = new();
+
+    public List<int> pendingLootRecoveryAmounts = new();
+
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();
 
