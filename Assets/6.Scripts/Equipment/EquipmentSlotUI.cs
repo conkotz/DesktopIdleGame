@@ -54,6 +54,17 @@ public class EquipmentSlotUI : MonoBehaviour,
     private static Inventory s_sharedInventory;
     private static SharedTooltipUI s_sharedTooltip;
     private static bool s_sharedRefsResolved;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSharedReferences()
+    {
+        s_sharedEquipment = null;
+        s_sharedToolbelt = null;
+        s_sharedInventory = null;
+        s_sharedTooltip = null;
+        s_sharedRefsResolved = false;
+        EquipDragState.End();
+    }
     private RectTransform _tooltipHeightRect;
 
 
