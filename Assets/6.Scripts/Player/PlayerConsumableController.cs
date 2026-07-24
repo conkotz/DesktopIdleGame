@@ -56,8 +56,7 @@ public class PlayerConsumableController : MonoBehaviour
             return false;
         }
 
-        ApplyConsumable(def);
-
+        // Consume before applying effects so a failed remove cannot grant a free heal/buff.
         if (def.ConsumeOnUse)
         {
             bool removed = RemoveOne(itemId);
@@ -67,6 +66,8 @@ public class PlayerConsumableController : MonoBehaviour
                 return false;
             }
         }
+
+        ApplyConsumable(def);
 
         float effectiveCooldown = GetEffectiveUseCooldown(def);
         if (effectiveCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
@@ -106,13 +107,14 @@ public class PlayerConsumableController : MonoBehaviour
             return false;
         }
 
-        ApplyConsumable(def);
-
+        // Consume before applying effects so a failed remove cannot grant a free heal/buff.
         if (def.ConsumeOnUse && inventory.RemoveAmountAtSlot(slotIndex, 1) != 1)
         {
             player.ShowPopup("Could not consume item.");
             return false;
         }
+
+        ApplyConsumable(def);
 
         float effectiveCooldown = GetEffectiveUseCooldown(def);
         if (effectiveCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))

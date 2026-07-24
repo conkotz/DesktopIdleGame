@@ -668,8 +668,8 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
             Inventory inv = Inventory.ResolvePlayer();
             PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
-            if (!inv && storage == null)
-                return;
+            // Do not early-return when both are missing — the !inv branch below parks leftovers
+            // into PendingLoot so ResetToEmpty / scene tears cannot destroy STOP materials.
 
             var remaining = new List<BlacksmithingIngredient>(_lockedConsumedIngredients.Count);
             bool sentAnyToStorage = false;
