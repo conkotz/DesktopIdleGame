@@ -43,7 +43,7 @@ public static class EnhancementUpgradeService
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
             {
-                inventory.AddPartial(scrollDef.itemId, 1, notifyItemGainPopup: false);
+                RefundAmountWithStorageOverflow(inventory, scrollDef.itemId, 1);
                 return false;
             }
 
@@ -220,7 +220,7 @@ public static class EnhancementUpgradeService
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
             {
-                inventory.AddPartial(scrollDef.itemId, 1, notifyItemGainPopup: false);
+                RefundAmountWithStorageOverflow(inventory, scrollDef.itemId, 1);
                 return false;
             }
 
@@ -258,6 +258,8 @@ public static class EnhancementUpgradeService
 
     /// <summary>
     /// Best-effort undo when payment succeeded but runtime gear clone creation failed.
+    /// Prefers returning scrolls to storage when that was the payment source, and overflows
+    /// remainder to storage so a full inventory cannot silently discard the refund.
     /// </summary>
     private static void TryRefundPayment(
         Inventory inventory,
@@ -266,14 +268,21 @@ public static class EnhancementUpgradeService
     {
         if (payment.Kind == EnhancementPaymentKind.Scroll)
         {
-            if (inventory == null || string.IsNullOrWhiteSpace(scrollItemId))
+            if (string.IsNullOrWhiteSpace(scrollItemId))
                 return;
 
-            inventory.AddPartial(scrollItemId, 1, notifyItemGainPopup: false);
+            if (payment.ScrollFromStorage)
+            {
+                PlayerStorage storage = FindPlayerStorage();
+                if (storage != null && storage.TryDepositAmountFromExternal(scrollItemId, 1) == 1)
+                    return;
+            }
+
+            RefundAmountWithStorageOverflow(inventory, scrollItemId, 1);
             return;
         }
 
-        if (payment.Kind != EnhancementPaymentKind.Materials || inventory == null)
+        if (payment.Kind != EnhancementPaymentKind.Materials)
             return;
 
         IReadOnlyList<GearUpgradeMaterialRequirement> requirements = payment.MaterialRequirements;
@@ -286,8 +295,25 @@ public static class EnhancementUpgradeService
             if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
                 continue;
 
-            inventory.AddPartial(req.ItemId, req.Amount, notifyItemGainPopup: false);
+            RefundAmountWithStorageOverflow(inventory, req.ItemId, req.Amount);
         }
+    }
+
+    private static void RefundAmountWithStorageOverflow(Inventory inventory, string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int left = amount;
+        if (inventory != null)
+            left -= inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindPlayerStorage();
+        if (storage != null)
+            storage.TryDepositAmountFromExternal(itemId, left);
     }
 
     private static PlayerStorage FindPlayerStorage() =>
