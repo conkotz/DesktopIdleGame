@@ -9163,13 +9163,12 @@ public partial class PlayerAbilityController : MonoBehaviour
             var itemDef = inventory.GetItemDef(itemId);
             Sprite icon = itemDef ? itemDef.icon : null;
 
-            if (DropManager.Instance != null)
+            if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                    itemId,
+                    overflow,
+                    icon,
+                    node.Definition.displayName))
             {
-                DropManager.Instance.Spawn(itemId, overflow, icon, node.Definition.displayName);
-            }
-            else
-            {
-                PendingLootRecoveryStore.Enqueue(itemId, overflow);
                 GameLog.Add(
                     $"Inventory full — held {overflow}x {itemDef?.displayName ?? itemId} until you free space.",
                     GameLog.CannotMessageColor);

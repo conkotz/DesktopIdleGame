@@ -794,9 +794,11 @@ public class InventorySlotUI : MonoBehaviour,
             return;
 
         ItemDefinition rewardDef = _inventory.GetItemDef(itemId);
-        if (DropManager.Instance != null)
+        if (PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                itemId,
+                left,
+                rewardDef ? rewardDef.icon : null))
         {
-            DropManager.Instance.Spawn(itemId, left, rewardDef ? rewardDef.icon : null);
             tracker?.RegisterLootGain(trackerSource, itemId, left);
             GameLog.Add(
                 $"Inventory and storage are full — dropped {left}x {ResolveItemDisplayName(itemId)} on the ground.",
@@ -804,7 +806,6 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        PendingLootRecoveryStore.Enqueue(itemId, left);
         tracker?.RegisterLootGain(trackerSource, itemId, left);
         GameLog.Add(
             $"Inventory and storage are full — held {left}x {ResolveItemDisplayName(itemId)} until you free space.",
@@ -1125,10 +1126,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
 
         Sprite iconSprite = _def ? _def.icon : null;
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
-        else
-            PendingLootRecoveryStore.Enqueue(slot.itemId, removed);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(slot.itemId, removed, iconSprite);
         ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
         _tooltip?.Hide();
     }
@@ -1306,11 +1304,7 @@ public class InventorySlotUI : MonoBehaviour,
                 {
                     var def = _inventory.GetItemDef(itemId);
                     Sprite iconSprite = def ? def.icon : null;
-
-                    if (DropManager.Instance != null)
-                        DropManager.Instance.Spawn(itemId, removed, iconSprite);
-                    else
-                        PendingLootRecoveryStore.Enqueue(itemId, removed);
+                    PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
                     ItemGainPopupNotifier.NotifyLost(itemId, removed);
                 }
             }
@@ -1501,10 +1495,7 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         var def = _inventory.GetItemDef(itemId);
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, left, def ? def.icon : null);
-        else
-            PendingLootRecoveryStore.Enqueue(itemId, left);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null);
     }
 
     private void CreateDragIcon()
