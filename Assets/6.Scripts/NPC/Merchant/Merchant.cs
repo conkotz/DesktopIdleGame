@@ -155,11 +155,13 @@ public class Merchant : MonoBehaviour
 
         SpendCosts(entry, amount);
 
-        bool added = inventory.Add(entry.itemId, amount, null, notifyItemGainPopup: false);
-        if (!added)
+        // CanAdd passed, but still use AddPartial so a race/partial fill never charges the player
+        // while leaving a false "full fail" after items already landed in the bag.
+        int added = inventory.AddPartial(entry.itemId, amount, notifyItemGainPopup: false);
+        if (added < amount)
         {
-            // CanAdd passed, but Add can still fail (rolled unique gear, race with other grants).
-            // Never leave the player charged without the item.
+            if (added > 0)
+                inventory.Remove(entry.itemId, added);
             RefundCosts(entry, amount);
             GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
             Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs — refunded.");
