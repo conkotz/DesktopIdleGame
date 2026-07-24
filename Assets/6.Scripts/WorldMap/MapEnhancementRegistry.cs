@@ -59,6 +59,12 @@ public static class MapEnhancementRegistry
 
     public static void ClearAll()
     {
+        foreach (var pair in RuntimeDefinitions)
+        {
+            if (pair.Value != null)
+                UnityEngine.Object.Destroy(pair.Value);
+        }
+
         Instances.Clear();
         RuntimeDefinitions.Clear();
     }
