@@ -2,7 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// When the player voluntarily leaves a map (teleport / travel), combat enemy loot on the ground is recovered
-/// into inventory first, then the Main storage tab. Player inventory drops and level-placed map pickups are skipped.
+/// into inventory first, then storage (affinity tab then Main). Overflow is queued in
+/// <see cref="PendingLootRecoveryStore"/>. Player inventory drops and level-placed map pickups are skipped.
 /// Death respawn does not call this.
 /// </summary>
 public static class MapExitGroundLootCollector
