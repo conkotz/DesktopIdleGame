@@ -19,15 +19,29 @@ public class CurrencyWallet : MonoBehaviour, ISaveable
 
     public void AddGold(int amount)
     {
-        if (amount <= 0) return;
+        AddGoldReturningApplied(amount);
+    }
 
+    /// <summary>
+    /// Adds gold and returns how much was actually applied after the soft ceiling.
+    /// Sell/undo paths must record this value — not the requested amount — or undo can
+    /// charge more than was granted and then discard the undo row on SpendGold failure.
+    /// </summary>
+    public int AddGoldReturningApplied(int amount)
+    {
+        if (amount <= 0) return 0;
+
+        int before = gold;
         long sum = (long)gold + amount;
         if (sum > GoldSoftCeiling)
             gold = GoldSoftCeiling;
         else
             gold = (int)sum;
 
-        OnGoldChanged?.Invoke();
+        if (gold != before)
+            OnGoldChanged?.Invoke();
+
+        return gold - before;
     }
 
     /// <summary>
@@ -76,6 +90,8 @@ public class CurrencyWallet : MonoBehaviour, ISaveable
 
     public bool CanAfford(int amount)
     {
+        // Negative (wrapped) costs must never look affordable — SpendGold(<=0) returns true.
+        if (amount <= 0) return amount == 0;
         return gold >= amount;
     }
 }

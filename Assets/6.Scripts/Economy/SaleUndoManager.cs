@@ -211,10 +211,10 @@ public class SaleUndoManager : MonoBehaviour
 
         if (!wallet.SpendGold(e.gold))
         {
+            // Keep the undo row — the player may earn gold later. Only roll back the
+            // tentative stock removal; never destroy the recovery opportunity.
             if (merchant != null)
                 merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
-            _entries.RemoveAt(idx);
-            NotifyChanged();
             return false;
         }
 

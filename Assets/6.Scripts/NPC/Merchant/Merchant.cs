@@ -153,7 +153,12 @@ public class Merchant : MonoBehaviour
             return false;
         }
 
-        SpendCosts(entry, amount);
+        if (!TrySpendCosts(entry, amount))
+        {
+            GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
+            Debug.LogWarning($"[Merchant] Could not spend costs for {amount}x {itemId}.");
+            return false;
+        }
 
         // CanAdd passed, but still use AddPartial so a race/partial fill never charges the player
         // while leaving a false "full fail" after items already landed in the bag.
@@ -218,38 +223,82 @@ public class Merchant : MonoBehaviour
         return true;
     }
 
-    private void SpendCosts(MerchantStock.Entry entry)
+    /// <summary>
+    /// Spends all cost rows atomically. On any failure, already-spent rows are refunded so a
+    /// multi-cost purchase cannot charge gold then skip an item cost (or the reverse) and still grant stock.
+    /// </summary>
+    private bool TrySpendCosts(MerchantStock.Entry entry, int amountMultiplier)
     {
-        SpendCosts(entry, 1);
-    }
+        if (entry == null || amountMultiplier <= 0)
+            return false;
+        if (entry.costs == null || entry.costs.Count == 0)
+            return true;
 
-    private void SpendCosts(MerchantStock.Entry entry, int amountMultiplier)
-    {
-        if (entry == null || entry.costs == null || amountMultiplier <= 0) return;
+        var spentGoldTotals = new List<int>(entry.costs.Count);
+        var spentItemIds = new List<string>(entry.costs.Count);
+        var spentItemAmounts = new List<int>(entry.costs.Count);
 
         for (int i = 0; i < entry.costs.Count; i++)
         {
             var cost = entry.costs[i];
-            if (cost == null || cost.amount <= 0) continue;
+            if (cost == null || cost.amount <= 0)
+                continue;
+
             if (!TryComputeTotalCost(cost.amount, amountMultiplier, out int totalCostAmount))
             {
-                Debug.LogWarning("[Merchant] Purchase cost overflow; aborting spend for this cost row.");
-                continue;
+                RefundPartialSpend(spentGoldTotals, spentItemIds, spentItemAmounts);
+                Debug.LogWarning("[Merchant] Purchase cost overflow; aborting spend.");
+                return false;
             }
 
             switch (cost.type)
             {
                 case MerchantStock.CostType.Gold:
-                    if (!wallet.SpendGold(totalCostAmount))
+                    if (!wallet || !wallet.SpendGold(totalCostAmount))
+                    {
+                        RefundPartialSpend(spentGoldTotals, spentItemIds, spentItemAmounts);
                         Debug.LogWarning($"[Merchant] Failed to spend {totalCostAmount} gold.");
+                        return false;
+                    }
+
+                    spentGoldTotals.Add(totalCostAmount);
                     break;
 
                 case MerchantStock.CostType.Item:
-                    if (!inventory.Remove(cost.itemId, totalCostAmount))
+                    if (!inventory || string.IsNullOrWhiteSpace(cost.itemId) ||
+                        !inventory.Remove(cost.itemId, totalCostAmount))
+                    {
+                        RefundPartialSpend(spentGoldTotals, spentItemIds, spentItemAmounts);
                         Debug.LogWarning($"[Merchant] Failed to remove {totalCostAmount}x {cost.itemId}.");
+                        return false;
+                    }
+
+                    spentItemIds.Add(cost.itemId);
+                    spentItemAmounts.Add(totalCostAmount);
                     break;
             }
         }
+
+        return true;
+    }
+
+    private void RefundPartialSpend(
+        List<int> spentGoldTotals,
+        List<string> spentItemIds,
+        List<int> spentItemAmounts)
+    {
+        if (spentGoldTotals != null && wallet)
+        {
+            for (int i = 0; i < spentGoldTotals.Count; i++)
+                wallet.AddGold(spentGoldTotals[i]);
+        }
+
+        if (spentItemIds == null || spentItemAmounts == null)
+            return;
+
+        int n = Mathf.Min(spentItemIds.Count, spentItemAmounts.Count);
+        for (int i = 0; i < n; i++)
+            RefundItemCostWithStorageOverflow(spentItemIds[i], spentItemAmounts[i]);
     }
 
     private void RefundCosts(MerchantStock.Entry entry, int amountMultiplier)
@@ -546,22 +595,40 @@ public class Merchant : MonoBehaviour
 
             int amount = slot.amount;
             string itemId = slot.itemId;
-            inventory.RemoveStackAtSlot(i);
+            int desiredGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
+            if (desiredGold <= 0)
+                continue;
 
-            int stackGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
-            goldGained = CurrencyWallet.AccumulateClampedSaleGold(goldGained, valuePerItem, amount);
-            SaleUndoManager.Instance?.RecordSale(itemId, amount, stackGold, this, stockAddedAmount: 0);
+            // Soft-ceiling may apply less than desired — never leave items sold for 0 gold,
+            // and never record undo gold higher than what was actually granted.
+            inventory.RemoveStackAtSlot(i);
+            int appliedGold = wallet.AddGoldReturningApplied(desiredGold);
+            if (appliedGold <= 0)
+            {
+                int restored = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+                int left = amount - restored;
+                if (left > 0)
+                {
+                    PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                    if (storage != null)
+                        left -= storage.TryDepositAmountFromExternal(itemId, left);
+                    if (left > 0)
+                        PendingLootRecoveryStore.Enqueue(itemId, left);
+                }
+
+                break;
+            }
+
+            goldGained += appliedGold;
+            if (goldGained < 0)
+                goldGained = int.MaxValue;
+            SaleUndoManager.Instance?.RecordSale(itemId, amount, appliedGold, this, stockAddedAmount: 0);
         }
 
         if (goldGained > 0)
-        {
-            wallet.AddGold(goldGained);
             Debug.Log($"[Merchant] Sold items for {goldGained} gold.");
-        }
         else
-        {
             Debug.Log("[Merchant] Nothing sellable to sell.");
-        }
     }
 
     private void SellFirstNonEmptyStack()
@@ -577,10 +644,29 @@ public class Merchant : MonoBehaviour
 
             int amount = slot.amount;
             string itemId = slot.itemId;
-            inventory.RemoveStackAtSlot(i);
+            int desiredGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
+            if (desiredGold <= 0)
+                continue;
 
-            int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
-            wallet.AddGold(goldGained);
+            inventory.RemoveStackAtSlot(i);
+            int goldGained = wallet.AddGoldReturningApplied(desiredGold);
+            if (goldGained <= 0)
+            {
+                int restored = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+                int left = amount - restored;
+                if (left > 0)
+                {
+                    PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                    if (storage != null)
+                        left -= storage.TryDepositAmountFromExternal(itemId, left);
+                    if (left > 0)
+                        PendingLootRecoveryStore.Enqueue(itemId, left);
+                }
+
+                Debug.Log("[Merchant] Gold at soft ceiling; nothing sold.");
+                return;
+            }
+
             SaleUndoManager.Instance?.RecordSale(itemId, amount, goldGained, this, stockAddedAmount: 0);
 
             Debug.Log($"[Merchant] Sold {amount}x {itemId} for {goldGained} gold.");

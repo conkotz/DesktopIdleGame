@@ -33,7 +33,10 @@ public static class PendingLootRecoveryStore
                 continue;
 
             Entry existing = Entries[i];
-            existing.Amount = Mathf.Max(0, existing.Amount) + amount;
+            // Unchecked int add can wrap negative and later be skipped (amount <= 0),
+            // permanently deleting pending recovery stacks after corrupt/large parks.
+            long sum = (long)Mathf.Max(0, existing.Amount) + amount;
+            existing.Amount = sum >= int.MaxValue ? int.MaxValue : (int)sum;
             Entries[i] = existing;
             PendingLootRecoveryRuntime.EnsureInstance();
             return;

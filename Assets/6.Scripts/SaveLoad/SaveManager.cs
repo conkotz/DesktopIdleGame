@@ -3261,7 +3261,25 @@ public class SaveManager : MonoBehaviour
                 if (row == null)
                     continue;
 
+                bool hasLockedStopRefunds = false;
+                if (row.lockedConsumedItemIds != null && row.lockedConsumedAmounts != null)
+                {
+                    int lockedN = Mathf.Min(row.lockedConsumedItemIds.Count, row.lockedConsumedAmounts.Count);
+                    for (int li = 0; li < lockedN; li++)
+                    {
+                        if (!string.IsNullOrWhiteSpace(row.lockedConsumedItemIds[li]) &&
+                            row.lockedConsumedAmounts[li] > 0)
+                        {
+                            hasLockedStopRefunds = true;
+                            break;
+                        }
+                    }
+                }
+
+                // STOP leftovers are real item value — omit them and wipe heuristics can treat a
+                // materials-only forge refund state as empty and allow an overwrite.
                 if (row.isCrafting ||
+                    hasLockedStopRefunds ||
                     !string.IsNullOrWhiteSpace(row.readyOutputItemId) ||
                     !string.IsNullOrWhiteSpace(row.selectedRecipeOutputId) ||
                     !string.IsNullOrWhiteSpace(row.activeRecipeOutputId))

@@ -1057,8 +1057,25 @@ public class InventorySlotUI : MonoBehaviour,
         if (removed <= 0)
             return;
 
-        int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
-        wallet.AddGold(goldGained);
+        int desiredGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
+        int goldGained = wallet.AddGoldReturningApplied(desiredGold);
+        if (goldGained <= 0)
+        {
+            // Soft ceiling: restore the stack so items are never sold for 0 gold.
+            int restored = _inventory.AddPartial(slot.itemId, removed, notifyItemGainPopup: false);
+            int left = removed - restored;
+            if (left > 0)
+            {
+                PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                if (storage != null)
+                    left -= storage.TryDepositAmountFromExternal(slot.itemId, left);
+                if (left > 0)
+                    PendingLootRecoveryStore.Enqueue(slot.itemId, left);
+            }
+
+            _tooltip?.Hide();
+            return;
+        }
 
         Merchant saleMerchant = null;
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
@@ -1068,6 +1085,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (spawner)
             spawner.ShowGoldGained(goldGained);
 
+        // Record applied gold only — undo must not charge more than the wallet accepted.
         SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAddedAmount: 0);
         GameLog.SoldItem(soldItemName, removed, goldGained);
         _tooltip?.Hide();
