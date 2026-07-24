@@ -793,6 +793,10 @@ public class Inventory : MonoBehaviour, ISaveable
 
         if (to.IsEmpty)
         {
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+            move = Mathf.Min(move, maxStack);
+            if (move <= 0) return 0;
+
             to.itemId = from.itemId;
             to.amount = move;
             from.amount -= move;
