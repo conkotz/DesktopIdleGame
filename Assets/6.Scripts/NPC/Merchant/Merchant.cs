@@ -284,7 +284,10 @@ public class Merchant : MonoBehaviour
 
         PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (storage != null)
-            storage.TryDepositAmountFromExternal(itemId, left);
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetPriceText(MerchantStock.Entry entry)
