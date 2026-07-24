@@ -43,6 +43,28 @@ public static class PendingLootRecoveryStore
         PendingLootRecoveryRuntime.EnsureInstance();
     }
 
+    /// <summary>
+    /// Tries <see cref="DropManager.Spawn"/>; if the manager is missing or spawn returns false
+    /// (no anchor/prefab/etc.), parks the stack so removals never silently destroy items.
+    /// </summary>
+    /// <returns>True when a world drop was spawned; false when the amount was enqueued.</returns>
+    public static bool TrySpawnWorldDropOrEnqueue(
+        string itemId,
+        int amount,
+        Sprite icon,
+        string sourceName = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return false;
+
+        DropManager dm = DropManager.Instance;
+        if (dm != null && dm.Spawn(itemId, amount, icon, sourceName))
+            return true;
+
+        Enqueue(itemId, amount);
+        return false;
+    }
+
     public static void EnsureLists(SaveData data)
     {
         if (data == null)

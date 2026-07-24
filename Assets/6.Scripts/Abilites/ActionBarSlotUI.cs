@@ -1198,10 +1198,10 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (left > 0)
             {
                 ItemDefinition existingDef = inventory.GetItemDef(existingId);
-                if (DropManager.Instance != null)
-                    DropManager.Instance.Spawn(existingId, left, existingDef ? existingDef.icon : null);
-                else
-                    PendingLootRecoveryStore.Enqueue(existingId, left);
+                PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                    existingId,
+                    left,
+                    existingDef ? existingDef.icon : null);
             }
         }
 
@@ -1291,10 +1291,7 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (left > 0)
         {
             ItemDefinition def = inventory.GetItemDef(id);
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(id, left, def ? def.icon : null);
-            else
-                PendingLootRecoveryStore.Enqueue(id, left);
+            PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(id, left, def ? def.icon : null);
         }
 
         ClearAssignment(notify: true);
