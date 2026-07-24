@@ -113,21 +113,36 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene furnaces that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.furnaceSmelters == null)
-            return;
-
-        for (int i = 0; i < data.furnaceSmelters.Count; i++)
+        if (data?.furnaceSmelters != null)
         {
-            SaveData.FurnaceSmelterSave row = data.furnaceSmelters[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.furnaceId))
+            for (int i = 0; i < data.furnaceSmelters.Count; i++)
+            {
+                SaveData.FurnaceSmelterSave save = data.furnaceSmelters[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.furnaceId))
+                    continue;
+
+                string key = NormalizeFurnaceId(save.furnaceId);
+                if (!_rows.TryGetValue(key, out FurnaceRow row) || row == null)
+                {
+                    row = new FurnaceRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeFurnaceId(row.furnaceId);
-            var furnaceRow = new FurnaceRow(key);
-            furnaceRow.ReadFrom(row);
-            _rows[key] = furnaceRow;
+            kv.Value.ResetToEmpty();
         }
     }
 
@@ -858,6 +873,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _isSmelting = row.isSmelting;
             NormalizeStateAfterLoad();
             NotifyChanged();
+        }
+
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.FurnaceSmelterSave { furnaceId = _furnaceId });
         }
 
         private void NormalizeStateAfterLoad()
