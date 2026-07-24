@@ -942,7 +942,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         ItemDefinition def = GetItemDef(itemId);
         StorageTabKind tab = ResolveAutoDepositTab(def);
-        return GetReceivableAmountInTab(itemId, amount, tab);
+        int inPreferred = GetReceivableAmountInTab(itemId, amount, tab);
+        if (tab == StorageTabKind.Main || inPreferred >= amount)
+            return inPreferred;
+
+        // Mirror TryDepositAmountFromExternal: overflow from affinity tabs spills into Main.
+        int left = amount - inPreferred;
+        return inPreferred + GetReceivableAmountInTab(itemId, left, StorageTabKind.Main);
     }
 
     public int GetReceivableAmountInTab(string itemId, int amount, StorageTabKind tab)
