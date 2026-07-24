@@ -1387,14 +1387,14 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         if (legacyUniformLayout)
-            MigrateLegacyUniformTabStorage();
+            MigrateLegacyUniformTabStorage(data);
         else if (savedCount < ComputeTotalSlotCount())
-            MigrateLegacyFlatStorage(savedCount);
+            MigrateLegacyFlatStorage(savedCount, data);
 
         MarkAllSlotsChanged();
     }
 
-    private void MigrateLegacyFlatStorage(int previousCount)
+    private void MigrateLegacyFlatStorage(int previousCount, SaveData pendingParkTarget)
     {
         if (previousCount <= MainSlotsPerTab)
             return;
@@ -1411,10 +1411,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = existing;
         }
 
-        RedepositOverflowStacks(overflow);
+        RedepositOverflowStacks(overflow, pendingParkTarget);
     }
 
-    private void MigrateLegacyUniformTabStorage()
+    private void MigrateLegacyUniformTabStorage(SaveData pendingParkTarget)
     {
         var preserved = new List<(int globalIndex, Slot slot)>();
         for (int i = 0; i < _slots.Count; i++)
@@ -1455,10 +1455,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             }
         }
 
-        RedepositOverflowStacks(overflow);
+        RedepositOverflowStacks(overflow, pendingParkTarget);
     }
 
-    private void RedepositOverflowStacks(List<Slot> overflow)
+    private void RedepositOverflowStacks(List<Slot> overflow, SaveData pendingParkTarget)
     {
         foreach (var stack in overflow)
         {
@@ -1481,7 +1481,20 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
                 if (left > 0)
                 {
-                    PendingLootRecoveryStore.Enqueue(stack.itemId, left);
+                    // Park into SaveData lists — not live Enqueue. ApplyToPlayer calls
+                    // PendingLootRecoveryStore.ApplyFromSaveData after LoadFrom and would wipe
+                    // any runtime entries enqueued here (same pattern as EquipmentManager.LoadFrom).
+                    if (pendingParkTarget != null)
+                    {
+                        PendingLootRecoveryStore.EnsureLists(pendingParkTarget);
+                        pendingParkTarget.pendingLootRecoveryItemIds.Add(stack.itemId);
+                        pendingParkTarget.pendingLootRecoveryAmounts.Add(left);
+                    }
+                    else
+                    {
+                        PendingLootRecoveryStore.Enqueue(stack.itemId, left);
+                    }
+
                     GameLog.Add(
                         "Storage layout migration could not fit all items — held the overflow until you free space.",
                         GameLog.CannotMessageColor);
