@@ -65,17 +65,26 @@ public class SaveManager : MonoBehaviour
 
     private int GetSafeActiveSlot()
     {
-        int slot = SaveSlotManager.ActiveSlotIndex;
-        if (slot < 0)
-        {
-            slot = 0;
-        }
-
-        return slot;
+        return SaveSlotManager.ActiveSlotIndex;
     }
 
-    private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
-    private string ActiveSaveBackupPath => ActiveSavePath + ".bak";
+    private string ActiveSavePath
+    {
+        get
+        {
+            int slot = GetSafeActiveSlot();
+            return slot < 0 ? null : SaveSlotManager.GetSavePath(slot);
+        }
+    }
+
+    private string ActiveSaveBackupPath
+    {
+        get
+        {
+            string path = ActiveSavePath;
+            return string.IsNullOrEmpty(path) ? null : path + ".bak";
+        }
+    }
     private float _autosaveTimer;
     private float _stripZoomSaveDueUnscaled = -1f;
     private const float ShopStockSaveDebounceSeconds = 0.12f;
@@ -698,7 +707,7 @@ public class SaveManager : MonoBehaviour
         FlushPendingDiskWritesBlocking();
     }
 
-    public bool HasSave() => File.Exists(ActiveSavePath);
+    public bool HasSave() => !string.IsNullOrEmpty(ActiveSavePath) && File.Exists(ActiveSavePath);
 
     /// <summary>UI-facing slot existence query from last metadata refresh.</summary>
     public bool SaveExists(int slotIndex)
@@ -1099,6 +1108,12 @@ public class SaveManager : MonoBehaviour
     private void CommitSaveSnapshot(SaveRequestKind kind, SaveData data, long captureMs)
     {
         int slot = GetSafeActiveSlot();
+        if (slot < 0)
+        {
+            Debug.LogError($"[SaveManager] Save ({kind}) aborted: no active save slot.");
+            return;
+        }
+
         int combatPower = 0;
         PlayerController playerForHeader = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         CharacterStats playerStats = playerForHeader ? playerForHeader.GetComponent<CharacterStats>() : null;
@@ -1336,6 +1351,8 @@ public class SaveManager : MonoBehaviour
         if (log.IsError)
         {
             Debug.LogError($"[SaveManager] Async save failed ({log.Kind}): {log.ErrorMessage}");
+            // Snapshot was marked clean before the disk write; remake dirty so autosave retries.
+            _saveDirty = true;
             return;
         }
 
@@ -1390,6 +1407,12 @@ public class SaveManager : MonoBehaviour
         if (FindFirstObjectByType<Inventory>(FindObjectsInactive.Include) == null)
         {
             reason = "Inventory missing";
+            return false;
+        }
+
+        if (SaveSlotManager.ActiveSlotIndex < 0)
+        {
+            reason = "no active save slot selected";
             return false;
         }
 
@@ -1974,11 +1997,18 @@ public class SaveManager : MonoBehaviour
 
     public void Load()
     {
-        if (!HasSave()) return;
+        if (!HasSave() && (string.IsNullOrEmpty(ActiveSaveBackupPath) || !File.Exists(ActiveSaveBackupPath)))
+            return;
 
         SaveData data = ReadSaveDataFromPath(ActiveSavePath);
         SaveData backup = ReadSaveDataFromPath(ActiveSaveBackupPath);
-        if (ShouldPreferBackup(data, backup))
+        if (data == null && backup != null)
+        {
+            Debug.LogWarning(
+                $"[SaveManager] Active save missing/corrupt; restoring from backup '{ActiveSaveBackupPath}'.");
+            data = backup;
+        }
+        else if (ShouldPreferBackup(data, backup))
         {
             Debug.LogWarning(
                 $"[SaveManager] Active save looked wiped; restoring from backup '{ActiveSaveBackupPath}'.");
@@ -2692,8 +2722,12 @@ public class SaveManager : MonoBehaviour
 
     private static bool ShouldPreferBackup(SaveData active, SaveData backup)
     {
-        if (active == null || backup == null)
+        if (backup == null)
             return false;
+
+        // Prefer backup when the primary file failed to parse or is empty.
+        if (active == null)
+            return true;
 
         int activeScore = ScoreSaveProgress(active);
         int backupScore = ScoreSaveProgress(backup);
