@@ -448,8 +448,19 @@ public class EnduranceTrialDirector : MonoBehaviour
 
         if (!dm)
         {
+            for (int i = 0; i < _lastCompletionLoot.Count; i++)
+            {
+                EnduranceTrialUIHelpers.EnduranceTrialLootGrant held = _lastCompletionLoot[i];
+                PendingLootRecoveryStore.Enqueue(held.itemId, held.amount);
+            }
+
             if (_lastCompletionLoot.Count > 0)
-                Debug.LogWarning("[EnduranceTrialDirector] No DropManager in scene — completion loot skipped.", this);
+            {
+                Debug.LogWarning(
+                    "[EnduranceTrialDirector] No DropManager in scene — completion loot held in pending recovery.",
+                    this);
+            }
+
             _completionLootRoutine = null;
             yield break;
         }
@@ -462,7 +473,8 @@ public class EnduranceTrialDirector : MonoBehaviour
                 yield return new WaitForSeconds(interval);
 
             EnduranceTrialUIHelpers.EnduranceTrialLootGrant g = _lastCompletionLoot[i];
-            dm.Spawn(g.itemId, g.amount, g.icon);
+            if (!dm.Spawn(g.itemId, g.amount, g.icon))
+                PendingLootRecoveryStore.Enqueue(g.itemId, g.amount);
         }
 
         _completionLootRoutine = null;
