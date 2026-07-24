@@ -788,6 +788,8 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (DropManager.Instance != null)
             DropManager.Instance.Spawn(itemId, amount, iconSprite);
+        else
+            PendingLootRecoveryStore.Enqueue(itemId, amount);
         ItemGainPopupNotifier.NotifyLost(itemId, amount);
         tooltip?.Hide();
     }
