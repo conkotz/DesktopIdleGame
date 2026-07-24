@@ -326,10 +326,57 @@ public static class SaveDataIntegrity
             data.uiWindowLockLocked,
             "uiWindowLock",
             padValue: 0);
+        PadOrTrimStringIntLists(
+            data.worldMapEnemyKillNodeIds,
+            data.worldMapEnemyKillTotals,
+            "worldMapEnemyKills",
+            padValue: 0);
+        PadOrTrimStringIntLists(
+            data.combatMapScalingNodeIds,
+            data.combatMapScalingSelectedTier,
+            "combatMapScaling",
+            padValue: 0);
+
+        RepairMapEnhancementSlotLists(data);
 
         PlayerMapExitPositionStore.RepairParallelLists(data);
         WorldObjectPositionStore.RepairParallelLists(data);
         TownServiceUnlockStore.EnsureLists(data);
+    }
+
+    private static void RepairMapEnhancementSlotLists(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.mapEnhancementNodeIds ??= new List<string>();
+        data.mapEnhancementSlot0 ??= new List<string>();
+        data.mapEnhancementSlot1 ??= new List<string>();
+        data.mapEnhancementSlot2 ??= new List<string>();
+
+        int n = data.mapEnhancementNodeIds.Count;
+        while (data.mapEnhancementSlot0.Count < n)
+            data.mapEnhancementSlot0.Add(string.Empty);
+        while (data.mapEnhancementSlot1.Count < n)
+            data.mapEnhancementSlot1.Add(string.Empty);
+        while (data.mapEnhancementSlot2.Count < n)
+            data.mapEnhancementSlot2.Add(string.Empty);
+
+        if (data.mapEnhancementSlot0.Count == n &&
+            data.mapEnhancementSlot1.Count == n &&
+            data.mapEnhancementSlot2.Count == n)
+            return;
+
+        Debug.LogWarning(
+            $"[SaveDataIntegrity] Map enhancement slot lists mismatched " +
+            $"(nodes={n}, s0={data.mapEnhancementSlot0.Count}, s1={data.mapEnhancementSlot1.Count}, s2={data.mapEnhancementSlot2.Count}); trimming.");
+
+        while (data.mapEnhancementSlot0.Count > n)
+            data.mapEnhancementSlot0.RemoveAt(data.mapEnhancementSlot0.Count - 1);
+        while (data.mapEnhancementSlot1.Count > n)
+            data.mapEnhancementSlot1.RemoveAt(data.mapEnhancementSlot1.Count - 1);
+        while (data.mapEnhancementSlot2.Count > n)
+            data.mapEnhancementSlot2.RemoveAt(data.mapEnhancementSlot2.Count - 1);
     }
 
     /// <summary>Make parallel lists the same length (pad ints or trim excess values).</summary>
