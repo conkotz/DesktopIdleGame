@@ -485,10 +485,7 @@ public class StorageSlotUI : MonoBehaviour,
         if (removed <= 0)
             return;
 
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, removed, iconSprite);
-        else
-            PendingLootRecoveryStore.Enqueue(itemId, removed);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
         ItemGainPopupNotifier.NotifyLost(itemId, removed);
         _tooltip?.Hide();
     }
@@ -781,10 +778,7 @@ public class StorageSlotUI : MonoBehaviour,
         int removed = _storage.RemoveAmountAtSlot(fromSlot, dropAmount);
         if (removed > 0)
         {
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(itemId, removed, iconSprite);
-            else
-                PendingLootRecoveryStore.Enqueue(itemId, removed);
+            PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
             ItemGainPopupNotifier.NotifyLost(itemId, removed);
         }
 

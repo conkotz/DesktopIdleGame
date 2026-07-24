@@ -1172,6 +1172,21 @@ public class Inventory : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
+        // Preserve stacks that cannot fit after re-splitting over-max legacy amounts.
+        if (merged.Count > _slots.Count)
+        {
+            for (int i = _slots.Count; i < merged.Count; i++)
+            {
+                Slot overflow = merged[i];
+                if (!overflow.IsEmpty)
+                    PendingLootRecoveryStore.Enqueue(overflow.itemId, overflow.amount);
+            }
+
+            Debug.LogWarning(
+                $"[Inventory] Sort overflow: need {merged.Count} slots but only {_slots.Count} exist — parked extras in pending loot.");
+            merged.RemoveRange(_slots.Count, merged.Count - _slots.Count);
+        }
+
         for (int i = 0; i < _slots.Count; i++)
         {
             var s = _slots[i];
@@ -1179,12 +1194,8 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, _slots.Count);
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < merged.Count; i++)
             _slots[i] = merged[i];
-
-        if (merged.Count > _slots.Count)
-            Debug.LogError($"[Inventory] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — save data may be invalid (overflowing stacks).");
 
         NotifyInventoryChanged();
     }
