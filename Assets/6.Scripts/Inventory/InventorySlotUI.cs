@@ -572,16 +572,20 @@ public class InventorySlotUI : MonoBehaviour,
                     return;
                 }
 
-                // must have empty tool slot or do nothing
-                // remove one item first, then add; if fails, put back
+                // remove one item first, then add; if fails, put back.
+                // Same-type replace displaces the old tool — must return it (do not destroy).
                 if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
 
-                bool ok = toolbelt.TryAddToFirstEmpty(slot.itemId);
+                bool ok = toolbelt.TryAddToFirstEmpty(slot.itemId, out string displacedToolId);
                 if (!ok)
                 {
                     // toolbelt full -> put back, and DO NOT equip mainhand
                     ReturnOrDrop(slot.itemId, 1);
+                    return;
                 }
+
+                if (!string.IsNullOrWhiteSpace(displacedToolId))
+                    ReturnOrDrop(displacedToolId, 1);
                 return;
             }
 
@@ -648,19 +652,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipOffHand(slot.itemId, equipAmount);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-            {
-                int prevQty = Mathf.Max(1, prevAmount);
-                int returned = _inventory.AddPartial(prev, prevQty, notifyItemGainPopup: false);
-                int left = prevQty - returned;
-                if (left > 0)
-                {
-                    ItemDefinition prevDef = _inventory.GetItemDef(prev);
-                    if (DropManager.Instance != null)
-                        DropManager.Instance.Spawn(prev, left, prevDef ? prevDef.icon : null);
-                    else
-                        PendingLootRecoveryStore.Enqueue(prev, left);
-                }
-            }
+                ReturnOrDrop(prev, Mathf.Max(1, prevAmount));
 
             return;
         }
