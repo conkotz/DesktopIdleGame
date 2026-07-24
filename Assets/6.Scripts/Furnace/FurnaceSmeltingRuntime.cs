@@ -142,12 +142,17 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
         }
 
+        // Wipe passes null — discard without parking so New Game cannot inherit leftovers.
+        bool parkUnseenContents = data != null;
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
         {
             if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            kv.Value.ResetToEmpty();
+            if (parkUnseenContents)
+                kv.Value.ParkContentsThenResetToEmpty();
+            else
+                kv.Value.ResetToEmpty();
         }
     }
 
@@ -1018,6 +1023,30 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         public void ResetToEmpty()
         {
             ReadFrom(new SaveData.FurnaceSmelterSave { furnaceId = _furnaceId });
+        }
+
+        /// <summary>
+        /// Parks ore/fuel/enhancement/ready bars before wiping an unseen furnace row on LoadFrom.
+        /// </summary>
+        public void ParkContentsThenResetToEmpty()
+        {
+            if (_storedOreAmount > 0 && !string.IsNullOrWhiteSpace(_storedOreItemId))
+                PendingLootRecoveryStore.Enqueue(_storedOreItemId, _storedOreAmount);
+
+            if (_readyBarAmount > 0)
+            {
+                string barId = GetReadyBarItemId();
+                if (!string.IsNullOrWhiteSpace(barId))
+                    PendingLootRecoveryStore.Enqueue(barId, _readyBarAmount);
+            }
+
+            if (_storedEnhancementAmount > 0 && !string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                PendingLootRecoveryStore.Enqueue(_storedEnhancementItemId, _storedEnhancementAmount);
+
+            if (_fuelBank.HasFuel && !string.IsNullOrWhiteSpace(_fuelBank.StoredItemId))
+                PendingLootRecoveryStore.Enqueue(_fuelBank.StoredItemId, _fuelBank.StoredAmount);
+
+            ResetToEmpty();
         }
 
         private void NormalizeStateAfterLoad()
