@@ -572,16 +572,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         }
 
         var def = GetDef(itemId);
-        if (DropManager.Instance != null)
+        if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null))
         {
-            DropManager.Instance.Spawn(itemId, left, def ? def.icon : null);
-            return;
+            Debug.LogWarning(
+                $"[EquipmentManager] Inventory full and drop spawn failed — held '{itemId}' x{left} for later recovery.",
+                this);
         }
-
-        PendingLootRecoveryStore.Enqueue(itemId, left);
-        Debug.LogWarning(
-            $"[EquipmentManager] Inventory full and no DropManager — held '{itemId}' x{left} for later recovery.",
-            this);
     }
 
     // -------------------------

@@ -3278,9 +3278,9 @@ public class PlayerController : MonoBehaviour
             var itemDef = inventory != null ? inventory.GetItemDef(itemId) : null;
             Sprite icon = itemDef ? itemDef.icon : null;
 
-            if (DropManager.Instance != null)
+            if (DropManager.Instance != null &&
+                DropManager.Instance.Spawn(itemId, amount, icon, sourceDisplayName))
             {
-                DropManager.Instance.Spawn(itemId, amount, icon, sourceDisplayName);
                 return;
             }
 
@@ -5235,16 +5235,12 @@ public class PlayerController : MonoBehaviour
         else
             GameLog.Add("Returning to town");
 
-        MapNodeDefinition restoreContext = GameplayLevelBootstrapper.Instance != null
-            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
-            : ActiveLevelContext.Current;
-
-        MapTravelSession.BeginTravel(destination, MapTravelSession.EntryMethod.MapTeleport, logPendingLevel: false);
-        if (!PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName))
+        if (!MapTravelSession.TryBeginTravelAndLoadScene(
+                destination,
+                MapTravelSession.EntryMethod.MapTeleport,
+                GameplaySceneName,
+                logPendingLevel: false))
         {
-            if (restoreContext != null)
-                ActiveLevelContext.SetPendingLevel(restoreContext, logToConsole: false);
-            MapTravelSession.ClearPendingEntryMethod();
             NotifyReturnToTownTravelFinished();
             return false;
         }
