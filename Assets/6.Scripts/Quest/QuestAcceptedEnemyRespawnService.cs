@@ -79,18 +79,20 @@ public static class QuestAcceptedEnemyRespawnService
         if (HandledQuestIds.Contains(quest.questId.Trim()))
             return;
 
+        // Only treat an already-living enemy as "handled" when we are on the configured
+        // target map. A same-id enemy elsewhere must not permanently skip the quest spawn.
+        MapNodeDefinition active = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+        if (!IsActiveMap(active, mapNodeId))
+            return;
+
         string enemyId = enemyDef.enemyId.Trim();
         if (IsLivingEnemyPresent(enemyId))
         {
             MarkHandled(quest.questId);
             return;
         }
-
-        MapNodeDefinition active = GameplayLevelBootstrapper.Instance != null
-            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
-            : ActiveLevelContext.Current;
-        if (!IsActiveMap(active, mapNodeId))
-            return;
 
         if (TrySpawnOnMap(quest, enemyDef, mapNodeId, spawnPointName, spawnGroupId))
             MarkHandled(quest.questId);
