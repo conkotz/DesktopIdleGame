@@ -78,6 +78,27 @@ public sealed class ProcessingFuelBank
         return amount;
     }
 
+    /// <summary>
+    /// Withdraws only whole unburned logs. Keeps a partially burned current log in the bank
+    /// so players cannot refund burn progress as a full item.
+    /// </summary>
+    public int WithdrawFullLogsOnly()
+    {
+        if (_logCount <= 0)
+            return 0;
+
+        if (_secondsBurnedFromCurrentLog > 0.0001f)
+        {
+            int fullLogs = _logCount - 1;
+            _logCount = 1;
+            return Mathf.Max(0, fullLogs);
+        }
+
+        int amount = _logCount;
+        Clear();
+        return amount;
+    }
+
     public bool TryConsumeSeconds(float seconds)
     {
         if (seconds <= 0f)
