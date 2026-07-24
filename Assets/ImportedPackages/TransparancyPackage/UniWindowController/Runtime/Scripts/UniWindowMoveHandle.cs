@@ -7,7 +7,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 #if ENABLE_LEGACY_INPUT_MANAGER
