@@ -347,7 +347,9 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     public void EnsureSlotCount(int count)
     {
         int minimum = ComputeTotalSlotCount();
-        count = Mathf.Max(minimum, Mathf.Max(1, count));
+        // Hard upper bound against corrupt saves (int.MaxValue) while allowing tab unlock growth.
+        const int absoluteMax = 2048;
+        count = Mathf.Clamp(Mathf.Max(minimum, Mathf.Max(1, count)), 1, absoluteMax);
 
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
@@ -510,6 +512,21 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
+        int capacity = rangeEnd - rangeStart;
+        if (merged.Count > capacity)
+        {
+            for (int i = capacity; i < merged.Count; i++)
+            {
+                Slot overflow = merged[i];
+                if (!overflow.IsEmpty)
+                    PendingLootRecoveryStore.Enqueue(overflow.itemId, overflow.amount);
+            }
+
+            Debug.LogWarning(
+                $"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {capacity} — parked extras in pending loot.");
+            merged.RemoveRange(capacity, merged.Count - capacity);
+        }
+
         for (int i = rangeStart; i < rangeEnd; i++)
         {
             var s = _slots[i];
@@ -517,12 +534,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, rangeEnd - rangeStart);
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < merged.Count; i++)
             _slots[rangeStart + i] = merged[i];
-
-        if (merged.Count > rangeEnd - rangeStart)
-            Debug.LogWarning($"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {rangeEnd - rangeStart}.");
 
         MarkAllSlotsChanged();
     }
@@ -565,6 +578,10 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         if (to.IsEmpty)
         {
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+            move = Mathf.Min(move, maxStack);
+            if (move <= 0) return 0;
+
             to.itemId = from.itemId;
             to.amount = move;
             from.amount -= move;
@@ -602,6 +619,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
         if (toStorageSlot < 0 || toStorageSlot >= _slots.Count) return 0;
+        if (fromInvSlot < 0 || fromInvSlot >= inv.SlotCount) return 0;
 
         var from = inv.GetSlot(fromInvSlot);
         if (from.IsEmpty) return 0;
@@ -621,12 +639,17 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         {
             if (to.IsEmpty)
             {
+                // Match merge path / TryDepositAmountToTab: never write over-max into an empty slot.
+                int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+                int move = Mathf.Min(amount, maxStack);
+                if (move <= 0) return 0;
+
                 to.itemId = from.itemId;
-                to.amount = amount;
+                to.amount = move;
                 _slots[toStorageSlot] = to;
-                inv.RemoveAmountAtSlot(fromInvSlot, amount);
+                inv.RemoveAmountAtSlot(fromInvSlot, move);
                 MarkSlotChanged(toStorageSlot);
-                return amount;
+                return move;
             }
 
             if (to.itemId == from.itemId)
@@ -760,6 +783,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
         if (fromStorageSlot < 0 || fromStorageSlot >= _slots.Count) return 0;
+        if (toInvSlot < 0 || toInvSlot >= inv.SlotCount) return 0;
 
         var from = _slots[fromStorageSlot];
         if (from.IsEmpty) return 0;
@@ -809,6 +833,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return false;
         if (storageSlot < 0 || storageSlot >= _slots.Count) return false;
+        if (invSlot < 0 || invSlot >= inv.SlotCount) return false;
 
         var a = inv.GetSlot(invSlot);
         var b = _slots[storageSlot];
@@ -931,7 +956,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         ItemDefinition def = GetItemDef(itemId);
         StorageTabKind tab = ResolveAutoDepositTab(def);
-        return GetReceivableAmountInTab(itemId, amount, tab);
+        int inPreferred = GetReceivableAmountInTab(itemId, amount, tab);
+        if (tab == StorageTabKind.Main || inPreferred >= amount)
+            return inPreferred;
+
+        // Mirror TryDepositAmountFromExternal: overflow from affinity tabs spills into Main.
+        int left = amount - inPreferred;
+        return inPreferred + GetReceivableAmountInTab(itemId, left, StorageTabKind.Main);
     }
 
     public int GetReceivableAmountInTab(string itemId, int amount, StorageTabKind tab)
@@ -1048,6 +1079,34 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return removedTotal;
     }
 
+    /// <summary>
+    /// Undoes a prior <see cref="TryDepositAmountFromExternal"/> / <see cref="TryDepositAmountToTab"/>
+    /// by removing only from the slots it reported as touched. Prefer this over
+    /// <see cref="RemoveItemAmountAcrossSlots"/> when rolling back a failed transfer.
+    /// </summary>
+    public int RemoveAmountFromTouchedSlots(int amount, IList<int> touchedSlotIndices)
+    {
+        if (amount <= 0 || touchedSlotIndices == null || touchedSlotIndices.Count == 0)
+            return 0;
+
+        BeginBatchChanges();
+        int left = amount;
+        try
+        {
+            for (int t = touchedSlotIndices.Count - 1; t >= 0 && left > 0; t--)
+            {
+                int removed = RemoveAmountAtSlot(touchedSlotIndices[t], left);
+                left -= removed;
+            }
+        }
+        finally
+        {
+            EndBatchChanges();
+        }
+
+        return amount - left;
+    }
+
     /// <summary>Deposit as much as possible from one inventory slot (double-click from inventory).</summary>
     public int TryDepositAllFromInventorySlot(Inventory inv, int invSlot)
     {
@@ -1151,6 +1210,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
         if (!itemDb)
+            itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (!itemDb)
             itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
         if (!itemDb)
         {
@@ -1175,7 +1236,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         int savedCount = data.storageSlotCount > 0 ? data.storageSlotCount : ComputeTotalSlotCount();
-        savedCount = Mathf.Max(1, savedCount);
+        savedCount = Mathf.Clamp(savedCount, 1, 2048);
         bool legacyUniformLayout = savedCount >= LegacyTotalSlotCount;
         EnsureSlotCount(Mathf.Max(savedCount, ComputeTotalSlotCount()));
 
@@ -1312,9 +1373,27 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             ItemDefinition def = GetItemDef(stack.itemId);
             StorageTabKind tab = ResolveAutoDepositTab(def);
-            int placed = TryDepositAmountToTab(stack.itemId, stack.amount, tab);
-            if (placed < stack.amount)
-                TryDepositAmountToTab(stack.itemId, stack.amount - placed, StorageTabKind.Main);
+            int left = stack.amount;
+            left -= TryDepositAmountToTab(stack.itemId, left, tab);
+            if (left > 0 && tab != StorageTabKind.Main)
+                left -= TryDepositAmountToTab(stack.itemId, left, StorageTabKind.Main);
+
+            // Legacy layout migration can shrink total capacity — never silently discard overflow.
+            if (left > 0)
+            {
+                Inventory inv = Inventory.ResolvePlayer();
+                if (inv != null)
+                    left -= inv.AddPartial(stack.itemId, left, notifyItemGainPopup: false);
+
+                if (left > 0)
+                {
+                    PendingLootRecoveryStore.Enqueue(stack.itemId, left);
+                    GameLog.Add(
+                        "Storage layout migration could not fit all items — held the overflow until you free space.",
+                        GameLog.CannotMessageColor);
+                    SaveManager.Instance?.NotifyInventoryChangedDebounced();
+                }
+            }
         }
     }
 }

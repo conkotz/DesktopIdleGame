@@ -125,8 +125,17 @@ public class ToolbeltManager : MonoBehaviour, ISaveable
     /// In that case, it replaces that existing slot.
     /// Returns true if placed/replaced, false if no valid slot available.
     /// </summary>
-    public bool TryAddToFirstEmpty(string itemId)
+    public bool TryAddToFirstEmpty(string itemId) =>
+        TryAddToFirstEmpty(itemId, out _);
+
+    /// <summary>
+    /// Same as <see cref="TryAddToFirstEmpty(string)"/>, but reports any same-type tool that was displaced.
+    /// Callers must return <paramref name="displacedItemId"/> to inventory/storage/drop when non-null.
+    /// </summary>
+    public bool TryAddToFirstEmpty(string itemId, out string displacedItemId)
     {
+        displacedItemId = null;
+
         if (string.IsNullOrWhiteSpace(itemId))
             return false;
 
@@ -146,7 +155,10 @@ public class ToolbeltManager : MonoBehaviour, ISaveable
         int sameTypeSlot = FindSameToolTypeSlot(itemId);
         if (sameTypeSlot >= 0)
         {
+            string previous = GetToolItemId(sameTypeSlot);
             SetToolItemId(sameTypeSlot, itemId);
+            if (!string.IsNullOrWhiteSpace(previous) && previous != itemId)
+                displacedItemId = previous;
             return true;
         }
 
