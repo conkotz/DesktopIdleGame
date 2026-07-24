@@ -38,8 +38,14 @@ public class SaveManager : MonoBehaviour
     /// <summary>True while <see cref="ApplyToPlayer"/> / new-game apply is rewriting runtime state.</summary>
     public bool IsApplyingSaveData => _isApplyingSaveData;
 
-    /// <summary>Staged load exists but final apply has not completed yet.</summary>
-    public bool HasUnresolvedPendingLoad => _hasPendingLoad && !_didFinalApplyForCurrentLoad;
+    /// <summary>
+    /// Staged load exists but final apply has not completed yet, or the late
+    /// <see cref="DeferredApplyPlayerStorageLoad"/> pass has not finished.
+    /// Pending-loot flush must wait — otherwise it can deposit into storage and then
+    /// be wiped when deferred <see cref="PlayerStorage.LoadFrom"/> reloads the pre-flush snapshot.
+    /// </summary>
+    public bool HasUnresolvedPendingLoad =>
+        (_hasPendingLoad && !_didFinalApplyForCurrentLoad) || _deferredPlayerStorageLoadPending;
 
     [SerializeField] private bool autosave = true;
     [SerializeField] private float autosaveIntervalSeconds = 30f;
@@ -143,6 +149,8 @@ public class SaveManager : MonoBehaviour
     private bool _isApplyingSaveData;
     private SaveSlotManager.SlotStartMode _lastStartMode = SaveSlotManager.SlotStartMode.None;
     private bool _hasPendingLoad;
+    private bool _deferredPlayerStorageLoadPending;
+    private Coroutine _deferredPlayerStorageLoadRoutine;
     private bool _didFinalApplyForCurrentLoad;
     private bool _didApplyProcessingOfflineForCurrentLoad;
     private Coroutine _forceApplyAfterSceneLoadRoutine;
@@ -410,7 +418,7 @@ public class SaveManager : MonoBehaviour
 
             if (ApplyToPlayer(null))
             {
-                StartCoroutine(DeferredApplyPlayerStorageLoad());
+                BeginDeferredPlayerStorageLoad();
                 _hasPendingLoad = false;
                 _didFinalApplyForCurrentLoad = true;
                 if (verboseInfoLogs)
@@ -2440,22 +2448,45 @@ public class SaveManager : MonoBehaviour
         runtime.NotifyAllMerchantsStockChanged();
     }
 
+    private void BeginDeferredPlayerStorageLoad()
+    {
+        if (_deferredPlayerStorageLoadRoutine != null)
+        {
+            StopCoroutine(_deferredPlayerStorageLoadRoutine);
+            _deferredPlayerStorageLoadRoutine = null;
+        }
+
+        // Set before StartCoroutine so a same-frame pending-loot flush cannot race the yield.
+        _deferredPlayerStorageLoadPending = true;
+        _deferredPlayerStorageLoadRoutine = StartCoroutine(DeferredApplyPlayerStorageLoad());
+    }
+
     private IEnumerator DeferredApplyPlayerStorageLoad()
     {
-        yield return null;
-        if (_lastLoadedData == null) yield break;
-
-        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
-        if (ps == null) yield break;
-
-        _isApplyingSaveData = true;
         try
         {
-            ps.LoadFrom(_lastLoadedData);
+            yield return null;
+            if (_lastLoadedData == null)
+                yield break;
+
+            var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (ps == null)
+                yield break;
+
+            _isApplyingSaveData = true;
+            try
+            {
+                ps.LoadFrom(_lastLoadedData);
+            }
+            finally
+            {
+                _isApplyingSaveData = false;
+            }
         }
         finally
         {
-            _isApplyingSaveData = false;
+            _deferredPlayerStorageLoadPending = false;
+            _deferredPlayerStorageLoadRoutine = null;
         }
     }
 
@@ -3279,7 +3310,7 @@ public class SaveManager : MonoBehaviour
             return;
 
         // Player / ItemDatabase can still be a frame behind on some loads; keep this late-pass too.
-        StartCoroutine(DeferredApplyPlayerStorageLoad());
+        BeginDeferredPlayerStorageLoad();
 
         _hasPendingLoad = false;
         _didFinalApplyForCurrentLoad = true;
@@ -3298,6 +3329,7 @@ public class SaveManager : MonoBehaviour
         IsGameFullyLoaded = false;
         _hasPendingLoad = false;
         _didFinalApplyForCurrentLoad = false;
+        _deferredPlayerStorageLoadPending = false;
         _didApplyProcessingOfflineForCurrentLoad = false;
         _autosaveTimer = 0f;
         _stripZoomSaveDueUnscaled = -1f;
@@ -3320,5 +3352,13 @@ public class SaveManager : MonoBehaviour
             StopCoroutine(_forceApplyAfterSceneLoadRoutine);
             _forceApplyAfterSceneLoadRoutine = null;
         }
+
+        if (_deferredPlayerStorageLoadRoutine != null)
+        {
+            StopCoroutine(_deferredPlayerStorageLoadRoutine);
+            _deferredPlayerStorageLoadRoutine = null;
+        }
+
+        _deferredPlayerStorageLoadPending = false;
     }
 }
