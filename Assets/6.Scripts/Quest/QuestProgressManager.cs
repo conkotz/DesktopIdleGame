@@ -1119,8 +1119,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return;
         }
 
-        MapTravelSession.BeginTravel(target, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            target,
+            MapTravelSession.EntryMethod.InWorldEntrance,
+            GameplaySceneName,
+            logPendingLevel: false);
     }
 
     private void TryAutoCompleteGatherQuestsFromInventory()
