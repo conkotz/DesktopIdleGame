@@ -61,7 +61,9 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
         {
             BlacksmithingRow row = kv.Value;
-            if (row == null || !row.IsCrafting)
+            // Pending STOP refunds must keep ticking after IsCrafting is cleared, or leftovers
+            // stay locked forever (and a later TryStartCrafting would discard them).
+            if (row == null || (!row.IsCrafting && !row.HasPendingIngredientRefunds))
                 continue;
 
             if (row.TickCrafting(Time.deltaTime))
@@ -167,6 +169,9 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         public string ReadyOutputItemId => _readyOutputItemId ?? "";
         public bool HasReadyOutput => !string.IsNullOrWhiteSpace(_readyOutputItemId);
         public bool IsCrafting => _isCrafting;
+        /// <summary>True when STOP left unrecovered ingredients that still need inventory/storage space.</summary>
+        public bool HasPendingIngredientRefunds =>
+            !_isCrafting && _lockedConsumedIngredients.Count > 0;
         public float CraftProgressSeconds => Mathf.Max(0f, _craftProgressSeconds);
 
         public bool TryGetSelectedRecipe(out BlacksmithingRecipe recipe) =>
@@ -226,6 +231,18 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
+            // STOP may leave locked leftovers when bag/storage are full. Never allow a new
+            // forge to Clear() those leftovers — that permanently destroys the refund.
+            if (HasPendingIngredientRefunds)
+            {
+                TryFlushPendingIngredientRefunds(logIfBlocked: false);
+                if (HasPendingIngredientRefunds)
+                {
+                    failureReason = "Free space to recover forge materials first.";
+                    return false;
+                }
+            }
+
             if (!TryGetSelectedRecipe(out BlacksmithingRecipe recipe))
             {
                 failureReason = "Select a recipe.";
@@ -253,6 +270,13 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             if (!TryGetSelectedRecipe(out BlacksmithingRecipe recipe))
             {
                 failureReason = "Select a recipe.";
+                return false;
+            }
+
+            // Belt-and-suspenders: never replace locked STOP leftovers with a new consume set.
+            if (HasPendingIngredientRefunds)
+            {
+                failureReason = "Free space to recover forge materials first.";
                 return false;
             }
 
