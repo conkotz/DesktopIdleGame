@@ -25,10 +25,22 @@ public class FullDpsWindowToggleUI : MonoBehaviour
 
     private Button _button;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
     {
-        SceneManager.sceneLoaded += (_, _) => AutoAttachToNamedButtons();
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+        SceneManager.sceneLoaded += OnSceneLoadedAutoAttach;
+        AutoAttachToNamedButtons();
+    }
+
+    private static void OnSceneLoadedAutoAttach(Scene scene, LoadSceneMode mode)
+    {
         AutoAttachToNamedButtons();
     }
 
