@@ -610,7 +610,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -626,18 +627,26 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
+            int left = toReturn - added;
             if (added <= 0)
             {
                 _fuelBank.Load(itemId, toReturn + keptPartial, burned);
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
-            if (added < toReturn)
-                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
+            if (left > 0)
+                _fuelBank.Load(itemId, left + keptPartial, burned);
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    left > 0
+                        ? "Inventory was full — sent some fuel to storage (rest still in the furnace)."
+                        : "Inventory was full — sent fuel to storage.",
+                    GameLog.CannotMessageColor);
+            }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
             NotifyChanged();
@@ -655,7 +664,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -663,12 +673,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             string itemId = _storedEnhancementItemId;
             int toReturn = _storedEnhancementAmount;
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -677,6 +685,15 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             {
                 _storedEnhancementAmount = 0;
                 _storedEnhancementItemId = "";
+            }
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedEnhancementAmount > 0
+                        ? "Inventory was full — sent some enhancements to storage (rest still in the furnace)."
+                        : "Inventory was full — sent enhancements to storage.",
+                    GameLog.CannotMessageColor);
             }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
@@ -707,7 +724,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -715,12 +733,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             string oreId = _storedOreItemId;
             int toReturn = _storedOreAmount;
-            int before = inv.GetTotalAmount(oreId);
-            inv.Add(oreId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(oreId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, oreId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -736,10 +752,46 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 }
             }
 
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedOreAmount > 0
+                        ? "Inventory was full — sent some ore to storage (rest still in the furnace)."
+                        : "Inventory was full — sent ore to storage.",
+                    GameLog.CannotMessageColor);
+            }
+
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreId, added);
             NotifyChanged();
             RequestSaveDebounced();
             return true;
+        }
+
+        private static int DeliverWithdrawnItems(
+            Inventory inv,
+            PlayerStorage storage,
+            string itemId,
+            int amount,
+            out bool sentToStorage)
+        {
+            sentToStorage = false;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+                return 0;
+
+            int added = inv ? inv.AddPartial(itemId, amount, notifyItemGainPopup: false) : 0;
+            int left = amount - added;
+            if (left > 0 && storage != null)
+            {
+                int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+                if (toStorage > 0)
+                {
+                    left -= toStorage;
+                    added += toStorage;
+                    sentToStorage = true;
+                }
+            }
+
+            return added;
         }
 
         public bool TryCollectBars(int amount, out string failureReason)
