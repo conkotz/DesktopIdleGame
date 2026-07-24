@@ -159,6 +159,28 @@ public class InventorySlotUI : MonoBehaviour,
     private void OnDestroy()
     {
         AutoBattleLootHighlight.UnregisterInventorySlotUi(this);
+        ClearStuckInventoryDragIfNeeded();
+    }
+
+    private void OnDisable()
+    {
+        _isPointerOver = false;
+        _tooltip?.Hide();
+        ClearStuckInventoryDragIfNeeded();
+        ApplySlotBackground();
+    }
+
+    private void ClearStuckInventoryDragIfNeeded()
+    {
+        if (!InventoryDragState.HasDrag)
+            return;
+        if (InventoryDragState.Source != InventoryDragState.SourceKind.Inventory)
+            return;
+        if (InventoryDragState.FromSlotIndex != _slotIndex)
+            return;
+
+        InventoryDragState.EndDrag();
+        InventoryDragIconPool.Hide();
     }
 
     public static class InputUtil
@@ -550,16 +572,20 @@ public class InventorySlotUI : MonoBehaviour,
                     return;
                 }
 
-                // must have empty tool slot or do nothing
-                // remove one item first, then add; if fails, put back
+                // remove one item first, then add; if fails, put back.
+                // Same-type replace displaces the old tool — must return it (do not destroy).
                 if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
 
-                bool ok = toolbelt.TryAddToFirstEmpty(slot.itemId);
+                bool ok = toolbelt.TryAddToFirstEmpty(slot.itemId, out string displacedToolId);
                 if (!ok)
                 {
                     // toolbelt full -> put back, and DO NOT equip mainhand
-                    _inventory.Add(slot.itemId, 1, null, notifyItemGainPopup: false);
+                    ReturnOrDrop(slot.itemId, 1);
+                    return;
                 }
+
+                if (!string.IsNullOrWhiteSpace(displacedToolId))
+                    ReturnOrDrop(displacedToolId, 1);
                 return;
             }
 
@@ -581,7 +607,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipMainHand(slot.itemId);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
+                ReturnOrDrop(prev, 1);
 
             return;
         }
@@ -626,7 +652,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipOffHand(slot.itemId, equipAmount);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, Mathf.Max(1, prevAmount), null, notifyItemGainPopup: false);
+                ReturnOrDrop(prev, Mathf.Max(1, prevAmount));
 
             return;
         }
@@ -642,13 +668,18 @@ public class InventorySlotUI : MonoBehaviour,
             // Normal single-slot gear
             if (!TryCanEquipOrPopup(def, def.equipSlot)) return;
 
+            // Same item already equipped → no-op (do not consume the inventory copy).
+            string prev = equipment.GetEquippedItemId(def.equipSlot);
+            if (!string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, slot.itemId, StringComparison.OrdinalIgnoreCase))
+                return;
+
             if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
 
-            string prev = equipment.GetEquippedItemId(def.equipSlot);
             equipment.EquipGear(def.equipSlot, slot.itemId);
 
-            if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
+            if (!string.IsNullOrWhiteSpace(prev))
+                ReturnOrDrop(prev, 1);
 
             return;
         }
@@ -714,17 +745,71 @@ public class InventorySlotUI : MonoBehaviour,
         string trackerSource = !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : def.itemId;
         SessionTrackerData tracker = SessionTrackerData.EnsureInstance();
 
+        // Source is already consumed — never use Inventory.Add here: partial overflow returns false and
+        // silently drops the remainder. Route leftovers through storage / world drop / pending recovery.
         for (int i = 0; i < rolled.Count; i++)
         {
             (string itemId, int amount) reward = rolled[i];
             if (string.IsNullOrWhiteSpace(reward.itemId) || reward.amount <= 0)
                 continue;
 
-            _inventory.Add(reward.itemId, reward.amount);
-            tracker?.RegisterLootGain(trackerSource, reward.itemId, reward.amount);
+            GrantOpenedLoot(reward.itemId, reward.amount, trackerSource, tracker);
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Grants openable rewards without losing overflow when the bag is full.
+    /// </summary>
+    private void GrantOpenedLoot(string itemId, int amount, string trackerSource, SessionTrackerData tracker)
+    {
+        if (_inventory == null || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int left = amount;
+        int toInv = _inventory.AddPartial(itemId, left, notifyItemGainPopup: true);
+        left -= toInv;
+        if (toInv > 0)
+            tracker?.RegisterLootGain(trackerSource, itemId, toInv);
+
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            if (toStorage > 0)
+            {
+                left -= toStorage;
+                tracker?.RegisterLootGain(trackerSource, itemId, toStorage);
+                GameLog.Add(
+                    $"Inventory was full — sent {toStorage}x {ResolveItemDisplayName(itemId)} to storage.",
+                    GameLog.CannotMessageColor);
+            }
+        }
+
+        if (left <= 0)
+            return;
+
+        ItemDefinition rewardDef = _inventory.GetItemDef(itemId);
+        if (PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                itemId,
+                left,
+                rewardDef ? rewardDef.icon : null))
+        {
+            tracker?.RegisterLootGain(trackerSource, itemId, left);
+            GameLog.Add(
+                $"Inventory and storage are full — dropped {left}x {ResolveItemDisplayName(itemId)} on the ground.",
+                GameLog.CannotMessageColor);
+            return;
+        }
+
+        tracker?.RegisterLootGain(trackerSource, itemId, left);
+        GameLog.Add(
+            $"Inventory and storage are full — held {left}x {ResolveItemDisplayName(itemId)} until you free space.",
+            GameLog.CannotMessageColor);
     }
 
     public bool CanShowOpenAllAction()
@@ -771,7 +856,7 @@ public class InventorySlotUI : MonoBehaviour,
         equipment.EquipGear(slot, itemId);
 
         if (!string.IsNullOrWhiteSpace(prev) && prev != itemId)
-            _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
+            ReturnOrDrop(prev, 1);
 
         return true;
     }
@@ -1041,8 +1126,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
 
         Sprite iconSprite = _def ? _def.icon : null;
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(slot.itemId, removed, iconSprite);
         ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
         _tooltip?.Hide();
     }
@@ -1220,9 +1304,7 @@ public class InventorySlotUI : MonoBehaviour,
                 {
                     var def = _inventory.GetItemDef(itemId);
                     Sprite iconSprite = def ? def.icon : null;
-
-                    if (DropManager.Instance != null)
-                        DropManager.Instance.Spawn(itemId, removed, iconSprite);
+                    PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
                     ItemGainPopupNotifier.NotifyLost(itemId, removed);
                 }
             }
@@ -1397,12 +1479,23 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || _inventory == null || amount <= 0) return;
 
-        bool ok = _inventory.Add(itemId, amount, null, notifyItemGainPopup: false);
-        if (ok) return;
+        // Inventory.Add can partially succeed and still return false — only overflow the remainder.
+        int added = _inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - added;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
 
         var def = _inventory.GetItemDef(itemId);
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null);
     }
 
     private void CreateDragIcon()

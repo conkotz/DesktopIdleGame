@@ -783,7 +783,11 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            if (!TryReturnStoredConsumableToInventory())
+            // Consumables live on the bar as real stacks — never ClearAssignment on a failed return
+            // or the entire stack is destroyed. Abilities can be cleared freely.
+            if (assignedAction != null && assignedAction.IsItem)
+                TryReturnStoredConsumableToInventory();
+            else
                 ClearAssignment();
         }
     }
@@ -1188,11 +1192,16 @@ public class ActionBarSlotUI : MonoBehaviour,
             !string.Equals(existingId, incomingId, StringComparison.OrdinalIgnoreCase) &&
             existingAmount > 0)
         {
-            if (!inventory.Add(existingId, existingAmount, null, notifyItemGainPopup: false))
+            // Inventory.Add can partially succeed and still return false — only drop the remainder.
+            int returned = inventory.AddPartial(existingId, existingAmount, notifyItemGainPopup: false);
+            int left = existingAmount - returned;
+            if (left > 0)
             {
                 ItemDefinition existingDef = inventory.GetItemDef(existingId);
-                if (DropManager.Instance != null)
-                    DropManager.Instance.Spawn(existingId, existingAmount, existingDef ? existingDef.icon : null);
+                PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                    existingId,
+                    left,
+                    existingDef ? existingDef.icon : null);
             }
         }
 
@@ -1259,22 +1268,30 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (assignedAction == null || !assignedAction.IsItem || assignedItemAmount <= 0)
             return false;
 
-        if (!inventory)
-            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!inventory)
-            return false;
-
         string id = Inventory.RemapLegacyItemId(assignedAction.id);
         int amount = Mathf.Max(0, assignedItemAmount);
-        if (amount <= 0)
+        if (amount <= 0 || string.IsNullOrWhiteSpace(id))
             return false;
 
-        bool returned = inventory.Add(id, amount, null, notifyItemGainPopup: false);
-        if (!returned)
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (!inventory)
+        {
+            // Bar still holds real items — park them for recovery rather than wiping the assignment.
+            PendingLootRecoveryStore.Enqueue(id, amount);
+            ClearAssignment(notify: true);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
+            return true;
+        }
+
+        // Inventory.Add can partially succeed and still return false — only drop the remainder.
+        int returned = inventory.AddPartial(id, amount, notifyItemGainPopup: false);
+        int left = amount - returned;
+        if (left > 0)
         {
             ItemDefinition def = inventory.GetItemDef(id);
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(id, amount, def ? def.icon : null);
+            PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(id, left, def ? def.icon : null);
         }
 
         ClearAssignment(notify: true);
