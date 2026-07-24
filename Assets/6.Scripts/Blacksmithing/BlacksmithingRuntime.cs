@@ -91,6 +91,11 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.blacksmithingStations ??= new List<SaveData.BlacksmithingStationSave>();
+
+        // Preserve snapshot-seeded blacksmithing rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.blacksmithingStations.Clear();
 
         foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
@@ -99,21 +104,36 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene stations that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.blacksmithingStations == null)
-            return;
-
-        for (int i = 0; i < data.blacksmithingStations.Count; i++)
+        if (data?.blacksmithingStations != null)
         {
-            SaveData.BlacksmithingStationSave row = data.blacksmithingStations[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+            for (int i = 0; i < data.blacksmithingStations.Count; i++)
+            {
+                SaveData.BlacksmithingStationSave save = data.blacksmithingStations[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.stationId))
+                    continue;
+
+                string key = NormalizeStationId(save.stationId);
+                if (!_rows.TryGetValue(key, out BlacksmithingRow row) || row == null)
+                {
+                    row = new BlacksmithingRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeStationId(row.stationId);
-            var anvilRow = new BlacksmithingRow(key);
-            anvilRow.ReadFrom(row);
-            _rows[key] = anvilRow;
+            kv.Value.ResetToEmpty();
         }
     }
 
@@ -137,6 +157,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         private float _craftProgressSeconds;
         private bool _isCrafting;
         private float _lockedCraftDurationSeconds;
+        private readonly List<BlacksmithingIngredient> _lockedConsumedIngredients = new();
 
         public BlacksmithingRow(string stationId) => _stationId = NormalizeStationId(stationId);
 
@@ -235,9 +256,11 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
-            if (!TryConsumeIngredients(recipe, out failureReason))
+            if (!TryConsumeIngredients(recipe, out failureReason, out List<BlacksmithingIngredient> consumed))
                 return false;
 
+            _lockedConsumedIngredients.Clear();
+            _lockedConsumedIngredients.AddRange(consumed);
             _activeRecipeOutputId = recipe.OutputItemId;
             _isCrafting = true;
             _craftProgressSeconds = 0f;
@@ -252,6 +275,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             if (!_isCrafting)
                 return;
 
+            RefundLockedConsumedIngredients();
             _isCrafting = false;
             _activeRecipeOutputId = "";
             _craftProgressSeconds = 0f;
@@ -262,6 +286,26 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
         public bool TickCrafting(float deltaSeconds)
         {
+            // Flush STOP leftovers when the player frees bag/storage space later.
+            if (!_isCrafting && _lockedConsumedIngredients.Count > 0)
+            {
+                int beforeAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    beforeAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
+                TryFlushPendingIngredientRefunds(logIfBlocked: false);
+
+                int afterAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    afterAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
+                if (afterAmount != beforeAmount)
+                {
+                    NotifyChanged();
+                    RequestSaveDebounced();
+                }
+            }
+
             if (!_isCrafting || deltaSeconds <= 0f)
                 return false;
 
@@ -342,7 +386,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             if (list == null)
                 return;
 
-            list.Add(new SaveData.BlacksmithingStationSave
+            var save = new SaveData.BlacksmithingStationSave
             {
                 stationId = _stationId,
                 selectedRecipeOutputId = _selectedRecipeOutputId ?? "",
@@ -351,7 +395,18 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 craftProgressSeconds = _craftProgressSeconds,
                 isCrafting = _isCrafting,
                 lockedCraftDurationSeconds = _lockedCraftDurationSeconds,
-            });
+                lockedConsumedItemIds = new List<string>(_lockedConsumedIngredients.Count),
+                lockedConsumedAmounts = new List<int>(_lockedConsumedIngredients.Count),
+            };
+
+            for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+            {
+                BlacksmithingIngredient ing = _lockedConsumedIngredients[i];
+                save.lockedConsumedItemIds.Add(ing.ItemId ?? "");
+                save.lockedConsumedAmounts.Add(ing.Amount);
+            }
+
+            list.Add(save);
         }
 
         public void ReadFrom(SaveData.BlacksmithingStationSave save)
@@ -365,7 +420,47 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             _craftProgressSeconds = Mathf.Max(0f, save.craftProgressSeconds);
             _isCrafting = save.isCrafting;
             _lockedCraftDurationSeconds = Mathf.Max(0f, save.lockedCraftDurationSeconds);
+            ReadLockedConsumedIngredients(save);
+            if (_isCrafting && _lockedConsumedIngredients.Count == 0)
+                ReconstructLockedConsumedFromActiveRecipe();
             NotifyChanged();
+        }
+
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.BlacksmithingStationSave { stationId = _stationId });
+        }
+
+        private void ReadLockedConsumedIngredients(SaveData.BlacksmithingStationSave save)
+        {
+            _lockedConsumedIngredients.Clear();
+            if (save?.lockedConsumedItemIds == null || save.lockedConsumedAmounts == null)
+                return;
+
+            int count = Mathf.Min(save.lockedConsumedItemIds.Count, save.lockedConsumedAmounts.Count);
+            for (int i = 0; i < count; i++)
+            {
+                string itemId = save.lockedConsumedItemIds[i];
+                int amount = save.lockedConsumedAmounts[i];
+                if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+                    continue;
+
+                _lockedConsumedIngredients.Add(new BlacksmithingIngredient(itemId.Trim(), amount));
+            }
+        }
+
+        private void ReconstructLockedConsumedFromActiveRecipe()
+        {
+            if (!TryGetActiveRecipe(out BlacksmithingRecipe recipe))
+                return;
+
+            float costReduction = ProcessingProficiencyRuntime.EnsureInstance().GetBlacksmithingBonuses().ResourceCostReductionPercent;
+            for (int i = 0; i < recipe.Ingredients.Length; i++)
+            {
+                BlacksmithingIngredient ing = recipe.Ingredients[i];
+                int needed = BlacksmithingRecipes.GetEffectiveIngredientAmount(ing.Amount, costReduction);
+                _lockedConsumedIngredients.Add(new BlacksmithingIngredient(ing.ItemId, needed));
+            }
         }
 
         private void CompleteCraft()
@@ -380,6 +475,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             _craftProgressSeconds = 0f;
             _lockedCraftDurationSeconds = 0f;
             _activeRecipeOutputId = "";
+            _lockedConsumedIngredients.Clear();
             _readyOutputItemId = recipe.OutputItemId;
             ProcessingProficiencyRuntime.EnsureInstance().AddBlacksmithingCraftXp(recipe);
             GameLog.Add($"Forged {ItemGainPopupNotifier.ResolveDisplayLabel(recipe.OutputItemId, 1)}.", GameLog.LevelAvailableColor);
@@ -412,8 +508,12 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             return true;
         }
 
-        private bool TryConsumeIngredients(BlacksmithingRecipe recipe, out string failureReason)
+        private bool TryConsumeIngredients(
+            BlacksmithingRecipe recipe,
+            out string failureReason,
+            out List<BlacksmithingIngredient> consumed)
         {
+            consumed = new List<BlacksmithingIngredient>(recipe.Ingredients.Length);
             if (!HasIngredientsInInventory(recipe, out failureReason))
                 return false;
 
@@ -431,12 +531,81 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 int needed = BlacksmithingRecipes.GetEffectiveIngredientAmount(ing.Amount, costReduction);
                 if (!inv.Remove(ing.ItemId, needed))
                 {
+                    // Roll back anything already removed this attempt.
+                    for (int r = 0; r < consumed.Count; r++)
+                        inv.Add(consumed[r].ItemId, consumed[r].Amount, notifyItemGainPopup: false);
+                    consumed.Clear();
                     failureReason = $"Could not remove {ItemGainPopupNotifier.ResolveDisplayLabel(ing.ItemId, needed)}.";
                     return false;
                 }
+
+                consumed.Add(new BlacksmithingIngredient(ing.ItemId, needed));
             }
 
             return true;
+        }
+
+        private void RefundLockedConsumedIngredients()
+        {
+            TryFlushPendingIngredientRefunds(logIfBlocked: true);
+        }
+
+        /// <summary>
+        /// Returns as many locked STOP/refund ingredients as inventory (then storage) can hold.
+        /// Keeps any remainder so materials are never discarded when bags are full.
+        /// </summary>
+        private void TryFlushPendingIngredientRefunds(bool logIfBlocked)
+        {
+            if (_lockedConsumedIngredients.Count == 0)
+                return;
+
+            Inventory inv = Inventory.ResolvePlayer();
+            if (!inv)
+                return;
+
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            var remaining = new List<BlacksmithingIngredient>(_lockedConsumedIngredients.Count);
+            bool sentAnyToStorage = false;
+
+            for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+            {
+                BlacksmithingIngredient ing = _lockedConsumedIngredients[i];
+                if (string.IsNullOrWhiteSpace(ing.ItemId) || ing.Amount <= 0)
+                    continue;
+
+                int left = ing.Amount;
+                int toInv = inv.AddPartial(ing.ItemId, left, notifyItemGainPopup: false);
+                left -= toInv;
+
+                if (left > 0 && storage != null)
+                {
+                    int toStorage = storage.TryDepositAmountFromExternal(ing.ItemId, left);
+                    if (toStorage > 0)
+                    {
+                        left -= toStorage;
+                        sentAnyToStorage = true;
+                    }
+                }
+
+                if (left > 0)
+                    remaining.Add(new BlacksmithingIngredient(ing.ItemId, left));
+            }
+
+            _lockedConsumedIngredients.Clear();
+            _lockedConsumedIngredients.AddRange(remaining);
+
+            if (!logIfBlocked)
+                return;
+
+            if (sentAnyToStorage)
+                GameLog.Add("Inventory was full — returned forge materials to storage.", GameLog.CannotMessageColor);
+
+            if (_lockedConsumedIngredients.Count > 0)
+            {
+                GameLog.Add(
+                    "Inventory and storage are full — free space to recover the remaining forge materials.",
+                    GameLog.CannotMessageColor);
+            }
         }
 
         private void NotifyChanged() => StateChanged?.Invoke();

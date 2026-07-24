@@ -345,6 +345,8 @@ public class SaveData
         public float craftProgressSeconds;
         public bool isCrafting;
         public float lockedCraftDurationSeconds;
+        public List<string> lockedConsumedItemIds = new();
+        public List<int> lockedConsumedAmounts = new();
     }
 
     [Serializable]

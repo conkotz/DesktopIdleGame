@@ -65,17 +65,26 @@ public class SaveManager : MonoBehaviour
 
     private int GetSafeActiveSlot()
     {
-        int slot = SaveSlotManager.ActiveSlotIndex;
-        if (slot < 0)
-        {
-            slot = 0;
-        }
-
-        return slot;
+        return SaveSlotManager.ActiveSlotIndex;
     }
 
-    private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
-    private string ActiveSaveBackupPath => ActiveSavePath + ".bak";
+    private string ActiveSavePath
+    {
+        get
+        {
+            int slot = GetSafeActiveSlot();
+            return slot < 0 ? null : SaveSlotManager.GetSavePath(slot);
+        }
+    }
+
+    private string ActiveSaveBackupPath
+    {
+        get
+        {
+            string path = ActiveSavePath;
+            return string.IsNullOrEmpty(path) ? null : path + ".bak";
+        }
+    }
     private float _autosaveTimer;
     private float _stripZoomSaveDueUnscaled = -1f;
     private const float ShopStockSaveDebounceSeconds = 0.12f;
@@ -167,6 +176,12 @@ public class SaveManager : MonoBehaviour
         MerchantStockRuntime.EnsureInstance();
         LoadAllSaveMetadata();
         FireSaveSystemReady("Awake");
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     private void OnEnable()
@@ -698,7 +713,7 @@ public class SaveManager : MonoBehaviour
         FlushPendingDiskWritesBlocking();
     }
 
-    public bool HasSave() => File.Exists(ActiveSavePath);
+    public bool HasSave() => !string.IsNullOrEmpty(ActiveSavePath) && File.Exists(ActiveSavePath);
 
     /// <summary>UI-facing slot existence query from last metadata refresh.</summary>
     public bool SaveExists(int slotIndex)
@@ -932,7 +947,7 @@ public class SaveManager : MonoBehaviour
 #endif
         var captureStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        if (!IsRuntimeReadyForSave(out string readinessReason))
+        if (!IsRuntimeReadyForSave(kind, out string readinessReason))
         {
             LogSaveEvent(kind, "skipped", captureStopwatch.ElapsedMilliseconds, readinessReason);
             yield break;
@@ -964,6 +979,8 @@ public class SaveManager : MonoBehaviour
         NormalizeSaveDataLists(data);
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
+        SeedCookingStationsFromSnapshot(data, _lastLoadedData);
+        SeedBlacksmithingStationsFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
@@ -1099,6 +1116,12 @@ public class SaveManager : MonoBehaviour
     private void CommitSaveSnapshot(SaveRequestKind kind, SaveData data, long captureMs)
     {
         int slot = GetSafeActiveSlot();
+        if (slot < 0)
+        {
+            Debug.LogError($"[SaveManager] Save ({kind}) aborted: no active save slot.");
+            return;
+        }
+
         int combatPower = 0;
         PlayerController playerForHeader = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         CharacterStats playerStats = playerForHeader ? playerForHeader.GetComponent<CharacterStats>() : null;
@@ -1164,7 +1187,7 @@ public class SaveManager : MonoBehaviour
 #endif
         var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        if (!IsRuntimeReadyForSave(out string readinessReason))
+        if (!IsRuntimeReadyForSave(kind, out string readinessReason))
         {
             LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, readinessReason);
             return;
@@ -1336,6 +1359,8 @@ public class SaveManager : MonoBehaviour
         if (log.IsError)
         {
             Debug.LogError($"[SaveManager] Async save failed ({log.Kind}): {log.ErrorMessage}");
+            // Snapshot was marked clean before the disk write; remake dirty so autosave retries.
+            _saveDirty = true;
             return;
         }
 
@@ -1366,7 +1391,7 @@ public class SaveManager : MonoBehaviour
             Debug.Log(logMessage);
     }
 
-    private bool IsRuntimeReadyForSave(out string reason)
+    private bool IsRuntimeReadyForSave(SaveRequestKind kind, out string reason)
     {
         Scene active = SceneManager.GetActiveScene();
         if (!active.IsValid() || !active.isLoaded)
@@ -1381,6 +1406,24 @@ public class SaveManager : MonoBehaviour
             return false;
         }
 
+        // Never snapshot empty DDOL processing/inventory state over a staged load.
+        if (_hasPendingLoad && !_didFinalApplyForCurrentLoad)
+        {
+            reason = "pending save apply has not finished";
+            return false;
+        }
+
+        if (_autosaveHoldUntilUnscaled > 0f &&
+            Time.unscaledTime < _autosaveHoldUntilUnscaled &&
+            (kind == SaveRequestKind.AutosaveInterval ||
+             kind == SaveRequestKind.InventoryChanged ||
+             kind == SaveRequestKind.StorageChanged ||
+             kind == SaveRequestKind.DebouncedStripZoom))
+        {
+            reason = "post-scene-load autosave hold";
+            return false;
+        }
+
         if (FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include) == null)
         {
             reason = "PlayerController missing";
@@ -1390,6 +1433,12 @@ public class SaveManager : MonoBehaviour
         if (FindFirstObjectByType<Inventory>(FindObjectsInactive.Include) == null)
         {
             reason = "Inventory missing";
+            return false;
+        }
+
+        if (SaveSlotManager.ActiveSlotIndex < 0)
+        {
+            reason = "no active save slot selected";
             return false;
         }
 
@@ -1463,32 +1512,44 @@ public class SaveManager : MonoBehaviour
         int currentEquipFilled = CountFilledEquipIds(current);
         int currentToolbeltFilled = CountFilledIds(current.toolbeltItemIds);
         int currentActionBarFilled = CountFilledActionBarAssignments(current);
+        int currentProcessingFilled = CountProcessingProgress(current);
+        int currentTownServices = CountFilledIds(current.unlockedTownServiceIds);
+        int currentProcessingProficiency = CountProcessingProficiencyProgress(current);
 
         int prevInvFilled = CountFilledSlots(previous.inventorySlots);
         int prevStorageFilled = CountFilledSlots(previous.storageSlots);
         int prevEquipFilled = CountFilledEquipIds(previous);
         int prevToolbeltFilled = CountFilledIds(previous.toolbeltItemIds);
         int prevActionBarFilled = CountFilledActionBarAssignments(previous);
+        int prevProcessingFilled = CountProcessingProgress(previous);
+        int prevTownServices = CountFilledIds(previous.unlockedTownServiceIds);
+        int prevProcessingProficiency = CountProcessingProficiencyProgress(previous);
 
         bool previousHadProgress =
             prevInvFilled > 0 ||
             prevStorageFilled > 0 ||
             prevEquipFilled > 0 ||
             prevToolbeltFilled > 0 ||
-            prevActionBarFilled > 0;
+            prevActionBarFilled > 0 ||
+            prevProcessingFilled > 0 ||
+            prevTownServices > 0 ||
+            prevProcessingProficiency > 0;
 
         bool currentWiped =
             currentInvFilled == 0 &&
             currentStorageFilled == 0 &&
             currentEquipFilled == 0 &&
             currentToolbeltFilled == 0 &&
-            currentActionBarFilled == 0;
+            currentActionBarFilled == 0 &&
+            currentProcessingFilled == 0 &&
+            currentTownServices == 0 &&
+            currentProcessingProficiency == 0;
 
         if (previousHadProgress && currentWiped)
         {
             reason =
-                $"suspicious wipe detected. prev(inv={prevInvFilled},storage={prevStorageFilled},equip={prevEquipFilled},toolbelt={prevToolbeltFilled},bar={prevActionBarFilled}) -> " +
-                $"current(inv={currentInvFilled},storage={currentStorageFilled},equip={currentEquipFilled},toolbelt={currentToolbeltFilled},bar={currentActionBarFilled})";
+                $"suspicious wipe detected. prev(inv={prevInvFilled},storage={prevStorageFilled},equip={prevEquipFilled},toolbelt={prevToolbeltFilled},bar={prevActionBarFilled},processing={prevProcessingFilled},town={prevTownServices},prof={prevProcessingProficiency}) -> " +
+                $"current(inv={currentInvFilled},storage={currentStorageFilled},equip={currentEquipFilled},toolbelt={currentToolbeltFilled},bar={currentActionBarFilled},processing={currentProcessingFilled},town={currentTownServices},prof={currentProcessingProficiency})";
             return true;
         }
 
@@ -1974,11 +2035,18 @@ public class SaveManager : MonoBehaviour
 
     public void Load()
     {
-        if (!HasSave()) return;
+        if (!HasSave() && (string.IsNullOrEmpty(ActiveSaveBackupPath) || !File.Exists(ActiveSaveBackupPath)))
+            return;
 
         SaveData data = ReadSaveDataFromPath(ActiveSavePath);
         SaveData backup = ReadSaveDataFromPath(ActiveSaveBackupPath);
-        if (ShouldPreferBackup(data, backup))
+        if (data == null && backup != null)
+        {
+            Debug.LogWarning(
+                $"[SaveManager] Active save missing/corrupt; restoring from backup '{ActiveSaveBackupPath}'.");
+            data = backup;
+        }
+        else if (ShouldPreferBackup(data, backup))
         {
             Debug.LogWarning(
                 $"[SaveManager] Active save looked wiped; restoring from backup '{ActiveSaveBackupPath}'.");
@@ -2080,6 +2148,15 @@ public class SaveManager : MonoBehaviour
         PlayerMapExitPositionStore.EnsureLists(data);
         WorldObjectPositionStore.EnsureLists(data);
         TownServiceUnlockStore.EnsureLists(data);
+
+        if (data.furnaceSmelters == null)
+            data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
+        if (data.cookingStations == null)
+            data.cookingStations = new List<SaveData.CookingStationSave>();
+        if (data.blacksmithingStations == null)
+            data.blacksmithingStations = new List<SaveData.BlacksmithingStationSave>();
+        if (data.processingProficiency == null)
+            data.processingProficiency = new List<SaveData.ProcessingProficiencySave>();
 
         if (data.actionBarSlotIndexes == null)
             data.actionBarSlotIndexes = new List<int>();
@@ -2538,6 +2615,46 @@ public class SaveManager : MonoBehaviour
         }
     }
 
+    private static void SeedCookingStationsFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.cookingStations == null || source.cookingStations.Count == 0)
+            return;
+
+        dest.cookingStations ??= new List<SaveData.CookingStationSave>();
+        dest.cookingStations.Clear();
+
+        for (int i = 0; i < source.cookingStations.Count; i++)
+        {
+            SaveData.CookingStationSave row = source.cookingStations[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+                continue;
+
+            dest.cookingStations.Add(CloneCookingStationRow(row));
+        }
+    }
+
+    private static void SeedBlacksmithingStationsFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.blacksmithingStations == null || source.blacksmithingStations.Count == 0)
+            return;
+
+        dest.blacksmithingStations ??= new List<SaveData.BlacksmithingStationSave>();
+        dest.blacksmithingStations.Clear();
+
+        for (int i = 0; i < source.blacksmithingStations.Count; i++)
+        {
+            SaveData.BlacksmithingStationSave row = source.blacksmithingStations[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+                continue;
+
+            dest.blacksmithingStations.Add(CloneBlacksmithingStationRow(row));
+        }
+    }
+
     private static SaveData.FurnaceSmelterSave CloneFurnaceSmelterRow(SaveData.FurnaceSmelterSave row)
     {
         return new SaveData.FurnaceSmelterSave
@@ -2558,6 +2675,54 @@ public class SaveManager : MonoBehaviour
         };
     }
 
+    private static SaveData.CookingStationSave CloneCookingStationRow(SaveData.CookingStationSave row)
+    {
+        return new SaveData.CookingStationSave
+        {
+            stationId = row.stationId,
+            storedRawItemId = row.storedRawItemId ?? "",
+            storedRawAmount = row.storedRawAmount,
+            readyCookedAmount = row.readyCookedAmount,
+            activeRawItemId = row.activeRawItemId ?? "",
+            readyCookedItemId = row.readyCookedItemId ?? "",
+            storedEnhancementItemId = row.storedEnhancementItemId ?? "",
+            storedEnhancementAmount = row.storedEnhancementAmount,
+            storedFuelItemId = row.storedFuelItemId ?? "",
+            storedFuelAmount = row.storedFuelAmount,
+            fuelSecondsBurnedFromCurrentLog = row.fuelSecondsBurnedFromCurrentLog,
+            cookProgressSeconds = row.cookProgressSeconds,
+            isCooking = row.isCooking
+        };
+    }
+
+    private static SaveData.BlacksmithingStationSave CloneBlacksmithingStationRow(SaveData.BlacksmithingStationSave row)
+    {
+        var clone = new SaveData.BlacksmithingStationSave
+        {
+            stationId = row.stationId,
+            selectedRecipeOutputId = row.selectedRecipeOutputId ?? "",
+            activeRecipeOutputId = row.activeRecipeOutputId ?? "",
+            readyOutputItemId = row.readyOutputItemId ?? "",
+            craftProgressSeconds = row.craftProgressSeconds,
+            isCrafting = row.isCrafting,
+            lockedCraftDurationSeconds = row.lockedCraftDurationSeconds,
+            lockedConsumedItemIds = new List<string>(),
+            lockedConsumedAmounts = new List<int>()
+        };
+
+        if (row.lockedConsumedItemIds != null && row.lockedConsumedAmounts != null)
+        {
+            int count = Mathf.Min(row.lockedConsumedItemIds.Count, row.lockedConsumedAmounts.Count);
+            for (int i = 0; i < count; i++)
+            {
+                clone.lockedConsumedItemIds.Add(row.lockedConsumedItemIds[i] ?? "");
+                clone.lockedConsumedAmounts.Add(row.lockedConsumedAmounts[i]);
+            }
+        }
+
+        return clone;
+    }
+
     public void DeleteSave()
     {
         if (!HasSave()) return;
@@ -2575,6 +2740,18 @@ public class SaveManager : MonoBehaviour
         _isApplyingSaveData = false;
         IsGameFullyLoaded = false;
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
+
+        // Static side-stores survive DDOL / Bootstrap; wipe must clear them or next New Game /
+        // spawn gates can still see previous-slot unlocks and death flags.
+        TownServiceUnlockStore.ApplyFromSaveData(null);
+        HelperProgressStore.ApplyFromSaveData(null);
+        LevelItemPickupSaveStore.ApplyFromSaveData(null);
+        WorldObjectPositionStore.ApplyFromSaveData(null);
+        PermanentEnemyDeathSaveStore.ApplyFromSaveData(null);
+        NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(null);
+        NpcOneWayDialogueQueueStore.ApplyFromSaveData(null);
+        UIWindowLockStore.ApplyFromSaveData(null);
+
         LoadAllSaveMetadata();
         FireSaveSystemReady("FullDataWipe");
     }
@@ -2692,8 +2869,12 @@ public class SaveManager : MonoBehaviour
 
     private static bool ShouldPreferBackup(SaveData active, SaveData backup)
     {
-        if (active == null || backup == null)
+        if (backup == null)
             return false;
+
+        // Prefer backup when the primary file failed to parse or is empty.
+        if (active == null)
+            return true;
 
         int activeScore = ScoreSaveProgress(active);
         int backupScore = ScoreSaveProgress(backup);
@@ -2713,7 +2894,100 @@ public class SaveManager : MonoBehaviour
         score += CountFilledEquipIds(data);
         score += CountFilledIds(data.toolbeltItemIds);
         score += CountFilledActionBarItems(data);
+        score += CountProcessingProgress(data);
+        score += CountFilledIds(data.unlockedTownServiceIds);
+        score += CountProcessingProficiencyProgress(data);
         return score;
+    }
+
+    /// <summary>
+    /// Counts meaningful processing-station progress so depositing inventory into
+    /// furnace/cooking/blacksmithing is not treated as an empty/wiped save.
+    /// </summary>
+    private static int CountProcessingProgress(SaveData data)
+    {
+        if (data == null)
+            return 0;
+
+        int count = 0;
+        if (data.furnaceSmelters != null)
+        {
+            for (int i = 0; i < data.furnaceSmelters.Count; i++)
+            {
+                SaveData.FurnaceSmelterSave row = data.furnaceSmelters[i];
+                if (row == null)
+                    continue;
+
+                if (row.storedOreAmount > 0 ||
+                    row.readyBarAmount > 0 ||
+                    row.storedFuelAmount > 0 ||
+                    row.storedEnhancementAmount > 0 ||
+                    row.isSmelting ||
+                    !string.IsNullOrWhiteSpace(row.activeOreItemId))
+                {
+                    count++;
+                }
+            }
+        }
+
+        if (data.cookingStations != null)
+        {
+            for (int i = 0; i < data.cookingStations.Count; i++)
+            {
+                SaveData.CookingStationSave row = data.cookingStations[i];
+                if (row == null)
+                    continue;
+
+                if (row.storedRawAmount > 0 ||
+                    row.readyCookedAmount > 0 ||
+                    row.storedFuelAmount > 0 ||
+                    row.storedEnhancementAmount > 0 ||
+                    row.isCooking ||
+                    !string.IsNullOrWhiteSpace(row.activeRawItemId))
+                {
+                    count++;
+                }
+            }
+        }
+
+        if (data.blacksmithingStations != null)
+        {
+            for (int i = 0; i < data.blacksmithingStations.Count; i++)
+            {
+                SaveData.BlacksmithingStationSave row = data.blacksmithingStations[i];
+                if (row == null)
+                    continue;
+
+                if (row.isCrafting ||
+                    !string.IsNullOrWhiteSpace(row.readyOutputItemId) ||
+                    !string.IsNullOrWhiteSpace(row.selectedRecipeOutputId) ||
+                    !string.IsNullOrWhiteSpace(row.activeRecipeOutputId))
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountProcessingProficiencyProgress(SaveData data)
+    {
+        if (data?.processingProficiency == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < data.processingProficiency.Count; i++)
+        {
+            SaveData.ProcessingProficiencySave row = data.processingProficiency[i];
+            if (row == null)
+                continue;
+
+            if (row.level > 1 || row.xp > 0f)
+                count++;
+        }
+
+        return count;
     }
 
     /// <summary>
