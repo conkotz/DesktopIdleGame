@@ -30,6 +30,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private QuestDatabase _resolvedDatabase;
     private bool _isAutoCompleteProcessing;
     private bool _autoCompleteDeferred;
+    /// <summary>
+    /// Set during <see cref="LoadFrom"/> so auto-claim / map unlock migration runs only after
+    /// every other ISaveable has hydrated. Claiming gold/XP/map unlocks mid-ApplyToPlayer lets a
+    /// later CurrencyWallet/WorldMap/Skills LoadFrom wipe the just-granted reward while
+    /// SaveImmediate is suppressed.
+    /// </summary>
+    private bool _needsDeferredPostLoadHydration;
+    private bool _deferredPostLoadIncludeAutoClaim;
 
     private Inventory _autoInv;
     private PlayerStorage _autoStorage;
@@ -138,14 +146,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void BindAutoCompleteSignals()
     {
-        _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        _autoInv = Inventory.ResolvePlayer();
         if (_autoInv != null)
         {
             _autoInv.OnInventoryChanged -= HandleInventoryAutoCompleteSignalChanged;
             _autoInv.OnInventoryChanged += HandleInventoryAutoCompleteSignalChanged;
         }
 
-        _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        _autoStorage = PlayerStorage.ResolvePlayer();
 
         _autoSkills = SkillsManager.Instance ??
             FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
@@ -317,9 +325,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         itemId = itemId.Trim();
 
         if (_autoInv == null)
-            _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            _autoInv = Inventory.ResolvePlayer();
         if (_autoStorage == null)
-            _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            _autoStorage = PlayerStorage.ResolvePlayer();
 
         int n = _autoInv ? _autoInv.GetTotalAmount(itemId) : 0;
         if (_autoStorage)
@@ -1103,6 +1111,16 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (q == null || string.IsNullOrWhiteSpace(q.teleportPlayerToNodeIdOnCompletion))
             return;
 
+        // Never start map travel from inside SaveManager.ApplyToPlayer / LoadFrom.
+        // (Deferred post-load hydration may still run before IsGameFullyLoaded flips true.)
+        SaveManager sm = SaveManager.Instance;
+        if (sm != null && sm.IsApplyingSaveData)
+        {
+            Debug.LogWarning(
+                $"[QuestProgressManager] Skipped teleport '{q.teleportPlayerToNodeIdOnCompletion}' for quest '{q.questId}' — save apply still in progress.");
+            return;
+        }
+
         string nodeId = q.teleportPlayerToNodeIdOnCompletion.Trim();
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
@@ -1222,8 +1240,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         var stacks = new Dictionary<string, int>();
         CollectQuestItemRewardStacks(q, stacks);
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        Inventory inv = Inventory.ResolvePlayer();
+        PlayerStorage st = PlayerStorage.ResolvePlayer();
 
         if (stacks.Count > 0)
         {
@@ -1304,8 +1322,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
             return;
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        Inventory inv = Inventory.ResolvePlayer();
+        PlayerStorage st = PlayerStorage.ResolvePlayer();
 
         int left = amount;
         if (inv != null)
@@ -1339,9 +1357,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         // Prefer the same instances GetGatherItemCountLive uses so count/consume cannot diverge
         // across duplicate Inventory/PlayerStorage objects in the scene.
         if (_autoInv == null)
-            _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            _autoInv = Inventory.ResolvePlayer();
         if (_autoStorage == null)
-            _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            _autoStorage = PlayerStorage.ResolvePlayer();
 
         Inventory inv = _autoInv;
         PlayerStorage st = _autoStorage;
@@ -1495,13 +1513,13 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void GrantRewards(QuestDefinition q)
     {
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        Inventory inv = Inventory.ResolvePlayer();
 
         int slotsToGrant = Mathf.Max(0, q.grantAdditionalInventorySlotsOnRewardClaim);
         if (slotsToGrant > 0 && inv)
             inv.UnlockAdditionalSlots(slotsToGrant);
 
-        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        PlayerStorage storage = PlayerStorage.ResolvePlayer();
         int mainStorageSlots = Mathf.Max(0, q.grantAdditionalMainStorageSlotsOnRewardClaim);
         if (mainStorageSlots > 0 && storage)
             storage.UnlockAdditionalTabSlots(StorageTabKind.Main, mainStorageSlots);
@@ -1961,14 +1979,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         _amounts.Clear();
         _rewardClaimed.Clear();
         _acceptedQuestIds.Clear();
+        _needsDeferredPostLoadHydration = false;
+        _deferredPostLoadIncludeAutoClaim = false;
 
         if (data?.questProgressIds == null || data.questProgressAmounts == null)
         {
             LoadAcceptedQuestIds(data);
             QuestAcceptedEnemyRespawnService.LoadFromSave(data);
-            RecomputeIdleCombatUnlockedFromClaimedRewards();
-            DisableIdleCombatIfLocked();
-            ProgressChanged?.Invoke();
+            // Corrupt/empty progress lists: recompute locks only — do not auto-claim.
+            ScheduleDeferredPostLoadHydration(includeAutoClaim: false);
             return;
         }
 
@@ -2028,12 +2047,44 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestTrackerState.ReplaceTrackedQuestIds(null);
         }
 
-        ApplyTutorialStoryUnlocksForExistingSaves();
+        ScheduleDeferredPostLoadHydration(includeAutoClaim: true);
+    }
+
+    private void ScheduleDeferredPostLoadHydration(bool includeAutoClaim)
+    {
+        _needsDeferredPostLoadHydration = true;
+        _deferredPostLoadIncludeAutoClaim = includeAutoClaim;
+
+        // Defensive: if LoadFrom is ever called outside SaveManager.ApplyToPlayer,
+        // hydrate immediately so auto-claim / unlock migration still runs.
+        SaveManager sm = SaveManager.Instance;
+        if (sm == null || !sm.IsApplyingSaveData)
+            RunDeferredPostLoadHydration();
+    }
+
+    /// <summary>
+    /// Runs tutorial unlock migration, idle-combat recompute, and load-time auto-claim/accept
+    /// after every other ISaveable has finished hydrating. Called by <see cref="SaveManager"/>.
+    /// </summary>
+    public void RunDeferredPostLoadHydration()
+    {
+        if (!_needsDeferredPostLoadHydration)
+            return;
+
+        _needsDeferredPostLoadHydration = false;
+        bool includeAutoClaim = _deferredPostLoadIncludeAutoClaim;
+        _deferredPostLoadIncludeAutoClaim = false;
+
+        if (includeAutoClaim)
+            ApplyTutorialStoryUnlocksForExistingSaves();
 
         RecomputeIdleCombatUnlockedFromClaimedRewards();
         DisableIdleCombatIfLocked();
-
         ProgressChanged?.Invoke();
+
+        if (!includeAutoClaim)
+            return;
+
         TryAutoCompleteEligibleQuests();
         TryAutoAcceptQuestsAfterLoadHydration();
     }

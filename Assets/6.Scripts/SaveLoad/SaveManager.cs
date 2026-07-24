@@ -549,11 +549,11 @@ public class SaveManager : MonoBehaviour
         if (data == null)
             return;
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        Inventory inv = PickCanonicalInventoryForSave();
         if (inv != null && inv.SlotCount > 0)
             data.inventorySlotCount = inv.SlotCount;
 
-        PlayerStorage ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        PlayerStorage ps = PickCanonicalPlayerStorageForSave();
         if (ps != null && ps.SlotCount > 0)
             data.storageSlotCount = ps.SlotCount;
     }
@@ -620,7 +620,7 @@ public class SaveManager : MonoBehaviour
     {
         if (data == null) return;
 
-        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        var ps = PickCanonicalPlayerStorageForSave();
         if (ps != null)
             ps.LoadFrom(data);
     }
@@ -2469,7 +2469,7 @@ public class SaveManager : MonoBehaviour
             if (_lastLoadedData == null)
                 yield break;
 
-            var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            var ps = PickCanonicalPlayerStorageForSave();
             if (ps == null)
                 yield break;
 
@@ -2508,8 +2508,9 @@ public class SaveManager : MonoBehaviour
 
     private void TryBindInventory()
     {
-        // Find inventory even if inactive (Unity 6 API)
-        var inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        // Bind the same canonical inventory that save snapshotting uses — first-found
+        // can be a shell/scene duplicate, so dirty tracking would miss real bag changes.
+        var inv = PickCanonicalInventoryForSave();
 
         // If it's the same one already bound, do nothing
         if (inv == _inventory) return;
@@ -2532,7 +2533,7 @@ public class SaveManager : MonoBehaviour
 
     private void TryBindPlayerStorage()
     {
-        var st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        var st = PickCanonicalPlayerStorageForSave();
         if (st == _playerStorage) return;
 
         UnbindPlayerStorage();
@@ -3110,6 +3111,14 @@ public class SaveManager : MonoBehaviour
         {
             _isApplyingSaveData = false;
         }
+
+        // Quest auto-claim / tutorial unlock migration must run only after every ISaveable
+        // LoadFrom finished and saves are no longer suppressed — otherwise gold/XP/map rewards
+        // granted mid-apply can be wiped by a later LoadFrom while MarkRewardClaimed sticks.
+        QuestProgressManager questProgress = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        questProgress?.RunDeferredPostLoadHydration();
+
         if (verboseInfoLogs)
         {
             Debug.Log(
