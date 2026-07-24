@@ -300,7 +300,12 @@ public class Inventory : MonoBehaviour, ISaveable
             return;
 
         int before = _slots.Count;
-        EnsureSlotCount(before + amount);
+        // Quest rewards can author huge ints; unchecked before+amount wraps negative and
+        // EnsureSlotCount would clamp to 1, deleting existing slots/items.
+        long target = (long)before + amount;
+        if (target > 512)
+            target = 512;
+        EnsureSlotCount((int)target);
         int gained = _slots.Count - before;
         if (gained > 0)
         {
