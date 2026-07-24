@@ -231,6 +231,128 @@ public class LevelSpawnDirector : MonoBehaviour
         SpawnInMapTeleporters(def, groups, parent);
     }
 
+    /// <summary>
+    /// After <see cref="TownServiceUnlockStore"/> changes, despawn live gates that no longer qualify
+    /// and spawn gated prefab rows that were skipped at initial map load (e.g. blacksmith in town).
+    /// Does not re-spawn unrelated enemies/items.
+    /// </summary>
+    public void RefreshTownServiceGatedSpawns()
+    {
+        MapNodeDefinition def = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+        if (!def || def.spawnGroupPlans == null || def.spawnGroupPlans.Count == 0)
+            return;
+
+        TownServiceSpawnGate[] liveGates = FindObjectsByType<TownServiceSpawnGate>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < liveGates.Length; i++)
+        {
+            TownServiceSpawnGate gate = liveGates[i];
+            if (gate != null && !gate.ShouldSpawn())
+                Destroy(gate.gameObject);
+        }
+
+        var groups = FindAllSpawnPointGroups();
+        Transform parent = ResolveSpawnParent();
+        MapEnhancementAggregate mapEnhancements = MapEnhancementService.BuildAggregate(def);
+        var extraSpawnBonusesApplied = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int scalingSlider = def.UsesNormalMapCombatScaling()
+            ? MapCombatScaling.GetEffectiveSliderValue(def, WorldMapProgressManager.Instance)
+            : MapCombatScaling.SliderMin;
+        Dictionary<string, int> scalingExtraSpawns = def.UsesNormalMapCombatScaling()
+            ? MapCombatScaling.BuildScalingExtraSpawnsByEnemyId(def, scalingSlider)
+            : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        SpawnAllPlans(
+            def,
+            groups,
+            parent,
+            rowFilter: IsMissingTownServiceGatedRow,
+            requireExactNamedPoint: true,
+            mapEnhancements: mapEnhancements,
+            extraSpawnBonusesApplied: extraSpawnBonusesApplied,
+            scalingExtraSpawns: scalingExtraSpawns);
+
+        SpawnAllPlans(
+            def,
+            groups,
+            parent,
+            rowFilter: entry => IsMissingTownServiceGatedRow(entry) && !IsFixedPointWorldPrefabRow(entry),
+            requireExactNamedPoint: false,
+            mapEnhancements: mapEnhancements,
+            extraSpawnBonusesApplied: extraSpawnBonusesApplied,
+            scalingExtraSpawns: scalingExtraSpawns);
+    }
+
+    private static bool IsMissingTownServiceGatedRow(SpawnPrefabCount entry)
+    {
+        if (entry == null || entry.count <= 0 || entry.prefab == null)
+            return false;
+
+        TownServiceSpawnGate assetGate = entry.prefab.GetComponent<TownServiceSpawnGate>();
+        if (assetGate == null || !assetGate.ShouldSpawn())
+            return false;
+
+        string serviceId = assetGate.serviceId != null ? assetGate.serviceId.Trim() : "";
+        TownServiceSpawnMode mode = assetGate.spawnWhen;
+        // Merchant + furnace + anvil all share serviceId "blacksmith" / UnlockedOnly.
+        // Matching only serviceId+mode would spawn the first row then skip the rest.
+        string prefabIdentity = BuildTownServiceGateIdentity(entry.prefab);
+
+        TownServiceSpawnGate[] liveGates = FindObjectsByType<TownServiceSpawnGate>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < liveGates.Length; i++)
+        {
+            TownServiceSpawnGate live = liveGates[i];
+            if (live == null)
+                continue;
+            if (live.spawnWhen != mode)
+                continue;
+            if (!string.Equals(live.serviceId != null ? live.serviceId.Trim() : "", serviceId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!string.Equals(BuildTownServiceGateIdentity(live.gameObject), prefabIdentity, StringComparison.OrdinalIgnoreCase))
+                continue;
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Stable identity for a town-service-gated prefab/instance so refresh can spawn every
+    /// UnlockedOnly row that shares a service id (e.g. duskwood merchant + furnace + anvil).
+    /// </summary>
+    private static string BuildTownServiceGateIdentity(GameObject go)
+    {
+        if (!go)
+            return "";
+
+        FurnaceSmelter furnace = go.GetComponent<FurnaceSmelter>();
+        if (furnace != null)
+            return "furnace:" + furnace.FurnaceId;
+
+        BlacksmithingStation anvil = go.GetComponent<BlacksmithingStation>();
+        if (anvil != null)
+            return "blacksmithing:" + anvil.StationId;
+
+        CookingStation cooking = go.GetComponent<CookingStation>();
+        if (cooking != null)
+            return "cooking:" + cooking.StationId;
+
+        Merchant merchant = go.GetComponent<Merchant>();
+        if (merchant != null)
+            return "merchant:" + merchant.MerchantId;
+
+        string name = go.name ?? "";
+        const string cloneSuffix = "(Clone)";
+        if (name.EndsWith(cloneSuffix, StringComparison.Ordinal))
+            name = name.Substring(0, name.Length - cloneSuffix.Length).TrimEnd();
+        return "go:" + name;
+    }
+
     private void SpawnAllPlans(
         MapNodeDefinition def,
         Dictionary<string, SpawnPointGroup> groups,

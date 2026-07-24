@@ -7,10 +7,22 @@ using UnityEngine.UI;
 /// </summary>
 public static class MainMenuTabButtonAutoWire
 {
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedWire;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Register()
     {
-        SceneManager.sceneLoaded += (_, _) => WireAllInLoadedScenes();
+        SceneManager.sceneLoaded -= OnSceneLoadedWire;
+        SceneManager.sceneLoaded += OnSceneLoadedWire;
+        WireAllInLoadedScenes();
+    }
+
+    private static void OnSceneLoadedWire(Scene scene, LoadSceneMode mode)
+    {
         WireAllInLoadedScenes();
     }
 

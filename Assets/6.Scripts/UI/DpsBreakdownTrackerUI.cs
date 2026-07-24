@@ -84,10 +84,23 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private Transform _resolvedTrackerRoot;
     private static readonly Dictionary<int, DpsBreakdownTrackerUI> RootOwnerById = new();
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+        RootOwnerById.Clear();
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
     {
-        SceneManager.sceneLoaded += (_, _) => AutoAttachToTrackerWindows();
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+        SceneManager.sceneLoaded += OnSceneLoadedAutoAttach;
+        AutoAttachToTrackerWindows();
+    }
+
+    private static void OnSceneLoadedAutoAttach(Scene scene, LoadSceneMode mode)
+    {
         AutoAttachToTrackerWindows();
     }
 

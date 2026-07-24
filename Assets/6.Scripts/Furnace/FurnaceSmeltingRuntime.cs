@@ -105,6 +105,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.furnaceSmelters ??= new List<SaveData.FurnaceSmelterSave>();
+
+        // Preserve snapshot-seeded furnace rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.furnaceSmelters.Clear();
 
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
@@ -113,22 +118,82 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene furnaces that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.furnaceSmelters == null)
-            return;
-
-        for (int i = 0; i < data.furnaceSmelters.Count; i++)
+        if (data?.furnaceSmelters != null)
         {
-            SaveData.FurnaceSmelterSave row = data.furnaceSmelters[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.furnaceId))
+            for (int i = 0; i < data.furnaceSmelters.Count; i++)
+            {
+                SaveData.FurnaceSmelterSave save = data.furnaceSmelters[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.furnaceId))
+                    continue;
+
+                string key = NormalizeFurnaceId(save.furnaceId);
+                if (!_rows.TryGetValue(key, out FurnaceRow row) || row == null)
+                {
+                    row = new FurnaceRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        // Wipe passes null — discard without parking so New Game cannot inherit leftovers.
+        bool parkUnseenContents = data != null;
+        foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeFurnaceId(row.furnaceId);
-            var furnaceRow = new FurnaceRow(key);
-            furnaceRow.ReadFrom(row);
-            _rows[key] = furnaceRow;
+            if (parkUnseenContents)
+                kv.Value.ParkContentsThenResetToEmpty();
+            else
+                kv.Value.ResetToEmpty();
         }
+    }
+
+    /// <summary>
+    /// Advances active smelts by wall-clock time lost while the game was closed.
+    /// Safe to call after <see cref="LoadFrom"/>; no-ops when nothing is smelting.
+    /// </summary>
+    public void ApplyOfflineSeconds(float offlineSeconds)
+    {
+        offlineSeconds = Mathf.Clamp(offlineSeconds, 0f, 8f * 60f * 60f);
+        if (offlineSeconds < 1f || _rows.Count == 0)
+            return;
+
+        const float chunkSeconds = 30f;
+        float remaining = offlineSeconds;
+        bool structuralChange = false;
+
+        while (remaining > 0.0001f)
+        {
+            float chunk = Mathf.Min(remaining, chunkSeconds);
+            bool anyActive = false;
+
+            foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
+            {
+                FurnaceRow row = kv.Value;
+                if (row == null || !row.IsSmelting)
+                    continue;
+
+                anyActive = true;
+                if (row.TickSmelting(chunk))
+                    structuralChange = true;
+            }
+
+            if (!anyActive)
+                break;
+
+            remaining -= chunk;
+        }
+
+        if (structuralChange)
+            RequestSaveDebounced();
     }
 
     private static void RequestSaveDebounced()
@@ -550,29 +615,43 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
             }
 
             string itemId = _fuelBank.StoredItemId;
-            int toReturn = _fuelBank.StoredAmount;
             float burned = _fuelBank.SecondsBurnedFromCurrentLog;
-            _fuelBank.Clear();
-
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
-            if (added <= 0)
+            int keptPartial = burned > 0.0001f ? 1 : 0;
+            int toReturn = _fuelBank.WithdrawFullLogsOnly();
+            if (toReturn <= 0)
             {
-                _fuelBank.Load(itemId, toReturn, burned);
-                failureReason = "Inventory full.";
+                failureReason = "Current fuel log is partially burned and cannot be withdrawn.";
                 return false;
             }
 
-            if (added < toReturn)
-                _fuelBank.AddLogs(itemId, toReturn - added);
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
+            int left = toReturn - added;
+            if (added <= 0)
+            {
+                _fuelBank.Load(itemId, toReturn + keptPartial, burned);
+                failureReason = "Inventory and storage are full.";
+                return false;
+            }
+
+            if (left > 0)
+                _fuelBank.Load(itemId, left + keptPartial, burned);
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    left > 0
+                        ? "Inventory was full — sent some fuel to storage (rest still in the furnace)."
+                        : "Inventory was full — sent fuel to storage.",
+                    GameLog.CannotMessageColor);
+            }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
             NotifyChanged();
@@ -590,7 +669,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -598,12 +678,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             string itemId = _storedEnhancementItemId;
             int toReturn = _storedEnhancementAmount;
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -612,6 +690,15 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             {
                 _storedEnhancementAmount = 0;
                 _storedEnhancementItemId = "";
+            }
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedEnhancementAmount > 0
+                        ? "Inventory was full — sent some enhancements to storage (rest still in the furnace)."
+                        : "Inventory was full — sent enhancements to storage.",
+                    GameLog.CannotMessageColor);
             }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
@@ -642,7 +729,8 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -650,12 +738,10 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
             string oreId = _storedOreItemId;
             int toReturn = _storedOreAmount;
-            int before = inv.GetTotalAmount(oreId);
-            inv.Add(oreId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(oreId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, oreId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -671,10 +757,46 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 }
             }
 
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedOreAmount > 0
+                        ? "Inventory was full — sent some ore to storage (rest still in the furnace)."
+                        : "Inventory was full — sent ore to storage.",
+                    GameLog.CannotMessageColor);
+            }
+
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", oreId, added);
             NotifyChanged();
             RequestSaveDebounced();
             return true;
+        }
+
+        private static int DeliverWithdrawnItems(
+            Inventory inv,
+            PlayerStorage storage,
+            string itemId,
+            int amount,
+            out bool sentToStorage)
+        {
+            sentToStorage = false;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+                return 0;
+
+            int added = inv ? inv.AddPartial(itemId, amount, notifyItemGainPopup: false) : 0;
+            int left = amount - added;
+            if (left > 0 && storage != null)
+            {
+                int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+                if (toStorage > 0)
+                {
+                    left -= toStorage;
+                    added += toStorage;
+                    sentToStorage = true;
+                }
+            }
+
+            return added;
         }
 
         public bool TryCollectBars(int amount, out string failureReason)
@@ -694,24 +816,45 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
             }
 
             int collect = Mathf.Min(amount, _readyBarAmount);
-            int before = inv.GetTotalAmount(barItemId);
-            inv.Add(barItemId, collect, notifyItemGainPopup: true);
-            int added = inv.GetTotalAmount(barItemId) - before;
+            int added = inv ? inv.AddPartial(barItemId, collect, notifyItemGainPopup: true) : 0;
+            int left = collect - added;
+            bool sentToStorage = false;
+            if (left > 0 && storage != null)
+            {
+                int toStorage = storage.TryDepositAmountFromExternal(barItemId, left);
+                if (toStorage > 0)
+                {
+                    left -= toStorage;
+                    added += toStorage;
+                    sentToStorage = true;
+                }
+            }
+
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
             _readyBarAmount -= added;
             ClearStaleIdsWhenEmpty();
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    left > 0
+                        ? "Inventory was full — sent some bars to storage (rest still in the furnace)."
+                        : "Inventory was full — sent bars to storage.",
+                    GameLog.CannotMessageColor);
+            }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", barItemId, added);
             NotifyChanged();
@@ -724,7 +867,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (deltaSeconds <= 0f || !_isSmelting)
                 return false;
 
-            if (!_fuelBank.TryConsumeSeconds(deltaSeconds))
+            if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
             {
                 _isSmelting = false;
                 ClearBarModifiers();
@@ -732,7 +875,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return true;
             }
 
-            if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
+            if (!_fuelBank.HasFuel)
             {
                 _isSmelting = false;
                 ClearBarModifiers();
@@ -745,7 +888,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             float remaining = deltaSeconds;
             const int maxBarsPerTick = 50;
             int barsProcessed = 0;
-            while (remaining > 0f && _isSmelting && barsProcessed < maxBarsPerTick)
+            while (remaining > 0.0001f && _isSmelting && barsProcessed < maxBarsPerTick)
             {
                 if (_storedOreAmount < recipe.OrePerBar)
                 {
@@ -758,34 +901,56 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 float barDuration = _hasLockedBarModifiers
                     ? _lockedBarDurationSeconds
                     : GetEffectiveDurationSeconds();
+                if (barDuration <= 0.0001f)
+                    barDuration = 0.0001f;
+
                 float needed = barDuration - _smeltProgressSeconds;
-                if (remaining >= needed)
+                float step = remaining >= needed ? needed : remaining;
+
+                // Burn fuel in lockstep with progress so partial fuel still advances the bar
+                // and large deltas never burn more fuel than craft steps applied.
+                float burned = _fuelBank.ConsumeUpTo(step);
+                if (burned <= 0.0001f)
                 {
-                    remaining -= needed;
-                    _smeltProgressSeconds = 0f;
-                    _storedOreAmount -= recipe.OrePerBar;
-                    _readyBarAmount++;
-                    _readyBarItemId = recipe.BarItemId;
+                    _isSmelting = false;
+                    ClearBarModifiers();
                     structuralChange = true;
-                    barsProcessed++;
-                    ConsumeEnhancementForBarAttempt();
+                    break;
+                }
 
-                    ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
-                    TryRollBonusBar(recipe);
+                _smeltProgressSeconds += burned;
+                remaining -= burned;
 
-                    if (_storedOreAmount < recipe.OrePerBar)
-                    {
-                        _isSmelting = false;
-                        ClearBarModifiers();
-                    }
-                    else
-                        LockBarModifiers();
+                if (burned + 0.0001f < step)
+                {
+                    // Fuel ran out before the requested step finished.
+                    _isSmelting = false;
+                    ClearBarModifiers();
+                    structuralChange = true;
+                    break;
+                }
+
+                if (_smeltProgressSeconds + 0.0001f < barDuration)
+                    break;
+
+                _smeltProgressSeconds = 0f;
+                _storedOreAmount -= recipe.OrePerBar;
+                _readyBarAmount++;
+                _readyBarItemId = recipe.BarItemId;
+                structuralChange = true;
+                barsProcessed++;
+                ConsumeEnhancementForBarAttempt();
+
+                ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
+                TryRollBonusBar(recipe);
+
+                if (_storedOreAmount < recipe.OrePerBar)
+                {
+                    _isSmelting = false;
+                    ClearBarModifiers();
                 }
                 else
-                {
-                    _smeltProgressSeconds += remaining;
-                    remaining = 0f;
-                }
+                    LockBarModifiers();
             }
 
             if (structuralChange)
@@ -855,6 +1020,35 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             NotifyChanged();
         }
 
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.FurnaceSmelterSave { furnaceId = _furnaceId });
+        }
+
+        /// <summary>
+        /// Parks ore/fuel/enhancement/ready bars before wiping an unseen furnace row on LoadFrom.
+        /// </summary>
+        public void ParkContentsThenResetToEmpty()
+        {
+            if (_storedOreAmount > 0 && !string.IsNullOrWhiteSpace(_storedOreItemId))
+                PendingLootRecoveryStore.Enqueue(_storedOreItemId, _storedOreAmount);
+
+            if (_readyBarAmount > 0)
+            {
+                string barId = GetReadyBarItemId();
+                if (!string.IsNullOrWhiteSpace(barId))
+                    PendingLootRecoveryStore.Enqueue(barId, _readyBarAmount);
+            }
+
+            if (_storedEnhancementAmount > 0 && !string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                PendingLootRecoveryStore.Enqueue(_storedEnhancementItemId, _storedEnhancementAmount);
+
+            if (_fuelBank.HasFuel && !string.IsNullOrWhiteSpace(_fuelBank.StoredItemId))
+                PendingLootRecoveryStore.Enqueue(_fuelBank.StoredItemId, _fuelBank.StoredAmount);
+
+            ResetToEmpty();
+        }
+
         private void NormalizeStateAfterLoad()
         {
             if (_readyBarAmount > 0 && string.IsNullOrWhiteSpace(_readyBarItemId))
@@ -863,6 +1057,14 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                     SmeltingRecipes.TryGetForOre(_storedOreItemId, out recipe))
                 {
                     _readyBarItemId = recipe.BarItemId;
+                }
+                else
+                {
+                    // Unresolvable ready bars softlock withdraw/deposit; drop corrupt amount.
+                    Debug.LogWarning(
+                        $"[Furnace] Dropping corrupt ready bars on '{_furnaceId}' with no resolvable item id.");
+                    _readyBarAmount = 0;
+                    _readyBarItemId = "";
                 }
             }
 

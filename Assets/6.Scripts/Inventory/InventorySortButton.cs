@@ -65,13 +65,6 @@ public class InventorySortButton : MonoBehaviour
 
     private static PlayerStorage ResolvePlayerStorage()
     {
-        var pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (pc != null)
-        {
-            var ps = pc.GetComponent<PlayerStorage>();
-            if (ps != null) return ps;
-        }
-
-        return FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        return PlayerStorage.ResolvePlayer();
     }
 }

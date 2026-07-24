@@ -63,6 +63,12 @@ public class SaleUndoManager : MonoBehaviour
         RebindRefs();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void OnEnable()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
@@ -80,7 +86,9 @@ public class SaleUndoManager : MonoBehaviour
 
     private void RebindRefs()
     {
-        if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        // Always refresh inventory — a stale first-found shell copy restores sold items
+        // into a bag the player (and save snapshot) do not use.
+        inventory = Inventory.ResolvePlayer();
         if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
     }
 
@@ -160,6 +168,20 @@ public class SaleUndoManager : MonoBehaviour
         return _entries.FindIndex(e => e.id == entryId) >= 0;
     }
 
+    /// <summary>
+    /// Drops all undo rows. Required on full wipe / New Game / Load Game because this manager is
+    /// DontDestroyOnLoad and is not an <see cref="ISaveable"/> — otherwise sales from a previous
+    /// slot can be undone into a fresh character.
+    /// </summary>
+    public void ClearAllEntries()
+    {
+        if (_entries.Count == 0)
+            return;
+
+        _entries.Clear();
+        NotifyChanged();
+    }
+
     public bool TryUndoEntry(int entryId)
     {
         int idx = _entries.FindIndex(e => e.id == entryId);
@@ -173,6 +195,13 @@ public class SaleUndoManager : MonoBehaviour
     {
         var e = _entries[idx];
 
+        RebindRefs();
+        if (!wallet || !inventory)
+        {
+            Debug.LogWarning("[SaleUndoManager] Undo aborted: wallet or inventory missing.");
+            return false;
+        }
+
         Merchant merchant = null;
         if (e.stockAddedAmount > 0)
         {
@@ -183,21 +212,46 @@ public class SaleUndoManager : MonoBehaviour
 
         if (!wallet.SpendGold(e.gold))
         {
+            // Keep the undo row — the player may earn gold later. Only roll back the
+            // tentative stock removal; never destroy the recovery opportunity.
             if (merchant != null)
                 merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
-            _entries.RemoveAt(idx);
-            NotifyChanged();
             return false;
         }
 
-        int added = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false);
-        if (added < e.amount)
+        var touchedInv = new List<int>(4);
+        int toInv = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
+        int left = e.amount - toInv;
+        int toStorage = 0;
+        var touchedStorage = new List<int>(4);
+        PlayerStorage storage = null;
+        if (left > 0)
         {
-            if (added > 0) inventory.Remove(e.itemId, added);
+            storage = PlayerStorage.ResolvePlayer();
+            if (storage != null)
+            {
+                toStorage = storage.TryDepositAmountFromExternal(e.itemId, left, touchedStorage);
+                left -= toStorage;
+            }
+        }
+
+        if (left > 0)
+        {
+            if (toInv > 0)
+                inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
+            if (toStorage > 0 && storage != null)
+                storage.RemoveAmountFromTouchedSlots(toStorage, touchedStorage);
             wallet.AddGold(e.gold);
             if (merchant != null)
                 merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
             return false;
+        }
+
+        if (toStorage > 0)
+        {
+            GameLog.Add(
+                "Inventory was full — restored sold items to storage.",
+                GameLog.CannotMessageColor);
         }
 
         string undoItemName = ItemGainPopupNotifier.ResolveDisplayLabel(e.itemId, e.amount);
