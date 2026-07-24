@@ -809,13 +809,12 @@ public class StorageSlotUI : MonoBehaviour,
     {
         if (_storage == null) return;
 
-        if (!_inventory)
-            _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-
-        if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
+        if (EquipmentSlotUI.TryPeekEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
         {
-            if (_inventory == null) return;
-            if (string.IsNullOrWhiteSpace(equipItemId)) return;
+            if (!_inventory)
+                _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            if (_inventory == null || string.IsNullOrWhiteSpace(equipItemId))
+                return;
 
             var equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
             var toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
@@ -840,10 +839,14 @@ public class StorageSlotUI : MonoBehaviour,
                 }
             }
 
+            EquipmentSlotUI.TryConsumeEquipDrag(out _, out _, out _);
             EquipmentSlotUI.UnequipDragSource(fromSlotType, equipment, toolbelt);
             _tooltip?.Hide();
             return;
         }
+
+        if (!_inventory)
+            _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
         {

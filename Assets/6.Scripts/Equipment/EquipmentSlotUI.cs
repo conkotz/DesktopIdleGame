@@ -135,9 +135,10 @@ public class EquipmentSlotUI : MonoBehaviour,
     }
 
     /// <summary>
-    /// InventorySlotUI uses this to consume a drag coming from equipment/toolbelt.
+    /// Peek the active equipment/toolbelt drag without ending it.
+    /// Prefer validating accept rules before <see cref="TryConsumeEquipDrag"/>.
     /// </summary>
-    public static bool TryConsumeEquipDrag(out EquipmentUISlotType fromSlot, out string itemId, out int amount)
+    public static bool TryPeekEquipDrag(out EquipmentUISlotType fromSlot, out string itemId, out int amount)
     {
         fromSlot = default;
         itemId = null;
@@ -148,6 +149,17 @@ public class EquipmentSlotUI : MonoBehaviour,
         fromSlot = EquipDragState.FromSlotType;
         itemId = EquipDragState.ItemId;
         amount = EquipDragState.Amount;
+        return !string.IsNullOrWhiteSpace(itemId);
+    }
+
+    /// <summary>
+    /// InventorySlotUI uses this to consume a drag coming from equipment/toolbelt.
+    /// </summary>
+    public static bool TryConsumeEquipDrag(out EquipmentUISlotType fromSlot, out string itemId, out int amount)
+    {
+        if (!TryPeekEquipDrag(out fromSlot, out itemId, out amount))
+            return false;
+
         EquipDragState.End();
         return true;
     }
@@ -987,7 +999,8 @@ public class EquipmentSlotUI : MonoBehaviour,
                 if (!TryRemoveDraggedFromSource(draggedAmount, fromStorage, playerStorage, fromSlot))
                     return;
 
-                equipment.EquipOffHand(draggedId, draggedAmount);
+                if (!equipment.EquipOffHand(draggedId, draggedAmount))
+                    ReturnOrDrop(draggedId, draggedAmount);
 
                 InventoryDragState.EndDrag();
                 eventData.Use();
@@ -1019,7 +1032,14 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!TryRemoveDraggedFromSource(equipAmount, fromStorage, playerStorage, fromSlot))
                 return;
 
-            equipment.EquipOffHand(draggedId, equipAmount);
+            if (!equipment.EquipOffHand(draggedId, equipAmount))
+            {
+                // Previous off-hand unchanged — restore only what we just removed.
+                ReturnOrDrop(draggedId, equipAmount);
+                InventoryDragState.EndDrag();
+                eventData.Use();
+                return;
+            }
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                 ReturnOrDrop(prev, prevAmount);
@@ -1335,11 +1355,17 @@ public class EquipmentSlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
 
-        // Inventory.Add can partially succeed and still return false — only overflow the remainder.
-        int added = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
-        int left = amount - added;
-        if (left <= 0)
-            return;
+        // Callers may ClearThisSlot before return — never NRE / silently discard when
+        // Inventory is missing; always fall through to storage then pending loot.
+        int left = amount;
+        if (inventory)
+        {
+            // Inventory.Add can partially succeed and still return false — only overflow the remainder.
+            int added = inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+            left -= added;
+            if (left <= 0)
+                return;
+        }
 
         PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (storage != null)
@@ -1350,7 +1376,7 @@ public class EquipmentSlotUI : MonoBehaviour,
                 return;
         }
 
-        var def = inventory.GetItemDef(itemId);
+        var def = inventory ? inventory.GetItemDef(itemId) : null;
         PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null);
     }
 
