@@ -668,12 +668,17 @@ public class InventorySlotUI : MonoBehaviour,
             // Normal single-slot gear
             if (!TryCanEquipOrPopup(def, def.equipSlot)) return;
 
+            // Same item already equipped → no-op (do not consume the inventory copy).
+            string prev = equipment.GetEquippedItemId(def.equipSlot);
+            if (!string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, slot.itemId, StringComparison.OrdinalIgnoreCase))
+                return;
+
             if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
 
-            string prev = equipment.GetEquippedItemId(def.equipSlot);
             equipment.EquipGear(def.equipSlot, slot.itemId);
 
-            if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
+            if (!string.IsNullOrWhiteSpace(prev))
                 ReturnOrDrop(prev, 1);
 
             return;
