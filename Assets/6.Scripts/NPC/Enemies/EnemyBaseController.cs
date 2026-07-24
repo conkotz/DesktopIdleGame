@@ -2095,14 +2095,10 @@ public class EnemyBaseController : MonoBehaviour
         DropManager dm = DropManager.Instance != null
             ? DropManager.Instance
             : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
-        if (dm == null)
-        {
-            Debug.LogWarning($"[Enemy] No DropManager in scene — item loot from '{name}' was not spawned.", this);
-            return;
-        }
 
         Transform anchor = ResolveDropLootAnchor();
         Vector3 spawnBase = anchor ? anchor.position : transform.position;
+        string sourceName = ResolveLootSourceName();
 
         if (atMostOneDropFromSuccessfulRolls)
         {
@@ -2136,8 +2132,7 @@ public class EnemyBaseController : MonoBehaviour
             if (stack <= 0)
                 return;
 
-            // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName(), sweepOnMapExit: true);
+            DeliverEnemyLootOrRecover(dm, won.item.itemId.Trim(), stack, won.item.icon, spawnBase, sourceName);
             return;
         }
 
@@ -2159,9 +2154,35 @@ public class EnemyBaseController : MonoBehaviour
             if (stack <= 0)
                 continue;
 
-            // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName(), sweepOnMapExit: true);
+            DeliverEnemyLootOrRecover(dm, e.item.itemId.Trim(), stack, e.item.icon, spawnBase, sourceName);
         }
+    }
+
+    private static void DeliverEnemyLootOrRecover(
+        DropManager dm,
+        string itemId,
+        int amount,
+        Sprite icon,
+        Vector3 spawnBase,
+        string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        if (dm != null &&
+            dm.SpawnAtWorldPosition(
+                itemId,
+                amount,
+                icon,
+                spawnBase,
+                alignToGround: true,
+                sourceName: sourceName,
+                sweepOnMapExit: true))
+        {
+            return;
+        }
+
+        PendingLootRecoveryStore.Enqueue(itemId, amount);
     }
 
     private float ComputeEffectiveLootDropChance(float baseChance, float dropChanceMultiplier)
@@ -2322,8 +2343,6 @@ public class EnemyBaseController : MonoBehaviour
         DropManager dm = DropManager.Instance != null
             ? DropManager.Instance
             : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
-        if (dm == null)
-            return;
 
         ItemDatabase itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
 
@@ -2369,7 +2388,7 @@ public class EnemyBaseController : MonoBehaviour
         Vector3 spawnBase,
         string sourceName)
     {
-        if (entry?.item == null || string.IsNullOrWhiteSpace(entry.item.itemId) || dm == null)
+        if (entry?.item == null || string.IsNullOrWhiteSpace(entry.item.itemId))
             return;
 
         float p = Mathf.Clamp01(entry.dropChance);
@@ -2388,7 +2407,20 @@ public class EnemyBaseController : MonoBehaviour
         ItemDefinition dropDef = itemDb != null ? itemDb.Get(dropItemId) : entry.item;
         Sprite dropIcon = dropDef != null && dropDef.icon != null ? dropDef.icon : entry.item.icon;
 
-        dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName, sweepOnMapExit: true);
+        if (dm != null &&
+            dm.SpawnAtWorldPosition(
+                dropItemId,
+                stack,
+                dropIcon,
+                spawnBase,
+                alignToGround: true,
+                sourceName: sourceName,
+                sweepOnMapExit: true))
+        {
+            return;
+        }
+
+        PendingLootRecoveryStore.Enqueue(dropItemId, stack);
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)
