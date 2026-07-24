@@ -49,6 +49,8 @@ public static class PendingLootRecoveryStore
     /// <summary>
     /// Tries <see cref="DropManager.Spawn"/>; if the manager is missing or spawn returns false
     /// (no anchor/prefab/etc.), parks the stack so removals never silently destroy items.
+    /// Spawned drops are marked SweepOnMapExit — callers use this after Remove/unequip, so
+    /// voluntary travel must recover unpicked stacks instead of destroying them with the scene.
     /// </summary>
     /// <returns>True when a world drop was spawned; false when the amount was enqueued.</returns>
     public static bool TrySpawnWorldDropOrEnqueue(
@@ -61,7 +63,8 @@ public static class PendingLootRecoveryStore
             return false;
 
         DropManager dm = DropManager.Instance;
-        if (dm != null && dm.Spawn(itemId, amount, icon, sourceName))
+        if (dm != null &&
+            dm.Spawn(itemId, amount, icon, sourceName, sweepOnMapExit: true))
             return true;
 
         Enqueue(itemId, amount);
