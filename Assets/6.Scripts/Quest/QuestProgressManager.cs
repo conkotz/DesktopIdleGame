@@ -1626,6 +1626,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             ? "Draven the Blacksmith has returned to Duskwood."
             : $"A town service is now available in Duskwood.";
         GameLog.Add(message, GameLog.RegionUnlockedColor);
+
+        // Spawn gates are evaluated only at map spawn time; refresh if already in-scene.
+        LevelSpawnDirector director = FindFirstObjectByType<LevelSpawnDirector>(FindObjectsInactive.Include);
+        director?.RefreshTownServiceGatedSpawns();
     }
 
     /// <summary>
