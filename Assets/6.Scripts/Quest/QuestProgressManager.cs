@@ -1312,7 +1312,13 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             left -= st.TryDepositAmountFromExternal(itemId, left);
 
         if (left > 0)
-            Debug.LogWarning($"[QuestProgressManager] Could not restore {left}x {itemId} after a blocked claim.", this);
+        {
+            PendingLootRecoveryStore.Enqueue(itemId, left);
+            GameLog.Add(
+                "Inventory and storage are full — held restored quest gather items until you free space.",
+                GameLog.CannotMessageColor);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
+        }
     }
 
     private bool TryConsumeGatherItems(QuestDefinition q, out int consumedAmount, out string itemIdNormalized)

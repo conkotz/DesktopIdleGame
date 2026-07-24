@@ -419,15 +419,20 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
             }
 
-            if (inv.GetReceivableAmount(_readyOutputItemId, 1) <= 0)
+            int fitInv = inv ? inv.GetReceivableAmount(_readyOutputItemId, 1) : 0;
+            int fitSt = fitInv < 1 && storage != null
+                ? storage.GetReceivableAmountFromExternal(_readyOutputItemId, 1)
+                : 0;
+            if (fitInv + fitSt < 1)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -441,11 +446,22 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
             Inventory inv = Inventory.ResolvePlayer();
             string outputItemId = _readyOutputItemId;
-            int added = inv.AddPartial(outputItemId, 1, notifyItemGainPopup: true);
+            int added = inv ? inv.AddPartial(outputItemId, 1, notifyItemGainPopup: true) : 0;
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
-                return false;
+                PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                if (storage != null && storage.TryDepositAmountFromExternal(outputItemId, 1) == 1)
+                {
+                    GameLog.Add(
+                        "Inventory was full — sent forged item to storage.",
+                        GameLog.CannotMessageColor);
+                    added = 1;
+                }
+                else
+                {
+                    failureReason = "Inventory and storage are full.";
+                    return false;
+                }
             }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Blacksmithing", outputItemId, added);
@@ -615,7 +631,19 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 {
                     // Roll back anything already removed this attempt.
                     for (int r = 0; r < consumed.Count; r++)
-                        inv.Add(consumed[r].ItemId, consumed[r].Amount, notifyItemGainPopup: false);
+                    {
+                        int left = consumed[r].Amount;
+                        left -= inv.AddPartial(consumed[r].ItemId, left, notifyItemGainPopup: false);
+                        if (left > 0)
+                        {
+                            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                            if (storage != null)
+                                left -= storage.TryDepositAmountFromExternal(consumed[r].ItemId, left);
+                        }
+
+                        if (left > 0)
+                            PendingLootRecoveryStore.Enqueue(consumed[r].ItemId, left);
+                    }
                     consumed.Clear();
                     failureReason = $"Could not remove {ItemGainPopupNotifier.ResolveDisplayLabel(ing.ItemId, needed)}.";
                     return false;
