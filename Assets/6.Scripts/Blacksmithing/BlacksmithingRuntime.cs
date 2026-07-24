@@ -130,12 +130,19 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             }
         }
 
+        // Wipe passes null — discard without parking so New Game cannot inherit leftovers.
+        // Non-null loads must park unseen rows (station-id rename / partial snapshot) or
+        // ResetToEmpty permanently destroys STOP refunds, mid-craft materials, and ready output.
+        bool parkUnseenContents = data != null;
         foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
         {
             if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            kv.Value.ResetToEmpty();
+            if (parkUnseenContents)
+                kv.Value.ParkContentsThenResetToEmpty();
+            else
+                kv.Value.ResetToEmpty();
         }
     }
 
@@ -524,6 +531,37 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         public void ResetToEmpty()
         {
             ReadFrom(new SaveData.BlacksmithingStationSave { stationId = _stationId });
+        }
+
+        /// <summary>
+        /// Parks live forge value into pending loot before wiping. Used when LoadFrom drops an
+        /// unseen station row — ResetToEmpty alone would destroy STOP refunds / ready output.
+        /// </summary>
+        public void ParkContentsThenResetToEmpty()
+        {
+            if (_isCrafting)
+            {
+                // Keep locked materials; do not CompleteCraft (that would clear them for a ready item
+                // that this wipe is about to discard).
+                _isCrafting = false;
+                _craftProgressSeconds = 0f;
+                _lockedCraftDurationSeconds = 0f;
+                _activeRecipeOutputId = "";
+            }
+
+            for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+            {
+                BlacksmithingIngredient ing = _lockedConsumedIngredients[i];
+                if (!string.IsNullOrWhiteSpace(ing.ItemId) && ing.Amount > 0)
+                    PendingLootRecoveryStore.Enqueue(ing.ItemId, ing.Amount);
+            }
+
+            _lockedConsumedIngredients.Clear();
+
+            if (!string.IsNullOrWhiteSpace(_readyOutputItemId))
+                PendingLootRecoveryStore.Enqueue(_readyOutputItemId, 1);
+
+            ResetToEmpty();
         }
 
         private void ReadLockedConsumedIngredients(SaveData.BlacksmithingStationSave save)

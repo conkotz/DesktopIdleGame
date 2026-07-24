@@ -142,12 +142,17 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
         }
 
+        // Wipe passes null — discard without parking so New Game cannot inherit leftovers.
+        bool parkUnseenContents = data != null;
         foreach (KeyValuePair<string, CookingRow> kv in _rows)
         {
             if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            kv.Value.ResetToEmpty();
+            if (parkUnseenContents)
+                kv.Value.ParkContentsThenResetToEmpty();
+            else
+                kv.Value.ResetToEmpty();
         }
     }
 
@@ -1041,6 +1046,30 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
         public void ResetToEmpty()
         {
             ReadFrom(new SaveData.CookingStationSave { stationId = _stationId });
+        }
+
+        /// <summary>
+        /// Parks fish/fuel/enhancement/ready food before wiping an unseen cooking row on LoadFrom.
+        /// </summary>
+        public void ParkContentsThenResetToEmpty()
+        {
+            if (_storedRawAmount > 0 && !string.IsNullOrWhiteSpace(_storedRawItemId))
+                PendingLootRecoveryStore.Enqueue(_storedRawItemId, _storedRawAmount);
+
+            if (_readyCookedAmount > 0)
+            {
+                string cookedId = GetReadyCookedItemId();
+                if (!string.IsNullOrWhiteSpace(cookedId))
+                    PendingLootRecoveryStore.Enqueue(cookedId, _readyCookedAmount);
+            }
+
+            if (_storedEnhancementAmount > 0 && !string.IsNullOrWhiteSpace(_storedEnhancementItemId))
+                PendingLootRecoveryStore.Enqueue(_storedEnhancementItemId, _storedEnhancementAmount);
+
+            if (_fuelBank.HasFuel && !string.IsNullOrWhiteSpace(_fuelBank.StoredItemId))
+                PendingLootRecoveryStore.Enqueue(_fuelBank.StoredItemId, _fuelBank.StoredAmount);
+
+            ResetToEmpty();
         }
 
         private void NormalizeStateAfterLoad()

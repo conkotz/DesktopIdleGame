@@ -297,6 +297,9 @@ public class LevelSpawnDirector : MonoBehaviour
 
         string serviceId = assetGate.serviceId != null ? assetGate.serviceId.Trim() : "";
         TownServiceSpawnMode mode = assetGate.spawnWhen;
+        // Merchant + furnace + anvil all share serviceId "blacksmith" / UnlockedOnly.
+        // Matching only serviceId+mode would spawn the first row then skip the rest.
+        string prefabIdentity = BuildTownServiceGateIdentity(entry.prefab);
 
         TownServiceSpawnGate[] liveGates = FindObjectsByType<TownServiceSpawnGate>(
             FindObjectsInactive.Exclude,
@@ -310,10 +313,44 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             if (!string.Equals(live.serviceId != null ? live.serviceId.Trim() : "", serviceId, StringComparison.OrdinalIgnoreCase))
                 continue;
+            if (!string.Equals(BuildTownServiceGateIdentity(live.gameObject), prefabIdentity, StringComparison.OrdinalIgnoreCase))
+                continue;
             return false;
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Stable identity for a town-service-gated prefab/instance so refresh can spawn every
+    /// UnlockedOnly row that shares a service id (e.g. duskwood merchant + furnace + anvil).
+    /// </summary>
+    private static string BuildTownServiceGateIdentity(GameObject go)
+    {
+        if (!go)
+            return "";
+
+        FurnaceSmelter furnace = go.GetComponent<FurnaceSmelter>();
+        if (furnace != null)
+            return "furnace:" + furnace.FurnaceId;
+
+        BlacksmithingStation anvil = go.GetComponent<BlacksmithingStation>();
+        if (anvil != null)
+            return "blacksmithing:" + anvil.StationId;
+
+        CookingStation cooking = go.GetComponent<CookingStation>();
+        if (cooking != null)
+            return "cooking:" + cooking.StationId;
+
+        Merchant merchant = go.GetComponent<Merchant>();
+        if (merchant != null)
+            return "merchant:" + merchant.MerchantId;
+
+        string name = go.name ?? "";
+        const string cloneSuffix = "(Clone)";
+        if (name.EndsWith(cloneSuffix, StringComparison.Ordinal))
+            name = name.Substring(0, name.Length - cloneSuffix.Length).TrimEnd();
+        return "go:" + name;
     }
 
     private void SpawnAllPlans(
