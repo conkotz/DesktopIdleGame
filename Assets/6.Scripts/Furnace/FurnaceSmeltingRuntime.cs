@@ -151,6 +151,46 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Advances active smelts by wall-clock time lost while the game was closed.
+    /// Safe to call after <see cref="LoadFrom"/>; no-ops when nothing is smelting.
+    /// </summary>
+    public void ApplyOfflineSeconds(float offlineSeconds)
+    {
+        offlineSeconds = Mathf.Clamp(offlineSeconds, 0f, 8f * 60f * 60f);
+        if (offlineSeconds < 1f || _rows.Count == 0)
+            return;
+
+        const float chunkSeconds = 30f;
+        float remaining = offlineSeconds;
+        bool structuralChange = false;
+
+        while (remaining > 0.0001f)
+        {
+            float chunk = Mathf.Min(remaining, chunkSeconds);
+            bool anyActive = false;
+
+            foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
+            {
+                FurnaceRow row = kv.Value;
+                if (row == null || !row.IsSmelting)
+                    continue;
+
+                anyActive = true;
+                if (row.TickSmelting(chunk))
+                    structuralChange = true;
+            }
+
+            if (!anyActive)
+                break;
+
+            remaining -= chunk;
+        }
+
+        if (structuralChange)
+            RequestSaveDebounced();
+    }
+
     private static void RequestSaveDebounced()
     {
         if (SaveManager.Instance != null)
@@ -749,7 +789,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             if (deltaSeconds <= 0f || !_isSmelting)
                 return false;
 
-            if (!_fuelBank.TryConsumeSeconds(deltaSeconds))
+            if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
             {
                 _isSmelting = false;
                 ClearBarModifiers();
@@ -757,7 +797,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 return true;
             }
 
-            if (!TryGetActiveRecipe(out SmeltingRecipe recipe))
+            if (!_fuelBank.HasFuel)
             {
                 _isSmelting = false;
                 ClearBarModifiers();
@@ -770,7 +810,7 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             float remaining = deltaSeconds;
             const int maxBarsPerTick = 50;
             int barsProcessed = 0;
-            while (remaining > 0f && _isSmelting && barsProcessed < maxBarsPerTick)
+            while (remaining > 0.0001f && _isSmelting && barsProcessed < maxBarsPerTick)
             {
                 if (_storedOreAmount < recipe.OrePerBar)
                 {
@@ -783,34 +823,56 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                 float barDuration = _hasLockedBarModifiers
                     ? _lockedBarDurationSeconds
                     : GetEffectiveDurationSeconds();
+                if (barDuration <= 0.0001f)
+                    barDuration = 0.0001f;
+
                 float needed = barDuration - _smeltProgressSeconds;
-                if (remaining >= needed)
+                float step = remaining >= needed ? needed : remaining;
+
+                // Burn fuel in lockstep with progress so partial fuel still advances the bar
+                // and large deltas never burn more fuel than craft steps applied.
+                float burned = _fuelBank.ConsumeUpTo(step);
+                if (burned <= 0.0001f)
                 {
-                    remaining -= needed;
-                    _smeltProgressSeconds = 0f;
-                    _storedOreAmount -= recipe.OrePerBar;
-                    _readyBarAmount++;
-                    _readyBarItemId = recipe.BarItemId;
+                    _isSmelting = false;
+                    ClearBarModifiers();
                     structuralChange = true;
-                    barsProcessed++;
-                    ConsumeEnhancementForBarAttempt();
+                    break;
+                }
 
-                    ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
-                    TryRollBonusBar(recipe);
+                _smeltProgressSeconds += burned;
+                remaining -= burned;
 
-                    if (_storedOreAmount < recipe.OrePerBar)
-                    {
-                        _isSmelting = false;
-                        ClearBarModifiers();
-                    }
-                    else
-                        LockBarModifiers();
+                if (burned + 0.0001f < step)
+                {
+                    // Fuel ran out before the requested step finished.
+                    _isSmelting = false;
+                    ClearBarModifiers();
+                    structuralChange = true;
+                    break;
+                }
+
+                if (_smeltProgressSeconds + 0.0001f < barDuration)
+                    break;
+
+                _smeltProgressSeconds = 0f;
+                _storedOreAmount -= recipe.OrePerBar;
+                _readyBarAmount++;
+                _readyBarItemId = recipe.BarItemId;
+                structuralChange = true;
+                barsProcessed++;
+                ConsumeEnhancementForBarAttempt();
+
+                ProcessingProficiencyRuntime.EnsureInstance().AddSmeltingBarXp(recipe);
+                TryRollBonusBar(recipe);
+
+                if (_storedOreAmount < recipe.OrePerBar)
+                {
+                    _isSmelting = false;
+                    ClearBarModifiers();
                 }
                 else
-                {
-                    _smeltProgressSeconds += remaining;
-                    remaining = 0f;
-                }
+                    LockBarModifiers();
             }
 
             if (structuralChange)
@@ -893,6 +955,14 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
                     SmeltingRecipes.TryGetForOre(_storedOreItemId, out recipe))
                 {
                     _readyBarItemId = recipe.BarItemId;
+                }
+                else
+                {
+                    // Unresolvable ready bars softlock withdraw/deposit; drop corrupt amount.
+                    Debug.LogWarning(
+                        $"[Furnace] Dropping corrupt ready bars on '{_furnaceId}' with no resolvable item id.");
+                    _readyBarAmount = 0;
+                    _readyBarItemId = "";
                 }
             }
 

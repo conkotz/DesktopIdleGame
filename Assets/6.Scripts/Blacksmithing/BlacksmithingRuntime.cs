@@ -139,6 +139,46 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Advances active forge crafts by wall-clock time lost while the game was closed.
+    /// Safe to call after <see cref="LoadFrom"/>; no-ops when nothing is crafting.
+    /// </summary>
+    public void ApplyOfflineSeconds(float offlineSeconds)
+    {
+        offlineSeconds = Mathf.Clamp(offlineSeconds, 0f, 8f * 60f * 60f);
+        if (offlineSeconds < 1f || _rows.Count == 0)
+            return;
+
+        const float chunkSeconds = 30f;
+        float remaining = offlineSeconds;
+        bool structuralChange = false;
+
+        while (remaining > 0.0001f)
+        {
+            float chunk = Mathf.Min(remaining, chunkSeconds);
+            bool anyActive = false;
+
+            foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
+            {
+                BlacksmithingRow row = kv.Value;
+                if (row == null || !row.IsCrafting)
+                    continue;
+
+                anyActive = true;
+                if (row.TickCrafting(chunk))
+                    structuralChange = true;
+            }
+
+            if (!anyActive)
+                break;
+
+            remaining -= chunk;
+        }
+
+        if (structuralChange)
+            RequestSaveDebounced();
+    }
+
     private static void RequestSaveDebounced()
     {
         if (SaveManager.Instance != null)
