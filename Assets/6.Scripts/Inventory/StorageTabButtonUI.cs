@@ -165,8 +165,13 @@ public class StorageTabButtonUI : MonoBehaviour,
             int remainder = equipAmount - placed;
             if (remainder > 0)
             {
-                if (!_inventory.Add(equipItemId, remainder, null, notifyItemGainPopup: false))
+                // Inventory.Add can partially succeed and still return false. Roll back any
+                // partial inventory/storage deposits so the still-equipped stack is not duplicated.
+                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false);
+                if (toInv < remainder)
                 {
+                    if (toInv > 0)
+                        _inventory.Remove(equipItemId, toInv);
                     if (placed > 0)
                         _storage.RemoveItemAmountAcrossSlots(equipItemId, placed);
                     return;
