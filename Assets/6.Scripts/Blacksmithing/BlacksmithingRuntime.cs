@@ -235,7 +235,22 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             // forge to Clear() those leftovers — that permanently destroys the refund.
             if (HasPendingIngredientRefunds)
             {
+                int beforeAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    beforeAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
                 TryFlushPendingIngredientRefunds(logIfBlocked: false);
+
+                int afterAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    afterAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
+                if (afterAmount != beforeAmount)
+                {
+                    NotifyChanged();
+                    RequestSaveDebounced();
+                }
+
                 if (HasPendingIngredientRefunds)
                 {
                     failureReason = "Free space to recover forge materials first.";
