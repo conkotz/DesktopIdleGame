@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -31,20 +32,25 @@ public static class EnhancementUpgradeService
         if (!IsValidScrollTarget(scrollDef, targetDef, option))
             return false;
 
+        // Consume the scroll before mutating the gear slot so a failed remove cannot
+        // leave a permanently converted runtime clone with the scroll still owned.
+        if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
+            return false;
+
         ItemDefinition enhancedTarget = targetDef;
         if (!inventory.IsRuntimeEnhancedItem(targetSlot.itemId))
         {
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
+            {
+                inventory.AddPartial(scrollDef.itemId, 1, notifyItemGainPopup: false);
                 return false;
+            }
 
             targetSlot.itemId = enhancedTarget.itemId;
             targetSlot.amount = 1;
             inventory.ReplaceSlot(targetSlotIndex, targetSlot);
         }
-
-        if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
-            return false;
 
         bool attempted = TryApplyEnhancementStats(
             inventory,
@@ -85,20 +91,24 @@ public static class EnhancementUpgradeService
         if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
             return false;
 
+        // Pay first so a failed consume cannot leave gear converted to a runtime id.
+        if (!TryConsumePayment(inventory, payment))
+            return false;
+
         ItemDefinition enhancedTarget = targetDef;
         if (!inventory.IsRuntimeEnhancedItem(targetSlot.itemId))
         {
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
+            {
+                TryRefundPayment(inventory, payment, option.linkedScrollItemId);
                 return false;
+            }
 
             targetSlot.itemId = enhancedTarget.itemId;
             targetSlot.amount = 1;
             inventory.ReplaceSlot(gearSlotIndex, targetSlot);
         }
-
-        if (!TryConsumePayment(inventory, payment))
-            return false;
 
         ItemDefinition historyScroll = !string.IsNullOrWhiteSpace(option.linkedScrollItemId)
             ? inventory.GetItemDef(option.linkedScrollItemId)
@@ -145,18 +155,21 @@ public static class EnhancementUpgradeService
         if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
             return false;
 
+        if (!TryConsumePayment(inventory, payment))
+            return false;
+
         ItemDefinition enhancedTarget = targetDef;
         if (!inventory.IsRuntimeEnhancedItem(targetItemId))
         {
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
+            {
+                TryRefundPayment(inventory, payment, option.linkedScrollItemId);
                 return false;
+            }
 
             EquipmentSlotUI.ReplaceItemIdForSlot(equipmentSlot, equipment, toolbelt, enhancedTarget.itemId);
         }
-
-        if (!TryConsumePayment(inventory, payment))
-            return false;
 
         ItemDefinition historyScroll = !string.IsNullOrWhiteSpace(option.linkedScrollItemId)
             ? inventory.GetItemDef(option.linkedScrollItemId)
@@ -198,18 +211,21 @@ public static class EnhancementUpgradeService
         if (!IsValidScrollTarget(scrollDef, targetDef, option))
             return false;
 
+        if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
+            return false;
+
         ItemDefinition enhancedTarget = targetDef;
         if (!inventory.IsRuntimeEnhancedItem(targetItemId))
         {
             enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
             if (!enhancedTarget)
+            {
+                inventory.AddPartial(scrollDef.itemId, 1, notifyItemGainPopup: false);
                 return false;
+            }
 
             replaceTargetItemId(enhancedTarget.itemId);
         }
-
-        if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
-            return false;
 
         return TryApplyEnhancementStats(
             inventory,
@@ -237,6 +253,40 @@ public static class EnhancementUpgradeService
                 return inventory != null && inventory.TryConsumeItems(payment.MaterialRequirements);
             default:
                 return false;
+        }
+    }
+
+    /// <summary>
+    /// Best-effort undo when payment succeeded but runtime gear clone creation failed.
+    /// </summary>
+    private static void TryRefundPayment(
+        Inventory inventory,
+        EnhancementOptionPayment payment,
+        string scrollItemId = null)
+    {
+        if (payment.Kind == EnhancementPaymentKind.Scroll)
+        {
+            if (inventory == null || string.IsNullOrWhiteSpace(scrollItemId))
+                return;
+
+            inventory.AddPartial(scrollItemId, 1, notifyItemGainPopup: false);
+            return;
+        }
+
+        if (payment.Kind != EnhancementPaymentKind.Materials || inventory == null)
+            return;
+
+        IReadOnlyList<GearUpgradeMaterialRequirement> requirements = payment.MaterialRequirements;
+        if (requirements == null)
+            return;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            GearUpgradeMaterialRequirement req = requirements[i];
+            if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
+                continue;
+
+            inventory.AddPartial(req.ItemId, req.Amount, notifyItemGainPopup: false);
         }
     }
 
