@@ -313,7 +313,10 @@ public static class EnhancementUpgradeService
 
         PlayerStorage storage = FindPlayerStorage();
         if (storage != null)
-            storage.TryDepositAmountFromExternal(itemId, left);
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     private static PlayerStorage FindPlayerStorage() =>
