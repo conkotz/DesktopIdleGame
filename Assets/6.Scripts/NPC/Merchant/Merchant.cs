@@ -264,7 +264,7 @@ public class Merchant : MonoBehaviour
 
                 case MerchantStock.CostType.Item:
                     if (inventory && !string.IsNullOrWhiteSpace(cost.itemId))
-                        inventory.Add(cost.itemId, totalCostAmount, null, notifyItemGainPopup: false);
+                        inventory.AddPartial(cost.itemId, totalCostAmount, notifyItemGainPopup: false);
                     break;
             }
         }
