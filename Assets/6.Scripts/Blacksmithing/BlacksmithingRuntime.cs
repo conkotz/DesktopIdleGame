@@ -493,11 +493,14 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             if (!TryGetActiveRecipe(out BlacksmithingRecipe recipe))
                 return;
 
-            float costReduction = ProcessingProficiencyRuntime.EnsureInstance().GetBlacksmithingBonuses().ResourceCostReductionPercent;
+            // Legacy saves missing locked lists: reconstruct from base recipe amounts (0% cost
+            // reduction). Using live proficiency bonuses can under-refund STOP materials after
+            // the player leveled blacksmithing mid-craft. Slight over-refund on old reduced
+            // crafts is preferable to permanent material loss.
             for (int i = 0; i < recipe.Ingredients.Length; i++)
             {
                 BlacksmithingIngredient ing = recipe.Ingredients[i];
-                int needed = BlacksmithingRecipes.GetEffectiveIngredientAmount(ing.Amount, costReduction);
+                int needed = BlacksmithingRecipes.GetEffectiveIngredientAmount(ing.Amount, 0f);
                 _lockedConsumedIngredients.Add(new BlacksmithingIngredient(ing.ItemId, needed));
             }
         }
