@@ -485,8 +485,7 @@ public class StorageSlotUI : MonoBehaviour,
         if (removed <= 0)
             return;
 
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, removed, iconSprite);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
         ItemGainPopupNotifier.NotifyLost(itemId, removed);
         _tooltip?.Hide();
     }
@@ -779,8 +778,7 @@ public class StorageSlotUI : MonoBehaviour,
         int removed = _storage.RemoveAmountAtSlot(fromSlot, dropAmount);
         if (removed > 0)
         {
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(itemId, removed, iconSprite);
+            PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
             ItemGainPopupNotifier.NotifyLost(itemId, removed);
         }
 
@@ -811,34 +809,44 @@ public class StorageSlotUI : MonoBehaviour,
     {
         if (_storage == null) return;
 
-        if (!_inventory)
-            _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-
-        if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
+        if (EquipmentSlotUI.TryPeekEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
         {
-            if (_inventory == null) return;
-            if (string.IsNullOrWhiteSpace(equipItemId)) return;
+            if (!_inventory)
+                _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            if (_inventory == null || string.IsNullOrWhiteSpace(equipItemId))
+                return;
 
             var equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
             var toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
             if (equipment == null) return;
 
-            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount);
+            var touchedStorage = new List<int>(4);
+            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount, touchedStorage);
             int remainder = equipAmount - dep;
             if (remainder > 0)
             {
-                if (!_inventory.Add(equipItemId, remainder, null, notifyItemGainPopup: false))
+                // Inventory.Add can partially succeed and still return false. Roll back any
+                // partial inventory/storage deposits so the still-equipped stack is not duplicated.
+                var touchedInv = new List<int>(4);
+                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
+                if (toInv < remainder)
                 {
+                    if (toInv > 0)
+                        _inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
                     if (dep > 0)
-                        _storage.RemoveItemAmountAcrossSlots(equipItemId, dep);
+                        _storage.RemoveAmountFromTouchedSlots(dep, touchedStorage);
                     return;
                 }
             }
 
+            EquipmentSlotUI.TryConsumeEquipDrag(out _, out _, out _);
             EquipmentSlotUI.UnequipDragSource(fromSlotType, equipment, toolbelt);
             _tooltip?.Hide();
             return;
         }
+
+        if (!_inventory)
+            _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
         {
@@ -913,6 +921,13 @@ public class StorageSlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
         _tooltip?.Hide();
+        if (InventoryDragState.HasDrag &&
+            InventoryDragState.Source == InventoryDragState.SourceKind.Storage &&
+            InventoryDragState.FromSlotIndex == _slotIndex)
+        {
+            InventoryDragState.EndDrag();
+            InventoryDragIconPool.Hide();
+        }
         ApplySlotBackground();
     }
 }

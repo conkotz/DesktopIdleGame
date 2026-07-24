@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -551,21 +552,38 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         if (!autoReturnKickedItems) return;
         if (string.IsNullOrWhiteSpace(itemId)) return;
-        if (!inventory) return;
 
         amount = Mathf.Max(1, amount);
 
-        if (inventory.Add(itemId, amount, null, notifyItemGainPopup: false))
-            return;
-
-        var def = GetDef(itemId);
-        if (DropManager.Instance != null)
+        // KickOffHand/KickMainHand already cleared the equip slot — never early-return
+        // when Inventory is missing (scene tear / DDOL reorder) or items are destroyed.
+        int left = amount;
+        if (inventory)
         {
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
-            return;
+            // Inventory.Add can partially succeed and still return false (overflow).
+            // Only ground-drop / hold the remainder so stacks never duplicate.
+            int added = inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+            left -= added;
+            if (left <= 0)
+                return;
         }
 
-        Debug.LogWarning($"[EquipmentManager] Inventory full and no DropManager. Lost item '{itemId}' x{amount}.", this);
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
+
+        var def = inventory ? GetDef(itemId) : null;
+        if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null))
+        {
+            Debug.LogWarning(
+                $"[EquipmentManager] Could not return '{itemId}' x{left} to inventory/storage/world — held for later recovery.",
+                this);
+        }
     }
 
     // -------------------------
@@ -687,13 +705,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         RequestImmediateSave();
     }
 
-    public void EquipOffHand(string itemId, int amount = 1)
+    /// <returns>False when the off-hand was rejected (e.g. incompatible with current main hand) and left unchanged.</returns>
+    public bool EquipOffHand(string itemId, int amount = 1)
     {
         string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
         amount = Mathf.Max(1, amount);
 
         if (!string.IsNullOrWhiteSpace(next) && !CanOffHandUseCurrentMainHand(next, MainHandItemId))
-            return;
+            return false;
 
         var nextDef = GetDef(next);
         string currentOff = OffHandItemId;
@@ -718,19 +737,20 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             SetOffHandForSet(activeWeaponSetIndex, currentOff, currentOffAmount + amount);
             NotifyOffHandChanged();
             RequestImmediateSave();
-            return;
+            return true;
         }
 
         if (currentOff == next &&
             (!nextDef || !nextDef.IsCombatSupport) &&
             currentOffAmount == amount)
         {
-            return;
+            return true;
         }
 
         SetOffHandForSet(activeWeaponSetIndex, next, string.IsNullOrWhiteSpace(next) ? 0 : amount);
         NotifyOffHandChanged();
         RequestImmediateSave();
+        return true;
     }
 
     public void UnequipOffHand()
@@ -771,27 +791,77 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (inv.RemoveAmountAtSlot(fromSlotIndex, 1) != 1)
             return false;
 
+        List<int> displacedTouched = null;
+        int displacedReturnAmount = 0;
+
         if (!string.IsNullOrWhiteSpace(currentlyEquipped))
         {
-            int returnAmount = 1;
+            displacedReturnAmount = 1;
 
             if (slot == EquipSlot.OffHand)
             {
                 var equippedDef = inv.GetItemDef(currentlyEquipped);
                 bool isSupport = equippedDef && equippedDef.IsCombatSupport;
-                returnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
+                displacedReturnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
             }
 
-            bool returned = inv.Add(currentlyEquipped, returnAmount, null, notifyItemGainPopup: false);
-            if (!returned)
+            // Add returns false on partial fit; roll back any partial return so the
+            // still-equipped stack is not duplicated into inventory.
+            displacedTouched = new List<int>(4);
+            int returnedAmt = inv.AddPartial(
+                currentlyEquipped,
+                displacedReturnAmount,
+                notifyItemGainPopup: false,
+                touchedSlotIndices: displacedTouched);
+            if (returnedAmt < displacedReturnAmount)
             {
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                if (returnedAmt > 0)
+                    inv.RemoveAmountFromTouchedSlots(returnedAmt, displacedTouched);
+                // Never ignore AddPartial shortfall — a full bag after undoing the
+                // displaced return would permanently delete the item taken from inventory.
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
 
+        if (slot == EquipSlot.OffHand)
+        {
+            // EquipOffHand can still reject after CanEquip (def lookup edge cases). The displaced
+            // stack is already in inventory while still equipped — undo that before restoring.
+            if (!EquipOffHand(itemId))
+            {
+                if (displacedReturnAmount > 0 && displacedTouched != null)
+                    inv.RemoveAmountFromTouchedSlots(displacedReturnAmount, displacedTouched);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
+                return false;
+            }
+
+            return true;
+        }
+
         ForceEquip(slot, itemId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts a previously removed inventory unit back, parking any shortfall in pending loot.
+    /// </summary>
+    private static void RestoreInventoryItemOrPark(Inventory inv, string itemId, int amount)
+    {
+        if (inv == null || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int restored = inv.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - restored;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetEquippedItemId(EquipSlot slot, int index = 0)
@@ -1339,10 +1409,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!string.IsNullOrWhiteSpace(prev) &&
             !string.Equals(prev, itemId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!inv.Add(prev, 1, null, notifyItemGainPopup: false))
+            if (inv.AddPartial(prev, 1, notifyItemGainPopup: false) < 1)
             {
                 EquipGear(EquipSlot.Ring, prev, equipIndex);
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
