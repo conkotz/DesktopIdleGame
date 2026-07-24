@@ -562,6 +562,15 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (left <= 0)
             return;
 
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
+
         var def = GetDef(itemId);
         if (DropManager.Instance != null)
         {
