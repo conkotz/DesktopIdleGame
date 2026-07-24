@@ -161,14 +161,21 @@ public class StorageTabButtonUI : MonoBehaviour,
             if (equipment == null)
                 return;
 
-            int placed = _storage.TryDepositAmountToTab(equipItemId, equipAmount, tabKind);
+            var touchedStorage = new List<int>(4);
+            int placed = _storage.TryDepositAmountToTab(equipItemId, equipAmount, tabKind, touchedStorage);
             int remainder = equipAmount - placed;
             if (remainder > 0)
             {
-                if (!_inventory.Add(equipItemId, remainder, null, notifyItemGainPopup: false))
+                // Inventory.Add can partially succeed and still return false. Roll back any
+                // partial inventory/storage deposits so the still-equipped stack is not duplicated.
+                var touchedInv = new List<int>(4);
+                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
+                if (toInv < remainder)
                 {
+                    if (toInv > 0)
+                        _inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
                     if (placed > 0)
-                        _storage.RemoveItemAmountAcrossSlots(equipItemId, placed);
+                        _storage.RemoveAmountFromTouchedSlots(placed, touchedStorage);
                     return;
                 }
             }

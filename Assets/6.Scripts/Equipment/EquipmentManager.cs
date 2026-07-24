@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -555,17 +556,29 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         amount = Mathf.Max(1, amount);
 
-        if (inventory.Add(itemId, amount, null, notifyItemGainPopup: false))
+        // Inventory.Add can partially succeed and still return false (overflow).
+        // Only ground-drop / hold the remainder so stacks never duplicate.
+        int added = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - added;
+        if (left <= 0)
             return;
 
-        var def = GetDef(itemId);
-        if (DropManager.Instance != null)
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
         {
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
-            return;
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
         }
 
-        Debug.LogWarning($"[EquipmentManager] Inventory full and no DropManager. Lost item '{itemId}' x{amount}.", this);
+        var def = GetDef(itemId);
+        if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null))
+        {
+            Debug.LogWarning(
+                $"[EquipmentManager] Inventory full and drop spawn failed — held '{itemId}' x{left} for later recovery.",
+                this);
+        }
     }
 
     // -------------------------
@@ -782,16 +795,44 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                 returnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
             }
 
-            bool returned = inv.Add(currentlyEquipped, returnAmount, null, notifyItemGainPopup: false);
-            if (!returned)
+            // Add returns false on partial fit; roll back any partial return so the
+            // still-equipped stack is not duplicated into inventory.
+            var touched = new List<int>(4);
+            int returnedAmt = inv.AddPartial(currentlyEquipped, returnAmount, notifyItemGainPopup: false, touchedSlotIndices: touched);
+            if (returnedAmt < returnAmount)
             {
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                if (returnedAmt > 0)
+                    inv.RemoveAmountFromTouchedSlots(returnedAmt, touched);
+                // Never ignore AddPartial shortfall — a full bag after undoing the
+                // displaced return would permanently delete the item taken from inventory.
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
 
         ForceEquip(slot, itemId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts a previously removed inventory unit back, parking any shortfall in pending loot.
+    /// </summary>
+    private static void RestoreInventoryItemOrPark(Inventory inv, string itemId, int amount)
+    {
+        if (inv == null || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int restored = inv.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - restored;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetEquippedItemId(EquipSlot slot, int index = 0)
@@ -1339,10 +1380,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!string.IsNullOrWhiteSpace(prev) &&
             !string.Equals(prev, itemId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!inv.Add(prev, 1, null, notifyItemGainPopup: false))
+            if (inv.AddPartial(prev, 1, notifyItemGainPopup: false) < 1)
             {
                 EquipGear(EquipSlot.Ring, prev, equipIndex);
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }

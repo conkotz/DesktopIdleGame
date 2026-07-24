@@ -485,8 +485,7 @@ public class StorageSlotUI : MonoBehaviour,
         if (removed <= 0)
             return;
 
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, removed, iconSprite);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
         ItemGainPopupNotifier.NotifyLost(itemId, removed);
         _tooltip?.Hide();
     }
@@ -779,8 +778,7 @@ public class StorageSlotUI : MonoBehaviour,
         int removed = _storage.RemoveAmountAtSlot(fromSlot, dropAmount);
         if (removed > 0)
         {
-            if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(itemId, removed, iconSprite);
+            PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, removed, iconSprite);
             ItemGainPopupNotifier.NotifyLost(itemId, removed);
         }
 
@@ -823,14 +821,21 @@ public class StorageSlotUI : MonoBehaviour,
             var toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
             if (equipment == null) return;
 
-            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount);
+            var touchedStorage = new List<int>(4);
+            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount, touchedStorage);
             int remainder = equipAmount - dep;
             if (remainder > 0)
             {
-                if (!_inventory.Add(equipItemId, remainder, null, notifyItemGainPopup: false))
+                // Inventory.Add can partially succeed and still return false. Roll back any
+                // partial inventory/storage deposits so the still-equipped stack is not duplicated.
+                var touchedInv = new List<int>(4);
+                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
+                if (toInv < remainder)
                 {
+                    if (toInv > 0)
+                        _inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
                     if (dep > 0)
-                        _storage.RemoveItemAmountAcrossSlots(equipItemId, dep);
+                        _storage.RemoveAmountFromTouchedSlots(dep, touchedStorage);
                     return;
                 }
             }
@@ -913,6 +918,13 @@ public class StorageSlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
         _tooltip?.Hide();
+        if (InventoryDragState.HasDrag &&
+            InventoryDragState.Source == InventoryDragState.SourceKind.Storage &&
+            InventoryDragState.FromSlotIndex == _slotIndex)
+        {
+            InventoryDragState.EndDrag();
+            InventoryDragIconPool.Hide();
+        }
         ApplySlotBackground();
     }
 }

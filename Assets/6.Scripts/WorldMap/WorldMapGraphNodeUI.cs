@@ -408,8 +408,10 @@ public static class WorldMapGraphNodeContextMenu
         if (node == null || !node.CanEnterFromLevelMenu(progress, skills))
             return;
 
-        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.MapTeleport);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate("GamePlay");
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            node,
+            MapTravelSession.EntryMethod.MapTeleport,
+            "GamePlay");
     }
 
     private static SkillsManager FindSkillsManager()
