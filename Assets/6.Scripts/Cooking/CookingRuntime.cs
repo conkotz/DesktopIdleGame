@@ -616,7 +616,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -632,18 +633,26 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 return false;
             }
 
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
+            int left = toReturn - added;
             if (added <= 0)
             {
                 _fuelBank.Load(itemId, toReturn + keptPartial, burned);
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
-            if (added < toReturn)
-                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
+            if (left > 0)
+                _fuelBank.Load(itemId, left + keptPartial, burned);
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    left > 0
+                        ? "Inventory was full — sent some fuel to storage (rest still at the cooking station)."
+                        : "Inventory was full — sent fuel to storage.",
+                    GameLog.CannotMessageColor);
+            }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
             NotifyChanged();
@@ -661,7 +670,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -669,12 +679,10 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
             string itemId = _storedEnhancementItemId;
             int toReturn = _storedEnhancementAmount;
-            int before = inv.GetTotalAmount(itemId);
-            inv.Add(itemId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(itemId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, itemId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -683,6 +691,15 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             {
                 _storedEnhancementAmount = 0;
                 _storedEnhancementItemId = "";
+            }
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedEnhancementAmount > 0
+                        ? "Inventory was full — sent some enhancements to storage (rest still at the cooking station)."
+                        : "Inventory was full — sent enhancements to storage.",
+                    GameLog.CannotMessageColor);
             }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
@@ -713,7 +730,8 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
@@ -721,12 +739,10 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
             string fishId = _storedRawItemId;
             int toReturn = _storedRawAmount;
-            int before = inv.GetTotalAmount(fishId);
-            inv.Add(fishId, toReturn, notifyItemGainPopup: false);
-            int added = inv.GetTotalAmount(fishId) - before;
+            int added = DeliverWithdrawnItems(inv, storage, fishId, toReturn, out bool sentToStorage);
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
@@ -742,10 +758,46 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 }
             }
 
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    _storedRawAmount > 0
+                        ? "Inventory was full — sent some fish to storage (rest still at the cooking station)."
+                        : "Inventory was full — sent fish to storage.",
+                    GameLog.CannotMessageColor);
+            }
+
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", fishId, added);
             NotifyChanged();
             RequestSaveDebounced();
             return true;
+        }
+
+        private static int DeliverWithdrawnItems(
+            Inventory inv,
+            PlayerStorage storage,
+            string itemId,
+            int amount,
+            out bool sentToStorage)
+        {
+            sentToStorage = false;
+            if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+                return 0;
+
+            int added = inv ? inv.AddPartial(itemId, amount, notifyItemGainPopup: false) : 0;
+            int left = amount - added;
+            if (left > 0 && storage != null)
+            {
+                int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+                if (toStorage > 0)
+                {
+                    left -= toStorage;
+                    added += toStorage;
+                    sentToStorage = true;
+                }
+            }
+
+            return added;
         }
 
         public bool TryCollectCooked(int amount, out string failureReason)
