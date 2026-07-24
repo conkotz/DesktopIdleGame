@@ -1558,8 +1558,11 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!node)
             return;
 
-        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            node,
+            MapTravelSession.EntryMethod.InWorldEntrance,
+            GameplaySceneName,
+            logPendingLevel: false);
     }
 
     private static string ResolveAcceptedQuestIdForCondition(NpcConditionalDialogueEntry e)

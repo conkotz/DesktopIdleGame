@@ -915,8 +915,10 @@ public class LevelSelectListViewUI : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
             return;
-        MapTravelSession.BeginTravel(_selectedNode, MapTravelSession.EntryMethod.MapTeleport);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName);
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            _selectedNode,
+            MapTravelSession.EntryMethod.MapTeleport,
+            gameplaySceneName);
     }
 
     /// <summary>Level-select list (regions / locations). Used by main-menu Levels tab.</summary>
