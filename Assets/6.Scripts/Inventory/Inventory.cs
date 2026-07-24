@@ -311,7 +311,8 @@ public class Inventory : MonoBehaviour, ISaveable
 
     public void EnsureSlotCount(int count)
     {
-        count = Mathf.Max(1, count);
+        // Hard cap matches SaveDataIntegrity — corrupt saves must not allocate unbounded slots.
+        count = Mathf.Clamp(count, 1, 512);
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
     }
@@ -873,8 +874,8 @@ public class Inventory : MonoBehaviour, ISaveable
             MapEnhancementRegistry.LoadFrom(data, itemDb);
         }
 
-        // Make sure we have the right slot count first
-        int count = Mathf.Max(1, data.inventorySlotCount > 0 ? data.inventorySlotCount : 32);
+        // Make sure we have the right slot count first (hard-capped against corrupt saves).
+        int count = Mathf.Clamp(data.inventorySlotCount > 0 ? data.inventorySlotCount : 32, 1, 512);
         EnsureSlotCount(count);
 
         // Clear everything
