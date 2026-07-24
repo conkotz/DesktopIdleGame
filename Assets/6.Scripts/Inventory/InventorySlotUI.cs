@@ -1057,7 +1057,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (removed <= 0)
             return;
 
-        int goldGained = valuePerItem * removed;
+        int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
         wallet.AddGold(goldGained);
 
         Merchant saleMerchant = null;

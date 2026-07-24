@@ -515,8 +515,13 @@ public class Merchant : MonoBehaviour
             int valuePerItem = inventory.GetItemValue(slot.itemId);
             if (valuePerItem <= 0) continue;
 
-            goldGained += valuePerItem * slot.amount;
+            int amount = slot.amount;
+            string itemId = slot.itemId;
             inventory.RemoveStackAtSlot(i);
+
+            int stackGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
+            goldGained = CurrencyWallet.AccumulateClampedSaleGold(goldGained, valuePerItem, amount);
+            SaleUndoManager.Instance?.RecordSale(itemId, amount, stackGold, this, stockAddedAmount: 0);
         }
 
         if (goldGained > 0)
@@ -541,12 +546,15 @@ public class Merchant : MonoBehaviour
             int valuePerItem = inventory.GetItemValue(slot.itemId);
             if (valuePerItem <= 0) continue;
 
-            int goldGained = valuePerItem * slot.amount;
-
+            int amount = slot.amount;
+            string itemId = slot.itemId;
             inventory.RemoveStackAtSlot(i);
-            wallet.AddGold(goldGained);
 
-            Debug.Log($"[Merchant] Sold {slot.amount}x {slot.itemId} for {goldGained} gold.");
+            int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, amount);
+            wallet.AddGold(goldGained);
+            SaleUndoManager.Instance?.RecordSale(itemId, amount, goldGained, this, stockAddedAmount: 0);
+
+            Debug.Log($"[Merchant] Sold {amount}x {itemId} for {goldGained} gold.");
             return;
         }
 
