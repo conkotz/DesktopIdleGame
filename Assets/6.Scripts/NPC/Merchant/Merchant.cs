@@ -263,11 +263,28 @@ public class Merchant : MonoBehaviour
                     break;
 
                 case MerchantStock.CostType.Item:
-                    if (inventory && !string.IsNullOrWhiteSpace(cost.itemId))
-                        inventory.AddPartial(cost.itemId, totalCostAmount, notifyItemGainPopup: false);
+                    if (!string.IsNullOrWhiteSpace(cost.itemId))
+                        RefundItemCostWithStorageOverflow(cost.itemId, totalCostAmount);
                     break;
             }
         }
+    }
+
+    private void RefundItemCostWithStorageOverflow(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int left = amount;
+        if (inventory)
+            left -= inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            storage.TryDepositAmountFromExternal(itemId, left);
     }
 
     public string GetPriceText(MerchantStock.Entry entry)
