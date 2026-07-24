@@ -1402,9 +1402,13 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         var overflow = new List<Slot>();
         for (int i = MainSlotsPerTab; i < previousCount && i < _slots.Count; i++)
         {
-            if (!_slots[i].IsEmpty)
-                overflow.Add(_slots[i]);
-            _slots[i].Clear();
+            // Slot is a struct — must assign a cleared copy back or RedepositOverflowStacks
+            // duplicates the still-populated originals into tab slots.
+            Slot existing = _slots[i];
+            if (!existing.IsEmpty)
+                overflow.Add(existing);
+            existing.Clear();
+            _slots[i] = existing;
         }
 
         RedepositOverflowStacks(overflow);
@@ -1415,9 +1419,12 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         var preserved = new List<(int globalIndex, Slot slot)>();
         for (int i = 0; i < _slots.Count; i++)
         {
-            if (!_slots[i].IsEmpty)
-                preserved.Add((i, _slots[i]));
-            _slots[i].Clear();
+            // Slot is a struct — Clear() on the indexer copy does not empty the list entry.
+            Slot existing = _slots[i];
+            if (!existing.IsEmpty)
+                preserved.Add((i, existing));
+            existing.Clear();
+            _slots[i] = existing;
         }
 
         int targetCount = ComputeTotalSlotCount();
