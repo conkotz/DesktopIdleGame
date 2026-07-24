@@ -99,21 +99,36 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene stations that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.blacksmithingStations == null)
-            return;
-
-        for (int i = 0; i < data.blacksmithingStations.Count; i++)
+        if (data?.blacksmithingStations != null)
         {
-            SaveData.BlacksmithingStationSave row = data.blacksmithingStations[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+            for (int i = 0; i < data.blacksmithingStations.Count; i++)
+            {
+                SaveData.BlacksmithingStationSave save = data.blacksmithingStations[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.stationId))
+                    continue;
+
+                string key = NormalizeStationId(save.stationId);
+                if (!_rows.TryGetValue(key, out BlacksmithingRow row) || row == null)
+                {
+                    row = new BlacksmithingRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, BlacksmithingRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeStationId(row.stationId);
-            var anvilRow = new BlacksmithingRow(key);
-            anvilRow.ReadFrom(row);
-            _rows[key] = anvilRow;
+            kv.Value.ResetToEmpty();
         }
     }
 
@@ -366,6 +381,11 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
             _isCrafting = save.isCrafting;
             _lockedCraftDurationSeconds = Mathf.Max(0f, save.lockedCraftDurationSeconds);
             NotifyChanged();
+        }
+
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.BlacksmithingStationSave { stationId = _stationId });
         }
 
         private void CompleteCraft()
