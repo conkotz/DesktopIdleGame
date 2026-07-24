@@ -159,6 +159,28 @@ public class InventorySlotUI : MonoBehaviour,
     private void OnDestroy()
     {
         AutoBattleLootHighlight.UnregisterInventorySlotUi(this);
+        ClearStuckInventoryDragIfNeeded();
+    }
+
+    private void OnDisable()
+    {
+        _isPointerOver = false;
+        _tooltip?.Hide();
+        ClearStuckInventoryDragIfNeeded();
+        ApplySlotBackground();
+    }
+
+    private void ClearStuckInventoryDragIfNeeded()
+    {
+        if (!InventoryDragState.HasDrag)
+            return;
+        if (InventoryDragState.Source != InventoryDragState.SourceKind.Inventory)
+            return;
+        if (InventoryDragState.FromSlotIndex != _slotIndex)
+            return;
+
+        InventoryDragState.EndDrag();
+        InventoryDragIconPool.Hide();
     }
 
     public static class InputUtil
