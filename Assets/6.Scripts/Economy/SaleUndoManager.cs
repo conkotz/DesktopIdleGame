@@ -63,6 +63,12 @@ public class SaleUndoManager : MonoBehaviour
         RebindRefs();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void OnEnable()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
@@ -173,6 +179,14 @@ public class SaleUndoManager : MonoBehaviour
     {
         var e = _entries[idx];
 
+        if (!wallet || !inventory)
+            RebindRefs();
+        if (!wallet || !inventory)
+        {
+            Debug.LogWarning("[SaleUndoManager] Undo aborted: wallet or inventory missing.");
+            return false;
+        }
+
         Merchant merchant = null;
         if (e.stockAddedAmount > 0)
         {
@@ -190,14 +204,37 @@ public class SaleUndoManager : MonoBehaviour
             return false;
         }
 
-        int added = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false);
-        if (added < e.amount)
+        int toInv = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false);
+        int left = e.amount - toInv;
+        int toStorage = 0;
+        PlayerStorage storage = null;
+        if (left > 0)
         {
-            if (added > 0) inventory.Remove(e.itemId, added);
+            storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (storage != null)
+            {
+                toStorage = storage.TryDepositAmountFromExternal(e.itemId, left);
+                left -= toStorage;
+            }
+        }
+
+        if (left > 0)
+        {
+            if (toInv > 0)
+                inventory.Remove(e.itemId, toInv);
+            if (toStorage > 0 && storage != null)
+                storage.RemoveItemAmountAcrossSlots(e.itemId, toStorage);
             wallet.AddGold(e.gold);
             if (merchant != null)
                 merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
             return false;
+        }
+
+        if (toStorage > 0)
+        {
+            GameLog.Add(
+                "Inventory was full — restored sold items to storage.",
+                GameLog.CannotMessageColor);
         }
 
         string undoItemName = ItemGainPopupNotifier.ResolveDisplayLabel(e.itemId, e.amount);

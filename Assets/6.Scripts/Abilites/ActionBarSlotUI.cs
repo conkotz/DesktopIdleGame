@@ -1188,11 +1188,16 @@ public class ActionBarSlotUI : MonoBehaviour,
             !string.Equals(existingId, incomingId, StringComparison.OrdinalIgnoreCase) &&
             existingAmount > 0)
         {
-            if (!inventory.Add(existingId, existingAmount, null, notifyItemGainPopup: false))
+            // Inventory.Add can partially succeed and still return false — only drop the remainder.
+            int returned = inventory.AddPartial(existingId, existingAmount, notifyItemGainPopup: false);
+            int left = existingAmount - returned;
+            if (left > 0)
             {
                 ItemDefinition existingDef = inventory.GetItemDef(existingId);
                 if (DropManager.Instance != null)
-                    DropManager.Instance.Spawn(existingId, existingAmount, existingDef ? existingDef.icon : null);
+                    DropManager.Instance.Spawn(existingId, left, existingDef ? existingDef.icon : null);
+                else
+                    PendingLootRecoveryStore.Enqueue(existingId, left);
             }
         }
 
@@ -1269,12 +1274,16 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (amount <= 0)
             return false;
 
-        bool returned = inventory.Add(id, amount, null, notifyItemGainPopup: false);
-        if (!returned)
+        // Inventory.Add can partially succeed and still return false — only drop the remainder.
+        int returned = inventory.AddPartial(id, amount, notifyItemGainPopup: false);
+        int left = amount - returned;
+        if (left > 0)
         {
             ItemDefinition def = inventory.GetItemDef(id);
             if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(id, amount, def ? def.icon : null);
+                DropManager.Instance.Spawn(id, left, def ? def.icon : null);
+            else
+                PendingLootRecoveryStore.Enqueue(id, left);
         }
 
         ClearAssignment(notify: true);

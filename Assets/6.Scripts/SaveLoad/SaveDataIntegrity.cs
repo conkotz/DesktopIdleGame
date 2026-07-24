@@ -17,6 +17,12 @@ public static class SaveDataIntegrity
 
         if (data.furnaceSmelters == null)
             data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
+        if (data.cookingStations == null)
+            data.cookingStations = new List<SaveData.CookingStationSave>();
+        if (data.blacksmithingStations == null)
+            data.blacksmithingStations = new List<SaveData.BlacksmithingStationSave>();
+        if (data.processingProficiency == null)
+            data.processingProficiency = new List<SaveData.ProcessingProficiencySave>();
 
         RepairParallelLists(data);
 
@@ -81,6 +87,12 @@ public static class SaveDataIntegrity
 
         if (data.furnaceSmelters == null)
             data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
+        if (data.cookingStations == null)
+            data.cookingStations = new List<SaveData.CookingStationSave>();
+        if (data.blacksmithingStations == null)
+            data.blacksmithingStations = new List<SaveData.BlacksmithingStationSave>();
+        if (data.processingProficiency == null)
+            data.processingProficiency = new List<SaveData.ProcessingProficiencySave>();
 
         RepairParallelLists(data);
 
@@ -330,6 +342,12 @@ public static class SaveDataIntegrity
         PlayerMapExitPositionStore.RepairParallelLists(data);
         WorldObjectPositionStore.RepairParallelLists(data);
         TownServiceUnlockStore.EnsureLists(data);
+        PendingLootRecoveryStore.EnsureLists(data);
+        PadOrTrimStringIntLists(
+            data.pendingLootRecoveryItemIds,
+            data.pendingLootRecoveryAmounts,
+            "pendingLootRecovery",
+            padValue: 0);
     }
 
     /// <summary>Make parallel lists the same length (pad ints or trim excess values).</summary>
