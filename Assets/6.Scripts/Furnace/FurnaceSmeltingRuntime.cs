@@ -557,22 +557,27 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             string itemId = _fuelBank.StoredItemId;
-            int toReturn = _fuelBank.StoredAmount;
             float burned = _fuelBank.SecondsBurnedFromCurrentLog;
-            _fuelBank.Clear();
+            int keptPartial = burned > 0.0001f ? 1 : 0;
+            int toReturn = _fuelBank.WithdrawFullLogsOnly();
+            if (toReturn <= 0)
+            {
+                failureReason = "Current fuel log is partially burned and cannot be withdrawn.";
+                return false;
+            }
 
             int before = inv.GetTotalAmount(itemId);
             inv.Add(itemId, toReturn, notifyItemGainPopup: false);
             int added = inv.GetTotalAmount(itemId) - before;
             if (added <= 0)
             {
-                _fuelBank.Load(itemId, toReturn, burned);
+                _fuelBank.Load(itemId, toReturn + keptPartial, burned);
                 failureReason = "Inventory full.";
                 return false;
             }
 
             if (added < toReturn)
-                _fuelBank.AddLogs(itemId, toReturn - added);
+                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
             NotifyChanged();
