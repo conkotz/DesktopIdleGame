@@ -1059,6 +1059,34 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return removedTotal;
     }
 
+    /// <summary>
+    /// Undoes a prior <see cref="TryDepositAmountFromExternal"/> / <see cref="TryDepositAmountToTab"/>
+    /// by removing only from the slots it reported as touched. Prefer this over
+    /// <see cref="RemoveItemAmountAcrossSlots"/> when rolling back a failed transfer.
+    /// </summary>
+    public int RemoveAmountFromTouchedSlots(int amount, IList<int> touchedSlotIndices)
+    {
+        if (amount <= 0 || touchedSlotIndices == null || touchedSlotIndices.Count == 0)
+            return 0;
+
+        BeginBatchChanges();
+        int left = amount;
+        try
+        {
+            for (int t = touchedSlotIndices.Count - 1; t >= 0 && left > 0; t--)
+            {
+                int removed = RemoveAmountAtSlot(touchedSlotIndices[t], left);
+                left -= removed;
+            }
+        }
+        finally
+        {
+            EndBatchChanges();
+        }
+
+        return amount - left;
+    }
+
     /// <summary>Deposit as much as possible from one inventory slot (double-click from inventory).</summary>
     public int TryDepositAllFromInventorySlot(Inventory inv, int invSlot)
     {
