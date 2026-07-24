@@ -2621,6 +2621,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (db != null)
             return db;
 
+        db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (db != null)
+            return db;
+
         db = Resources.Load<ItemDatabase>("ItemDatabase");
         if (db != null)
             return db;

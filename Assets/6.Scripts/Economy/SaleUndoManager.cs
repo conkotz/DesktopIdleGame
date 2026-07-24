@@ -63,6 +63,12 @@ public class SaleUndoManager : MonoBehaviour
         RebindRefs();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void OnEnable()
     {
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
@@ -172,6 +178,14 @@ public class SaleUndoManager : MonoBehaviour
     private bool UndoAtIndex(int idx)
     {
         var e = _entries[idx];
+
+        if (!wallet || !inventory)
+            RebindRefs();
+        if (!wallet || !inventory)
+        {
+            Debug.LogWarning("[SaleUndoManager] Undo aborted: wallet or inventory missing.");
+            return false;
+        }
 
         Merchant merchant = null;
         if (e.stockAddedAmount > 0)
