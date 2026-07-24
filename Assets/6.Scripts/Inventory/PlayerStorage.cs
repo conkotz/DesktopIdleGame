@@ -1197,6 +1197,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     public int TryWithdrawAllToInventory(Inventory inv, int storageSlot)
     {
         if (inv == null) return 0;
+        if (storageSlot < 0 || storageSlot >= _slots.Count) return 0;
 
         inv.BeginBatchChanges();
         BeginBatchChanges();

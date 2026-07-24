@@ -60,8 +60,24 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         int removed = inventory.RemoveAmountAtSlot(slotIndex, 1);
         if (removed <= 0) return;
 
-        int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
-        wallet.AddGold(goldGained);
+        int desiredGold = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
+        int goldGained = wallet.AddGoldReturningApplied(desiredGold);
+        if (goldGained <= 0)
+        {
+            int restored = inventory.AddPartial(slot.itemId, removed, notifyItemGainPopup: false);
+            int left = removed - restored;
+            if (left > 0)
+            {
+                PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                if (storage != null)
+                    left -= storage.TryDepositAmountFromExternal(slot.itemId, left);
+                if (left > 0)
+                    PendingLootRecoveryStore.Enqueue(slot.itemId, left);
+            }
+
+            eventData.Use();
+            return;
+        }
 
         Merchant saleMerchant = null;
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
