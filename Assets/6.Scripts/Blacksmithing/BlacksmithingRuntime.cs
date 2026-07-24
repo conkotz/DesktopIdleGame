@@ -286,6 +286,26 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
         public bool TickCrafting(float deltaSeconds)
         {
+            // Flush STOP leftovers when the player frees bag/storage space later.
+            if (!_isCrafting && _lockedConsumedIngredients.Count > 0)
+            {
+                int beforeAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    beforeAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
+                TryFlushPendingIngredientRefunds(logIfBlocked: false);
+
+                int afterAmount = 0;
+                for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
+                    afterAmount += Mathf.Max(0, _lockedConsumedIngredients[i].Amount);
+
+                if (afterAmount != beforeAmount)
+                {
+                    NotifyChanged();
+                    RequestSaveDebounced();
+                }
+            }
+
             if (!_isCrafting || deltaSeconds <= 0f)
                 return false;
 
@@ -527,15 +547,25 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
         private void RefundLockedConsumedIngredients()
         {
+            TryFlushPendingIngredientRefunds(logIfBlocked: true);
+        }
+
+        /// <summary>
+        /// Returns as many locked STOP/refund ingredients as inventory (then storage) can hold.
+        /// Keeps any remainder so materials are never discarded when bags are full.
+        /// </summary>
+        private void TryFlushPendingIngredientRefunds(bool logIfBlocked)
+        {
             if (_lockedConsumedIngredients.Count == 0)
                 return;
 
             Inventory inv = Inventory.ResolvePlayer();
             if (!inv)
-            {
-                _lockedConsumedIngredients.Clear();
                 return;
-            }
+
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            var remaining = new List<BlacksmithingIngredient>(_lockedConsumedIngredients.Count);
+            bool sentAnyToStorage = false;
 
             for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
             {
@@ -543,10 +573,39 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 if (string.IsNullOrWhiteSpace(ing.ItemId) || ing.Amount <= 0)
                     continue;
 
-                inv.Add(ing.ItemId, ing.Amount, notifyItemGainPopup: false);
+                int left = ing.Amount;
+                int toInv = inv.AddPartial(ing.ItemId, left, notifyItemGainPopup: false);
+                left -= toInv;
+
+                if (left > 0 && storage != null)
+                {
+                    int toStorage = storage.TryDepositAmountFromExternal(ing.ItemId, left);
+                    if (toStorage > 0)
+                    {
+                        left -= toStorage;
+                        sentAnyToStorage = true;
+                    }
+                }
+
+                if (left > 0)
+                    remaining.Add(new BlacksmithingIngredient(ing.ItemId, left));
             }
 
             _lockedConsumedIngredients.Clear();
+            _lockedConsumedIngredients.AddRange(remaining);
+
+            if (!logIfBlocked)
+                return;
+
+            if (sentAnyToStorage)
+                GameLog.Add("Inventory was full — returned forge materials to storage.", GameLog.CannotMessageColor);
+
+            if (_lockedConsumedIngredients.Count > 0)
+            {
+                GameLog.Add(
+                    "Inventory and storage are full — free space to recover the remaining forge materials.",
+                    GameLog.CannotMessageColor);
+            }
         }
 
         private void NotifyChanged() => StateChanged?.Invoke();
