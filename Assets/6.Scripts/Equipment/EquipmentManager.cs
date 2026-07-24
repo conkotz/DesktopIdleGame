@@ -200,7 +200,18 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         setIndex = NormalizeSetIndex(setIndex);
         string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
-        int nextAmount = string.IsNullOrWhiteSpace(next) ? 0 : Mathf.Max(1, stackAmount);
+        int nextAmount = 0;
+        if (!string.IsNullOrWhiteSpace(next))
+        {
+            // Combat-support stacks must never exceed maxStack or wrap int via corrupt/huge amounts.
+            int maxStack = GetOffHandMaxStack(next);
+            long clamped = stackAmount;
+            if (clamped < 1)
+                clamped = 1;
+            if (clamped > maxStack)
+                clamped = maxStack;
+            nextAmount = (int)clamped;
+        }
 
         if (setIndex == 0)
         {
@@ -212,6 +223,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand2ItemId = next;
             offHand2StackAmount = nextAmount;
         }
+    }
+
+    private int GetOffHandMaxStack(string itemId)
+    {
+        var def = GetDef(itemId);
+        if (!def)
+            return 1;
+        return Mathf.Max(1, def.maxStack);
     }
 
     private void SetHelmetForSet(int setIndex, string itemId)
@@ -734,7 +753,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             nextDef.IsCombatSupport &&
             currentOff == next)
         {
-            SetOffHandForSet(activeWeaponSetIndex, currentOff, currentOffAmount + amount);
+            // Reject overflow instead of wrapping (currentOffAmount + amount) into a tiny stack.
+            // Callers already Remove'd from inventory — returning false lets them ReturnOrDrop.
+            int maxStack = GetOffHandMaxStack(next);
+            long sum = (long)Mathf.Max(0, currentOffAmount) + amount;
+            if (sum > maxStack)
+                return false;
+
+            SetOffHandForSet(activeWeaponSetIndex, currentOff, (int)sum);
             NotifyOffHandChanged();
             RequestImmediateSave();
             return true;
@@ -745,6 +771,16 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             currentOffAmount == amount)
         {
             return true;
+        }
+
+        // New equip: reject over-max support stacks so callers can ReturnOrDrop instead of
+        // SetOffHandForSet silently clamping and destroying the excess.
+        if (!string.IsNullOrWhiteSpace(next) &&
+            nextDef != null &&
+            nextDef.IsCombatSupport &&
+            amount > GetOffHandMaxStack(next))
+        {
+            return false;
         }
 
         SetOffHandForSet(activeWeaponSetIndex, next, string.IsNullOrWhiteSpace(next) ? 0 : amount);
@@ -1189,6 +1225,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand1StackAmount = 0;
         else if (offHand1StackAmount <= 0)
             offHand1StackAmount = 1;
+        else
+            ClampLoadedOffHandStack(ref offHand1ItemId, ref offHand1StackAmount, data, setIndex: 0);
 
         mainHand2ItemId = string.IsNullOrWhiteSpace(data?.equippedMainHand2ItemId) ? null : data.equippedMainHand2ItemId;
         offHand2ItemId = string.IsNullOrWhiteSpace(data?.equippedOffHand2ItemId) ? null : data.equippedOffHand2ItemId;
@@ -1198,6 +1236,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand2StackAmount = 0;
         else if (offHand2StackAmount <= 0)
             offHand2StackAmount = 1;
+        else
+            ClampLoadedOffHandStack(ref offHand2ItemId, ref offHand2StackAmount, data, setIndex: 1);
 
         activeWeaponSetIndex = NormalizeSetIndex(data?.activeWeaponSetIndex ?? 0);
 
@@ -1221,6 +1261,13 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         EnforceWeaponSetCompatibility(0, data);
         EnforceWeaponSetCompatibility(1, data);
 
+        // Persist clamped off-hand stacks back into the save payload when possible.
+        if (data != null)
+        {
+            data.equippedOffHand1StackAmount = offHand1StackAmount;
+            data.equippedOffHand2StackAmount = offHand2StackAmount;
+        }
+
         NotifyWeaponSetChanged();
 
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, GetHelmetForSet(activeWeaponSetIndex));
@@ -1232,6 +1279,41 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, GetRing2ForSet(activeWeaponSetIndex));
 
         OnVisualsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Clamps a loaded off-hand stack to the item's maxStack and parks overflow into the save's
+    /// pending-loot lists (ApplyFromSaveData runs after LoadFrom and would clear live Enqueue).
+    /// </summary>
+    private void ClampLoadedOffHandStack(
+        ref string itemId,
+        ref int stackAmount,
+        SaveData pendingParkTarget,
+        int setIndex)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || stackAmount <= 0)
+            return;
+
+        int maxStack = GetOffHandMaxStack(itemId);
+        if (stackAmount <= maxStack)
+            return;
+
+        int overflow = stackAmount - maxStack;
+        stackAmount = maxStack;
+
+        if (pendingParkTarget != null && overflow > 0)
+        {
+            PendingLootRecoveryStore.EnsureLists(pendingParkTarget);
+            pendingParkTarget.pendingLootRecoveryItemIds.Add(itemId.Trim());
+            pendingParkTarget.pendingLootRecoveryAmounts.Add(overflow);
+            Debug.LogWarning(
+                $"[EquipmentManager] Load: clamped off-hand '{itemId}' stack to maxStack {maxStack} (set {setIndex}); parked overflow x{overflow}.",
+                this);
+        }
+        else if (overflow > 0)
+        {
+            ReturnOrDrop(itemId, overflow);
+        }
     }
 
     private void EnforceWeaponSetCompatibility(int setIndex, SaveData pendingParkTarget = null)
