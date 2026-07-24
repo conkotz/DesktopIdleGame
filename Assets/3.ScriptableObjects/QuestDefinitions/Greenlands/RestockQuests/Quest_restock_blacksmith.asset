@@ -34,6 +34,7 @@ MonoBehaviour:
   grantAdditionalInventorySlotsOnRewardClaim: 0
   restockMerchantStockOnRewardClaim: 1
   restockMerchantStockSaveKey: blacksmith_merchant
+  restockMerchantStockAsset: {fileID: 11400000, guid: 9e808d0537e64304f933e3da6c27e753, type: 2}
   repeatable: 1
   autoCompleteQuest: 0
   abandonable: 1
