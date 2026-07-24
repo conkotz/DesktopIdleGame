@@ -30,6 +30,33 @@ public class CurrencyWallet : MonoBehaviour, ISaveable
         OnGoldChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Multiplies unit value by stack size without int wrap. Result is clamped to
+    /// <see cref="GoldSoftCeiling"/> so sell paths never feed a non-positive (wrapped) amount into <see cref="AddGold"/>.
+    /// </summary>
+    public static int ComputeClampedSaleGold(int valuePerItem, int amount)
+    {
+        if (valuePerItem <= 0 || amount <= 0)
+            return 0;
+
+        long product = (long)valuePerItem * amount;
+        if (product >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+        return (int)product;
+    }
+
+    /// <summary>Adds a sale gold product into an accumulator without int wrap.</summary>
+    public static int AccumulateClampedSaleGold(int currentTotal, int valuePerItem, int amount)
+    {
+        if (currentTotal >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+
+        long next = (long)Mathf.Max(0, currentTotal) + ComputeClampedSaleGold(valuePerItem, amount);
+        if (next >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+        return (int)next;
+    }
+
     public bool SpendGold(int amount)
     {
         if (amount <= 0) return true;

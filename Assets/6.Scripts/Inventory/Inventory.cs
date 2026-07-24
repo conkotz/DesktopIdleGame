@@ -914,10 +914,30 @@ public class Inventory : MonoBehaviour, ISaveable
                 if (!canValidateDefs)
                     Debug.LogWarning($"[Inventory] ItemDatabase unavailable during LoadFrom; preserving slot {i} item '{id}' without validation.");
 
+                int amount = Mathf.Max(0, d.amount);
+                int maxStack = GetMaxStack(id);
+                if (amount > maxStack)
+                {
+                    int overflow = amount - maxStack;
+                    amount = maxStack;
+                    PendingLootRecoveryStore.EnsureLists(data);
+                    data.pendingLootRecoveryItemIds.Add(id);
+                    data.pendingLootRecoveryAmounts.Add(overflow);
+                    Debug.LogWarning(
+                        $"[Inventory] Slot {i} amount {d.amount} exceeds maxStack {maxStack}; clamped and parked overflow into pending loot.");
+                }
+
+                // Persist clamp so a later LoadFrom on the same SaveData cannot re-park the overflow.
+                data.inventorySlots[i] = new SaveData.InventorySlotData
+                {
+                    itemId = id,
+                    amount = amount
+                };
+
                 _slots[i] = new Slot
                 {
                     itemId = id,
-                    amount = Mathf.Max(0, d.amount)
+                    amount = amount
                 };
             }
         }
@@ -1171,28 +1191,35 @@ public class Inventory : MonoBehaviour, ISaveable
                 filled.Add(_slots[i]);
         }
 
-        // 1) Sum amounts per item (combine stacks)
-        var totals = new Dictionary<string, int>();
+        // 1) Sum amounts per item (combine stacks) — use long so over-max legacy stacks cannot wrap to ≤0.
+        var totals = new Dictionary<string, long>();
         foreach (var s in filled)
         {
             if (!totals.ContainsKey(s.itemId))
                 totals[s.itemId] = 0;
-            totals[s.itemId] += s.amount;
+            totals[s.itemId] += Math.Max(0, s.amount);
         }
 
-        // 2) Split totals into legal stacks (maxStack each), in database order
+        // 2) Split totals into legal stacks (maxStack each), in database order.
+        // Cap growth to slot capacity while splitting so a single corrupt 2e9 stack cannot OOM.
         var merged = new List<Slot>();
         var itemIds = new List<string>(totals.Keys);
         itemIds.Sort((a, b) => itemDb.GetIndex(a).CompareTo(itemDb.GetIndex(b)));
 
         foreach (var itemId in itemIds)
         {
-            int total = totals[itemId];
+            long remaining = totals[itemId];
             int maxStack = GetMaxStack(itemId);
-            int remaining = total;
             while (remaining > 0)
             {
-                int chunk = Mathf.Min(maxStack, remaining);
+                if (merged.Count >= _slots.Count)
+                {
+                    EnqueuePendingLootInChunks(itemId, remaining);
+                    remaining = 0;
+                    break;
+                }
+
+                int chunk = (int)Math.Min(maxStack, remaining);
                 merged.Add(new Slot { itemId = itemId, amount = chunk });
                 remaining -= chunk;
             }
@@ -1236,5 +1263,19 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[i] = merged[i];
 
         NotifyInventoryChanged();
+    }
+
+    private static void EnqueuePendingLootInChunks(string itemId, long amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        long left = amount;
+        while (left > 0)
+        {
+            int chunk = (int)Math.Min(left, int.MaxValue);
+            PendingLootRecoveryStore.Enqueue(itemId, chunk);
+            left -= chunk;
+        }
     }
 }

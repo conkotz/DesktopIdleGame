@@ -476,26 +476,33 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 filled.Add(_slots[i]);
         }
 
-        var totals = new Dictionary<string, int>();
+        var totals = new Dictionary<string, long>();
         foreach (var s in filled)
         {
             if (!totals.ContainsKey(s.itemId))
                 totals[s.itemId] = 0;
-            totals[s.itemId] += s.amount;
+            totals[s.itemId] += Math.Max(0, s.amount);
         }
 
         var merged = new List<Slot>();
         var itemIds = new List<string>(totals.Keys);
         itemIds.Sort((a, b) => itemDb.GetIndex(a).CompareTo(itemDb.GetIndex(b)));
 
+        int capacity = rangeEnd - rangeStart;
         foreach (var itemId in itemIds)
         {
-            int total = totals[itemId];
+            long remaining = totals[itemId];
             int maxStack = GetMaxStack(itemId);
-            int remaining = total;
             while (remaining > 0)
             {
-                int chunk = Mathf.Min(maxStack, remaining);
+                if (merged.Count >= capacity)
+                {
+                    EnqueuePendingLootInChunks(itemId, remaining);
+                    remaining = 0;
+                    break;
+                }
+
+                int chunk = (int)Math.Min(maxStack, remaining);
                 merged.Add(new Slot { itemId = itemId, amount = chunk });
                 remaining -= chunk;
             }
@@ -512,7 +519,6 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
-        int capacity = rangeEnd - rangeStart;
         if (merged.Count > capacity)
         {
             for (int i = capacity; i < merged.Count; i++)
@@ -1277,7 +1283,27 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 if (!canValidateDefs)
                     Debug.LogWarning($"[PlayerStorage] ItemDatabase unavailable during LoadFrom; preserving storage slot {i} item '{id}' without validation.");
 
-                _slots[i] = new Slot { itemId = id, amount = d.amount };
+                int amount = Mathf.Max(0, d.amount);
+                int maxStack = GetMaxStack(id);
+                if (amount > maxStack)
+                {
+                    int overflow = amount - maxStack;
+                    amount = maxStack;
+                    PendingLootRecoveryStore.EnsureLists(data);
+                    data.pendingLootRecoveryItemIds.Add(id);
+                    data.pendingLootRecoveryAmounts.Add(overflow);
+                    Debug.LogWarning(
+                        $"[PlayerStorage] Slot {i} amount {d.amount} exceeds maxStack {maxStack}; clamped and parked overflow into pending loot.");
+                }
+
+                // Persist clamp so deferred/repeated LoadFrom on the same SaveData cannot re-park overflow.
+                data.storageSlots[i] = new SaveData.InventorySlotData
+                {
+                    itemId = id,
+                    amount = amount
+                };
+
+                _slots[i] = new Slot { itemId = id, amount = amount };
             }
         }
 
@@ -1394,6 +1420,20 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                     SaveManager.Instance?.NotifyInventoryChangedDebounced();
                 }
             }
+        }
+    }
+
+    private static void EnqueuePendingLootInChunks(string itemId, long amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        long left = amount;
+        while (left > 0)
+        {
+            int chunk = (int)Math.Min(left, int.MaxValue);
+            PendingLootRecoveryStore.Enqueue(itemId, chunk);
+            left -= chunk;
         }
     }
 }
