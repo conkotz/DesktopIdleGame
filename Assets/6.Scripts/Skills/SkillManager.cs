@@ -95,6 +95,12 @@ public class SkillsManager : MonoBehaviour, ISaveable
             gameObject.AddComponent<AbilityPresetWeaponSetLabelUI>();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void BuildDefaultsIfEmpty()
     {
         _skills.Clear();
