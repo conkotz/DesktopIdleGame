@@ -958,13 +958,22 @@ public class EquipmentSlotUI : MonoBehaviour,
         // MAIN HAND
         if (slotType == EquipmentUISlotType.MainHand)
         {
+            string prev = equipment.MainHandItemId;
+            // Same weapon already equipped → no-op (EquipMainHand would early-return after we removed the copy).
+            if (!string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, draggedId, StringComparison.OrdinalIgnoreCase))
+            {
+                InventoryDragState.EndDrag();
+                eventData.Use();
+                return;
+            }
+
             if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                 return;
 
-            string prev = equipment.MainHandItemId;
             equipment.EquipMainHand(draggedId);
 
-            if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
+            if (!string.IsNullOrWhiteSpace(prev))
                 ReturnOrDrop(prev, 1);
 
             InventoryDragState.EndDrag();
@@ -1004,6 +1013,16 @@ public class EquipmentSlotUI : MonoBehaviour,
                     prevAmount = Mathf.Max(1, equipment.OffHandStackAmount);
             }
 
+            // Same non-support item already equipped → no-op (do not consume the dragged copy).
+            if (!isSupport &&
+                !string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, draggedId, StringComparison.OrdinalIgnoreCase))
+            {
+                InventoryDragState.EndDrag();
+                eventData.Use();
+                return;
+            }
+
             if (!TryRemoveDraggedFromSource(equipAmount, fromStorage, playerStorage, fromSlot))
                 return;
 
@@ -1021,13 +1040,21 @@ public class EquipmentSlotUI : MonoBehaviour,
         int idx = GetToolbeltIndex();
         if (idx >= 0 && toolbelt != null)
         {
+            string prev = toolbelt.GetToolItemId(idx);
+            if (!string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, draggedId, StringComparison.OrdinalIgnoreCase))
+            {
+                InventoryDragState.EndDrag();
+                eventData.Use();
+                return;
+            }
+
             if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                 return;
 
-            string prev = toolbelt.GetToolItemId(idx);
             toolbelt.SetToolItemId(idx, draggedId);
 
-            if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
+            if (!string.IsNullOrWhiteSpace(prev))
                 ReturnOrDrop(prev, 1);
 
             InventoryDragState.EndDrag();
@@ -1038,15 +1065,23 @@ public class EquipmentSlotUI : MonoBehaviour,
         // RING1 / RING2
         if (slotType == EquipmentUISlotType.Ring1 || slotType == EquipmentUISlotType.Ring2)
         {
-            if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
-                return;
-
             int ringIndex = (slotType == EquipmentUISlotType.Ring1) ? 0 : 1;
 
             string prev = equipment.GetEquippedItemId(EquipSlot.Ring, ringIndex);
+            if (!string.IsNullOrWhiteSpace(prev) &&
+                string.Equals(prev, draggedId, StringComparison.OrdinalIgnoreCase))
+            {
+                InventoryDragState.EndDrag();
+                eventData.Use();
+                return;
+            }
+
+            if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
+                return;
+
             equipment.EquipGear(EquipSlot.Ring, draggedId, ringIndex);
 
-            if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
+            if (!string.IsNullOrWhiteSpace(prev))
                 ReturnOrDrop(prev, 1);
 
             InventoryDragState.EndDrag();
@@ -1068,13 +1103,21 @@ public class EquipmentSlotUI : MonoBehaviour,
 
             if (gearSlot != EquipSlot.None)
             {
+                string prev = equipment.GetEquippedItemId(gearSlot);
+                if (!string.IsNullOrWhiteSpace(prev) &&
+                    string.Equals(prev, draggedId, StringComparison.OrdinalIgnoreCase))
+                {
+                    InventoryDragState.EndDrag();
+                    eventData.Use();
+                    return;
+                }
+
                 if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                     return;
 
-                string prev = equipment.GetEquippedItemId(gearSlot);
                 equipment.EquipGear(gearSlot, draggedId);
 
-                if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
+                if (!string.IsNullOrWhiteSpace(prev))
                     ReturnOrDrop(prev, 1);
 
                 InventoryDragState.EndDrag();
