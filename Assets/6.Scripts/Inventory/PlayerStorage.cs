@@ -1314,9 +1314,27 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             ItemDefinition def = GetItemDef(stack.itemId);
             StorageTabKind tab = ResolveAutoDepositTab(def);
-            int placed = TryDepositAmountToTab(stack.itemId, stack.amount, tab);
-            if (placed < stack.amount)
-                TryDepositAmountToTab(stack.itemId, stack.amount - placed, StorageTabKind.Main);
+            int left = stack.amount;
+            left -= TryDepositAmountToTab(stack.itemId, left, tab);
+            if (left > 0 && tab != StorageTabKind.Main)
+                left -= TryDepositAmountToTab(stack.itemId, left, StorageTabKind.Main);
+
+            // Legacy layout migration can shrink total capacity — never silently discard overflow.
+            if (left > 0)
+            {
+                Inventory inv = Inventory.ResolvePlayer();
+                if (inv != null)
+                    left -= inv.AddPartial(stack.itemId, left, notifyItemGainPopup: false);
+
+                if (left > 0)
+                {
+                    PendingLootRecoveryStore.Enqueue(stack.itemId, left);
+                    GameLog.Add(
+                        "Storage layout migration could not fit all items — held the overflow until you free space.",
+                        GameLog.CannotMessageColor);
+                    SaveManager.Instance?.NotifyInventoryChangedDebounced();
+                }
+            }
         }
     }
 }
