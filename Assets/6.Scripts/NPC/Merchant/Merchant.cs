@@ -42,10 +42,20 @@ public class Merchant : MonoBehaviour
 
     private void Awake()
     {
-        if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+        EnsureEconomyRefs();
         ApplyIdentityToLabel();
         MerchantStockRuntime.EnsureInstance();
+    }
+
+    /// <summary>
+    /// Always re-resolve canonical player inventory — a cached first-found shell/scene copy
+    /// can charge gold while placing bought items into the wrong bag (and miss save dirty).
+    /// </summary>
+    private void EnsureEconomyRefs()
+    {
+        inventory = Inventory.ResolvePlayer();
+        if (!wallet)
+            wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
     }
 
     /// <summary>Refreshes shop UI after persistent stock was loaded or changed off this instance.</summary>
@@ -104,6 +114,7 @@ public class Merchant : MonoBehaviour
 
     private void OnMouseDown()
     {
+        EnsureEconomyRefs();
         if (!inventory || !wallet) return;
 
         bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
@@ -121,6 +132,7 @@ public class Merchant : MonoBehaviour
 
     public bool TryBuy(string itemId, int amount = 1)
     {
+        EnsureEconomyRefs();
         if (stock == null || inventory == null || wallet == null || amount <= 0)
             return false;
 
@@ -191,6 +203,7 @@ public class Merchant : MonoBehaviour
 
     public bool CanAfford(MerchantStock.Entry entry, int amount)
     {
+        EnsureEconomyRefs();
         if (entry == null) return false;
         if (amount <= 0) return true;
         if (entry.costs == null) return true;
@@ -363,7 +376,7 @@ public class Merchant : MonoBehaviour
         if (left <= 0)
             return;
 
-        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        PlayerStorage storage = PlayerStorage.ResolvePlayer();
         if (storage != null)
             left -= storage.TryDepositAmountFromExternal(itemId, left);
 
@@ -416,7 +429,7 @@ public class Merchant : MonoBehaviour
         }
         else
         {
-            var inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            var inv = Inventory.ResolvePlayer();
             int currentGold = wallet ? wallet.Gold : 0;
             int stockQty = GetQuantity(entry);
             bool showBulkCost = ShopCostFormatter.ShouldShowBulkCost(stockQty);
@@ -582,6 +595,10 @@ public class Merchant : MonoBehaviour
 
     private void SellAll()
     {
+        EnsureEconomyRefs();
+        if (!inventory || !wallet)
+            return;
+
         int goldGained = 0;
 
         for (int i = 0; i < inventory.SlotCount; i++)
@@ -609,7 +626,7 @@ public class Merchant : MonoBehaviour
                 int left = amount - restored;
                 if (left > 0)
                 {
-                    PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                    PlayerStorage storage = PlayerStorage.ResolvePlayer();
                     if (storage != null)
                         left -= storage.TryDepositAmountFromExternal(itemId, left);
                     if (left > 0)
@@ -633,6 +650,10 @@ public class Merchant : MonoBehaviour
 
     private void SellFirstNonEmptyStack()
     {
+        EnsureEconomyRefs();
+        if (!inventory || !wallet)
+            return;
+
         for (int i = 0; i < inventory.SlotCount; i++)
         {
             var slot = inventory.GetSlot(i);
@@ -656,7 +677,7 @@ public class Merchant : MonoBehaviour
                 int left = amount - restored;
                 if (left > 0)
                 {
-                    PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                    PlayerStorage storage = PlayerStorage.ResolvePlayer();
                     if (storage != null)
                         left -= storage.TryDepositAmountFromExternal(itemId, left);
                     if (left > 0)

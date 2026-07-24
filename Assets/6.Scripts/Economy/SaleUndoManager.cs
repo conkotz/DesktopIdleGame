@@ -86,7 +86,9 @@ public class SaleUndoManager : MonoBehaviour
 
     private void RebindRefs()
     {
-        if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        // Always refresh inventory — a stale first-found shell copy restores sold items
+        // into a bag the player (and save snapshot) do not use.
+        inventory = Inventory.ResolvePlayer();
         if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
     }
 
@@ -193,8 +195,7 @@ public class SaleUndoManager : MonoBehaviour
     {
         var e = _entries[idx];
 
-        if (!wallet || !inventory)
-            RebindRefs();
+        RebindRefs();
         if (!wallet || !inventory)
         {
             Debug.LogWarning("[SaleUndoManager] Undo aborted: wallet or inventory missing.");
@@ -226,7 +227,7 @@ public class SaleUndoManager : MonoBehaviour
         PlayerStorage storage = null;
         if (left > 0)
         {
-            storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            storage = PlayerStorage.ResolvePlayer();
             if (storage != null)
             {
                 toStorage = storage.TryDepositAmountFromExternal(e.itemId, left, touchedStorage);

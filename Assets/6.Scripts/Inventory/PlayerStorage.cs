@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Town chest / bank storage: same slot shape as <see cref="Inventory"/>, separate grid (UI drives slot count).
@@ -44,6 +45,58 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     public event Action OnStorageChanged;
     public event Action OnTabOrderChanged;
     public event Action OnTabAffinityChanged;
+
+    /// <summary>
+    /// Canonical player storage used by shop, quests, processing overflow, and save dirty tracking.
+    /// Prefers the component on the player, then scores by slot count / active scene when duplicates exist.
+    /// </summary>
+    public static PlayerStorage ResolvePlayer()
+    {
+        PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            PlayerStorage onPlayer = player.GetComponent<PlayerStorage>();
+            if (onPlayer != null)
+                return onPlayer;
+        }
+
+        PlayerStorage[] all = UnityEngine.Object.FindObjectsByType<PlayerStorage>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        if (all == null || all.Length == 0)
+            return null;
+
+        if (all.Length == 1)
+            return all[0];
+
+        Scene active = SceneManager.GetActiveScene();
+        Transform playerRoot = player != null ? player.transform : null;
+
+        PlayerStorage best = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            PlayerStorage ps = all[i];
+            if (!ps)
+                continue;
+
+            int score = Mathf.Max(0, ps.SlotCount);
+            if (playerRoot != null && ps.transform.IsChildOf(playerRoot))
+                score += 10000;
+            if (ps.gameObject.scene == active)
+                score += 1000;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = ps;
+            }
+        }
+
+        return best != null ? best : all[0];
+    }
 
     private int _batchChangeNotifyDepth;
     private bool _batchChangeNotifyPending;

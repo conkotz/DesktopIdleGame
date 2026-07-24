@@ -162,7 +162,7 @@ public static class PendingLootRecoveryStore
             return false;
 
         Inventory inv = Inventory.ResolvePlayer();
-        PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        PlayerStorage storage = PlayerStorage.ResolvePlayer();
         if (inv == null && storage == null)
             return false;
 
