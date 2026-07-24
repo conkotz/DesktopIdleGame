@@ -99,37 +99,53 @@ public sealed class ProcessingFuelBank
         return amount;
     }
 
-    public bool TryConsumeSeconds(float seconds)
+    /// <summary>
+    /// Burns fuel for up to <paramref name="requestedSeconds"/>. Returns the seconds actually
+    /// burned (may be less when fuel runs out). Prefer this over <see cref="TryConsumeSeconds"/>
+    /// so callers can still advance craft progress for the burned portion.
+    /// </summary>
+    public float ConsumeUpTo(float requestedSeconds)
     {
-        if (seconds <= 0f)
-            return true;
+        if (requestedSeconds <= 0f)
+            return 0f;
 
         if (_logCount <= 0)
-            return false;
+            return 0f;
 
-        if (!ProcessingFuelCatalog.TryGetSecondsPerLog(_itemId, out float perLog))
-            return false;
+        if (!ProcessingFuelCatalog.TryGetSecondsPerLog(_itemId, out float perLog) || perLog <= 0f)
+            return 0f;
 
-        float remaining = seconds;
-        while (remaining > 0.0001f)
+        float remaining = requestedSeconds;
+        float consumed = 0f;
+        while (remaining > 0.0001f && _logCount > 0)
         {
-            if (_logCount <= 0)
-                return false;
-
             float leftOnCurrentLog = perLog - _secondsBurnedFromCurrentLog;
             if (remaining < leftOnCurrentLog)
             {
                 _secondsBurnedFromCurrentLog += remaining;
-                return true;
+                consumed += remaining;
+                remaining = 0f;
+                break;
             }
 
             remaining -= leftOnCurrentLog;
+            consumed += leftOnCurrentLog;
             _logCount--;
             _secondsBurnedFromCurrentLog = 0f;
         }
 
         ClearIfEmpty();
-        return true;
+        return consumed;
+    }
+
+    /// <returns>True when the full requested duration was burned; false if fuel ran out early.</returns>
+    public bool TryConsumeSeconds(float seconds)
+    {
+        if (seconds <= 0f)
+            return true;
+
+        float consumed = ConsumeUpTo(seconds);
+        return consumed + 0.0001f >= seconds;
     }
 
     public void Load(string itemId, int logCount, float secondsBurnedFromCurrentLog)

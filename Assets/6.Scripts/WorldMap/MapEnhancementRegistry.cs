@@ -133,15 +133,23 @@ public static class MapEnhancementRegistry
                 mods = new List<MapEnhancementMod>()
             };
 
-            int modCount = saved.modTypes != null ? saved.modTypes.Count : 0;
+            // Corrupt/legacy rows may omit parallel lists; never NRE mid-load.
+            List<int> types = saved.modTypes;
+            List<float> values = saved.modValues;
+            List<string> extras = saved.modExtraSpawnEnemyIds;
+            int modCount = types != null ? types.Count : 0;
             for (int m = 0; m < modCount; m++)
             {
+                int rawType = types[m];
+                if (!System.Enum.IsDefined(typeof(MapEnhancementModType), rawType))
+                    continue;
+
                 instance.mods.Add(new MapEnhancementMod
                 {
-                    modType = (MapEnhancementModType)saved.modTypes[m],
-                    value = m < saved.modValues.Count ? saved.modValues[m] : 0f,
-                    extraSpawnEnemyId = m < saved.modExtraSpawnEnemyIds.Count
-                        ? saved.modExtraSpawnEnemyIds[m]
+                    modType = (MapEnhancementModType)rawType,
+                    value = values != null && m < values.Count ? values[m] : 0f,
+                    extraSpawnEnemyId = extras != null && m < extras.Count
+                        ? extras[m] ?? string.Empty
                         : string.Empty
                 });
             }
