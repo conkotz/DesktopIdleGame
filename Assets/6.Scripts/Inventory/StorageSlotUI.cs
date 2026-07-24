@@ -913,6 +913,13 @@ public class StorageSlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
         _tooltip?.Hide();
+        if (InventoryDragState.HasDrag &&
+            InventoryDragState.Source == InventoryDragState.SourceKind.Storage &&
+            InventoryDragState.FromSlotIndex == _slotIndex)
+        {
+            InventoryDragState.EndDrag();
+            InventoryDragIconPool.Hide();
+        }
         ApplySlotBackground();
     }
 }

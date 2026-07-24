@@ -1151,6 +1151,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
         if (!itemDb)
+            itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (!itemDb)
             itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
         if (!itemDb)
         {
