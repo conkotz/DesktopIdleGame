@@ -783,7 +783,11 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            if (!TryReturnStoredConsumableToInventory())
+            // Consumables live on the bar as real stacks — never ClearAssignment on a failed return
+            // or the entire stack is destroyed. Abilities can be cleared freely.
+            if (assignedAction != null && assignedAction.IsItem)
+                TryReturnStoredConsumableToInventory();
+            else
                 ClearAssignment();
         }
     }
@@ -1264,15 +1268,22 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (assignedAction == null || !assignedAction.IsItem || assignedItemAmount <= 0)
             return false;
 
-        if (!inventory)
-            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!inventory)
-            return false;
-
         string id = Inventory.RemapLegacyItemId(assignedAction.id);
         int amount = Mathf.Max(0, assignedItemAmount);
-        if (amount <= 0)
+        if (amount <= 0 || string.IsNullOrWhiteSpace(id))
             return false;
+
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (!inventory)
+        {
+            // Bar still holds real items — park them for recovery rather than wiping the assignment.
+            PendingLootRecoveryStore.Enqueue(id, amount);
+            ClearAssignment(notify: true);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
+            return true;
+        }
 
         // Inventory.Add can partially succeed and still return false — only drop the remainder.
         int returned = inventory.AddPartial(id, amount, notifyItemGainPopup: false);
