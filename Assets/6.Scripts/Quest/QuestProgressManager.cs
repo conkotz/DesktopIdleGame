@@ -935,7 +935,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             ProgressChanged?.Invoke();
             TutorialQuestAfterClaim.Invoke(q);
             if (SaveManager.Instance != null)
-                SaveManager.Instance.Save();
+                SaveManager.Instance.SaveImmediate();
 
             TryAutoAcceptQuestsAfterPriorRewardClaimed(q.questId);
         }
@@ -989,7 +989,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         ProgressChanged?.Invoke();
         TutorialQuestAfterClaim.Invoke(q);
         if (!skipSave && SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+            SaveManager.Instance.SaveImmediate();
         TryAutoAcceptQuestsAfterPriorRewardClaimed(id);
         if (runTeleportAfterClaim)
             TryTeleportPlayerAfterClaim(q);
