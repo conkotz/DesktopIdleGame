@@ -434,6 +434,17 @@ public class BlacksmithingUI : MonoBehaviour
             return;
         }
 
+        // Surface pending STOP refunds before recipe/ingredient checks so the player
+        // knows why FORGE is blocked after a full-bag cancel.
+        if (!_station.CanStartCrafting(out string startBlockedReason) &&
+            !string.IsNullOrWhiteSpace(startBlockedReason) &&
+            startBlockedReason.IndexOf("recover forge materials", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            _ingredientsSummaryText.text = startBlockedReason;
+            _ingredientsSummaryText.color = StopAccent;
+            return;
+        }
+
         if (!_station.TryGetSelectedRecipe(out BlacksmithingRecipe recipe))
         {
             _ingredientsSummaryText.text = "Select a recipe from the list.";
