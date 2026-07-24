@@ -2777,9 +2777,57 @@ public class SaveManager : MonoBehaviour
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(null);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(null);
         UIWindowLockStore.ApplyFromSaveData(null);
+        QuestAcceptedEnemyRespawnService.LoadFromSave(null);
+        ClearRuntimeItemCachesAfterFullWipe();
+        ClearDontDestroyOnLoadRuntimesAfterFullWipe();
 
         LoadAllSaveMetadata();
         FireSaveSystemReady("FullDataWipe");
+    }
+
+    /// <summary>
+    /// Runtime ScriptableObject clones and map-enhancement registry live outside SaveData side-stores.
+    /// Wipe must destroy them or a later save can re-seed a New Game with previous-slot clones.
+    /// </summary>
+    private static void ClearRuntimeItemCachesAfterFullWipe()
+    {
+        MapEnhancementRegistry.ClearAll();
+
+        ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (db == null)
+            db = Resources.Load<ItemDatabase>("ItemDatabase");
+        if (db == null)
+        {
+            ItemDatabase[] loaded = Resources.FindObjectsOfTypeAll<ItemDatabase>();
+            for (int i = 0; i < loaded.Length; i++)
+            {
+                if (loaded[i] != null)
+                {
+                    db = loaded[i];
+                    break;
+                }
+            }
+        }
+
+        db?.LoadRuntimeEnhancedItemsFrom(null);
+    }
+
+    /// <summary>
+    /// DDOL processing / shop runtimes keep in-memory rows across Bootstrap; wipe must reset them
+    /// so an autosave cannot write previous-slot furnace/forge/shop state into a fresh slot.
+    /// </summary>
+    private static void ClearDontDestroyOnLoadRuntimesAfterFullWipe()
+    {
+        if (MerchantStockRuntime.Instance != null)
+            MerchantStockRuntime.Instance.LoadFrom(null);
+        if (BlacksmithingRuntime.Instance != null)
+            BlacksmithingRuntime.Instance.LoadFrom(null);
+        if (FurnaceSmeltingRuntime.Instance != null)
+            FurnaceSmeltingRuntime.Instance.LoadFrom(null);
+        if (CookingRuntime.Instance != null)
+            CookingRuntime.Instance.LoadFrom(null);
+        if (ProcessingProficiencyRuntime.Instance != null)
+            ProcessingProficiencyRuntime.Instance.LoadFrom(null);
     }
     public bool TryGetLastLoadedData(out SaveData data)
     {
