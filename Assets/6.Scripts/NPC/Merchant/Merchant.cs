@@ -158,8 +158,11 @@ public class Merchant : MonoBehaviour
         bool added = inventory.Add(entry.itemId, amount, null, notifyItemGainPopup: false);
         if (!added)
         {
+            // CanAdd passed, but Add can still fail (rolled unique gear, race with other grants).
+            // Never leave the player charged without the item.
+            RefundCosts(entry, amount);
             GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
-            Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs.");
+            Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs — refunded.");
             return false;
         }
 
@@ -238,6 +241,53 @@ public class Merchant : MonoBehaviour
                     break;
             }
         }
+    }
+
+    private void RefundCosts(MerchantStock.Entry entry, int amountMultiplier)
+    {
+        if (entry == null || entry.costs == null || amountMultiplier <= 0)
+            return;
+
+        for (int i = 0; i < entry.costs.Count; i++)
+        {
+            var cost = entry.costs[i];
+            if (cost == null || cost.amount <= 0)
+                continue;
+
+            int totalCostAmount = cost.amount * amountMultiplier;
+            switch (cost.type)
+            {
+                case MerchantStock.CostType.Gold:
+                    if (wallet)
+                        wallet.AddGold(totalCostAmount);
+                    break;
+
+                case MerchantStock.CostType.Item:
+                    if (!string.IsNullOrWhiteSpace(cost.itemId))
+                        RefundItemCostWithStorageOverflow(cost.itemId, totalCostAmount);
+                    break;
+            }
+        }
+    }
+
+    private void RefundItemCostWithStorageOverflow(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int left = amount;
+        if (inventory)
+            left -= inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetPriceText(MerchantStock.Entry entry)

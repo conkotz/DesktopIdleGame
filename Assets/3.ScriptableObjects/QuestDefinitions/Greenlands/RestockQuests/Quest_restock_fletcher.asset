@@ -33,6 +33,7 @@ MonoBehaviour:
   grantAdditionalInventorySlotsOnRewardClaim: 0
   restockMerchantStockOnRewardClaim: 1
   restockMerchantStockSaveKey: fletcher_merchant
+  restockMerchantStockAsset: {fileID: 11400000, guid: 3657835b215667045aebf7b5670051a9, type: 2}
   repeatable: 1
   autoCompleteQuest: 0
   abandonable: 1
