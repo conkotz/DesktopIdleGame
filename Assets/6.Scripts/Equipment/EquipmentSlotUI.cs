@@ -1297,11 +1297,20 @@ public class EquipmentSlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
 
-        // Inventory.Add can partially succeed and still return false — only drop the remainder.
+        // Inventory.Add can partially succeed and still return false — only overflow the remainder.
         int added = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
         int left = amount - added;
         if (left <= 0)
             return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
 
         var def = inventory.GetItemDef(itemId);
         if (DropManager.Instance != null)
