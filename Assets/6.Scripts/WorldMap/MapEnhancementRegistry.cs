@@ -52,6 +52,13 @@ public static class MapEnhancementRegistry
         runtimeDef.maxStack = 1;
         runtimeDef.hideFlags = HideFlags.DontSave;
 
+        if (RuntimeDefinitions.TryGetValue(key, out ItemDefinition existing) &&
+            existing != null &&
+            existing != runtimeDef)
+        {
+            DestroyRuntimeDefinition(existing);
+        }
+
         Instances[key] = data;
         RuntimeDefinitions[key] = runtimeDef;
         return runtimeDef;
@@ -59,8 +66,22 @@ public static class MapEnhancementRegistry
 
     public static void ClearAll()
     {
+        foreach (var pair in RuntimeDefinitions)
+            DestroyRuntimeDefinition(pair.Value);
+
         Instances.Clear();
         RuntimeDefinitions.Clear();
+    }
+
+    private static void DestroyRuntimeDefinition(ItemDefinition def)
+    {
+        if (!def)
+            return;
+
+        if (Application.isPlaying)
+            UnityEngine.Object.Destroy(def);
+        else
+            UnityEngine.Object.DestroyImmediate(def);
     }
 
     public static void SaveInto(SaveData data)
