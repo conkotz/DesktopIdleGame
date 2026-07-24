@@ -633,7 +633,8 @@ public class InventorySlotUI : MonoBehaviour,
                 if (_inventory.RemoveAmountAtSlot(_slotIndex, addAmount) != addAmount)
                     return;
 
-                equipment.EquipOffHand(slot.itemId, addAmount);
+                if (!equipment.EquipOffHand(slot.itemId, addAmount))
+                    ReturnOrDrop(slot.itemId, addAmount);
                 return;
             }
 
@@ -649,7 +650,12 @@ public class InventorySlotUI : MonoBehaviour,
             string prev = equipment.OffHandItemId;
             int prevAmount = equipment.OffHandStackAmount;
 
-            equipment.EquipOffHand(slot.itemId, equipAmount);
+            if (!equipment.EquipOffHand(slot.itemId, equipAmount))
+            {
+                // EquipOffHand left the previous off-hand alone — restore only the removed items.
+                ReturnOrDrop(slot.itemId, equipAmount);
+                return;
+            }
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
                 ReturnOrDrop(prev, Mathf.Max(1, prevAmount));
@@ -1370,17 +1376,19 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         // ✅ Dropping from Equipment/Toolbelt -> Inventory (consumes drag state from EquipmentSlotUI)
-        if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
+        if (EquipmentSlotUI.TryPeekEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
         {
-            if (_inventory == null) return;
-            if (string.IsNullOrWhiteSpace(equipItemId)) return;
+            if (_inventory == null || string.IsNullOrWhiteSpace(equipItemId))
+                return;
 
             bool ok = _inventory.TryPlaceExternalAtSlot(equipItemId, equipAmount, _slotIndex, null, notifyItemGainPopup: false);
             if (!ok)
             {
-                // No room / can't place on this slot -> keep equipped (drag state already consumed)
+                // No room / can't place on this slot -> keep equipped (leave drag active for retry/cancel).
                 return;
             }
+
+            EquipmentSlotUI.TryConsumeEquipDrag(out _, out _, out _);
 
             // Clear the source slot (FIX: include ALL gear slots)
             switch (fromSlotType)
@@ -1477,13 +1485,18 @@ public class InventorySlotUI : MonoBehaviour,
 
     private void ReturnOrDrop(string itemId, int amount = 1)
     {
-        if (string.IsNullOrWhiteSpace(itemId) || _inventory == null || amount <= 0) return;
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
 
-        // Inventory.Add can partially succeed and still return false — only overflow the remainder.
-        int added = _inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
-        int left = amount - added;
-        if (left <= 0)
-            return;
+        // Displaced gear may already be unequipped — never discard when Inventory is missing.
+        int left = amount;
+        if (_inventory != null)
+        {
+            // Inventory.Add can partially succeed and still return false — only overflow the remainder.
+            int added = _inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+            left -= added;
+            if (left <= 0)
+                return;
+        }
 
         PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (storage != null)
@@ -1494,7 +1507,7 @@ public class InventorySlotUI : MonoBehaviour,
                 return;
         }
 
-        var def = _inventory.GetItemDef(itemId);
+        ItemDefinition def = _inventory != null ? _inventory.GetItemDef(itemId) : null;
         PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null);
     }
 
