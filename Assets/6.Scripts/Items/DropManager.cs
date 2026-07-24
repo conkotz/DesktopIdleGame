@@ -73,6 +73,12 @@ public class DropManager : MonoBehaviour
         ResolveAnchor();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void OnEnable()
     {
         SceneManager.activeSceneChanged += OnActiveSceneChanged;
