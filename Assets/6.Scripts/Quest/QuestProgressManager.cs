@@ -902,10 +902,19 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        GrantRewards(q);
+        if (q.restockMerchantStockOnRewardClaim &&
+            !TryResetMerchantStockFromQuestReward(q))
+        {
+            if (gatherToRestore > 0 && !string.IsNullOrEmpty(gatherItemToRestore))
+                RestoreGatheredItems(gatherItemToRestore, gatherToRestore);
 
-        if (q.restockMerchantStockOnRewardClaim)
-            TryResetMerchantStockFromQuestReward(q);
+            GameLog.Add(
+                "Could not restock the shop right now — try again near the merchant.",
+                GameLog.CannotMessageColor);
+            return false;
+        }
+
+        GrantRewards(q);
 
         TryUnlockTownServiceFromQuestReward(q);
 
@@ -925,6 +934,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 QuestTrackerState.UntrackQuest(id);
                 ProgressChanged?.Invoke();
             }
+
+            // Restock / gather consume must flush immediately — inventory debounce alone can miss a crash window.
+            if (SaveManager.Instance != null)
+                SaveManager.Instance.SaveImmediate();
         }
         else
         {
@@ -965,9 +978,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (!IsQuestAccepted(q) && RequiresQuestGiver(q))
             _acceptedQuestIds.Add(id);
 
+        if (q.restockMerchantStockOnRewardClaim &&
+            !TryResetMerchantStockFromQuestReward(q))
+        {
+            Debug.LogWarning(
+                $"[QuestProgressManager] Dev force-complete skipped restock for '{q.questId}' — merchant stock unresolved.");
+            return;
+        }
+
         GrantRewards(q);
-        if (q.restockMerchantStockOnRewardClaim)
-            TryResetMerchantStockFromQuestReward(q);
 
         TryUnlockTownServiceFromQuestReward(q);
 
@@ -1526,14 +1545,17 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             popups.ShowQuestRewardItemGained(itemId.Trim(), amount);
     }
 
-    private void TryResetMerchantStockFromQuestReward(QuestDefinition q)
+    /// <returns>False when a restock was required but no matching merchant/stock could be reset.</returns>
+    private bool TryResetMerchantStockFromQuestReward(QuestDefinition q)
     {
         if (q == null || !q.restockMerchantStockOnRewardClaim)
-            return;
+            return true;
 
         string key = q.restockMerchantStockSaveKey != null ? q.restockMerchantStockSaveKey.Trim() : "";
+        if (string.IsNullOrEmpty(key) && q.restockMerchantStockAsset != null)
+            key = q.restockMerchantStockAsset.StockSaveKey;
         if (string.IsNullOrEmpty(key))
-            return;
+            return false;
 
         Merchant[] merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < merchants.Length; i++)
@@ -1545,8 +1567,45 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 continue;
 
             m.ResetStockToDefaults(persistToDisk: true);
-            return;
+            return true;
         }
+
+        MerchantStock stock = ResolveMerchantStockForRestock(q, key);
+        if (stock == null)
+            return false;
+
+        MerchantStockRuntime runtime = MerchantStockRuntime.EnsureInstance();
+        runtime.ResetToDefaultsForStockSaveKey(key, stock);
+        runtime.NotifyAllMerchantsStockChanged();
+        SaveManager.Instance?.NotifyShopStockChanged();
+        return true;
+    }
+
+    private static MerchantStock ResolveMerchantStockForRestock(QuestDefinition q, string stockSaveKey)
+    {
+        if (q?.restockMerchantStockAsset != null)
+        {
+            string assetKey = q.restockMerchantStockAsset.StockSaveKey;
+            if (string.IsNullOrWhiteSpace(stockSaveKey) ||
+                string.Equals(assetKey, stockSaveKey, StringComparison.OrdinalIgnoreCase))
+                return q.restockMerchantStockAsset;
+        }
+
+        if (string.IsNullOrWhiteSpace(stockSaveKey))
+            return null;
+
+        MerchantStock[] loaded = Resources.FindObjectsOfTypeAll<MerchantStock>();
+        for (int i = 0; i < loaded.Length; i++)
+        {
+            MerchantStock stock = loaded[i];
+            if (stock == null)
+                continue;
+            if (!string.Equals(stock.StockSaveKey, stockSaveKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            return stock;
+        }
+
+        return null;
     }
 
     private void TryUnlockTownServiceFromQuestReward(QuestDefinition q)
