@@ -612,6 +612,34 @@ public class Inventory : MonoBehaviour, ISaveable
         return total;
     }
 
+    /// <summary>
+    /// Undoes a prior <see cref="AddPartial"/> by removing only from the slots it reported as touched.
+    /// Prefer this over <see cref="Remove"/> when rolling back a failed transfer — global Remove can
+    /// delete pre-existing same-item stacks that were never part of the tentative add.
+    /// </summary>
+    public int RemoveAmountFromTouchedSlots(int amount, IList<int> touchedSlotIndices)
+    {
+        if (amount <= 0 || touchedSlotIndices == null || touchedSlotIndices.Count == 0)
+            return 0;
+
+        BeginBatchChanges();
+        int left = amount;
+        try
+        {
+            for (int t = touchedSlotIndices.Count - 1; t >= 0 && left > 0; t--)
+            {
+                int removed = RemoveAmountAtSlot(touchedSlotIndices[t], left);
+                left -= removed;
+            }
+        }
+        finally
+        {
+            EndBatchChanges();
+        }
+
+        return amount - left;
+    }
+
     public int RemoveAmountAtSlot(int slotIndex, int amount)
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return 0;
@@ -968,14 +996,15 @@ public class Inventory : MonoBehaviour, ISaveable
             int remainder = amount - chunk;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
+                var touched = new List<int>(4);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup, touched);
                 if (added != remainder)
                 {
                     // CanAdd raced or capacity rules diverged — never report success after a shortfall
                     // or the caller will unequip/destroy the source while leftover units vanish.
-                    ReplaceSlot(slotIndex, default);
                     if (added > 0)
-                        Remove(itemId, added);
+                        RemoveAmountFromTouchedSlots(added, touched);
+                    ReplaceSlot(slotIndex, default);
                     return false;
                 }
             }
@@ -998,13 +1027,15 @@ public class Inventory : MonoBehaviour, ISaveable
             int remainder = amount - add;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
+                var touched = new List<int>(4);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup, touched);
                 if (added != remainder)
                 {
-                    // Restore the target slot first so Remove only undoes the overflow AddPartial.
-                    ReplaceSlot(slotIndex, previous);
+                    // Undo overflow fills before restoring the target slot so we never strip
+                    // pre-existing same-item stacks via a global Remove.
                     if (added > 0)
-                        Remove(itemId, added);
+                        RemoveAmountFromTouchedSlots(added, touched);
+                    ReplaceSlot(slotIndex, previous);
                     return false;
                 }
             }
@@ -1020,17 +1051,19 @@ public class Inventory : MonoBehaviour, ISaveable
 
         ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = placedHere });
 
+        var touchedIncoming = new List<int>(4);
         int addedIncoming = 0;
         if (incomingLeft > 0)
-            addedIncoming = AddPartial(itemId, incomingLeft, maxStackOverride, notifyItemGainPopup);
+            addedIncoming = AddPartial(itemId, incomingLeft, maxStackOverride, notifyItemGainPopup, touchedIncoming);
 
-        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup);
+        var touchedDisplaced = new List<int>(4);
+        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup, touchedDisplaced);
         if (addedIncoming < incomingLeft || placedDisplaced < displaced.amount)
         {
             if (placedDisplaced > 0)
-                Remove(displaced.itemId, placedDisplaced);
+                RemoveAmountFromTouchedSlots(placedDisplaced, touchedDisplaced);
             if (addedIncoming > 0)
-                Remove(itemId, addedIncoming);
+                RemoveAmountFromTouchedSlots(addedIncoming, touchedIncoming);
             ReplaceSlot(slotIndex, displaced);
             return false;
         }
