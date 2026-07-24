@@ -41,6 +41,10 @@ public class FlipInsideBounds : MonoBehaviour
     [Tooltip("When set (e.g. SharedToolTipUI CanvasGroup), layout/dock work is skipped while alpha is ~0.")]
     [SerializeField] private CanvasGroup visibilityGroup;
 
+    private readonly Vector3[] _measureCorners = new Vector3[4];
+    private readonly Vector3[] _boundsCorners = new Vector3[4];
+    private static readonly Vector3[] s_worldCornersScratch = new Vector3[4];
+
     private RectTransform ParentRect => panel ? panel.parent as RectTransform : null;
 
     public void SetPreferredSide(PreferredSide side) => preferredSide = side;
@@ -100,16 +104,14 @@ public class FlipInsideBounds : MonoBehaviour
         var h = heightRect ? heightRect : parent;
 
         // 1) Space calc (world) — use measured tooltip width so flip logic matches real size
-        Vector3[] mc = new Vector3[4];
-        Vector3[] bc = new Vector3[4];
-        m.GetWorldCorners(mc);
-        boundsRect.GetWorldCorners(bc);
+        m.GetWorldCorners(_measureCorners);
+        boundsRect.GetWorldCorners(_boundsCorners);
 
-        float mRight = mc[2].x;
-        float mLeft = mc[0].x;
+        float mRight = _measureCorners[2].x;
+        float mLeft = _measureCorners[0].x;
 
-        float boundsRight = bc[2].x;
-        float boundsLeft = bc[0].x;
+        float boundsRight = _boundsCorners[2].x;
+        float boundsLeft = _boundsCorners[0].x;
 
         float spaceRight = boundsRight - mRight - gap;
         float spaceLeft = mLeft - boundsLeft - gap;
@@ -194,8 +196,7 @@ public class FlipInsideBounds : MonoBehaviour
 
     private static Rect GetRectInLocalSpace(RectTransform rt, RectTransform relativeTo)
     {
-        Vector3[] corners = new Vector3[4];
-        rt.GetWorldCorners(corners);
+        rt.GetWorldCorners(s_worldCornersScratch);
 
         float xMin = float.PositiveInfinity;
         float xMax = float.NegativeInfinity;
@@ -204,7 +205,7 @@ public class FlipInsideBounds : MonoBehaviour
 
         for (int i = 0; i < 4; i++)
         {
-            Vector3 local = relativeTo.InverseTransformPoint(corners[i]);
+            Vector3 local = relativeTo.InverseTransformPoint(s_worldCornersScratch[i]);
             xMin = Mathf.Min(xMin, local.x);
             xMax = Mathf.Max(xMax, local.x);
             yMin = Mathf.Min(yMin, local.y);
@@ -355,11 +356,10 @@ public class FlipInsideBounds : MonoBehaviour
 
     private static void GetNormalizedYAnchors(RectTransform parent, RectTransform target, out float yMin, out float yMax)
     {
-        Vector3[] tc = new Vector3[4];
-        target.GetWorldCorners(tc);
+        target.GetWorldCorners(s_worldCornersScratch);
 
-        float localBottomY = parent.InverseTransformPoint(tc[0]).y;
-        float localTopY = parent.InverseTransformPoint(tc[1]).y;
+        float localBottomY = parent.InverseTransformPoint(s_worldCornersScratch[0]).y;
+        float localTopY = parent.InverseTransformPoint(s_worldCornersScratch[1]).y;
 
         Rect pr = parent.rect;
         float height = pr.height;
