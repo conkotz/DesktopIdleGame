@@ -835,19 +835,13 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         int amountToReturn = GetEquippedAmountForThisSlot();
+        string itemId = _itemId;
 
-        // Inventory.Add can partially succeed and still return false. Only unequip when the
-        // full equipped stack was deposited (otherwise stacks would duplicate).
-        var touched = new List<int>(4);
-        int added = inventory.AddPartial(_itemId, amountToReturn, notifyItemGainPopup: false, touchedSlotIndices: touched);
-        if (added < amountToReturn)
-        {
-            if (added > 0)
-                inventory.RemoveAmountFromTouchedSlots(added, touched);
-            return;
-        }
-
+        // Route through inventory → storage → pending loot (same as drag/replace).
+        // Inventory-only AddPartial left gear stuck equipped whenever the bag was full,
+        // even when storage or pending recovery could safely hold it.
         ClearThisSlot();
+        ReturnOrDrop(itemId, amountToReturn);
         RefreshFromState();
     }
 

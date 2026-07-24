@@ -803,13 +803,36 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             {
                 if (returnedAmt > 0)
                     inv.RemoveAmountFromTouchedSlots(returnedAmt, touched);
-                inv.AddPartial(itemId, 1, notifyItemGainPopup: false);
+                // Never ignore AddPartial shortfall — a full bag after undoing the
+                // displaced return would permanently delete the item taken from inventory.
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
 
         ForceEquip(slot, itemId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts a previously removed inventory unit back, parking any shortfall in pending loot.
+    /// </summary>
+    private static void RestoreInventoryItemOrPark(Inventory inv, string itemId, int amount)
+    {
+        if (inv == null || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int restored = inv.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - restored;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetEquippedItemId(EquipSlot slot, int index = 0)
@@ -1360,7 +1383,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             if (inv.AddPartial(prev, 1, notifyItemGainPopup: false) < 1)
             {
                 EquipGear(EquipSlot.Ring, prev, equipIndex);
-                inv.AddPartial(itemId, 1, notifyItemGainPopup: false);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
