@@ -8,9 +8,16 @@ public static class FramerateCapController
 {
     private static readonly int[] s_capValues = { 60, 100, 144, 180, -1 };
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        DropdownSettingsStore.Changed -= OnDropdownSettingChanged;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Bootstrap()
     {
+        DropdownSettingsStore.Changed -= OnDropdownSettingChanged;
         DropdownSettingsStore.Changed += OnDropdownSettingChanged;
         ApplyFromSettings();
     }

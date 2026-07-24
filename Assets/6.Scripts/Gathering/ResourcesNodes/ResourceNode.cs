@@ -234,7 +234,9 @@ public class ResourceNode : MonoBehaviour
             Time.time >= _regenAtTime)
             ClearDepletedState();
 
-        RefreshDepletionTimerDisplay();
+        // Only refresh timer text while depleted — avoids TMP allocations every frame for every node.
+        if (_isDepleted)
+            RefreshDepletionTimerDisplay();
 
         if (!hideNameLabelsWhenPlayerOverlaps || nameLabelRoots == null || nameLabelRoots.Count == 0)
             return;

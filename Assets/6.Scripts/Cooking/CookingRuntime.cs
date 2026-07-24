@@ -105,6 +105,11 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.cookingStations ??= new List<SaveData.CookingStationSave>();
+
+        // Preserve snapshot-seeded cooking rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.cookingStations.Clear();
 
         foreach (KeyValuePair<string, CookingRow> kv in _rows)
@@ -113,22 +118,77 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene stations that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.cookingStations == null)
-            return;
-
-        for (int i = 0; i < data.cookingStations.Count; i++)
+        if (data?.cookingStations != null)
         {
-            SaveData.CookingStationSave row = data.cookingStations[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+            for (int i = 0; i < data.cookingStations.Count; i++)
+            {
+                SaveData.CookingStationSave save = data.cookingStations[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.stationId))
+                    continue;
+
+                string key = NormalizeStationId(save.stationId);
+                if (!_rows.TryGetValue(key, out CookingRow row) || row == null)
+                {
+                    row = new CookingRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, CookingRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeStationId(row.stationId);
-            var furnaceRow = new CookingRow(key);
-            furnaceRow.ReadFrom(row);
-            _rows[key] = furnaceRow;
+            kv.Value.ResetToEmpty();
         }
+    }
+
+    /// <summary>
+    /// Advances active cooks by wall-clock time lost while the game was closed.
+    /// Safe to call after <see cref="LoadFrom"/>; no-ops when nothing is cooking.
+    /// </summary>
+    public void ApplyOfflineSeconds(float offlineSeconds)
+    {
+        offlineSeconds = Mathf.Clamp(offlineSeconds, 0f, 8f * 60f * 60f);
+        if (offlineSeconds < 1f || _rows.Count == 0)
+            return;
+
+        const float chunkSeconds = 30f;
+        float remaining = offlineSeconds;
+        bool structuralChange = false;
+
+        while (remaining > 0.0001f)
+        {
+            float chunk = Mathf.Min(remaining, chunkSeconds);
+            bool anyActive = false;
+
+            foreach (KeyValuePair<string, CookingRow> kv in _rows)
+            {
+                CookingRow row = kv.Value;
+                if (row == null || !row.IsCooking)
+                    continue;
+
+                anyActive = true;
+                if (row.TickCooking(chunk))
+                    structuralChange = true;
+            }
+
+            if (!anyActive)
+                break;
+
+            remaining -= chunk;
+        }
+
+        if (structuralChange)
+            RequestSaveDebounced();
     }
 
     private static void RequestSaveDebounced()
@@ -563,22 +623,27 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             string itemId = _fuelBank.StoredItemId;
-            int toReturn = _fuelBank.StoredAmount;
             float burned = _fuelBank.SecondsBurnedFromCurrentLog;
-            _fuelBank.Clear();
+            int keptPartial = burned > 0.0001f ? 1 : 0;
+            int toReturn = _fuelBank.WithdrawFullLogsOnly();
+            if (toReturn <= 0)
+            {
+                failureReason = "Current fuel log is partially burned and cannot be withdrawn.";
+                return false;
+            }
 
             int before = inv.GetTotalAmount(itemId);
             inv.Add(itemId, toReturn, notifyItemGainPopup: false);
             int added = inv.GetTotalAmount(itemId) - before;
             if (added <= 0)
             {
-                _fuelBank.Load(itemId, toReturn, burned);
+                _fuelBank.Load(itemId, toReturn + keptPartial, burned);
                 failureReason = "Inventory full.";
                 return false;
             }
 
             if (added < toReturn)
-                _fuelBank.AddLogs(itemId, toReturn - added);
+                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
             NotifyChanged();
@@ -730,7 +795,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             if (deltaSeconds <= 0f || !_isCooking)
                 return false;
 
-            if (!_fuelBank.TryConsumeSeconds(deltaSeconds))
+            if (!TryGetActiveRecipe(out CookingRecipe recipe))
             {
                 _isCooking = false;
                 ClearPortionModifiers();
@@ -738,7 +803,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 return true;
             }
 
-            if (!TryGetActiveRecipe(out CookingRecipe recipe))
+            if (!_fuelBank.HasFuel)
             {
                 _isCooking = false;
                 ClearPortionModifiers();
@@ -752,7 +817,7 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             int burnsThisTick = 0;
             const int maxPortionsPerTick = 50;
             int portionsProcessed = 0;
-            while (remaining > 0f && _isCooking && portionsProcessed < maxPortionsPerTick)
+            while (remaining > 0.0001f && _isCooking && portionsProcessed < maxPortionsPerTick)
             {
                 if (_storedRawAmount < recipe.RawPerCooked)
                 {
@@ -765,34 +830,47 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                 float portionDuration = _hasLockedPortionModifiers
                     ? _lockedPortionDurationSeconds
                     : GetEffectiveDurationSeconds();
+                if (portionDuration <= 0.0001f)
+                    portionDuration = 0.0001f;
+
                 float needed = portionDuration - _cookProgressSeconds;
-                if (remaining >= needed)
+                float step = remaining >= needed ? needed : remaining;
+
+                // Burn fuel in lockstep with progress so partial fuel still advances the portion
+                // and large deltas never burn more fuel than cook steps applied.
+                float burned = _fuelBank.ConsumeUpTo(step);
+                if (burned <= 0.0001f)
                 {
-                    remaining -= needed;
-                    _cookProgressSeconds = 0f;
-                    _storedRawAmount -= recipe.RawPerCooked;
+                    _isCooking = false;
+                    ClearPortionModifiers();
                     structuralChange = true;
-                    portionsProcessed++;
-                    ConsumeEnhancementForPortionAttempt();
+                    break;
+                }
 
-                    if (TryRollBurn(recipe))
-                    {
-                        burnsThisTick++;
-                        if (_storedRawAmount < recipe.RawPerCooked)
-                        {
-                            _isCooking = false;
-                            ClearPortionModifiers();
-                        }
-                        else
-                            LockPortionModifiers();
+                _cookProgressSeconds += burned;
+                remaining -= burned;
 
-                        continue;
-                    }
+                if (burned + 0.0001f < step)
+                {
+                    // Fuel ran out before the requested step finished.
+                    _isCooking = false;
+                    ClearPortionModifiers();
+                    structuralChange = true;
+                    break;
+                }
 
-                    ProcessingProficiencyRuntime.EnsureInstance().AddCookingFishXp(recipe);
-                    _readyCookedAmount++;
-                    _readyCookedItemId = recipe.CookedItemId;
+                if (_cookProgressSeconds + 0.0001f < portionDuration)
+                    break;
 
+                _cookProgressSeconds = 0f;
+                _storedRawAmount -= recipe.RawPerCooked;
+                structuralChange = true;
+                portionsProcessed++;
+                ConsumeEnhancementForPortionAttempt();
+
+                if (TryRollBurn(recipe))
+                {
+                    burnsThisTick++;
                     if (_storedRawAmount < recipe.RawPerCooked)
                     {
                         _isCooking = false;
@@ -800,12 +878,21 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                     }
                     else
                         LockPortionModifiers();
+
+                    continue;
+                }
+
+                ProcessingProficiencyRuntime.EnsureInstance().AddCookingFishXp(recipe);
+                _readyCookedAmount++;
+                _readyCookedItemId = recipe.CookedItemId;
+
+                if (_storedRawAmount < recipe.RawPerCooked)
+                {
+                    _isCooking = false;
+                    ClearPortionModifiers();
                 }
                 else
-                {
-                    _cookProgressSeconds += remaining;
-                    remaining = 0f;
-                }
+                    LockPortionModifiers();
             }
 
             if (structuralChange)
@@ -878,6 +965,11 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             NotifyChanged();
         }
 
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.CookingStationSave { stationId = _stationId });
+        }
+
         private void NormalizeStateAfterLoad()
         {
             if (_readyCookedAmount > 0 && string.IsNullOrWhiteSpace(_readyCookedItemId))
@@ -886,6 +978,14 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
                     CookingRecipes.TryGetForRaw(_storedRawItemId, out recipe))
                 {
                     _readyCookedItemId = recipe.CookedItemId;
+                }
+                else
+                {
+                    // Unresolvable ready food softlocks withdraw/deposit; drop corrupt amount.
+                    Debug.LogWarning(
+                        $"[Cooking] Dropping corrupt ready food on '{_stationId}' with no resolvable item id.");
+                    _readyCookedAmount = 0;
+                    _readyCookedItemId = "";
                 }
             }
 
