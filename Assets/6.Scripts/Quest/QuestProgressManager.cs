@@ -1333,9 +1333,17 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (GetGatherItemCountLive(rawId) < need)
             return false;
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        // Prefer the same instances GetGatherItemCountLive uses so count/consume cannot diverge
+        // across duplicate Inventory/PlayerStorage objects in the scene.
+        if (_autoInv == null)
+            _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (_autoStorage == null)
+            _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
 
+        Inventory inv = _autoInv;
+        PlayerStorage st = _autoStorage;
+
+        int takenFromInv = 0;
         int remaining = need;
         if (inv != null)
         {
@@ -1345,6 +1353,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             {
                 if (!inv.Remove(rawId, take))
                     return false;
+                takenFromInv = take;
                 remaining -= take;
             }
         }
@@ -1352,12 +1361,22 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (remaining > 0 && st != null)
         {
             if (!st.Remove(rawId, remaining))
+            {
+                // Inventory already drained — restore before aborting or quest items vanish.
+                if (takenFromInv > 0)
+                    RestoreGatheredItems(rawId, takenFromInv);
                 return false;
+            }
+
             remaining = 0;
         }
 
         if (remaining != 0)
+        {
+            if (takenFromInv > 0)
+                RestoreGatheredItems(rawId, takenFromInv);
             return false;
+        }
 
         consumedAmount = need;
         itemIdNormalized = rawId;

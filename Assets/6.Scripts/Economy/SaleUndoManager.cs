@@ -166,6 +166,20 @@ public class SaleUndoManager : MonoBehaviour
         return _entries.FindIndex(e => e.id == entryId) >= 0;
     }
 
+    /// <summary>
+    /// Drops all undo rows. Required on full wipe / New Game / Load Game because this manager is
+    /// DontDestroyOnLoad and is not an <see cref="ISaveable"/> — otherwise sales from a previous
+    /// slot can be undone into a fresh character.
+    /// </summary>
+    public void ClearAllEntries()
+    {
+        if (_entries.Count == 0)
+            return;
+
+        _entries.Clear();
+        NotifyChanged();
+    }
+
     public bool TryUndoEntry(int entryId)
     {
         int idx = _entries.FindIndex(e => e.id == entryId);
