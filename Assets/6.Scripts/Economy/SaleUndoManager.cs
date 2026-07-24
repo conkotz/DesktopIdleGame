@@ -218,16 +218,18 @@ public class SaleUndoManager : MonoBehaviour
             return false;
         }
 
-        int toInv = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false);
+        var touchedInv = new List<int>(4);
+        int toInv = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
         int left = e.amount - toInv;
         int toStorage = 0;
+        var touchedStorage = new List<int>(4);
         PlayerStorage storage = null;
         if (left > 0)
         {
             storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
             if (storage != null)
             {
-                toStorage = storage.TryDepositAmountFromExternal(e.itemId, left);
+                toStorage = storage.TryDepositAmountFromExternal(e.itemId, left, touchedStorage);
                 left -= toStorage;
             }
         }
@@ -235,9 +237,9 @@ public class SaleUndoManager : MonoBehaviour
         if (left > 0)
         {
             if (toInv > 0)
-                inventory.Remove(e.itemId, toInv);
+                inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
             if (toStorage > 0 && storage != null)
-                storage.RemoveItemAmountAcrossSlots(e.itemId, toStorage);
+                storage.RemoveAmountFromTouchedSlots(toStorage, touchedStorage);
             wallet.AddGold(e.gold);
             if (merchant != null)
                 merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);

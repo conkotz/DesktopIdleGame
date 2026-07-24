@@ -821,19 +821,21 @@ public class StorageSlotUI : MonoBehaviour,
             var toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
             if (equipment == null) return;
 
-            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount);
+            var touchedStorage = new List<int>(4);
+            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount, touchedStorage);
             int remainder = equipAmount - dep;
             if (remainder > 0)
             {
                 // Inventory.Add can partially succeed and still return false. Roll back any
                 // partial inventory/storage deposits so the still-equipped stack is not duplicated.
-                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false);
+                var touchedInv = new List<int>(4);
+                int toInv = _inventory.AddPartial(equipItemId, remainder, notifyItemGainPopup: false, touchedSlotIndices: touchedInv);
                 if (toInv < remainder)
                 {
                     if (toInv > 0)
-                        _inventory.Remove(equipItemId, toInv);
+                        _inventory.RemoveAmountFromTouchedSlots(toInv, touchedInv);
                     if (dep > 0)
-                        _storage.RemoveItemAmountAcrossSlots(equipItemId, dep);
+                        _storage.RemoveAmountFromTouchedSlots(dep, touchedStorage);
                     return;
                 }
             }
