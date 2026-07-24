@@ -175,7 +175,12 @@ public class DropManager : MonoBehaviour
         return true;
     }
 
-    public bool Spawn(string itemId, int amount, Sprite icon, string sourceName = null)
+    public bool Spawn(
+        string itemId,
+        int amount,
+        Sprite icon,
+        string sourceName = null,
+        bool sweepOnMapExit = false)
     {
         ResolveAnchor(forceRefresh: true);
 
@@ -191,7 +196,8 @@ public class DropManager : MonoBehaviour
             icon,
             dropAnchor.position,
             alignToGround: alignPlayerDropsToGround,
-            sourceName: sourceName);
+            sourceName: sourceName,
+            sweepOnMapExit: sweepOnMapExit);
     }
 
     /// <summary>
