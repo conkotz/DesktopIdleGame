@@ -33,6 +33,7 @@ MonoBehaviour:
   grantAdditionalInventorySlotsOnRewardClaim: 0
   restockMerchantStockOnRewardClaim: 1
   restockMerchantStockSaveKey: arcanist_merchant
+  restockMerchantStockAsset: {fileID: 11400000, guid: 7373a91b5e0fa234b80a76b95aa5c463, type: 2}
   repeatable: 1
   autoCompleteQuest: 0
   abandonable: 1

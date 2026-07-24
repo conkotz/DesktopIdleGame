@@ -109,6 +109,10 @@ public class QuestDefinition : ScriptableObject
     public bool restockMerchantStockOnRewardClaim;
     [Tooltip("MerchantStock save key (usually the MerchantStock asset name, e.g. blacksmith_merchant).")]
     public string restockMerchantStockSaveKey = "";
+    [Tooltip(
+        "Optional direct MerchantStock asset for restock claims. Required so journal claims still work when the " +
+        "merchant is not currently spawned in the active scene.")]
+    public MerchantStock restockMerchantStockAsset;
 
     [Tooltip(
         "When set, claiming this quest reward unlocks the town service in Duskwood (merchant + linked stations). " +
