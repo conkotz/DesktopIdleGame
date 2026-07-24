@@ -194,7 +194,9 @@ public class Merchant : MonoBehaviour
         {
             var cost = entry.costs[i];
             if (cost == null || cost.amount <= 0) continue;
-            int totalCostAmount = cost.amount * amount;
+            // Bulk (50x) multiplies can wrap int and look "free" — reject overflow as unaffordable.
+            if (!TryComputeTotalCost(cost.amount, amount, out int totalCostAmount))
+                return false;
 
             switch (cost.type)
             {
@@ -229,7 +231,11 @@ public class Merchant : MonoBehaviour
         {
             var cost = entry.costs[i];
             if (cost == null || cost.amount <= 0) continue;
-            int totalCostAmount = cost.amount * amountMultiplier;
+            if (!TryComputeTotalCost(cost.amount, amountMultiplier, out int totalCostAmount))
+            {
+                Debug.LogWarning("[Merchant] Purchase cost overflow; aborting spend for this cost row.");
+                continue;
+            }
 
             switch (cost.type)
             {
@@ -257,7 +263,12 @@ public class Merchant : MonoBehaviour
             if (cost == null || cost.amount <= 0)
                 continue;
 
-            int totalCostAmount = cost.amount * amountMultiplier;
+            if (!TryComputeTotalCost(cost.amount, amountMultiplier, out int totalCostAmount))
+            {
+                Debug.LogWarning("[Merchant] Refund cost overflow; skipping this cost row.");
+                continue;
+            }
+
             switch (cost.type)
             {
                 case MerchantStock.CostType.Gold:
@@ -271,6 +282,24 @@ public class Merchant : MonoBehaviour
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Multiplies unit cost by purchase quantity without int wrap.
+    /// Overflow returns false so bulk buys cannot charge a wrapped (negative/tiny) total.
+    /// </summary>
+    private static bool TryComputeTotalCost(int unitCost, int quantity, out int total)
+    {
+        total = 0;
+        if (unitCost <= 0 || quantity <= 0)
+            return false;
+
+        long product = (long)unitCost * quantity;
+        if (product > int.MaxValue)
+            return false;
+
+        total = (int)product;
+        return true;
     }
 
     private void RefundItemCostWithStorageOverflow(string itemId, int amount)

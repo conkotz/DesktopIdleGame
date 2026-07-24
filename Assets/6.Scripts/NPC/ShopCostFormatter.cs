@@ -14,7 +14,7 @@ public static class ShopCostFormatter
         if (!showBulk)
             return $"{amount}g";
 
-        int bulk = amount * BulkPurchaseQuantity;
+        long bulk = (long)amount * BulkPurchaseQuantity;
         return $"{amount}g ({bulk}g x{BulkPurchaseQuantity})";
     }
 
@@ -26,7 +26,7 @@ public static class ShopCostFormatter
         if (!showBulk)
             return $"• {amount} Gold";
 
-        int bulk = amount * BulkPurchaseQuantity;
+        long bulk = (long)amount * BulkPurchaseQuantity;
         return $"• {amount} Gold ({bulk} Gold x{BulkPurchaseQuantity})";
     }
 
@@ -38,7 +38,7 @@ public static class ShopCostFormatter
         if (!showBulk)
             return $"{amount} {itemName}";
 
-        int bulk = amount * BulkPurchaseQuantity;
+        long bulk = (long)amount * BulkPurchaseQuantity;
         return $"{amount} {itemName} ({bulk} {itemName} x{BulkPurchaseQuantity})";
     }
 
