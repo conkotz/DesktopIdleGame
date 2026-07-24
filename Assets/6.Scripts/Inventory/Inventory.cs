@@ -971,7 +971,12 @@ public class Inventory : MonoBehaviour, ISaveable
                 int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
                 if (added != remainder)
                 {
-                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after CanAdd — state may be inconsistent.");
+                    // CanAdd raced or capacity rules diverged — never report success after a shortfall
+                    // or the caller will unequip/destroy the source while leftover units vanish.
+                    ReplaceSlot(slotIndex, default);
+                    if (added > 0)
+                        Remove(itemId, added);
+                    return false;
                 }
             }
 
@@ -986,6 +991,7 @@ public class Inventory : MonoBehaviour, ISaveable
             int add = Mathf.Min(space, amount);
             if (add <= 0) return false;
 
+            var previous = to;
             var merged = to;
             merged.amount += add;
             ReplaceSlot(slotIndex, merged);
@@ -995,7 +1001,11 @@ public class Inventory : MonoBehaviour, ISaveable
                 int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
                 if (added != remainder)
                 {
-                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after merge — state may be inconsistent.");
+                    // Restore the target slot first so Remove only undoes the overflow AddPartial.
+                    ReplaceSlot(slotIndex, previous);
+                    if (added > 0)
+                        Remove(itemId, added);
+                    return false;
                 }
             }
 
