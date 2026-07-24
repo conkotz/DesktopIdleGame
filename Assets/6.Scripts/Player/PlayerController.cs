@@ -3278,8 +3278,15 @@ public class PlayerController : MonoBehaviour
             var itemDef = inventory != null ? inventory.GetItemDef(itemId) : null;
             Sprite icon = itemDef ? itemDef.icon : null;
 
+            // Overflow gather loot must survive voluntary map exit — same recovery contract
+            // as enemy/endurance drops (SweepOnMapExit → MapExitGroundLootCollector).
             if (DropManager.Instance != null &&
-                DropManager.Instance.Spawn(itemId, amount, icon, sourceDisplayName))
+                DropManager.Instance.Spawn(
+                    itemId,
+                    amount,
+                    icon,
+                    sourceDisplayName,
+                    sweepOnMapExit: true))
             {
                 return;
             }
@@ -3292,6 +3299,7 @@ public class PlayerController : MonoBehaviour
                 var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
                 drop.Init(itemId, amount, icon);
                 drop.SetSourceName(sourceDisplayName);
+                drop.MarkSweepOnMapExit();
                 return;
             }
         }
