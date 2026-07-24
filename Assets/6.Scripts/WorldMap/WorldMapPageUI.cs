@@ -835,8 +835,10 @@ public class WorldMapPageUI : MonoBehaviour
         if (!_selectedNode.CanEnterFromLevelMenu(progress, skills))
             return;
 
-        MapTravelSession.BeginTravel(_selectedNode, MapTravelSession.EntryMethod.MapTeleport);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate("GamePlay");
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            _selectedNode,
+            MapTravelSession.EntryMethod.MapTeleport,
+            "GamePlay");
     }
 
     private void OnReturnToLevelSelectClicked()
