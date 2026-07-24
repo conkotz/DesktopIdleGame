@@ -1655,7 +1655,7 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!inv.Remove(itemId, itemCount))
             return;
 
-        int goldEarned = itemCount * Mathf.Max(1, goldPerItem);
+        int goldEarned = CurrencyWallet.ComputeClampedSaleGold(Mathf.Max(1, goldPerItem), itemCount);
         wallet.AddGold(goldEarned);
 
         ItemDefinition def = inv.GetItemDef(itemId);
