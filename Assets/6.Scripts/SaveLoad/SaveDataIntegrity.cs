@@ -8,6 +8,9 @@ using UnityEngine;
 public static class SaveDataIntegrity
 {
     private const int GoldSoftCeiling = 500_000_000;
+    private const int MaxInventorySlots = 512;
+    /// <summary>Bounds corrupt counts; allows Main+tab layouts and unlock bonuses past the old uniform 440.</summary>
+    private const int MaxStorageSlots = 2048;
 
     /// <summary>Call after <see cref="SaveManager"/> aggregates a <see cref="SaveData"/> and before writing disk.</summary>
     public static void SanitizeBeforeWrite(SaveData data, string context)
@@ -146,10 +149,22 @@ public static class SaveDataIntegrity
         if (data.inventorySlots == null)
             data.inventorySlots = new List<SaveData.InventorySlotData>();
 
-        int want = data.inventorySlotCount > 0 ? data.inventorySlotCount : 32;
-        want = Mathf.Clamp(want, 1, 512);
-        if (data.inventorySlotCount <= 0)
+        int rawCount = data.inventorySlotCount > 0 ? data.inventorySlotCount : 32;
+        int want = Mathf.Clamp(rawCount, 1, MaxInventorySlots);
+        // Always write the clamped value back — a positive corrupt count (e.g. 2e9) used to
+        // bypass this clamp and make Inventory.LoadFrom allocate until OOM/hang.
+        if (data.inventorySlotCount != want)
+        {
+            if (rawCount > MaxInventorySlots || rawCount <= 0)
+            {
+                Debug.LogWarning(
+                    $"[SaveDataIntegrity] ({logTag}): inventorySlotCount={rawCount} clamped to {want}.");
+            }
+
             data.inventorySlotCount = want;
+        }
+
+        ParkOverflowSlotsIntoPendingLoot(data, data.inventorySlots, want, logTag, "inventory");
 
         if (data.inventorySlots.Count == 0 && want > 0)
         {
@@ -171,6 +186,10 @@ public static class SaveDataIntegrity
             for (int i = 0; i < add; i++)
                 data.inventorySlots.Add(default);
         }
+        else if (data.inventorySlots.Count > want)
+        {
+            data.inventorySlots.RemoveRange(want, data.inventorySlots.Count - want);
+        }
     }
 
     private static void EnsureStorageSlotsCoherent(SaveData data, string logTag, bool allowEmptyPadding = true)
@@ -178,10 +197,20 @@ public static class SaveDataIntegrity
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
 
-        int want = data.storageSlotCount > 0 ? data.storageSlotCount : 28;
-        want = Mathf.Clamp(want, 1, 512);
-        if (data.storageSlotCount <= 0)
+        int rawCount = data.storageSlotCount > 0 ? data.storageSlotCount : 28;
+        int want = Mathf.Clamp(rawCount, 1, MaxStorageSlots);
+        if (data.storageSlotCount != want)
+        {
+            if (rawCount > MaxStorageSlots || rawCount <= 0)
+            {
+                Debug.LogWarning(
+                    $"[SaveDataIntegrity] ({logTag}): storageSlotCount={rawCount} clamped to {want}.");
+            }
+
             data.storageSlotCount = want;
+        }
+
+        ParkOverflowSlotsIntoPendingLoot(data, data.storageSlots, want, logTag, "storage");
 
         if (data.storageSlots.Count == 0 && want > 0)
         {
@@ -202,6 +231,44 @@ public static class SaveDataIntegrity
                 $"[SaveDataIntegrity] ({logTag}): storage had {data.storageSlots.Count} rows, slot count {want}; padding {add}.");
             for (int i = 0; i < add; i++)
                 data.storageSlots.Add(default);
+        }
+        else if (data.storageSlots.Count > want)
+        {
+            data.storageSlots.RemoveRange(want, data.storageSlots.Count - want);
+        }
+    }
+
+    /// <summary>
+    /// When a corrupt/oversized slot list is trimmed to the 512 cap, non-empty overflow rows
+    /// are moved into pending loot recovery so items are not permanently deleted.
+    /// </summary>
+    private static void ParkOverflowSlotsIntoPendingLoot(
+        SaveData data,
+        List<SaveData.InventorySlotData> slots,
+        int keepCount,
+        string logTag,
+        string containerName)
+    {
+        if (data == null || slots == null || slots.Count <= keepCount)
+            return;
+
+        PendingLootRecoveryStore.EnsureLists(data);
+        int parked = 0;
+        for (int i = keepCount; i < slots.Count; i++)
+        {
+            SaveData.InventorySlotData row = slots[i];
+            if (string.IsNullOrWhiteSpace(row.itemId) || row.amount <= 0)
+                continue;
+
+            data.pendingLootRecoveryItemIds.Add(row.itemId.Trim());
+            data.pendingLootRecoveryAmounts.Add(row.amount);
+            parked++;
+        }
+
+        if (parked > 0)
+        {
+            Debug.LogWarning(
+                $"[SaveDataIntegrity] ({logTag}): parked {parked} overflow {containerName} stack(s) beyond slot cap {keepCount} into pending loot.");
         }
     }
 
