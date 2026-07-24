@@ -648,7 +648,19 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipOffHand(slot.itemId, equipAmount);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, Mathf.Max(1, prevAmount), null, notifyItemGainPopup: false);
+            {
+                int prevQty = Mathf.Max(1, prevAmount);
+                int returned = _inventory.AddPartial(prev, prevQty, notifyItemGainPopup: false);
+                int left = prevQty - returned;
+                if (left > 0)
+                {
+                    ItemDefinition prevDef = _inventory.GetItemDef(prev);
+                    if (DropManager.Instance != null)
+                        DropManager.Instance.Spawn(prev, left, prevDef ? prevDef.icon : null);
+                    else
+                        PendingLootRecoveryStore.Enqueue(prev, left);
+                }
+            }
 
             return;
         }
@@ -1419,12 +1431,17 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || _inventory == null || amount <= 0) return;
 
-        bool ok = _inventory.Add(itemId, amount, null, notifyItemGainPopup: false);
-        if (ok) return;
+        // Inventory.Add can partially succeed and still return false — only drop the remainder.
+        int added = _inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - added;
+        if (left <= 0)
+            return;
 
         var def = _inventory.GetItemDef(itemId);
         if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
+            DropManager.Instance.Spawn(itemId, left, def ? def.icon : null);
+        else
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     private void CreateDragIcon()
