@@ -333,6 +333,7 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
         TownServiceUnlockStore.ApplyFromSaveData(_lastLoadedData);
+        PendingLootRecoveryStore.ApplyFromSaveData(_lastLoadedData);
         UIWindowLayoutBinding.RestoreAllPivotLayoutsForGameLoad();
         UIWindowLockStore.RestoreAfterSceneLayout();
 
@@ -518,6 +519,7 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
         UIWindowLockStore.ApplyFromSaveData(data);
         TownServiceUnlockStore.ApplyFromSaveData(data);
+        PendingLootRecoveryStore.ApplyFromSaveData(data);
     }
 
     /// <summary>
@@ -976,6 +978,7 @@ public class SaveManager : MonoBehaviour
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
+        PendingLootRecoveryStore.CopyFromSnapshot(data, _lastLoadedData);
         return data;
     }
 
@@ -1072,6 +1075,7 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.WriteInto(data);
         UIWindowLockStore.WriteInto(data);
         TownServiceUnlockStore.WriteInto(data);
+        PendingLootRecoveryStore.WriteInto(data);
 
         if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
             TryRecordGameplayMapExitPosition(data);
@@ -2146,6 +2150,7 @@ public class SaveManager : MonoBehaviour
         PlayerMapExitPositionStore.EnsureLists(data);
         WorldObjectPositionStore.EnsureLists(data);
         TownServiceUnlockStore.EnsureLists(data);
+        PendingLootRecoveryStore.EnsureLists(data);
 
         if (data.furnaceSmelters == null)
             data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
@@ -2743,6 +2748,7 @@ public class SaveManager : MonoBehaviour
         // Static side-stores survive DDOL / Bootstrap; wipe must clear them or next New Game /
         // spawn gates can still see previous-slot unlocks and death flags.
         TownServiceUnlockStore.ApplyFromSaveData(null);
+        PendingLootRecoveryStore.ApplyFromSaveData(null);
         HelperProgressStore.ApplyFromSaveData(null);
         LevelItemPickupSaveStore.ApplyFromSaveData(null);
         WorldObjectPositionStore.ApplyFromSaveData(null);
@@ -2801,6 +2807,8 @@ public class SaveManager : MonoBehaviour
             CookingRuntime.Instance.LoadFrom(null);
         if (ProcessingProficiencyRuntime.Instance != null)
             ProcessingProficiencyRuntime.Instance.LoadFrom(null);
+        if (PendingLootRecoveryRuntime.Instance != null)
+            UnityEngine.Object.Destroy(PendingLootRecoveryRuntime.Instance.gameObject);
     }
     public bool TryGetLastLoadedData(out SaveData data)
     {
@@ -2867,6 +2875,7 @@ public class SaveManager : MonoBehaviour
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
             TownServiceUnlockStore.ApplyFromSaveData(_lastLoadedData);
+            PendingLootRecoveryStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.RestoreAfterSceneLayout();
             ApplyProcessingOfflineProgress(_lastLoadedData);
         }
