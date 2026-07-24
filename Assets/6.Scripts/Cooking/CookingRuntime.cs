@@ -113,21 +113,36 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene stations that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.cookingStations == null)
-            return;
-
-        for (int i = 0; i < data.cookingStations.Count; i++)
+        if (data?.cookingStations != null)
         {
-            SaveData.CookingStationSave row = data.cookingStations[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+            for (int i = 0; i < data.cookingStations.Count; i++)
+            {
+                SaveData.CookingStationSave save = data.cookingStations[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.stationId))
+                    continue;
+
+                string key = NormalizeStationId(save.stationId);
+                if (!_rows.TryGetValue(key, out CookingRow row) || row == null)
+                {
+                    row = new CookingRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, CookingRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeStationId(row.stationId);
-            var furnaceRow = new CookingRow(key);
-            furnaceRow.ReadFrom(row);
-            _rows[key] = furnaceRow;
+            kv.Value.ResetToEmpty();
         }
     }
 
@@ -563,22 +578,27 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             }
 
             string itemId = _fuelBank.StoredItemId;
-            int toReturn = _fuelBank.StoredAmount;
             float burned = _fuelBank.SecondsBurnedFromCurrentLog;
-            _fuelBank.Clear();
+            int keptPartial = burned > 0.0001f ? 1 : 0;
+            int toReturn = _fuelBank.WithdrawFullLogsOnly();
+            if (toReturn <= 0)
+            {
+                failureReason = "Current fuel log is partially burned and cannot be withdrawn.";
+                return false;
+            }
 
             int before = inv.GetTotalAmount(itemId);
             inv.Add(itemId, toReturn, notifyItemGainPopup: false);
             int added = inv.GetTotalAmount(itemId) - before;
             if (added <= 0)
             {
-                _fuelBank.Load(itemId, toReturn, burned);
+                _fuelBank.Load(itemId, toReturn + keptPartial, burned);
                 failureReason = "Inventory full.";
                 return false;
             }
 
             if (added < toReturn)
-                _fuelBank.AddLogs(itemId, toReturn - added);
+                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Cooking", itemId, added);
             NotifyChanged();
@@ -876,6 +896,11 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             _isCooking = row.isCooking;
             NormalizeStateAfterLoad();
             NotifyChanged();
+        }
+
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.CookingStationSave { stationId = _stationId });
         }
 
         private void NormalizeStateAfterLoad()

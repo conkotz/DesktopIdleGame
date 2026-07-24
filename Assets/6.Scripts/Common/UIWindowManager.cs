@@ -21,6 +21,12 @@ public class UIWindowManager : MonoBehaviour
         Instance = this;
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void Update()
     {
         KeyCode closeKey = HotkeyBindingManager.Instance != null
