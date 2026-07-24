@@ -20,6 +20,7 @@ public class BlacksmithingStation : MonoBehaviour
     public string ReadyOutputItemId => _row != null ? _row.ReadyOutputItemId : "";
     public bool HasReadyOutput => _row != null && _row.HasReadyOutput;
     public bool IsCrafting => _row != null && _row.IsCrafting;
+    public bool HasPendingIngredientRefunds => _row != null && _row.HasPendingIngredientRefunds;
     public float CraftProgressSeconds => _row != null ? _row.CraftProgressSeconds : 0f;
 
     public bool TryGetSelectedRecipe(out BlacksmithingRecipe recipe)

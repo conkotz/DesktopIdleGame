@@ -105,6 +105,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.furnaceSmelters ??= new List<SaveData.FurnaceSmelterSave>();
+
+        // Preserve snapshot-seeded furnace rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.furnaceSmelters.Clear();
 
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
@@ -113,21 +118,36 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        _rows.Clear();
+        // Update existing row objects in place so scene furnaces that already
+        // bound/subscribed in Awake keep valid references after late save apply.
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (data?.furnaceSmelters == null)
-            return;
-
-        for (int i = 0; i < data.furnaceSmelters.Count; i++)
+        if (data?.furnaceSmelters != null)
         {
-            SaveData.FurnaceSmelterSave row = data.furnaceSmelters[i];
-            if (row == null || string.IsNullOrWhiteSpace(row.furnaceId))
+            for (int i = 0; i < data.furnaceSmelters.Count; i++)
+            {
+                SaveData.FurnaceSmelterSave save = data.furnaceSmelters[i];
+                if (save == null || string.IsNullOrWhiteSpace(save.furnaceId))
+                    continue;
+
+                string key = NormalizeFurnaceId(save.furnaceId);
+                if (!_rows.TryGetValue(key, out FurnaceRow row) || row == null)
+                {
+                    row = new FurnaceRow(key);
+                    _rows[key] = row;
+                }
+
+                row.ReadFrom(save);
+                seen.Add(key);
+            }
+        }
+
+        foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
+        {
+            if (kv.Value == null || seen.Contains(kv.Key))
                 continue;
 
-            string key = NormalizeFurnaceId(row.furnaceId);
-            var furnaceRow = new FurnaceRow(key);
-            furnaceRow.ReadFrom(row);
-            _rows[key] = furnaceRow;
+            kv.Value.ResetToEmpty();
         }
     }
 
@@ -557,22 +577,27 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             string itemId = _fuelBank.StoredItemId;
-            int toReturn = _fuelBank.StoredAmount;
             float burned = _fuelBank.SecondsBurnedFromCurrentLog;
-            _fuelBank.Clear();
+            int keptPartial = burned > 0.0001f ? 1 : 0;
+            int toReturn = _fuelBank.WithdrawFullLogsOnly();
+            if (toReturn <= 0)
+            {
+                failureReason = "Current fuel log is partially burned and cannot be withdrawn.";
+                return false;
+            }
 
             int before = inv.GetTotalAmount(itemId);
             inv.Add(itemId, toReturn, notifyItemGainPopup: false);
             int added = inv.GetTotalAmount(itemId) - before;
             if (added <= 0)
             {
-                _fuelBank.Load(itemId, toReturn, burned);
+                _fuelBank.Load(itemId, toReturn + keptPartial, burned);
                 failureReason = "Inventory full.";
                 return false;
             }
 
             if (added < toReturn)
-                _fuelBank.AddLogs(itemId, toReturn - added);
+                _fuelBank.Load(itemId, (toReturn - added) + keptPartial, burned);
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", itemId, added);
             NotifyChanged();
@@ -853,6 +878,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             _isSmelting = row.isSmelting;
             NormalizeStateAfterLoad();
             NotifyChanged();
+        }
+
+        public void ResetToEmpty()
+        {
+            ReadFrom(new SaveData.FurnaceSmelterSave { furnaceId = _furnaceId });
         }
 
         private void NormalizeStateAfterLoad()
