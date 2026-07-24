@@ -138,6 +138,7 @@ public class SaveManager : MonoBehaviour
     private SaveSlotManager.SlotStartMode _lastStartMode = SaveSlotManager.SlotStartMode.None;
     private bool _hasPendingLoad;
     private bool _didFinalApplyForCurrentLoad;
+    private bool _didApplyProcessingOfflineForCurrentLoad;
     private Coroutine _forceApplyAfterSceneLoadRoutine;
 
     /// <summary>True after gameplay scene stabilizes (player + inventory present). Debounced saves wait for this.</summary>
@@ -2059,6 +2060,7 @@ public class SaveManager : MonoBehaviour
         MerchantStockRuntime.EnsureInstance().LoadFrom(data);
         _hasPendingLoad = true;
         _didFinalApplyForCurrentLoad = false;
+        _didApplyProcessingOfflineForCurrentLoad = false;
 
         int filledInv = CountFilledSlots(data.inventorySlots);
         int filledStorage = CountFilledSlots(data.storageSlots);
@@ -2732,6 +2734,7 @@ public class SaveManager : MonoBehaviour
         _lastLoadedData = null;
         _hasPendingLoad = false;
         _didFinalApplyForCurrentLoad = false;
+        _didApplyProcessingOfflineForCurrentLoad = false;
         _didInitialLoadOrCreate = false;
         _isApplyingSaveData = false;
         IsGameFullyLoaded = false;
@@ -2865,6 +2868,7 @@ public class SaveManager : MonoBehaviour
             UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
             TownServiceUnlockStore.ApplyFromSaveData(_lastLoadedData);
             UIWindowLockStore.RestoreAfterSceneLayout();
+            ApplyProcessingOfflineProgress(_lastLoadedData);
         }
         finally
         {
@@ -2886,6 +2890,29 @@ public class SaveManager : MonoBehaviour
             Debug.Log("[SaveManager] ApplyToPlayer succeeded without PlayerController present (Bootstrap/DDOL flow).");
 
         return true;
+    }
+
+    /// <summary>
+    /// Applies capped wall-clock offline progression to furnace/cooking/blacksmithing after load.
+    /// Runs once per staged load so repeated <see cref="ApplyToPlayer"/> calls cannot double-advance.
+    /// </summary>
+    private void ApplyProcessingOfflineProgress(SaveData data)
+    {
+        if (_didApplyProcessingOfflineForCurrentLoad || data == null || data.savedAtUnix <= 0)
+            return;
+
+        long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        float offlineSeconds = Mathf.Clamp(nowUnix - data.savedAtUnix, 0f, 8f * 60f * 60f);
+        _didApplyProcessingOfflineForCurrentLoad = true;
+        if (offlineSeconds < 1f)
+            return;
+
+        FurnaceSmeltingRuntime.EnsureInstance().ApplyOfflineSeconds(offlineSeconds);
+        CookingRuntime.EnsureInstance().ApplyOfflineSeconds(offlineSeconds);
+        BlacksmithingRuntime.EnsureInstance().ApplyOfflineSeconds(offlineSeconds);
+
+        // Prevent a later re-apply path from recomputing against the original save timestamp.
+        data.savedAtUnix = nowUnix;
     }
 
     private static SaveData ReadSaveDataFromPath(string path)
