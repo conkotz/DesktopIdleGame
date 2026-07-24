@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -837,11 +838,12 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         // Inventory.Add can partially succeed and still return false. Only unequip when the
         // full equipped stack was deposited (otherwise stacks would duplicate).
-        int added = inventory.AddPartial(_itemId, amountToReturn, notifyItemGainPopup: false);
+        var touched = new List<int>(4);
+        int added = inventory.AddPartial(_itemId, amountToReturn, notifyItemGainPopup: false, touchedSlotIndices: touched);
         if (added < amountToReturn)
         {
             if (added > 0)
-                inventory.Remove(_itemId, added);
+                inventory.RemoveAmountFromTouchedSlots(added, touched);
             return;
         }
 
