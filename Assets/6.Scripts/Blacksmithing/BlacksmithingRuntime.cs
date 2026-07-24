@@ -630,17 +630,13 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 if (!inv.Remove(ing.ItemId, needed))
                 {
                     // Roll back anything already removed this attempt.
+                    PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
                     for (int r = 0; r < consumed.Count; r++)
                     {
                         int left = consumed[r].Amount;
                         left -= inv.AddPartial(consumed[r].ItemId, left, notifyItemGainPopup: false);
-                        if (left > 0)
-                        {
-                            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
-                            if (storage != null)
-                                left -= storage.TryDepositAmountFromExternal(consumed[r].ItemId, left);
-                        }
-
+                        if (left > 0 && storage != null)
+                            left -= storage.TryDepositAmountFromExternal(consumed[r].ItemId, left);
                         if (left > 0)
                             PendingLootRecoveryStore.Enqueue(consumed[r].ItemId, left);
                     }
