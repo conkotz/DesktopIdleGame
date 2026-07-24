@@ -105,6 +105,11 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.furnaceSmelters ??= new List<SaveData.FurnaceSmelterSave>();
+
+        // Preserve snapshot-seeded furnace rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.furnaceSmelters.Clear();
 
         foreach (KeyValuePair<string, FurnaceRow> kv in _rows)
