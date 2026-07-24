@@ -128,6 +128,11 @@ public static class PendingLootRecoveryStore
         if (Entries.Count == 0)
             return false;
 
+        // Never deliver into a half-hydrated session: map-enhancement / rolled item defs
+        // may not be registered yet, and inventory may still be at Awake defaults.
+        if (!CanFlushAgainstSaveLifecycle())
+            return false;
+
         Inventory inv = Inventory.ResolvePlayer();
         PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (inv == null && storage == null)
@@ -142,6 +147,15 @@ public static class PendingLootRecoveryStore
             Entry e = Entries[i];
             if (string.IsNullOrWhiteSpace(e.ItemId) || e.Amount <= 0)
                 continue;
+
+            // Rolled unique map enhancements must exist in the registry before delivery,
+            // otherwise AddPartial parks an unresolvable id that LoadFrom will strip.
+            if (MapEnhancementRegistry.IsRuntimeItem(e.ItemId) &&
+                !MapEnhancementRegistry.TryGetInstance(e.ItemId, out _))
+            {
+                remaining.Add(e);
+                continue;
+            }
 
             int left = e.Amount;
             if (inv != null)
@@ -190,6 +204,24 @@ public static class PendingLootRecoveryStore
         }
 
         return deliveredAny;
+    }
+
+    private static bool CanFlushAgainstSaveLifecycle()
+    {
+        SaveManager sm = SaveManager.Instance;
+        if (sm == null)
+            return true;
+
+        if (sm.IsApplyingSaveData)
+            return false;
+
+        if (!sm.IsGameFullyLoaded)
+            return false;
+
+        if (sm.HasUnresolvedPendingLoad)
+            return false;
+
+        return true;
     }
 }
 
