@@ -147,7 +147,7 @@ public class StorageTabButtonUI : MonoBehaviour,
         if (_storage == null)
             return;
 
-        if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out string equipItemId, out int equipAmount))
+        if (EquipmentSlotUI.TryPeekEquipDrag(out var fromSlotType, out string equipItemId, out int equipAmount))
         {
             if (_inventory == null || string.IsNullOrWhiteSpace(equipItemId))
                 return;
@@ -182,6 +182,7 @@ public class StorageTabButtonUI : MonoBehaviour,
 
             if (placed > 0 || remainder > 0)
             {
+                EquipmentSlotUI.TryConsumeEquipDrag(out _, out _, out _);
                 EquipmentSlotUI.UnequipDragSource(fromSlotType, equipment, toolbelt);
                 _bar?.HandleItemDroppedOnTab(tabKind);
             }
