@@ -9,6 +9,9 @@ public static class TownServiceUnlockStore
 {
     private static readonly HashSet<string> UnlockedIds = new(StringComparer.OrdinalIgnoreCase);
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => UnlockedIds.Clear();
+
     public static bool IsUnlocked(string serviceId)
     {
         if (string.IsNullOrWhiteSpace(serviceId))
