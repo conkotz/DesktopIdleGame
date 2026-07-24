@@ -767,6 +767,7 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (data == null) return;
 
+        EnsureItemDatabaseRef();
         if (itemDb)
         {
             itemDb.SaveRuntimeEnhancedItemsInto(data);
