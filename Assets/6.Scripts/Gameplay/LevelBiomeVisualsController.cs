@@ -70,10 +70,23 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private bool _caveFlickerReturningToBase = true;
     private Transform _cachedDuskwoodVisualsRoot;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+        Instance = null;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
     {
-        SceneManager.sceneLoaded += (_, _) => AutoAttachToBootstrapper();
+        SceneManager.sceneLoaded -= OnSceneLoadedAutoAttach;
+        SceneManager.sceneLoaded += OnSceneLoadedAutoAttach;
+        AutoAttachToBootstrapper();
+    }
+
+    private static void OnSceneLoadedAutoAttach(Scene scene, LoadSceneMode mode)
+    {
         AutoAttachToBootstrapper();
     }
 
