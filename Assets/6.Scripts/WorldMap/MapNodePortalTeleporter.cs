@@ -199,19 +199,18 @@ public class MapNodePortalTeleporter : MonoBehaviour
         _nextAllowedTime = Time.time + Mathf.Max(0f, cooldownSeconds);
 
         string sourceMapNodeId = ResolveCurrentMapNodeId();
-        MapTravelSession.BeginTravel(
-            node,
-            MapTravelSession.EntryMethod.InWorldEntrance,
-            logPendingLevel: false,
-            sourceMapNodeId: sourceMapNodeId);
-
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
         {
             Debug.LogError("[MapNodePortalTeleporter] Gameplay scene name is empty.", this);
             return;
         }
 
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName.Trim());
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            node,
+            MapTravelSession.EntryMethod.InWorldEntrance,
+            gameplaySceneName.Trim(),
+            logPendingLevel: false,
+            sourceMapNodeId: sourceMapNodeId);
     }
 
     private MapNodeDefinition ResolveTarget()
