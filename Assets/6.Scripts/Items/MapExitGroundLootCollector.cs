@@ -15,8 +15,17 @@ public static class MapExitGroundLootCollector
             return;
 
         Inventory inventory = player.GetComponent<Inventory>();
+        if (inventory == null)
+            inventory = Inventory.ResolvePlayer();
+
+        // Storage often lives on a separate DDOL/chest object — do not require it on PlayerController.
         PlayerStorage storage = player.GetComponent<PlayerStorage>();
-        if (inventory == null || storage == null)
+        if (storage == null)
+            storage = Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        // ItemDrop.CollectForVoluntaryMapExit already handles null inventory and/or storage
+        // (pending-loot fallback). Only skip when neither destination exists.
+        if (inventory == null && storage == null)
             return;
 
         ItemDrop[] drops = Object.FindObjectsByType<ItemDrop>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
