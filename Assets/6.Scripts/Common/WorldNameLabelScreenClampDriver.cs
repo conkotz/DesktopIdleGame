@@ -50,6 +50,50 @@ public static class WorldNameLabelScreenClampDriver
             return;
 
         s_labels.Remove(label);
+        if (s_labels.Count == 0)
+        {
+            if (s_runner && s_bindRoutine != null)
+            {
+                s_runner.StopCoroutine(s_bindRoutine);
+                s_bindRoutine = null;
+            }
+
+            TeardownEventHooks();
+        }
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        TeardownEventHooks();
+        s_labels.Clear();
+        s_lastOrtho = float.NaN;
+        s_lastCameraY = float.NaN;
+        s_lastPixelRect = default;
+        s_bindRoutine = null;
+        if (s_runner)
+            Object.Destroy(s_runner.gameObject);
+        s_runner = null;
+    }
+
+    private static void TeardownEventHooks()
+    {
+        if (s_eventsHooked)
+        {
+            StripCameraController.StripLayoutChanged -= HandleLayoutChanged;
+            GameplayScreenOverlayLayout.UnregisterCoverageRefresh(HandleLayoutChanged);
+            s_eventsHooked = false;
+        }
+
+        if (s_levelHooked && GameplayLevelBootstrapper.Instance != null)
+        {
+            GameplayLevelBootstrapper.Instance.OnLevelStarted -= HandleLevelStarted;
+            s_levelHooked = false;
+        }
+        else
+        {
+            s_levelHooked = false;
+        }
     }
 
     public static void RequestRefresh(WorldNameLabelScreenClamp label)

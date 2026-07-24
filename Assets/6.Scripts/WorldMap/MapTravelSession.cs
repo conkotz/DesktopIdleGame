@@ -34,6 +34,31 @@ public static class MapTravelSession
         ActiveLevelContext.SetPendingLevel(destination, logToConsole: logPendingLevel);
     }
 
+    /// <summary>
+    /// Begins travel then loads the scene. If the load cannot start (invalid name / transition
+    /// already running), restores the previous active level so saves do not persist a stale map.
+    /// </summary>
+    public static bool TryBeginTravelAndLoadScene(
+        MapNodeDefinition destination,
+        EntryMethod entry,
+        string sceneName,
+        bool logPendingLevel = true,
+        string sourceMapNodeId = null)
+    {
+        MapNodeDefinition previous = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+
+        BeginTravel(destination, entry, logPendingLevel, sourceMapNodeId);
+        if (PlayerLevelTransition.LoadSceneWithEffectOrImmediate(sceneName))
+            return true;
+
+        if (previous != null)
+            ActiveLevelContext.SetPendingLevel(previous, logToConsole: false);
+        ClearPendingEntryMethod();
+        return false;
+    }
+
   /// <summary>Call immediately before unloading GamePlay (after shrink, before save/load).</summary>
     public static void ApplyPendingSpawnDispositionBeforeSceneLoad()
     {

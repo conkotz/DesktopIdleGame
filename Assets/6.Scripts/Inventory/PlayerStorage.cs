@@ -510,6 +510,21 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
+        int capacity = rangeEnd - rangeStart;
+        if (merged.Count > capacity)
+        {
+            for (int i = capacity; i < merged.Count; i++)
+            {
+                Slot overflow = merged[i];
+                if (!overflow.IsEmpty)
+                    PendingLootRecoveryStore.Enqueue(overflow.itemId, overflow.amount);
+            }
+
+            Debug.LogWarning(
+                $"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {capacity} — parked extras in pending loot.");
+            merged.RemoveRange(capacity, merged.Count - capacity);
+        }
+
         for (int i = rangeStart; i < rangeEnd; i++)
         {
             var s = _slots[i];
@@ -517,12 +532,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, rangeEnd - rangeStart);
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < merged.Count; i++)
             _slots[rangeStart + i] = merged[i];
-
-        if (merged.Count > rangeEnd - rangeStart)
-            Debug.LogWarning($"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {rangeEnd - rangeStart}.");
 
         MarkAllSlotsChanged();
     }
@@ -1151,6 +1162,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
         if (!itemDb)
+            itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (!itemDb)
             itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
         if (!itemDb)
         {
@@ -1312,9 +1325,27 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             ItemDefinition def = GetItemDef(stack.itemId);
             StorageTabKind tab = ResolveAutoDepositTab(def);
-            int placed = TryDepositAmountToTab(stack.itemId, stack.amount, tab);
-            if (placed < stack.amount)
-                TryDepositAmountToTab(stack.itemId, stack.amount - placed, StorageTabKind.Main);
+            int left = stack.amount;
+            left -= TryDepositAmountToTab(stack.itemId, left, tab);
+            if (left > 0 && tab != StorageTabKind.Main)
+                left -= TryDepositAmountToTab(stack.itemId, left, StorageTabKind.Main);
+
+            // Legacy layout migration can shrink total capacity — never silently discard overflow.
+            if (left > 0)
+            {
+                Inventory inv = Inventory.ResolvePlayer();
+                if (inv != null)
+                    left -= inv.AddPartial(stack.itemId, left, notifyItemGainPopup: false);
+
+                if (left > 0)
+                {
+                    PendingLootRecoveryStore.Enqueue(stack.itemId, left);
+                    GameLog.Add(
+                        "Storage layout migration could not fit all items — held the overflow until you free space.",
+                        GameLog.CannotMessageColor);
+                    SaveManager.Instance?.NotifyInventoryChangedDebounced();
+                }
+            }
         }
     }
 }
