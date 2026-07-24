@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class CurrencyWallet : MonoBehaviour, ISaveable
 {
+    /// <summary>Matches <see cref="SaveDataIntegrity"/> soft ceiling so runtime gold cannot wrap int.</summary>
+    public const int GoldSoftCeiling = 500_000_000;
+
     [SerializeField] private int gold;
     public int Gold => gold;
 
@@ -10,15 +13,48 @@ public class CurrencyWallet : MonoBehaviour, ISaveable
 
     public void SetGold(int amount)
     {
-        gold = Mathf.Max(0, amount);
+        gold = Mathf.Clamp(amount, 0, GoldSoftCeiling);
         OnGoldChanged?.Invoke();
     }
 
     public void AddGold(int amount)
     {
         if (amount <= 0) return;
-        gold += amount;
+
+        long sum = (long)gold + amount;
+        if (sum > GoldSoftCeiling)
+            gold = GoldSoftCeiling;
+        else
+            gold = (int)sum;
+
         OnGoldChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Multiplies unit value by stack size without int wrap. Result is clamped to
+    /// <see cref="GoldSoftCeiling"/> so sell paths never feed a non-positive (wrapped) amount into <see cref="AddGold"/>.
+    /// </summary>
+    public static int ComputeClampedSaleGold(int valuePerItem, int amount)
+    {
+        if (valuePerItem <= 0 || amount <= 0)
+            return 0;
+
+        long product = (long)valuePerItem * amount;
+        if (product >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+        return (int)product;
+    }
+
+    /// <summary>Adds a sale gold product into an accumulator without int wrap.</summary>
+    public static int AccumulateClampedSaleGold(int currentTotal, int valuePerItem, int amount)
+    {
+        if (currentTotal >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+
+        long next = (long)Mathf.Max(0, currentTotal) + ComputeClampedSaleGold(valuePerItem, amount);
+        if (next >= GoldSoftCeiling)
+            return GoldSoftCeiling;
+        return (int)next;
     }
 
     public bool SpendGold(int amount)
@@ -34,7 +70,7 @@ public class CurrencyWallet : MonoBehaviour, ISaveable
 
     public void LoadFrom(SaveData data)
     {
-        gold = Mathf.Max(0, data.gold);
+        gold = Mathf.Clamp(Mathf.Max(0, data.gold), 0, GoldSoftCeiling);
         OnGoldChanged?.Invoke();
     }
 

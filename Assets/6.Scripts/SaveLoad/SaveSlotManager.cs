@@ -155,7 +155,19 @@ public static class SaveSlotManager
         try
         {
             string json = JsonUtility.ToJson(header, true);
-            File.WriteAllText(GetMetaPath(header.slotIndex), json);
+            string targetPath = GetMetaPath(header.slotIndex);
+            string tempPath = targetPath + ".tmp";
+            string backupPath = targetPath + ".bak";
+            File.WriteAllText(tempPath, json);
+
+            if (File.Exists(targetPath))
+            {
+                if (File.Exists(backupPath))
+                    File.Delete(backupPath);
+                File.Move(targetPath, backupPath);
+            }
+
+            File.Move(tempPath, targetPath);
         }
         catch (Exception e)
         {

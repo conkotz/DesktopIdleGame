@@ -311,7 +311,8 @@ public class Inventory : MonoBehaviour, ISaveable
 
     public void EnsureSlotCount(int count)
     {
-        count = Mathf.Max(1, count);
+        // Hard cap matches SaveDataIntegrity — corrupt saves must not allocate unbounded slots.
+        count = Mathf.Clamp(count, 1, 512);
         while (_slots.Count < count) _slots.Add(new Slot());
         if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
     }
@@ -612,6 +613,34 @@ public class Inventory : MonoBehaviour, ISaveable
         return total;
     }
 
+    /// <summary>
+    /// Undoes a prior <see cref="AddPartial"/> by removing only from the slots it reported as touched.
+    /// Prefer this over <see cref="Remove"/> when rolling back a failed transfer — global Remove can
+    /// delete pre-existing same-item stacks that were never part of the tentative add.
+    /// </summary>
+    public int RemoveAmountFromTouchedSlots(int amount, IList<int> touchedSlotIndices)
+    {
+        if (amount <= 0 || touchedSlotIndices == null || touchedSlotIndices.Count == 0)
+            return 0;
+
+        BeginBatchChanges();
+        int left = amount;
+        try
+        {
+            for (int t = touchedSlotIndices.Count - 1; t >= 0 && left > 0; t--)
+            {
+                int removed = RemoveAmountAtSlot(touchedSlotIndices[t], left);
+                left -= removed;
+            }
+        }
+        finally
+        {
+            EndBatchChanges();
+        }
+
+        return amount - left;
+    }
+
     public int RemoveAmountAtSlot(int slotIndex, int amount)
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return 0;
@@ -681,13 +710,22 @@ public class Inventory : MonoBehaviour, ISaveable
         if (requirements == null || requirements.Count == 0)
             return false;
 
+        // Aggregate duplicate item ids so [{iron,2},{iron,2}] requires 4, not 2.
+        var neededByItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requirements.Count; i++)
         {
             GearUpgradeMaterialRequirement req = requirements[i];
             if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
                 return false;
 
-            if (CountItem(req.ItemId) < req.Amount)
+            string id = req.ItemId.Trim();
+            neededByItemId.TryGetValue(id, out int soFar);
+            neededByItemId[id] = soFar + req.Amount;
+        }
+
+        foreach (KeyValuePair<string, int> kv in neededByItemId)
+        {
+            if (CountItem(kv.Key) < kv.Value)
                 return false;
         }
 
@@ -699,11 +737,40 @@ public class Inventory : MonoBehaviour, ISaveable
         if (!HasItems(requirements))
             return false;
 
+        // Consume aggregated totals so duplicate rows cannot partially drain then fail.
+        var neededByItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requirements.Count; i++)
         {
             GearUpgradeMaterialRequirement req = requirements[i];
-            if (!TryConsumeItem(req.ItemId, req.Amount))
+            if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
+                continue;
+
+            string id = req.ItemId.Trim();
+            neededByItemId.TryGetValue(id, out int soFar);
+            neededByItemId[id] = soFar + req.Amount;
+        }
+
+        var consumed = new List<KeyValuePair<string, int>>(neededByItemId.Count);
+        foreach (KeyValuePair<string, int> kv in neededByItemId)
+        {
+            if (!TryConsumeItem(kv.Key, kv.Value))
+            {
+                // Roll back anything already removed this attempt (race / mismatch).
+                PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                for (int r = 0; r < consumed.Count; r++)
+                {
+                    int left = consumed[r].Value;
+                    left -= AddPartial(consumed[r].Key, left, notifyItemGainPopup: false);
+                    if (left > 0 && storage != null)
+                        left -= storage.TryDepositAmountFromExternal(consumed[r].Key, left);
+                    if (left > 0)
+                        PendingLootRecoveryStore.Enqueue(consumed[r].Key, left);
+                }
+
                 return false;
+            }
+
+            consumed.Add(kv);
         }
 
         return true;
@@ -727,6 +794,10 @@ public class Inventory : MonoBehaviour, ISaveable
 
         if (to.IsEmpty)
         {
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+            move = Mathf.Min(move, maxStack);
+            if (move <= 0) return 0;
+
             to.itemId = from.itemId;
             to.amount = move;
             from.amount -= move;
@@ -767,6 +838,7 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (data == null) return;
 
+        EnsureItemDatabaseRef();
         if (itemDb)
         {
             itemDb.SaveRuntimeEnhancedItemsInto(data);
@@ -802,8 +874,8 @@ public class Inventory : MonoBehaviour, ISaveable
             MapEnhancementRegistry.LoadFrom(data, itemDb);
         }
 
-        // Make sure we have the right slot count first
-        int count = Mathf.Max(1, data.inventorySlotCount > 0 ? data.inventorySlotCount : 32);
+        // Make sure we have the right slot count first (hard-capped against corrupt saves).
+        int count = Mathf.Clamp(data.inventorySlotCount > 0 ? data.inventorySlotCount : 32, 1, 512);
         EnsureSlotCount(count);
 
         // Clear everything
@@ -842,10 +914,30 @@ public class Inventory : MonoBehaviour, ISaveable
                 if (!canValidateDefs)
                     Debug.LogWarning($"[Inventory] ItemDatabase unavailable during LoadFrom; preserving slot {i} item '{id}' without validation.");
 
+                int amount = Mathf.Max(0, d.amount);
+                int maxStack = GetMaxStack(id);
+                if (amount > maxStack)
+                {
+                    int overflow = amount - maxStack;
+                    amount = maxStack;
+                    PendingLootRecoveryStore.EnsureLists(data);
+                    data.pendingLootRecoveryItemIds.Add(id);
+                    data.pendingLootRecoveryAmounts.Add(overflow);
+                    Debug.LogWarning(
+                        $"[Inventory] Slot {i} amount {d.amount} exceeds maxStack {maxStack}; clamped and parked overflow into pending loot.");
+                }
+
+                // Persist clamp so a later LoadFrom on the same SaveData cannot re-park the overflow.
+                data.inventorySlots[i] = new SaveData.InventorySlotData
+                {
+                    itemId = id,
+                    amount = amount
+                };
+
                 _slots[i] = new Slot
                 {
                     itemId = id,
-                    amount = Mathf.Max(0, d.amount)
+                    amount = amount
                 };
             }
         }
@@ -929,10 +1021,16 @@ public class Inventory : MonoBehaviour, ISaveable
             int remainder = amount - chunk;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
+                var touched = new List<int>(4);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup, touched);
                 if (added != remainder)
                 {
-                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after CanAdd — state may be inconsistent.");
+                    // CanAdd raced or capacity rules diverged — never report success after a shortfall
+                    // or the caller will unequip/destroy the source while leftover units vanish.
+                    if (added > 0)
+                        RemoveAmountFromTouchedSlots(added, touched);
+                    ReplaceSlot(slotIndex, default);
+                    return false;
                 }
             }
 
@@ -947,29 +1045,50 @@ public class Inventory : MonoBehaviour, ISaveable
             int add = Mathf.Min(space, amount);
             if (add <= 0) return false;
 
+            var previous = to;
             var merged = to;
             merged.amount += add;
             ReplaceSlot(slotIndex, merged);
             int remainder = amount - add;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
+                var touched = new List<int>(4);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup, touched);
                 if (added != remainder)
                 {
-                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after merge — state may be inconsistent.");
+                    // Undo overflow fills before restoring the target slot so we never strip
+                    // pre-existing same-item stacks via a global Remove.
+                    if (added > 0)
+                        RemoveAmountFromTouchedSlots(added, touched);
+                    ReplaceSlot(slotIndex, previous);
+                    return false;
                 }
             }
 
             return true;
         }
 
+        // Different item: clamp to maxStack in the target slot (same as empty/same-item paths).
+        // Never write an over-max amount — that persists across save/load and breaks capacity rules.
         var displaced = to;
-        ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = amount });
-        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup);
-        if (placedDisplaced < displaced.amount)
+        int placedHere = Mathf.Min(amount, maxStack);
+        int incomingLeft = amount - placedHere;
+
+        ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = placedHere });
+
+        var touchedIncoming = new List<int>(4);
+        int addedIncoming = 0;
+        if (incomingLeft > 0)
+            addedIncoming = AddPartial(itemId, incomingLeft, maxStackOverride, notifyItemGainPopup, touchedIncoming);
+
+        var touchedDisplaced = new List<int>(4);
+        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup, touchedDisplaced);
+        if (addedIncoming < incomingLeft || placedDisplaced < displaced.amount)
         {
             if (placedDisplaced > 0)
-                Remove(displaced.itemId, placedDisplaced);
+                RemoveAmountFromTouchedSlots(placedDisplaced, touchedDisplaced);
+            if (addedIncoming > 0)
+                RemoveAmountFromTouchedSlots(addedIncoming, touchedIncoming);
             ReplaceSlot(slotIndex, displaced);
             return false;
         }
@@ -1072,28 +1191,35 @@ public class Inventory : MonoBehaviour, ISaveable
                 filled.Add(_slots[i]);
         }
 
-        // 1) Sum amounts per item (combine stacks)
-        var totals = new Dictionary<string, int>();
+        // 1) Sum amounts per item (combine stacks) — use long so over-max legacy stacks cannot wrap to ≤0.
+        var totals = new Dictionary<string, long>();
         foreach (var s in filled)
         {
             if (!totals.ContainsKey(s.itemId))
                 totals[s.itemId] = 0;
-            totals[s.itemId] += s.amount;
+            totals[s.itemId] += Math.Max(0, s.amount);
         }
 
-        // 2) Split totals into legal stacks (maxStack each), in database order
+        // 2) Split totals into legal stacks (maxStack each), in database order.
+        // Cap growth to slot capacity while splitting so a single corrupt 2e9 stack cannot OOM.
         var merged = new List<Slot>();
         var itemIds = new List<string>(totals.Keys);
         itemIds.Sort((a, b) => itemDb.GetIndex(a).CompareTo(itemDb.GetIndex(b)));
 
         foreach (var itemId in itemIds)
         {
-            int total = totals[itemId];
+            long remaining = totals[itemId];
             int maxStack = GetMaxStack(itemId);
-            int remaining = total;
             while (remaining > 0)
             {
-                int chunk = Mathf.Min(maxStack, remaining);
+                if (merged.Count >= _slots.Count)
+                {
+                    EnqueuePendingLootInChunks(itemId, remaining);
+                    remaining = 0;
+                    break;
+                }
+
+                int chunk = (int)Math.Min(maxStack, remaining);
                 merged.Add(new Slot { itemId = itemId, amount = chunk });
                 remaining -= chunk;
             }
@@ -1111,6 +1237,21 @@ public class Inventory : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
+        // Preserve stacks that cannot fit after re-splitting over-max legacy amounts.
+        if (merged.Count > _slots.Count)
+        {
+            for (int i = _slots.Count; i < merged.Count; i++)
+            {
+                Slot overflow = merged[i];
+                if (!overflow.IsEmpty)
+                    PendingLootRecoveryStore.Enqueue(overflow.itemId, overflow.amount);
+            }
+
+            Debug.LogWarning(
+                $"[Inventory] Sort overflow: need {merged.Count} slots but only {_slots.Count} exist — parked extras in pending loot.");
+            merged.RemoveRange(_slots.Count, merged.Count - _slots.Count);
+        }
+
         for (int i = 0; i < _slots.Count; i++)
         {
             var s = _slots[i];
@@ -1118,13 +1259,23 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, _slots.Count);
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < merged.Count; i++)
             _slots[i] = merged[i];
 
-        if (merged.Count > _slots.Count)
-            Debug.LogError($"[Inventory] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — save data may be invalid (overflowing stacks).");
-
         NotifyInventoryChanged();
+    }
+
+    private static void EnqueuePendingLootInChunks(string itemId, long amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        long left = amount;
+        while (left > 0)
+        {
+            int chunk = (int)Math.Min(left, int.MaxValue);
+            PendingLootRecoveryStore.Enqueue(itemId, chunk);
+            left -= chunk;
+        }
     }
 }
