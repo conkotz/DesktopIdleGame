@@ -902,10 +902,19 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         }
 
-        GrantRewards(q);
+        if (q.restockMerchantStockOnRewardClaim &&
+            !TryResetMerchantStockFromQuestReward(q))
+        {
+            if (gatherToRestore > 0 && !string.IsNullOrEmpty(gatherItemToRestore))
+                RestoreGatheredItems(gatherItemToRestore, gatherToRestore);
 
-        if (q.restockMerchantStockOnRewardClaim)
-            TryResetMerchantStockFromQuestReward(q);
+            GameLog.Add(
+                "Could not restock the shop right now — try again near the merchant.",
+                GameLog.CannotMessageColor);
+            return false;
+        }
+
+        GrantRewards(q);
 
         TryUnlockTownServiceFromQuestReward(q);
 
@@ -925,6 +934,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 QuestTrackerState.UntrackQuest(id);
                 ProgressChanged?.Invoke();
             }
+
+            // Restock / gather consume must flush immediately — inventory debounce alone can miss a crash window.
+            if (SaveManager.Instance != null)
+                SaveManager.Instance.SaveImmediate();
         }
         else
         {
@@ -935,7 +948,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             ProgressChanged?.Invoke();
             TutorialQuestAfterClaim.Invoke(q);
             if (SaveManager.Instance != null)
-                SaveManager.Instance.Save();
+                SaveManager.Instance.SaveImmediate();
 
             TryAutoAcceptQuestsAfterPriorRewardClaimed(q.questId);
         }
@@ -965,9 +978,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (!IsQuestAccepted(q) && RequiresQuestGiver(q))
             _acceptedQuestIds.Add(id);
 
+        if (q.restockMerchantStockOnRewardClaim &&
+            !TryResetMerchantStockFromQuestReward(q))
+        {
+            Debug.LogWarning(
+                $"[QuestProgressManager] Dev force-complete skipped restock for '{q.questId}' — merchant stock unresolved.");
+            return;
+        }
+
         GrantRewards(q);
-        if (q.restockMerchantStockOnRewardClaim)
-            TryResetMerchantStockFromQuestReward(q);
 
         TryUnlockTownServiceFromQuestReward(q);
 
@@ -989,7 +1008,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         ProgressChanged?.Invoke();
         TutorialQuestAfterClaim.Invoke(q);
         if (!skipSave && SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+            SaveManager.Instance.SaveImmediate();
         TryAutoAcceptQuestsAfterPriorRewardClaimed(id);
         if (runTeleportAfterClaim)
             TryTeleportPlayerAfterClaim(q);
@@ -1186,6 +1205,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     /// <summary>True when the quest grants at least one item stack (not gold-only).</summary>
     public bool HasItemRewardsToGrant(QuestDefinition q)
     {
+        if (HasRandomMapEnhancementReward(q))
+            return true;
+
         var stacks = new Dictionary<string, int>();
         CollectQuestItemRewardStacks(q, stacks);
         return stacks.Count > 0;
@@ -1196,30 +1218,49 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         var stacks = new Dictionary<string, int>();
         CollectQuestItemRewardStacks(q, stacks);
-        if (stacks.Count == 0)
-            return true;
 
         Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        if (stacks.Count > 0)
+        {
+            if (!inv)
+                return false;
+
+            foreach (KeyValuePair<string, int> kv in stacks)
+            {
+                int qty = kv.Value;
+                if (qty <= 0)
+                    continue;
+
+                int fitInv = inv.GetReceivableAmount(kv.Key, qty);
+                int rest = qty - fitInv;
+                int fitSt = st ? st.GetReceivableAmountFromExternal(kv.Key, rest) : 0;
+                if (fitInv + fitSt < qty)
+                    return false;
+            }
+        }
+
+        if (!HasRandomMapEnhancementReward(q))
+            return true;
+
+        // GrantRewards unlocks slots before the map enhancement grant.
+        if (Mathf.Max(0, q.grantAdditionalInventorySlotsOnRewardClaim) > 0 ||
+            Mathf.Max(0, q.grantAdditionalMainStorageSlotsOnRewardClaim) > 0 ||
+            Mathf.Max(0, q.grantAdditionalNonMainStorageSlotsOnRewardClaim) > 0)
+            return true;
+
         if (!inv)
             return false;
 
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
-
-        foreach (KeyValuePair<string, int> kv in stacks)
-        {
-            int qty = kv.Value;
-            if (qty <= 0)
-                continue;
-
-            int fitInv = inv.GetReceivableAmount(kv.Key, qty);
-            int rest = qty - fitInv;
-            int fitSt = st ? st.GetReceivableAmountFromExternal(kv.Key, rest) : 0;
-            if (fitInv + fitSt < qty)
-                return false;
-        }
-
-        return true;
+        string probeId = MapCombatScalingSpecialDropDefaults.MapEnhancementTier1ItemId;
+        int fitInvProbe = inv.GetReceivableAmount(probeId, 1);
+        int fitStProbe = st ? st.GetReceivableAmountFromExternal(probeId, 1 - fitInvProbe) : 0;
+        return fitInvProbe + fitStProbe >= 1;
     }
+
+    private static bool HasRandomMapEnhancementReward(QuestDefinition q) =>
+        q != null && !string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim);
 
     private static void CollectQuestItemRewardStacks(QuestDefinition q, Dictionary<string, int> into)
     {
@@ -1271,7 +1312,13 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             left -= st.TryDepositAmountFromExternal(itemId, left);
 
         if (left > 0)
-            Debug.LogWarning($"[QuestProgressManager] Could not restore {left}x {itemId} after a blocked claim.", this);
+        {
+            PendingLootRecoveryStore.Enqueue(itemId, left);
+            GameLog.Add(
+                "Inventory and storage are full — held restored quest gather items until you free space.",
+                GameLog.CannotMessageColor);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
+        }
     }
 
     private bool TryConsumeGatherItems(QuestDefinition q, out int consumedAmount, out string itemIdNormalized)
@@ -1286,9 +1333,17 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (GetGatherItemCountLive(rawId) < need)
             return false;
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        // Prefer the same instances GetGatherItemCountLive uses so count/consume cannot diverge
+        // across duplicate Inventory/PlayerStorage objects in the scene.
+        if (_autoInv == null)
+            _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (_autoStorage == null)
+            _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
 
+        Inventory inv = _autoInv;
+        PlayerStorage st = _autoStorage;
+
+        int takenFromInv = 0;
         int remaining = need;
         if (inv != null)
         {
@@ -1298,6 +1353,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             {
                 if (!inv.Remove(rawId, take))
                     return false;
+                takenFromInv = take;
                 remaining -= take;
             }
         }
@@ -1305,12 +1361,22 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (remaining > 0 && st != null)
         {
             if (!st.Remove(rawId, remaining))
+            {
+                // Inventory already drained — restore before aborting or quest items vanish.
+                if (takenFromInv > 0)
+                    RestoreGatheredItems(rawId, takenFromInv);
                 return false;
+            }
+
             remaining = 0;
         }
 
         if (remaining != 0)
+        {
+            if (takenFromInv > 0)
+                RestoreGatheredItems(rawId, takenFromInv);
             return false;
+        }
 
         consumedAmount = need;
         itemIdNormalized = rawId;
@@ -1398,19 +1464,30 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         for (int i = 0; i < invTouched.Count; i++)
             AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
 
-        if (toInv >= 1 || storage == null)
+        if (toInv >= 1)
             return;
 
-        var stTouched = new List<int>(4);
-        int toSt = storage.TryDepositAmountFromExternal(rolledId, 1, stTouched);
-        for (int i = 0; i < stTouched.Count; i++)
-            AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
-
-        if (toSt > 0)
+        if (storage != null)
         {
-            string label = ResolveItemDisplayName(rolledId);
-            GameLog.Add($"Inventory was full — sent {label} to storage.", questRewardToStorageLogColor);
+            var stTouched = new List<int>(4);
+            int toSt = storage.TryDepositAmountFromExternal(rolledId, 1, stTouched);
+            for (int i = 0; i < stTouched.Count; i++)
+                AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
+
+            if (toSt > 0)
+            {
+                string label = ResolveItemDisplayName(rolledId);
+                GameLog.Add($"Inventory was full — sent {label} to storage.", questRewardToStorageLogColor);
+                return;
+            }
         }
+
+        // Never silently discard a rolled unique map enhancement when bags are full.
+        PendingLootRecoveryStore.Enqueue(rolledId, 1);
+        GameLog.Add(
+            "Inventory and storage are full — held the map enhancement reward until you free space.",
+            GameLog.CannotMessageColor);
+        SaveManager.Instance?.NotifyInventoryChangedDebounced();
     }
 
     private void GrantRewards(QuestDefinition q)
@@ -1453,14 +1530,6 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 skills.AddXp(q.grantCombatSkillXpSkill, singleSkillXp, source);
         }
 
-        if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim) && inv)
-        {
-            TryGrantRandomMapEnhancementReward(
-                q.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim(),
-                inv,
-                storage);
-        }
-
         if (q.rewardGold > 0)
         {
             CurrencyWallet w = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
@@ -1474,46 +1543,63 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         var stacks = new Dictionary<string, int>();
         CollectQuestItemRewardStacks(q, stacks);
-        if (stacks.Count == 0)
-            return;
-
-        if (!inv)
-            return;
-
-        foreach (KeyValuePair<string, int> kv in stacks)
+        if (stacks.Count > 0 && inv)
         {
-            string itemId = kv.Key;
-            int qty = kv.Value;
-            if (qty <= 0)
-                continue;
-
-            TryShowQuestRewardItemPopup(itemId, qty);
-
-            var invTouched = new List<int>(8);
-            int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true, invTouched);
-            for (int i = 0; i < invTouched.Count; i++)
-                AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
-
-            if (toInv >= qty)
-                continue;
-
-            if (!storage)
-                continue;
-
-            int remainder = qty - toInv;
-            var stTouched = new List<int>(8);
-            int toSt = storage.TryDepositAmountFromExternal(itemId, remainder, stTouched);
-            for (int i = 0; i < stTouched.Count; i++)
-                AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
-
-            if (toSt > 0)
+            foreach (KeyValuePair<string, int> kv in stacks)
             {
-                string label = ResolveItemDisplayName(itemId);
-                GameLog.Add($"Inventory was full — sent {toSt}x {label} to storage.", questRewardToStorageLogColor);
+                string itemId = kv.Key;
+                int qty = kv.Value;
+                if (qty <= 0)
+                    continue;
+
+                TryShowQuestRewardItemPopup(itemId, qty);
+
+                var invTouched = new List<int>(8);
+                int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true, invTouched);
+                for (int i = 0; i < invTouched.Count; i++)
+                    AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
+
+                if (toInv >= qty)
+                    continue;
+
+                int remainder = qty - toInv;
+                if (storage != null)
+                {
+                    var stTouched = new List<int>(8);
+                    int toSt = storage.TryDepositAmountFromExternal(itemId, remainder, stTouched);
+                    for (int i = 0; i < stTouched.Count; i++)
+                        AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
+
+                    if (toSt > 0)
+                    {
+                        string label = ResolveItemDisplayName(itemId);
+                        GameLog.Add($"Inventory was full — sent {toSt}x {label} to storage.", questRewardToStorageLogColor);
+                    }
+
+                    remainder -= toSt;
+                }
+
+                if (remainder > 0)
+                {
+                    PendingLootRecoveryStore.Enqueue(itemId, remainder);
+                    GameLog.Add(
+                        "Inventory and storage are full — held remaining quest rewards until you free space.",
+                        GameLog.CannotMessageColor);
+                    SaveManager.Instance?.NotifyInventoryChangedDebounced();
+                }
             }
+
+            AutoBattleLootHighlight.RefreshLootHighlightUIs();
         }
 
-        AutoBattleLootHighlight.RefreshLootHighlightUIs();
+        // After listed item stacks so CanReceiveAllItemRewards space accounting stays valid.
+        if (!string.IsNullOrWhiteSpace(q.grantRandomMapEnhancementForNodeIdOnRewardClaim) && inv)
+        {
+            TryGrantRandomMapEnhancementReward(
+                q.grantRandomMapEnhancementForNodeIdOnRewardClaim.Trim(),
+                inv,
+                storage);
+        }
     }
 
     private static void TryShowQuestRewardItemPopup(string itemId, int amount)
@@ -1526,14 +1612,17 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             popups.ShowQuestRewardItemGained(itemId.Trim(), amount);
     }
 
-    private void TryResetMerchantStockFromQuestReward(QuestDefinition q)
+    /// <returns>False when a restock was required but no matching merchant/stock could be reset.</returns>
+    private bool TryResetMerchantStockFromQuestReward(QuestDefinition q)
     {
         if (q == null || !q.restockMerchantStockOnRewardClaim)
-            return;
+            return true;
 
         string key = q.restockMerchantStockSaveKey != null ? q.restockMerchantStockSaveKey.Trim() : "";
+        if (string.IsNullOrEmpty(key) && q.restockMerchantStockAsset != null)
+            key = q.restockMerchantStockAsset.StockSaveKey;
         if (string.IsNullOrEmpty(key))
-            return;
+            return false;
 
         Merchant[] merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < merchants.Length; i++)
@@ -1545,8 +1634,45 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 continue;
 
             m.ResetStockToDefaults(persistToDisk: true);
-            return;
+            return true;
         }
+
+        MerchantStock stock = ResolveMerchantStockForRestock(q, key);
+        if (stock == null)
+            return false;
+
+        MerchantStockRuntime runtime = MerchantStockRuntime.EnsureInstance();
+        runtime.ResetToDefaultsForStockSaveKey(key, stock);
+        runtime.NotifyAllMerchantsStockChanged();
+        SaveManager.Instance?.NotifyShopStockChanged();
+        return true;
+    }
+
+    private static MerchantStock ResolveMerchantStockForRestock(QuestDefinition q, string stockSaveKey)
+    {
+        if (q?.restockMerchantStockAsset != null)
+        {
+            string assetKey = q.restockMerchantStockAsset.StockSaveKey;
+            if (string.IsNullOrWhiteSpace(stockSaveKey) ||
+                string.Equals(assetKey, stockSaveKey, StringComparison.OrdinalIgnoreCase))
+                return q.restockMerchantStockAsset;
+        }
+
+        if (string.IsNullOrWhiteSpace(stockSaveKey))
+            return null;
+
+        MerchantStock[] loaded = Resources.FindObjectsOfTypeAll<MerchantStock>();
+        for (int i = 0; i < loaded.Length; i++)
+        {
+            MerchantStock stock = loaded[i];
+            if (stock == null)
+                continue;
+            if (!string.Equals(stock.StockSaveKey, stockSaveKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            return stock;
+        }
+
+        return null;
     }
 
     private void TryUnlockTownServiceFromQuestReward(QuestDefinition q)
@@ -1567,6 +1693,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             ? "Draven the Blacksmith has returned to Duskwood."
             : $"A town service is now available in Duskwood.";
         GameLog.Add(message, GameLog.RegionUnlockedColor);
+
+        // Spawn gates are evaluated only at map spawn time; refresh if already in-scene.
+        LevelSpawnDirector director = FindFirstObjectByType<LevelSpawnDirector>(FindObjectsInactive.Include);
+        director?.RefreshTownServiceGatedSpawns();
     }
 
     /// <summary>
@@ -1590,7 +1720,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
 
             if (IsPermanentlyComplete(q))
@@ -1635,7 +1765,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
             if (IsPermanentlyComplete(q))
                 continue;
@@ -1663,10 +1793,29 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
             return true;
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Matches either the authored save-key field or the linked <see cref="QuestDefinition.restockMerchantStockAsset"/> key
+    /// so restock accept/UI still works when only the asset reference is wired.
+    /// </summary>
+    private static bool QuestMatchesRestockStockKey(QuestDefinition q, string stockKey)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(stockKey))
+            return false;
+
+        if (string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (q.restockMerchantStockAsset != null &&
+            string.Equals(q.restockMerchantStockAsset.StockSaveKey, stockKey, StringComparison.OrdinalIgnoreCase))
+            return true;
 
         return false;
     }

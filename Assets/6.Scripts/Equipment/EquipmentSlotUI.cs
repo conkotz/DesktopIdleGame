@@ -54,6 +54,17 @@ public class EquipmentSlotUI : MonoBehaviour,
     private static Inventory s_sharedInventory;
     private static SharedTooltipUI s_sharedTooltip;
     private static bool s_sharedRefsResolved;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetSharedReferences()
+    {
+        s_sharedEquipment = null;
+        s_sharedToolbelt = null;
+        s_sharedInventory = null;
+        s_sharedTooltip = null;
+        s_sharedRefsResolved = false;
+        EquipDragState.End();
+    }
     private RectTransform _tooltipHeightRect;
 
 
@@ -777,6 +788,8 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (DropManager.Instance != null)
             DropManager.Instance.Spawn(itemId, amount, iconSprite);
+        else
+            PendingLootRecoveryStore.Enqueue(itemId, amount);
         ItemGainPopupNotifier.NotifyLost(itemId, amount);
         tooltip?.Hide();
     }
@@ -825,8 +838,15 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         int amountToReturn = GetEquippedAmountForThisSlot();
 
-        bool ok = inventory.Add(_itemId, amountToReturn, null, notifyItemGainPopup: false);
-        if (!ok) return;
+        // Inventory.Add can partially succeed and still return false. Only unequip when the
+        // full equipped stack was deposited (otherwise stacks would duplicate).
+        int added = inventory.AddPartial(_itemId, amountToReturn, notifyItemGainPopup: false);
+        if (added < amountToReturn)
+        {
+            if (added > 0)
+                inventory.Remove(_itemId, added);
+            return;
+        }
 
         ClearThisSlot();
         RefreshFromState();
@@ -1279,12 +1299,26 @@ public class EquipmentSlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
 
-        bool ok = inventory.Add(itemId, amount, null, notifyItemGainPopup: false);
-        if (ok) return;
+        // Inventory.Add can partially succeed and still return false — only overflow the remainder.
+        int added = inventory.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - added;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
 
         var def = inventory.GetItemDef(itemId);
         if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
+            DropManager.Instance.Spawn(itemId, left, def ? def.icon : null);
+        else
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     private void CreateDragIcon(Sprite sprite)
