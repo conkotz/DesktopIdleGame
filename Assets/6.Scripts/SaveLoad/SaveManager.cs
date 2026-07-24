@@ -947,7 +947,7 @@ public class SaveManager : MonoBehaviour
 #endif
         var captureStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        if (!IsRuntimeReadyForSave(out string readinessReason))
+        if (!IsRuntimeReadyForSave(kind, out string readinessReason))
         {
             LogSaveEvent(kind, "skipped", captureStopwatch.ElapsedMilliseconds, readinessReason);
             yield break;
@@ -979,6 +979,8 @@ public class SaveManager : MonoBehaviour
         NormalizeSaveDataLists(data);
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
+        SeedCookingStationsFromSnapshot(data, _lastLoadedData);
+        SeedBlacksmithingStationsFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
@@ -1185,7 +1187,7 @@ public class SaveManager : MonoBehaviour
 #endif
         var saveStopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        if (!IsRuntimeReadyForSave(out string readinessReason))
+        if (!IsRuntimeReadyForSave(kind, out string readinessReason))
         {
             LogSaveEvent(kind, "skipped", saveStopwatch.ElapsedMilliseconds, readinessReason);
             return;
@@ -1389,7 +1391,7 @@ public class SaveManager : MonoBehaviour
             Debug.Log(logMessage);
     }
 
-    private bool IsRuntimeReadyForSave(out string reason)
+    private bool IsRuntimeReadyForSave(SaveRequestKind kind, out string reason)
     {
         Scene active = SceneManager.GetActiveScene();
         if (!active.IsValid() || !active.isLoaded)
@@ -1401,6 +1403,24 @@ public class SaveManager : MonoBehaviour
         if (active.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
         {
             reason = "active scene is Bootstrap";
+            return false;
+        }
+
+        // Never snapshot empty DDOL processing/inventory state over a staged load.
+        if (_hasPendingLoad && !_didFinalApplyForCurrentLoad)
+        {
+            reason = "pending save apply has not finished";
+            return false;
+        }
+
+        if (_autosaveHoldUntilUnscaled > 0f &&
+            Time.unscaledTime < _autosaveHoldUntilUnscaled &&
+            (kind == SaveRequestKind.AutosaveInterval ||
+             kind == SaveRequestKind.InventoryChanged ||
+             kind == SaveRequestKind.StorageChanged ||
+             kind == SaveRequestKind.DebouncedStripZoom))
+        {
+            reason = "post-scene-load autosave hold";
             return false;
         }
 
@@ -1494,6 +1514,7 @@ public class SaveManager : MonoBehaviour
         int currentActionBarFilled = CountFilledActionBarAssignments(current);
         int currentProcessingFilled = CountProcessingProgress(current);
         int currentTownServices = CountFilledIds(current.unlockedTownServiceIds);
+        int currentProcessingProficiency = CountProcessingProficiencyProgress(current);
 
         int prevInvFilled = CountFilledSlots(previous.inventorySlots);
         int prevStorageFilled = CountFilledSlots(previous.storageSlots);
@@ -1502,6 +1523,7 @@ public class SaveManager : MonoBehaviour
         int prevActionBarFilled = CountFilledActionBarAssignments(previous);
         int prevProcessingFilled = CountProcessingProgress(previous);
         int prevTownServices = CountFilledIds(previous.unlockedTownServiceIds);
+        int prevProcessingProficiency = CountProcessingProficiencyProgress(previous);
 
         bool previousHadProgress =
             prevInvFilled > 0 ||
@@ -1510,7 +1532,8 @@ public class SaveManager : MonoBehaviour
             prevToolbeltFilled > 0 ||
             prevActionBarFilled > 0 ||
             prevProcessingFilled > 0 ||
-            prevTownServices > 0;
+            prevTownServices > 0 ||
+            prevProcessingProficiency > 0;
 
         bool currentWiped =
             currentInvFilled == 0 &&
@@ -1519,13 +1542,14 @@ public class SaveManager : MonoBehaviour
             currentToolbeltFilled == 0 &&
             currentActionBarFilled == 0 &&
             currentProcessingFilled == 0 &&
-            currentTownServices == 0;
+            currentTownServices == 0 &&
+            currentProcessingProficiency == 0;
 
         if (previousHadProgress && currentWiped)
         {
             reason =
-                $"suspicious wipe detected. prev(inv={prevInvFilled},storage={prevStorageFilled},equip={prevEquipFilled},toolbelt={prevToolbeltFilled},bar={prevActionBarFilled},processing={prevProcessingFilled},town={prevTownServices}) -> " +
-                $"current(inv={currentInvFilled},storage={currentStorageFilled},equip={currentEquipFilled},toolbelt={currentToolbeltFilled},bar={currentActionBarFilled},processing={currentProcessingFilled},town={currentTownServices})";
+                $"suspicious wipe detected. prev(inv={prevInvFilled},storage={prevStorageFilled},equip={prevEquipFilled},toolbelt={prevToolbeltFilled},bar={prevActionBarFilled},processing={prevProcessingFilled},town={prevTownServices},prof={prevProcessingProficiency}) -> " +
+                $"current(inv={currentInvFilled},storage={currentStorageFilled},equip={currentEquipFilled},toolbelt={currentToolbeltFilled},bar={currentActionBarFilled},processing={currentProcessingFilled},town={currentTownServices},prof={currentProcessingProficiency})";
             return true;
         }
 
@@ -2125,6 +2149,15 @@ public class SaveManager : MonoBehaviour
         WorldObjectPositionStore.EnsureLists(data);
         TownServiceUnlockStore.EnsureLists(data);
 
+        if (data.furnaceSmelters == null)
+            data.furnaceSmelters = new List<SaveData.FurnaceSmelterSave>();
+        if (data.cookingStations == null)
+            data.cookingStations = new List<SaveData.CookingStationSave>();
+        if (data.blacksmithingStations == null)
+            data.blacksmithingStations = new List<SaveData.BlacksmithingStationSave>();
+        if (data.processingProficiency == null)
+            data.processingProficiency = new List<SaveData.ProcessingProficiencySave>();
+
         if (data.actionBarSlotIndexes == null)
             data.actionBarSlotIndexes = new List<int>();
         if (data.actionBarKinds == null)
@@ -2582,6 +2615,46 @@ public class SaveManager : MonoBehaviour
         }
     }
 
+    private static void SeedCookingStationsFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.cookingStations == null || source.cookingStations.Count == 0)
+            return;
+
+        dest.cookingStations ??= new List<SaveData.CookingStationSave>();
+        dest.cookingStations.Clear();
+
+        for (int i = 0; i < source.cookingStations.Count; i++)
+        {
+            SaveData.CookingStationSave row = source.cookingStations[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+                continue;
+
+            dest.cookingStations.Add(CloneCookingStationRow(row));
+        }
+    }
+
+    private static void SeedBlacksmithingStationsFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.blacksmithingStations == null || source.blacksmithingStations.Count == 0)
+            return;
+
+        dest.blacksmithingStations ??= new List<SaveData.BlacksmithingStationSave>();
+        dest.blacksmithingStations.Clear();
+
+        for (int i = 0; i < source.blacksmithingStations.Count; i++)
+        {
+            SaveData.BlacksmithingStationSave row = source.blacksmithingStations[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.stationId))
+                continue;
+
+            dest.blacksmithingStations.Add(CloneBlacksmithingStationRow(row));
+        }
+    }
+
     private static SaveData.FurnaceSmelterSave CloneFurnaceSmelterRow(SaveData.FurnaceSmelterSave row)
     {
         return new SaveData.FurnaceSmelterSave
@@ -2602,6 +2675,54 @@ public class SaveManager : MonoBehaviour
         };
     }
 
+    private static SaveData.CookingStationSave CloneCookingStationRow(SaveData.CookingStationSave row)
+    {
+        return new SaveData.CookingStationSave
+        {
+            stationId = row.stationId,
+            storedRawItemId = row.storedRawItemId ?? "",
+            storedRawAmount = row.storedRawAmount,
+            readyCookedAmount = row.readyCookedAmount,
+            activeRawItemId = row.activeRawItemId ?? "",
+            readyCookedItemId = row.readyCookedItemId ?? "",
+            storedEnhancementItemId = row.storedEnhancementItemId ?? "",
+            storedEnhancementAmount = row.storedEnhancementAmount,
+            storedFuelItemId = row.storedFuelItemId ?? "",
+            storedFuelAmount = row.storedFuelAmount,
+            fuelSecondsBurnedFromCurrentLog = row.fuelSecondsBurnedFromCurrentLog,
+            cookProgressSeconds = row.cookProgressSeconds,
+            isCooking = row.isCooking
+        };
+    }
+
+    private static SaveData.BlacksmithingStationSave CloneBlacksmithingStationRow(SaveData.BlacksmithingStationSave row)
+    {
+        var clone = new SaveData.BlacksmithingStationSave
+        {
+            stationId = row.stationId,
+            selectedRecipeOutputId = row.selectedRecipeOutputId ?? "",
+            activeRecipeOutputId = row.activeRecipeOutputId ?? "",
+            readyOutputItemId = row.readyOutputItemId ?? "",
+            craftProgressSeconds = row.craftProgressSeconds,
+            isCrafting = row.isCrafting,
+            lockedCraftDurationSeconds = row.lockedCraftDurationSeconds,
+            lockedConsumedItemIds = new List<string>(),
+            lockedConsumedAmounts = new List<int>()
+        };
+
+        if (row.lockedConsumedItemIds != null && row.lockedConsumedAmounts != null)
+        {
+            int count = Mathf.Min(row.lockedConsumedItemIds.Count, row.lockedConsumedAmounts.Count);
+            for (int i = 0; i < count; i++)
+            {
+                clone.lockedConsumedItemIds.Add(row.lockedConsumedItemIds[i] ?? "");
+                clone.lockedConsumedAmounts.Add(row.lockedConsumedAmounts[i]);
+            }
+        }
+
+        return clone;
+    }
+
     public void DeleteSave()
     {
         if (!HasSave()) return;
@@ -2619,6 +2740,18 @@ public class SaveManager : MonoBehaviour
         _isApplyingSaveData = false;
         IsGameFullyLoaded = false;
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
+
+        // Static side-stores survive DDOL / Bootstrap; wipe must clear them or next New Game /
+        // spawn gates can still see previous-slot unlocks and death flags.
+        TownServiceUnlockStore.ApplyFromSaveData(null);
+        HelperProgressStore.ApplyFromSaveData(null);
+        LevelItemPickupSaveStore.ApplyFromSaveData(null);
+        WorldObjectPositionStore.ApplyFromSaveData(null);
+        PermanentEnemyDeathSaveStore.ApplyFromSaveData(null);
+        NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(null);
+        NpcOneWayDialogueQueueStore.ApplyFromSaveData(null);
+        UIWindowLockStore.ApplyFromSaveData(null);
+
         LoadAllSaveMetadata();
         FireSaveSystemReady("FullDataWipe");
     }
