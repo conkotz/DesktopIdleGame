@@ -1002,13 +1002,25 @@ public class Inventory : MonoBehaviour, ISaveable
             return true;
         }
 
+        // Different item: clamp to maxStack in the target slot (same as empty/same-item paths).
+        // Never write an over-max amount — that persists across save/load and breaks capacity rules.
         var displaced = to;
-        ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = amount });
+        int placedHere = Mathf.Min(amount, maxStack);
+        int incomingLeft = amount - placedHere;
+
+        ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = placedHere });
+
+        int addedIncoming = 0;
+        if (incomingLeft > 0)
+            addedIncoming = AddPartial(itemId, incomingLeft, maxStackOverride, notifyItemGainPopup);
+
         int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup);
-        if (placedDisplaced < displaced.amount)
+        if (addedIncoming < incomingLeft || placedDisplaced < displaced.amount)
         {
             if (placedDisplaced > 0)
                 Remove(displaced.itemId, placedDisplaced);
+            if (addedIncoming > 0)
+                Remove(itemId, addedIncoming);
             ReplaceSlot(slotIndex, displaced);
             return false;
         }
