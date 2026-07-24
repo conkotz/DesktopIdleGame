@@ -3127,6 +3127,7 @@ public class SaveManager : MonoBehaviour
         IsGameFullyLoaded = false;
         _hasPendingLoad = false;
         _didFinalApplyForCurrentLoad = false;
+        _didApplyProcessingOfflineForCurrentLoad = false;
         _autosaveTimer = 0f;
         _stripZoomSaveDueUnscaled = -1f;
         _inventorySaveDueUnscaled = -1f;
