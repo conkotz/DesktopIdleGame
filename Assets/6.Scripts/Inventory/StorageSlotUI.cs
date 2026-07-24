@@ -487,6 +487,8 @@ public class StorageSlotUI : MonoBehaviour,
 
         if (DropManager.Instance != null)
             DropManager.Instance.Spawn(itemId, removed, iconSprite);
+        else
+            PendingLootRecoveryStore.Enqueue(itemId, removed);
         ItemGainPopupNotifier.NotifyLost(itemId, removed);
         _tooltip?.Hide();
     }
@@ -781,6 +783,8 @@ public class StorageSlotUI : MonoBehaviour,
         {
             if (DropManager.Instance != null)
                 DropManager.Instance.Spawn(itemId, removed, iconSprite);
+            else
+                PendingLootRecoveryStore.Enqueue(itemId, removed);
             ItemGainPopupNotifier.NotifyLost(itemId, removed);
         }
 

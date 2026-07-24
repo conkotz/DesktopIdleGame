@@ -297,6 +297,10 @@ public class SaveManager : MonoBehaviour
         bool firstGameplayInitThisSession = !_didInitialLoadOrCreate;
         _didInitialLoadOrCreate = true;
 
+        // Sale undo lives on Bootstrap DDOL and is not ISaveable — clear at every slot session
+        // boundary so New Game / Load Game cannot restore another character's sales.
+        SaleUndoManager.Instance?.ClearAllEntries();
+
         // Requirement: when entering gameplay from login/new session, start at Default Zoom (100%) even if save had another zoom.
         // Do NOT re-apply this on subsequent level transitions; those should keep current player zoom.
         if (firstGameplayInitThisSession)
@@ -2857,6 +2861,14 @@ public class SaveManager : MonoBehaviour
         _didInitialLoadOrCreate = false;
         _isApplyingSaveData = false;
         IsGameFullyLoaded = false;
+        _saveDirty = false;
+        _saveRequestPending = false;
+        _pendingSaveKind = SaveRequestKind.Unknown;
+        _saveRequestFrame = -1;
+        _inventorySaveDueUnscaled = -1f;
+        _storageSaveDueUnscaled = -1f;
+        _stripZoomSaveDueUnscaled = -1f;
+        _autosaveTimer = 0f;
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
 
         // Static side-stores survive DDOL / Bootstrap; wipe must clear them or next New Game /
@@ -2871,8 +2883,17 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(null);
         UIWindowLockStore.ApplyFromSaveData(null);
         QuestAcceptedEnemyRespawnService.LoadFromSave(null);
+        QuestTrackerState.ReplaceTrackedQuestIds(null);
         ClearRuntimeItemCachesAfterFullWipe();
         ClearDontDestroyOnLoadRuntimesAfterFullWipe();
+
+        // Bootstrap PersistAcrossScenes hosts Skills/Quest/WorldMap/Wallet/Inventory ISaveables.
+        // Reset them now so wipe does not leave previous-slot progression in memory.
+        ResetAllSaveablesToDefaults();
+        _lastLoadedData = null;
+
+        // Not ISaveable — must clear explicitly or New Game can undo prior-slot sales.
+        SaleUndoManager.Instance?.ClearAllEntries();
 
         LoadAllSaveMetadata();
         FireSaveSystemReady("FullDataWipe");

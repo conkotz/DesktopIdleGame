@@ -136,7 +136,7 @@ public static class MapEnhancementService
         if (string.IsNullOrWhiteSpace(itemId))
             return false;
 
-        if (inventory.Add(itemId, 1, notifyItemGainPopup: false))
+        if (inventory.AddPartial(itemId, 1, notifyItemGainPopup: false) == 1)
         {
             progress.NotifyProgressChangedAndSave();
             MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);

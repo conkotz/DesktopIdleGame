@@ -1122,6 +1122,8 @@ public class InventorySlotUI : MonoBehaviour,
         Sprite iconSprite = _def ? _def.icon : null;
         if (DropManager.Instance != null)
             DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
+        else
+            PendingLootRecoveryStore.Enqueue(slot.itemId, removed);
         ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
         _tooltip?.Hide();
     }
@@ -1302,6 +1304,8 @@ public class InventorySlotUI : MonoBehaviour,
 
                     if (DropManager.Instance != null)
                         DropManager.Instance.Spawn(itemId, removed, iconSprite);
+                    else
+                        PendingLootRecoveryStore.Enqueue(itemId, removed);
                     ItemGainPopupNotifier.NotifyLost(itemId, removed);
                 }
             }
