@@ -759,24 +759,45 @@ public sealed class FurnaceSmeltingRuntime : MonoBehaviour, ISaveable
             }
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
             {
                 failureReason = "Inventory not found.";
                 return false;
             }
 
             int collect = Mathf.Min(amount, _readyBarAmount);
-            int before = inv.GetTotalAmount(barItemId);
-            inv.Add(barItemId, collect, notifyItemGainPopup: true);
-            int added = inv.GetTotalAmount(barItemId) - before;
+            int added = inv ? inv.AddPartial(barItemId, collect, notifyItemGainPopup: true) : 0;
+            int left = collect - added;
+            bool sentToStorage = false;
+            if (left > 0 && storage != null)
+            {
+                int toStorage = storage.TryDepositAmountFromExternal(barItemId, left);
+                if (toStorage > 0)
+                {
+                    left -= toStorage;
+                    added += toStorage;
+                    sentToStorage = true;
+                }
+            }
+
             if (added <= 0)
             {
-                failureReason = "Inventory full.";
+                failureReason = "Inventory and storage are full.";
                 return false;
             }
 
             _readyBarAmount -= added;
             ClearStaleIdsWhenEmpty();
+
+            if (sentToStorage)
+            {
+                GameLog.Add(
+                    left > 0
+                        ? "Inventory was full — sent some bars to storage (rest still in the furnace)."
+                        : "Inventory was full — sent bars to storage.",
+                    GameLog.CannotMessageColor);
+            }
 
             SessionTrackerData.EnsureInstance()?.RegisterLootChange("Furnace", barItemId, added);
             NotifyChanged();
