@@ -79,6 +79,7 @@ public static class SaveDataIntegrity
 
         EnsureInventorySlotsCoherent(data, logTag: $"write:{context}", allowEmptyPadding: false);
         EnsureStorageSlotsCoherent(data, logTag: $"write:{context}", allowEmptyPadding: false);
+        SanitizeStorageTabBonusSlots(data, logTag: $"write:{context}");
         TrimGatheringActionBarBlocks(data);
     }
 
@@ -139,6 +140,7 @@ public static class SaveDataIntegrity
 
         EnsureInventorySlotsCoherent(data, logTag: $"load:{context}");
         EnsureStorageSlotsCoherent(data, logTag: $"load:{context}");
+        SanitizeStorageTabBonusSlots(data, logTag: $"load:{context}");
 
         TrimActionBarListsToMin(data);
         TrimGatheringActionBarBlocks(data);
@@ -189,6 +191,62 @@ public static class SaveDataIntegrity
         else if (data.inventorySlots.Count > want)
         {
             data.inventorySlots.RemoveRange(want, data.inventorySlots.Count - want);
+        }
+    }
+
+    /// <summary>
+    /// Corrupt or oversized <see cref="SaveData.storageTabBonusSlots"/> can wrap tab index math
+    /// and break deposit/withdraw loops. Clamp each bonus and keep base+bonus under MaxStorageSlots.
+    /// </summary>
+    private static void SanitizeStorageTabBonusSlots(SaveData data, string logTag)
+    {
+        const int tabCount = 5; // PlayerStorage.TabCount
+        const int mainBase = 88;
+        const int nonMainBase = 40;
+        int baseTotal = mainBase + nonMainBase * (tabCount - 1);
+        int bonusBudget = Mathf.Max(0, MaxStorageSlots - baseTotal);
+
+        if (data.storageTabBonusSlots == null)
+            data.storageTabBonusSlots = new List<int>(tabCount);
+
+        while (data.storageTabBonusSlots.Count < tabCount)
+            data.storageTabBonusSlots.Add(0);
+        if (data.storageTabBonusSlots.Count > tabCount)
+            data.storageTabBonusSlots.RemoveRange(tabCount, data.storageTabBonusSlots.Count - tabCount);
+
+        long bonusSum = 0;
+        bool changed = false;
+        for (int i = 0; i < tabCount; i++)
+        {
+            int raw = data.storageTabBonusSlots[i];
+            int clamped = Mathf.Clamp(raw, 0, MaxStorageSlots);
+            if (clamped != raw)
+                changed = true;
+            data.storageTabBonusSlots[i] = clamped;
+            bonusSum += clamped;
+        }
+
+        while (bonusSum > bonusBudget)
+        {
+            int richest = 0;
+            for (int i = 1; i < tabCount; i++)
+            {
+                if (data.storageTabBonusSlots[i] > data.storageTabBonusSlots[richest])
+                    richest = i;
+            }
+
+            if (data.storageTabBonusSlots[richest] <= 0)
+                break;
+
+            data.storageTabBonusSlots[richest]--;
+            bonusSum--;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Debug.LogWarning(
+                $"[SaveDataIntegrity] ({logTag}): storageTabBonusSlots clamped to fit MaxStorageSlots={MaxStorageSlots}.");
         }
     }
 
