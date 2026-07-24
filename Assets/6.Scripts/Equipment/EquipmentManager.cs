@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -796,11 +797,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
             // Add returns false on partial fit; roll back any partial return so the
             // still-equipped stack is not duplicated into inventory.
-            int returnedAmt = inv.AddPartial(currentlyEquipped, returnAmount, notifyItemGainPopup: false);
+            var touched = new List<int>(4);
+            int returnedAmt = inv.AddPartial(currentlyEquipped, returnAmount, notifyItemGainPopup: false, touchedSlotIndices: touched);
             if (returnedAmt < returnAmount)
             {
                 if (returnedAmt > 0)
-                    inv.Remove(currentlyEquipped, returnedAmt);
+                    inv.RemoveAmountFromTouchedSlots(returnedAmt, touched);
                 inv.AddPartial(itemId, 1, notifyItemGainPopup: false);
                 return false;
             }

@@ -157,11 +157,12 @@ public class Merchant : MonoBehaviour
 
         // CanAdd passed, but still use AddPartial so a race/partial fill never charges the player
         // while leaving a false "full fail" after items already landed in the bag.
-        int added = inventory.AddPartial(entry.itemId, amount, notifyItemGainPopup: false);
+        var touched = new List<int>(4);
+        int added = inventory.AddPartial(entry.itemId, amount, notifyItemGainPopup: false, touchedSlotIndices: touched);
         if (added < amount)
         {
             if (added > 0)
-                inventory.Remove(entry.itemId, added);
+                inventory.RemoveAmountFromTouchedSlots(added, touched);
             RefundCosts(entry, amount);
             GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
             Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs — refunded.");
