@@ -105,6 +105,12 @@ public class DamagePopupSystem : MonoBehaviour
         PrewarmPopupPool();
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     private void LateUpdate()
     {
         RefreshFollowerPositions();

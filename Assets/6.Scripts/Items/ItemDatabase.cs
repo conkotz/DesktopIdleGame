@@ -196,8 +196,28 @@ public class ItemDatabase : ScriptableObject
         if (string.IsNullOrWhiteSpace(key))
             return;
 
+        if (_runtimeItems.TryGetValue(key, out ItemDefinition existing) && existing != null && existing != def)
+            DestroyRuntimeItem(existing);
+
         _runtimeItems[key] = def;
         _runtimeBaseIds[key] = Normalize(baseItemId);
+    }
+
+    private void DestroyAllRuntimeItems()
+    {
+        foreach (var pair in _runtimeItems)
+            DestroyRuntimeItem(pair.Value);
+    }
+
+    private static void DestroyRuntimeItem(ItemDefinition def)
+    {
+        if (!def)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(def);
+        else
+            DestroyImmediate(def);
     }
 
     public void SaveRuntimeEnhancedItemsInto(SaveData data)
@@ -234,6 +254,7 @@ public class ItemDatabase : ScriptableObject
 
     public void LoadRuntimeEnhancedItemsFrom(SaveData data)
     {
+        DestroyAllRuntimeItems();
         _runtimeItems.Clear();
         _runtimeBaseIds.Clear();
 

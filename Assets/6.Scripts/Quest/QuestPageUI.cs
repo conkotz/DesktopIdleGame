@@ -1378,8 +1378,10 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
-        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.MapTeleport);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            node,
+            MapTravelSession.EntryMethod.MapTeleport,
+            GameplaySceneName);
     }
 
     private static bool IsAlreadyOnMap(MapNodeDefinition node)
