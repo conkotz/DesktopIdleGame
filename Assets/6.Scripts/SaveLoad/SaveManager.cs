@@ -981,6 +981,7 @@ public class SaveManager : MonoBehaviour
         SeedFurnaceSmeltersFromSnapshot(data, _lastLoadedData);
         SeedCookingStationsFromSnapshot(data, _lastLoadedData);
         SeedBlacksmithingStationsFromSnapshot(data, _lastLoadedData);
+        SeedProcessingProficiencyFromSnapshot(data, _lastLoadedData);
         PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
@@ -1135,6 +1136,9 @@ public class SaveManager : MonoBehaviour
         // Always persist live registries here so unique gear / map enhancements survive even when
         // Inventory.SaveInto skipped them (null itemDb) or Inventory was absent from saveables.
         WriteRuntimeItemRegistriesInto(data);
+        // Proficiency is DDOL + ISaveable, but a missing/stale saveable write must not zero levels
+        // while inventory/progress remain (wipe detector only catches total wipes).
+        EnsureProcessingProficiencyInSaveData(data);
 
         if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
             TryRecordGameplayMapExitPosition(data);
@@ -2715,6 +2719,57 @@ public class SaveManager : MonoBehaviour
 
             dest.blacksmithingStations.Add(CloneBlacksmithingStationRow(row));
         }
+    }
+
+    /// <summary>
+    /// Processing proficiency is DDOL. If its ISaveable miss a write, keep the last snapshot so
+    /// levels/XP are not wiped while inventory and other progress remain intact.
+    /// </summary>
+    private static void SeedProcessingProficiencyFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (source.processingProficiency == null || source.processingProficiency.Count == 0)
+            return;
+
+        dest.processingProficiency ??= new List<SaveData.ProcessingProficiencySave>();
+        dest.processingProficiency.Clear();
+
+        for (int i = 0; i < source.processingProficiency.Count; i++)
+        {
+            SaveData.ProcessingProficiencySave row = source.processingProficiency[i];
+            if (row == null)
+                continue;
+
+            dest.processingProficiency.Add(new SaveData.ProcessingProficiencySave
+            {
+                skillType = row.skillType,
+                level = row.level,
+                xp = row.xp
+            });
+        }
+    }
+
+    /// <summary>
+    /// Prefer live DDOL proficiency; if the live write is empty while the snapshot had progress,
+    /// restore the snapshot (covers missing saveable / pre-load default Instance).
+    /// </summary>
+    private void EnsureProcessingProficiencyInSaveData(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        ProcessingProficiencyRuntime runtime = ProcessingProficiencyRuntime.Instance;
+        if (runtime != null)
+            runtime.SaveInto(data);
+
+        if (CountProcessingProficiencyProgress(data) > 0)
+            return;
+
+        if (CountProcessingProficiencyProgress(_lastLoadedData) <= 0)
+            return;
+
+        SeedProcessingProficiencyFromSnapshot(data, _lastLoadedData);
     }
 
     private static SaveData.FurnaceSmelterSave CloneFurnaceSmelterRow(SaveData.FurnaceSmelterSave row)
