@@ -60,7 +60,7 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         int removed = inventory.RemoveAmountAtSlot(slotIndex, 1);
         if (removed <= 0) return;
 
-        int goldGained = valuePerItem * removed;
+        int goldGained = CurrencyWallet.ComputeClampedSaleGold(valuePerItem, removed);
         wallet.AddGold(goldGained);
 
         Merchant saleMerchant = null;
