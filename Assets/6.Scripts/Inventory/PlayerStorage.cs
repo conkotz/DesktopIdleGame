@@ -510,6 +510,21 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             return b.amount.CompareTo(a.amount);
         });
 
+        int capacity = rangeEnd - rangeStart;
+        if (merged.Count > capacity)
+        {
+            for (int i = capacity; i < merged.Count; i++)
+            {
+                Slot overflow = merged[i];
+                if (!overflow.IsEmpty)
+                    PendingLootRecoveryStore.Enqueue(overflow.itemId, overflow.amount);
+            }
+
+            Debug.LogWarning(
+                $"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {capacity} — parked extras in pending loot.");
+            merged.RemoveRange(capacity, merged.Count - capacity);
+        }
+
         for (int i = rangeStart; i < rangeEnd; i++)
         {
             var s = _slots[i];
@@ -517,12 +532,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        int limit = Mathf.Min(merged.Count, rangeEnd - rangeStart);
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < merged.Count; i++)
             _slots[rangeStart + i] = merged[i];
-
-        if (merged.Count > rangeEnd - rangeStart)
-            Debug.LogWarning($"[PlayerStorage] Tab sort overflow: need {merged.Count} slots but range only has {rangeEnd - rangeStart}.");
 
         MarkAllSlotsChanged();
     }

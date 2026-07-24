@@ -786,10 +786,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         ClearThisSlot();
         RefreshFromState();
 
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, amount, iconSprite);
-        else
-            PendingLootRecoveryStore.Enqueue(itemId, amount);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, amount, iconSprite);
         ItemGainPopupNotifier.NotifyLost(itemId, amount);
         tooltip?.Hide();
     }
@@ -1358,10 +1355,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         var def = inventory.GetItemDef(itemId);
-        if (DropManager.Instance != null)
-            DropManager.Instance.Spawn(itemId, left, def ? def.icon : null);
-        else
-            PendingLootRecoveryStore.Enqueue(itemId, left);
+        PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null);
     }
 
     private void CreateDragIcon(Sprite sprite)
