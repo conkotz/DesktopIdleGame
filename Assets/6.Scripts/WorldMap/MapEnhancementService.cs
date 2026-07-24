@@ -136,15 +136,34 @@ public static class MapEnhancementService
         if (string.IsNullOrWhiteSpace(itemId))
             return false;
 
-        if (!inventory.Add(itemId, 1, notifyItemGainPopup: false))
+        if (inventory.Add(itemId, 1, notifyItemGainPopup: false))
         {
-            progress.TryEquipMapEnhancement(nodeId, itemId, out _);
-            return false;
+            progress.NotifyProgressChangedAndSave();
+            MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
+            InventoryGridUI.RefreshAllGrids();
+            return true;
         }
 
+        PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null && storage.TryDepositAmountFromExternal(itemId, 1) == 1)
+        {
+            GameLog.Add(
+                "Inventory was full — moved map enhancement to storage.",
+                GameLog.CannotMessageColor);
+            progress.NotifyProgressChangedAndSave();
+            MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
+            InventoryGridUI.RefreshAllGrids();
+            return true;
+        }
+
+        PendingLootRecoveryStore.Enqueue(itemId, 1);
+        GameLog.Add(
+            "Inventory and storage are full — held the unequipped map enhancement until you free space.",
+            GameLog.CannotMessageColor);
         progress.NotifyProgressChangedAndSave();
         MapCombatScalingPopupUI.RefreshEnhancementReloadWarningIfOpen(nodeId);
         InventoryGridUI.RefreshAllGrids();
+        SaveManager.Instance?.NotifyInventoryChangedDebounced();
         return true;
     }
 
