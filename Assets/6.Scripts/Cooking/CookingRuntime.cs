@@ -105,6 +105,11 @@ public sealed class CookingRuntime : MonoBehaviour, ISaveable
             return;
 
         data.cookingStations ??= new List<SaveData.CookingStationSave>();
+
+        // Preserve snapshot-seeded cooking rows when this DDOL runtime has never been hydrated.
+        if (_rows.Count == 0)
+            return;
+
         data.cookingStations.Clear();
 
         foreach (KeyValuePair<string, CookingRow> kv in _rows)
