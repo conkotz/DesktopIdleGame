@@ -889,6 +889,17 @@ public class SaveManager : MonoBehaviour
             return;
         }
 
+        // Mandatory sync saves (scene transition, quit, manual, etc.) must not be deferred
+        // while a time-sliced autosave is mid-capture — callers unload the scene immediately after.
+        if (_buildingSnapshot && _timeSlicedSaveCo != null)
+        {
+            LogSaveFlow($"Aborting time-sliced save for mandatory sync ({kind})");
+            StopCoroutine(_timeSlicedSaveCo);
+            _timeSlicedSaveCo = null;
+            _timeSlicedSaveKind = SaveRequestKind.Unknown;
+            _buildingSnapshot = false;
+        }
+
         if (_buildingSnapshot)
         {
             if (GetSaveRequestPriority(kind) >= GetSaveRequestPriority(_coalescedSnapshotKind))
@@ -940,6 +951,14 @@ public class SaveManager : MonoBehaviour
         {
             _buildingSnapshot = false;
             _timeSlicedSaveCo = null;
+
+            // Drain sync saves that arrived while the time-sliced worker held _buildingSnapshot.
+            if (_coalescedSnapshotKind != SaveRequestKind.Unknown)
+            {
+                SaveRequestKind next = _coalescedSnapshotKind;
+                _coalescedSnapshotKind = SaveRequestKind.Unknown;
+                ExecuteSave(next);
+            }
         }
     }
 
@@ -1061,10 +1080,18 @@ public class SaveManager : MonoBehaviour
         if (saveables == null || saveables.Count == 0)
             yield break;
 
+        // Item-owning systems must be captured in the same frame. Yielding between Inventory
+        // and Equipment (etc.) can duplicate or drop stacks when the player transfers mid-save.
+        WriteAtomicItemSaveablesFirst(data, saveables, out HashSet<ISaveable> writtenAtomic);
+
         var frameBudget = System.Diagnostics.Stopwatch.StartNew();
         for (int i = 0; i < saveables.Count; i++)
         {
-            saveables[i].SaveInto(data);
+            ISaveable saveable = saveables[i];
+            if (saveable == null || (writtenAtomic != null && writtenAtomic.Contains(saveable)))
+                continue;
+
+            saveable.SaveInto(data);
             if (i >= saveables.Count - 1)
                 continue;
 
@@ -1074,6 +1101,40 @@ public class SaveManager : MonoBehaviour
             yield return null;
             frameBudget.Restart();
         }
+    }
+
+    private static void WriteAtomicItemSaveablesFirst(
+        SaveData data,
+        List<ISaveable> saveables,
+        out HashSet<ISaveable> written)
+    {
+        written = null;
+        if (data == null || saveables == null || saveables.Count == 0)
+            return;
+
+        written = new HashSet<ISaveable>();
+        for (int i = 0; i < saveables.Count; i++)
+        {
+            ISaveable saveable = saveables[i];
+            if (saveable == null || !IsAtomicItemSaveable(saveable))
+                continue;
+
+            saveable.SaveInto(data);
+            written.Add(saveable);
+        }
+    }
+
+    private static bool IsAtomicItemSaveable(ISaveable saveable)
+    {
+        return saveable is Inventory
+            || saveable is PlayerStorage
+            || saveable is EquipmentManager
+            || saveable is ToolbeltManager
+            || saveable is CurrencyWallet
+            || saveable is ActionBarUI
+            || saveable is FurnaceSmeltingRuntime
+            || saveable is CookingRuntime
+            || saveable is BlacksmithingRuntime;
     }
 
     private struct SaveablesWriteCoverage

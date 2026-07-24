@@ -1218,8 +1218,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         ring12ItemId = string.IsNullOrWhiteSpace(data?.equippedRing12ItemId) ? null : data.equippedRing12ItemId;
         ring22ItemId = string.IsNullOrWhiteSpace(data?.equippedRing22ItemId) ? null : data.equippedRing22ItemId;
 
-        EnforceWeaponSetCompatibility(0);
-        EnforceWeaponSetCompatibility(1);
+        EnforceWeaponSetCompatibility(0, data);
+        EnforceWeaponSetCompatibility(1, data);
 
         NotifyWeaponSetChanged();
 
@@ -1234,7 +1234,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         OnVisualsChanged?.Invoke();
     }
 
-    private void EnforceWeaponSetCompatibility(int setIndex)
+    private void EnforceWeaponSetCompatibility(int setIndex, SaveData pendingParkTarget = null)
     {
         string mainId = GetMainHandForSet(setIndex);
         string offId = GetOffHandForSet(setIndex);
@@ -1243,9 +1243,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!mainDef)
             return;
 
+        bool clearOffHand = false;
         if (mainDef.IsTwoHandedWeapon && !mainDef.RequiresOffhandSupport)
         {
-            SetOffHandForSet(setIndex, null, 0);
+            clearOffHand = !string.IsNullOrWhiteSpace(offId);
         }
         else if (mainDef.RequiresOffhandSupport)
         {
@@ -1255,8 +1256,31 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                 offDef.IsCombatSupport &&
                 offDef.SupportType == mainDef.RequiredSupportType;
 
-            if (!validSupport)
-                SetOffHandForSet(setIndex, null, 0);
+            if (!validSupport && !string.IsNullOrWhiteSpace(offId))
+                clearOffHand = true;
+        }
+
+        if (!clearOffHand)
+            return;
+
+        int offAmount = Mathf.Max(1, GetOffHandStackForSet(setIndex));
+        SetOffHandForSet(setIndex, null, 0);
+
+        // Load-time definition mismatches must not silently delete gear. Append into the
+        // save payload so PendingLootRecoveryStore.ApplyFromSaveData (runs after LoadFrom)
+        // picks the stack up — do not Enqueue live entries here (Apply clears them).
+        if (pendingParkTarget != null)
+        {
+            PendingLootRecoveryStore.EnsureLists(pendingParkTarget);
+            pendingParkTarget.pendingLootRecoveryItemIds.Add(offId.Trim());
+            pendingParkTarget.pendingLootRecoveryAmounts.Add(offAmount);
+            Debug.LogWarning(
+                $"[EquipmentManager] Load: parked incompatible off-hand '{offId}' x{offAmount} (set {setIndex}) into pending loot.",
+                this);
+        }
+        else
+        {
+            ReturnOrDrop(offId, offAmount);
         }
     }
 
