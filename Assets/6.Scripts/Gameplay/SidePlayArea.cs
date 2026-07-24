@@ -137,7 +137,12 @@ public sealed class SidePlayArea : MonoBehaviour
             return;
 
         if (Registry.TryGetValue(key, out SidePlayArea existing) && existing && existing != this)
-            Debug.LogWarning($"[SidePlayArea] Duplicate area id '{key}'. Keeping '{existing.name}', ignoring '{name}'.", this);
+        {
+            Debug.LogWarning(
+                $"[SidePlayArea] Duplicate area id '{key}'. Keeping '{existing.name}', ignoring '{name}'.",
+                this);
+            return;
+        }
 
         Registry[key] = this;
     }

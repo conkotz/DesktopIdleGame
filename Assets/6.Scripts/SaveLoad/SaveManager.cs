@@ -793,7 +793,7 @@ public class SaveManager : MonoBehaviour
             }
 
             SaveDataIntegrity.SanitizeBeforeWrite(data, "FlushNpcPostDeath");
-            File.WriteAllText(ActiveSavePath, JsonUtility.ToJson(data, true));
+            WriteTextAtomic(ActiveSavePath, ActiveSaveBackupPath, JsonUtility.ToJson(data, true));
         }
         catch (Exception ex)
         {
@@ -1221,12 +1221,38 @@ public class SaveManager : MonoBehaviour
         string headerPath,
         string headerJson)
     {
-        if (File.Exists(savePath))
-            File.Copy(savePath, backupPath, overwrite: true);
-
-        File.WriteAllText(savePath, json);
+        WriteTextAtomic(savePath, backupPath, json);
         if (!string.IsNullOrEmpty(headerPath) && !string.IsNullOrEmpty(headerJson))
-            File.WriteAllText(headerPath, headerJson);
+            WriteTextAtomic(headerPath, headerPath + ".bak", headerJson);
+    }
+
+    /// <summary>
+    /// Writes via temp file then replace so a crash mid-write cannot leave a truncated active save.
+    /// Previous contents (if any) are moved to <paramref name="backupPath"/> before the replace.
+    /// </summary>
+    private static void WriteTextAtomic(string targetPath, string backupPath, string contents)
+    {
+        if (string.IsNullOrEmpty(targetPath))
+            return;
+
+        string tempPath = targetPath + ".tmp";
+        File.WriteAllText(tempPath, contents);
+
+        if (File.Exists(targetPath))
+        {
+            if (!string.IsNullOrEmpty(backupPath))
+            {
+                if (File.Exists(backupPath))
+                    File.Delete(backupPath);
+                File.Move(targetPath, backupPath);
+            }
+            else
+            {
+                File.Delete(targetPath);
+            }
+        }
+
+        File.Move(tempPath, targetPath);
     }
 
     private void ScheduleAsyncDiskWrite(PendingDiskWrite write)
