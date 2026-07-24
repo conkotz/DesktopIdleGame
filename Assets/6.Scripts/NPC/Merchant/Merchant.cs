@@ -158,8 +158,11 @@ public class Merchant : MonoBehaviour
         bool added = inventory.Add(entry.itemId, amount, null, notifyItemGainPopup: false);
         if (!added)
         {
+            // CanAdd passed, but Add can still fail (rolled unique gear, race with other grants).
+            // Never leave the player charged without the item.
+            RefundCosts(entry, amount);
             GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
-            Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs.");
+            Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs — refunded.");
             return false;
         }
 
@@ -235,6 +238,33 @@ public class Merchant : MonoBehaviour
                 case MerchantStock.CostType.Item:
                     if (!inventory.Remove(cost.itemId, totalCostAmount))
                         Debug.LogWarning($"[Merchant] Failed to remove {totalCostAmount}x {cost.itemId}.");
+                    break;
+            }
+        }
+    }
+
+    private void RefundCosts(MerchantStock.Entry entry, int amountMultiplier)
+    {
+        if (entry == null || entry.costs == null || amountMultiplier <= 0)
+            return;
+
+        for (int i = 0; i < entry.costs.Count; i++)
+        {
+            var cost = entry.costs[i];
+            if (cost == null || cost.amount <= 0)
+                continue;
+
+            int totalCostAmount = cost.amount * amountMultiplier;
+            switch (cost.type)
+            {
+                case MerchantStock.CostType.Gold:
+                    if (wallet)
+                        wallet.AddGold(totalCostAmount);
+                    break;
+
+                case MerchantStock.CostType.Item:
+                    if (inventory && !string.IsNullOrWhiteSpace(cost.itemId))
+                        inventory.Add(cost.itemId, totalCostAmount, null, notifyItemGainPopup: false);
                     break;
             }
         }
