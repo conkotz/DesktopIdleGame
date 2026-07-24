@@ -436,11 +436,9 @@ public class BlacksmithingUI : MonoBehaviour
 
         // Surface pending STOP refunds before recipe/ingredient checks so the player
         // knows why FORGE is blocked after a full-bag cancel.
-        if (!_station.CanStartCrafting(out string startBlockedReason) &&
-            !string.IsNullOrWhiteSpace(startBlockedReason) &&
-            startBlockedReason.IndexOf("recover forge materials", StringComparison.OrdinalIgnoreCase) >= 0)
+        if (_station.HasPendingIngredientRefunds)
         {
-            _ingredientsSummaryText.text = startBlockedReason;
+            _ingredientsSummaryText.text = "Free space to recover forge materials first.";
             _ingredientsSummaryText.color = StopAccent;
             return;
         }
