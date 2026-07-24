@@ -41,6 +41,8 @@ public class EnduranceTrialDirector : MonoBehaviour
     private bool _waitingForPlayerBegin;
     private Coroutine _betweenWavesRoutine;
     private Coroutine _completionLootRoutine;
+    /// <summary>Index of the next grant in <see cref="_lastCompletionLoot"/> that still needs Spawn/PendingLoot.</summary>
+    private int _completionLootNextIndex;
 
     private readonly List<EnduranceTrialUIHelpers.EnduranceTrialLootGrant> _lastCompletionLoot = new();
 
@@ -90,7 +92,8 @@ public class EnduranceTrialDirector : MonoBehaviour
             GameplayLevelBootstrapper.Instance.OnLevelStarted -= OnLevelStarted;
 
         StopBetweenWavesRoutine();
-        StopCompletionLootRoutine();
+        // Scene unload / disable must not discard unspawned completion grants.
+        StopCompletionLootRoutine(parkRemaining: true);
 
         if (Instance == this)
             Instance = null;
@@ -151,13 +154,15 @@ public class EnduranceTrialDirector : MonoBehaviour
         Instance = this;
         _waveIndex = 0;
 
-        _lastCompletionLoot.Clear();
         LastCompletedRunTier = 0;
         LastRunUnlockedNextTier = false;
         LastUnlockedTier = 0;
 
         StopBetweenWavesRoutine();
-        StopCompletionLootRoutine();
+        // Re-binding the same endurance map after completion must park any undelivered drip loot.
+        StopCompletionLootRoutine(parkRemaining: true);
+        _lastCompletionLoot.Clear();
+        _completionLootNextIndex = 0;
         SetNextWaveCountdown(0);
         ResolveEnduranceTrialsUiReference();
         SetEnduranceTrialsUiActive(true);
@@ -259,12 +264,14 @@ public class EnduranceTrialDirector : MonoBehaviour
         }
 
         StopBetweenWavesRoutine();
-        StopCompletionLootRoutine();
+        // Continue/restart while the staggered drip is still running must park remainder.
+        StopCompletionLootRoutine(parkRemaining: true);
         _trialComplete = false;
         _waveIndex = 0;
         _trialTier = Mathf.Clamp(tier, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier);
         _waitingForPlayerBegin = false;
         _lastCompletionLoot.Clear();
+        _completionLootNextIndex = 0;
         LastCompletedRunTier = 0;
         LastRunUnlockedNextTier = false;
         LastUnlockedTier = 0;
@@ -401,7 +408,9 @@ public class EnduranceTrialDirector : MonoBehaviour
         OnAllWavesCompleted?.Invoke();
 
         ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        StopCompletionLootRoutine(parkRemaining: true);
         _lastCompletionLoot.Clear();
+        _completionLootNextIndex = 0;
         if (_def != null)
             _lastCompletionLoot.AddRange(EnduranceTrialUIHelpers.RollEnduranceCompletionLoot(_def, db, _trialTier));
 
@@ -448,8 +457,15 @@ public class EnduranceTrialDirector : MonoBehaviour
 
         if (!dm)
         {
+            ParkRemainingCompletionLoot(fromIndex: 0);
             if (_lastCompletionLoot.Count > 0)
-                Debug.LogWarning("[EnduranceTrialDirector] No DropManager in scene — completion loot skipped.", this);
+            {
+                Debug.LogWarning(
+                    "[EnduranceTrialDirector] No DropManager in scene — completion loot held in pending recovery.",
+                    this);
+            }
+
+            _completionLootNextIndex = _lastCompletionLoot.Count;
             _completionLootRoutine = null;
             yield break;
         }
@@ -462,17 +478,57 @@ public class EnduranceTrialDirector : MonoBehaviour
                 yield return new WaitForSeconds(interval);
 
             EnduranceTrialUIHelpers.EnduranceTrialLootGrant g = _lastCompletionLoot[i];
-            dm.Spawn(g.itemId, g.amount, g.icon);
+            // Mark SweepOnMapExit so voluntary travel recovers unpicked trial rewards
+            // (MapExitGroundLootCollector only sweeps flagged drops; scene unload otherwise destroys them).
+            if (!dm.Spawn(g.itemId, g.amount, g.icon, sourceName: null, sweepOnMapExit: true))
+                PendingLootRecoveryStore.Enqueue(g.itemId, g.amount);
+
+            _completionLootNextIndex = i + 1;
         }
 
         _completionLootRoutine = null;
     }
 
-    private void StopCompletionLootRoutine()
+    private void StopCompletionLootRoutine(bool parkRemaining = false)
     {
-        if (_completionLootRoutine == null)
+        if (_completionLootRoutine != null)
+        {
+            StopCoroutine(_completionLootRoutine);
+            _completionLootRoutine = null;
+        }
+
+        if (parkRemaining)
+            ParkRemainingCompletionLoot(_completionLootNextIndex);
+    }
+
+    /// <summary>
+    /// Parks undelivered completion grants so Continue / scene unload cannot destroy trial rewards.
+    /// </summary>
+    private void ParkRemainingCompletionLoot(int fromIndex)
+    {
+        if (_lastCompletionLoot.Count == 0)
             return;
-        StopCoroutine(_completionLootRoutine);
-        _completionLootRoutine = null;
+
+        fromIndex = Mathf.Clamp(fromIndex, 0, _lastCompletionLoot.Count);
+        int parked = 0;
+        for (int i = fromIndex; i < _lastCompletionLoot.Count; i++)
+        {
+            EnduranceTrialUIHelpers.EnduranceTrialLootGrant g = _lastCompletionLoot[i];
+            if (string.IsNullOrWhiteSpace(g.itemId) || g.amount <= 0)
+                continue;
+
+            PendingLootRecoveryStore.Enqueue(g.itemId, g.amount);
+            parked++;
+        }
+
+        _completionLootNextIndex = _lastCompletionLoot.Count;
+
+        if (parked > 0)
+        {
+            Debug.LogWarning(
+                $"[EnduranceTrialDirector] Parked {parked} undelivered completion loot grant(s) into pending recovery.",
+                this);
+            SaveManager.Instance?.NotifyInventoryChangedDebounced();
+        }
     }
 }

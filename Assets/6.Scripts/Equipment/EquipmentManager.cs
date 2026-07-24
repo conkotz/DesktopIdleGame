@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -199,7 +200,18 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         setIndex = NormalizeSetIndex(setIndex);
         string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
-        int nextAmount = string.IsNullOrWhiteSpace(next) ? 0 : Mathf.Max(1, stackAmount);
+        int nextAmount = 0;
+        if (!string.IsNullOrWhiteSpace(next))
+        {
+            // Combat-support stacks must never exceed maxStack or wrap int via corrupt/huge amounts.
+            int maxStack = GetOffHandMaxStack(next);
+            long clamped = stackAmount;
+            if (clamped < 1)
+                clamped = 1;
+            if (clamped > maxStack)
+                clamped = maxStack;
+            nextAmount = (int)clamped;
+        }
 
         if (setIndex == 0)
         {
@@ -211,6 +223,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand2ItemId = next;
             offHand2StackAmount = nextAmount;
         }
+    }
+
+    private int GetOffHandMaxStack(string itemId)
+    {
+        var def = GetDef(itemId);
+        if (!def)
+            return 1;
+        return Mathf.Max(1, def.maxStack);
     }
 
     private void SetHelmetForSet(int setIndex, string itemId)
@@ -551,21 +571,38 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         if (!autoReturnKickedItems) return;
         if (string.IsNullOrWhiteSpace(itemId)) return;
-        if (!inventory) return;
 
         amount = Mathf.Max(1, amount);
 
-        if (inventory.Add(itemId, amount, null, notifyItemGainPopup: false))
-            return;
-
-        var def = GetDef(itemId);
-        if (DropManager.Instance != null)
+        // KickOffHand/KickMainHand already cleared the equip slot — never early-return
+        // when Inventory is missing (scene tear / DDOL reorder) or items are destroyed.
+        int left = amount;
+        if (inventory)
         {
-            DropManager.Instance.Spawn(itemId, amount, def ? def.icon : null);
-            return;
+            // Inventory.Add can partially succeed and still return false (overflow).
+            // Only ground-drop / hold the remainder so stacks never duplicate.
+            int added = inventory.AddPartial(itemId, left, notifyItemGainPopup: false);
+            left -= added;
+            if (left <= 0)
+                return;
         }
 
-        Debug.LogWarning($"[EquipmentManager] Inventory full and no DropManager. Lost item '{itemId}' x{amount}.", this);
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+        {
+            int toStorage = storage.TryDepositAmountFromExternal(itemId, left);
+            left -= toStorage;
+            if (left <= 0)
+                return;
+        }
+
+        var def = inventory ? GetDef(itemId) : null;
+        if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(itemId, left, def ? def.icon : null))
+        {
+            Debug.LogWarning(
+                $"[EquipmentManager] Could not return '{itemId}' x{left} to inventory/storage/world — held for later recovery.",
+                this);
+        }
     }
 
     // -------------------------
@@ -687,13 +724,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         RequestImmediateSave();
     }
 
-    public void EquipOffHand(string itemId, int amount = 1)
+    /// <returns>False when the off-hand was rejected (e.g. incompatible with current main hand) and left unchanged.</returns>
+    public bool EquipOffHand(string itemId, int amount = 1)
     {
         string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
         amount = Mathf.Max(1, amount);
 
         if (!string.IsNullOrWhiteSpace(next) && !CanOffHandUseCurrentMainHand(next, MainHandItemId))
-            return;
+            return false;
 
         var nextDef = GetDef(next);
         string currentOff = OffHandItemId;
@@ -715,22 +753,40 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             nextDef.IsCombatSupport &&
             currentOff == next)
         {
-            SetOffHandForSet(activeWeaponSetIndex, currentOff, currentOffAmount + amount);
+            // Reject overflow instead of wrapping (currentOffAmount + amount) into a tiny stack.
+            // Callers already Remove'd from inventory — returning false lets them ReturnOrDrop.
+            int maxStack = GetOffHandMaxStack(next);
+            long sum = (long)Mathf.Max(0, currentOffAmount) + amount;
+            if (sum > maxStack)
+                return false;
+
+            SetOffHandForSet(activeWeaponSetIndex, currentOff, (int)sum);
             NotifyOffHandChanged();
             RequestImmediateSave();
-            return;
+            return true;
         }
 
         if (currentOff == next &&
             (!nextDef || !nextDef.IsCombatSupport) &&
             currentOffAmount == amount)
         {
-            return;
+            return true;
+        }
+
+        // New equip: reject over-max support stacks so callers can ReturnOrDrop instead of
+        // SetOffHandForSet silently clamping and destroying the excess.
+        if (!string.IsNullOrWhiteSpace(next) &&
+            nextDef != null &&
+            nextDef.IsCombatSupport &&
+            amount > GetOffHandMaxStack(next))
+        {
+            return false;
         }
 
         SetOffHandForSet(activeWeaponSetIndex, next, string.IsNullOrWhiteSpace(next) ? 0 : amount);
         NotifyOffHandChanged();
         RequestImmediateSave();
+        return true;
     }
 
     public void UnequipOffHand()
@@ -771,27 +827,77 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (inv.RemoveAmountAtSlot(fromSlotIndex, 1) != 1)
             return false;
 
+        List<int> displacedTouched = null;
+        int displacedReturnAmount = 0;
+
         if (!string.IsNullOrWhiteSpace(currentlyEquipped))
         {
-            int returnAmount = 1;
+            displacedReturnAmount = 1;
 
             if (slot == EquipSlot.OffHand)
             {
                 var equippedDef = inv.GetItemDef(currentlyEquipped);
                 bool isSupport = equippedDef && equippedDef.IsCombatSupport;
-                returnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
+                displacedReturnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
             }
 
-            bool returned = inv.Add(currentlyEquipped, returnAmount, null, notifyItemGainPopup: false);
-            if (!returned)
+            // Add returns false on partial fit; roll back any partial return so the
+            // still-equipped stack is not duplicated into inventory.
+            displacedTouched = new List<int>(4);
+            int returnedAmt = inv.AddPartial(
+                currentlyEquipped,
+                displacedReturnAmount,
+                notifyItemGainPopup: false,
+                touchedSlotIndices: displacedTouched);
+            if (returnedAmt < displacedReturnAmount)
             {
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                if (returnedAmt > 0)
+                    inv.RemoveAmountFromTouchedSlots(returnedAmt, displacedTouched);
+                // Never ignore AddPartial shortfall — a full bag after undoing the
+                // displaced return would permanently delete the item taken from inventory.
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }
 
+        if (slot == EquipSlot.OffHand)
+        {
+            // EquipOffHand can still reject after CanEquip (def lookup edge cases). The displaced
+            // stack is already in inventory while still equipped — undo that before restoring.
+            if (!EquipOffHand(itemId))
+            {
+                if (displacedReturnAmount > 0 && displacedTouched != null)
+                    inv.RemoveAmountFromTouchedSlots(displacedReturnAmount, displacedTouched);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
+                return false;
+            }
+
+            return true;
+        }
+
         ForceEquip(slot, itemId);
         return true;
+    }
+
+    /// <summary>
+    /// Puts a previously removed inventory unit back, parking any shortfall in pending loot.
+    /// </summary>
+    private static void RestoreInventoryItemOrPark(Inventory inv, string itemId, int amount)
+    {
+        if (inv == null || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return;
+
+        int restored = inv.AddPartial(itemId, amount, notifyItemGainPopup: false);
+        int left = amount - restored;
+        if (left <= 0)
+            return;
+
+        PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (storage != null)
+            left -= storage.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            PendingLootRecoveryStore.Enqueue(itemId, left);
     }
 
     public string GetEquippedItemId(EquipSlot slot, int index = 0)
@@ -1119,6 +1225,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand1StackAmount = 0;
         else if (offHand1StackAmount <= 0)
             offHand1StackAmount = 1;
+        else
+            ClampLoadedOffHandStack(ref offHand1ItemId, ref offHand1StackAmount, data, setIndex: 0);
 
         mainHand2ItemId = string.IsNullOrWhiteSpace(data?.equippedMainHand2ItemId) ? null : data.equippedMainHand2ItemId;
         offHand2ItemId = string.IsNullOrWhiteSpace(data?.equippedOffHand2ItemId) ? null : data.equippedOffHand2ItemId;
@@ -1128,6 +1236,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             offHand2StackAmount = 0;
         else if (offHand2StackAmount <= 0)
             offHand2StackAmount = 1;
+        else
+            ClampLoadedOffHandStack(ref offHand2ItemId, ref offHand2StackAmount, data, setIndex: 1);
 
         activeWeaponSetIndex = NormalizeSetIndex(data?.activeWeaponSetIndex ?? 0);
 
@@ -1148,8 +1258,15 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         ring12ItemId = string.IsNullOrWhiteSpace(data?.equippedRing12ItemId) ? null : data.equippedRing12ItemId;
         ring22ItemId = string.IsNullOrWhiteSpace(data?.equippedRing22ItemId) ? null : data.equippedRing22ItemId;
 
-        EnforceWeaponSetCompatibility(0);
-        EnforceWeaponSetCompatibility(1);
+        EnforceWeaponSetCompatibility(0, data);
+        EnforceWeaponSetCompatibility(1, data);
+
+        // Persist clamped off-hand stacks back into the save payload when possible.
+        if (data != null)
+        {
+            data.equippedOffHand1StackAmount = offHand1StackAmount;
+            data.equippedOffHand2StackAmount = offHand2StackAmount;
+        }
 
         NotifyWeaponSetChanged();
 
@@ -1164,7 +1281,42 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         OnVisualsChanged?.Invoke();
     }
 
-    private void EnforceWeaponSetCompatibility(int setIndex)
+    /// <summary>
+    /// Clamps a loaded off-hand stack to the item's maxStack and parks overflow into the save's
+    /// pending-loot lists (ApplyFromSaveData runs after LoadFrom and would clear live Enqueue).
+    /// </summary>
+    private void ClampLoadedOffHandStack(
+        ref string itemId,
+        ref int stackAmount,
+        SaveData pendingParkTarget,
+        int setIndex)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || stackAmount <= 0)
+            return;
+
+        int maxStack = GetOffHandMaxStack(itemId);
+        if (stackAmount <= maxStack)
+            return;
+
+        int overflow = stackAmount - maxStack;
+        stackAmount = maxStack;
+
+        if (pendingParkTarget != null && overflow > 0)
+        {
+            PendingLootRecoveryStore.EnsureLists(pendingParkTarget);
+            pendingParkTarget.pendingLootRecoveryItemIds.Add(itemId.Trim());
+            pendingParkTarget.pendingLootRecoveryAmounts.Add(overflow);
+            Debug.LogWarning(
+                $"[EquipmentManager] Load: clamped off-hand '{itemId}' stack to maxStack {maxStack} (set {setIndex}); parked overflow x{overflow}.",
+                this);
+        }
+        else if (overflow > 0)
+        {
+            ReturnOrDrop(itemId, overflow);
+        }
+    }
+
+    private void EnforceWeaponSetCompatibility(int setIndex, SaveData pendingParkTarget = null)
     {
         string mainId = GetMainHandForSet(setIndex);
         string offId = GetOffHandForSet(setIndex);
@@ -1173,9 +1325,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!mainDef)
             return;
 
+        bool clearOffHand = false;
         if (mainDef.IsTwoHandedWeapon && !mainDef.RequiresOffhandSupport)
         {
-            SetOffHandForSet(setIndex, null, 0);
+            clearOffHand = !string.IsNullOrWhiteSpace(offId);
         }
         else if (mainDef.RequiresOffhandSupport)
         {
@@ -1185,8 +1338,31 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                 offDef.IsCombatSupport &&
                 offDef.SupportType == mainDef.RequiredSupportType;
 
-            if (!validSupport)
-                SetOffHandForSet(setIndex, null, 0);
+            if (!validSupport && !string.IsNullOrWhiteSpace(offId))
+                clearOffHand = true;
+        }
+
+        if (!clearOffHand)
+            return;
+
+        int offAmount = Mathf.Max(1, GetOffHandStackForSet(setIndex));
+        SetOffHandForSet(setIndex, null, 0);
+
+        // Load-time definition mismatches must not silently delete gear. Append into the
+        // save payload so PendingLootRecoveryStore.ApplyFromSaveData (runs after LoadFrom)
+        // picks the stack up — do not Enqueue live entries here (Apply clears them).
+        if (pendingParkTarget != null)
+        {
+            PendingLootRecoveryStore.EnsureLists(pendingParkTarget);
+            pendingParkTarget.pendingLootRecoveryItemIds.Add(offId.Trim());
+            pendingParkTarget.pendingLootRecoveryAmounts.Add(offAmount);
+            Debug.LogWarning(
+                $"[EquipmentManager] Load: parked incompatible off-hand '{offId}' x{offAmount} (set {setIndex}) into pending loot.",
+                this);
+        }
+        else
+        {
+            ReturnOrDrop(offId, offAmount);
         }
     }
 
@@ -1339,10 +1515,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!string.IsNullOrWhiteSpace(prev) &&
             !string.Equals(prev, itemId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!inv.Add(prev, 1, null, notifyItemGainPopup: false))
+            if (inv.AddPartial(prev, 1, notifyItemGainPopup: false) < 1)
             {
                 EquipGear(EquipSlot.Ring, prev, equipIndex);
-                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
+                RestoreInventoryItemOrPark(inv, itemId, 1);
                 return false;
             }
         }

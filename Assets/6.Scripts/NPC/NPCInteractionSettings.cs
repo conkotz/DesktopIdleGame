@@ -1558,8 +1558,11 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!node)
             return;
 
-        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
-        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        MapTravelSession.TryBeginTravelAndLoadScene(
+            node,
+            MapTravelSession.EntryMethod.InWorldEntrance,
+            GameplaySceneName,
+            logPendingLevel: false);
     }
 
     private static string ResolveAcceptedQuestIdForCondition(NpcConditionalDialogueEntry e)
@@ -1649,11 +1652,28 @@ public class NPCInteractionSettings : MonoBehaviour
         if (itemCount <= 0)
             return;
 
+        int goldEarnedDesired = CurrencyWallet.ComputeClampedSaleGold(Mathf.Max(1, goldPerItem), itemCount);
+        if (goldEarnedDesired <= 0)
+            return;
+
         if (!inv.Remove(itemId, itemCount))
             return;
 
-        int goldEarned = itemCount * Mathf.Max(1, goldPerItem);
-        wallet.AddGold(goldEarned);
+        int goldEarned = wallet.AddGoldReturningApplied(goldEarnedDesired);
+        if (goldEarned <= 0)
+        {
+            int left = itemCount - inv.AddPartial(itemId, itemCount, notifyItemGainPopup: false);
+            if (left > 0)
+            {
+                PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                if (storage != null)
+                    left -= storage.TryDepositAmountFromExternal(itemId, left);
+                if (left > 0)
+                    PendingLootRecoveryStore.Enqueue(itemId, left);
+            }
+
+            return;
+        }
 
         ItemDefinition def = inv.GetItemDef(itemId);
         string itemName = def && !string.IsNullOrWhiteSpace(def.displayName)

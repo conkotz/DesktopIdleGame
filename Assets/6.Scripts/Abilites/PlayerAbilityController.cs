@@ -9158,11 +9158,21 @@ public partial class PlayerAbilityController : MonoBehaviour
         if (added > 0)
             SessionTrackerData.EnsureInstance().RegisterLootGain(node.Definition.displayName, itemId, added);
 
-        if (overflow > 0 && DropManager.Instance != null)
+        if (overflow > 0)
         {
             var itemDef = inventory.GetItemDef(itemId);
             Sprite icon = itemDef ? itemDef.icon : null;
-            DropManager.Instance.Spawn(itemId, overflow, icon, node.Definition.displayName);
+
+            if (!PendingLootRecoveryStore.TrySpawnWorldDropOrEnqueue(
+                    itemId,
+                    overflow,
+                    icon,
+                    node.Definition.displayName))
+            {
+                GameLog.Add(
+                    $"Inventory full — held {overflow}x {itemDef?.displayName ?? itemId} until you free space.",
+                    GameLog.CannotMessageColor);
+            }
         }
     }
 
