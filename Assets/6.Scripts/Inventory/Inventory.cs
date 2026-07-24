@@ -681,13 +681,22 @@ public class Inventory : MonoBehaviour, ISaveable
         if (requirements == null || requirements.Count == 0)
             return false;
 
+        // Aggregate duplicate item ids so [{iron,2},{iron,2}] requires 4, not 2.
+        var neededByItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requirements.Count; i++)
         {
             GearUpgradeMaterialRequirement req = requirements[i];
             if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
                 return false;
 
-            if (CountItem(req.ItemId) < req.Amount)
+            string id = req.ItemId.Trim();
+            neededByItemId.TryGetValue(id, out int soFar);
+            neededByItemId[id] = soFar + req.Amount;
+        }
+
+        foreach (KeyValuePair<string, int> kv in neededByItemId)
+        {
+            if (CountItem(kv.Key) < kv.Value)
                 return false;
         }
 
@@ -699,11 +708,40 @@ public class Inventory : MonoBehaviour, ISaveable
         if (!HasItems(requirements))
             return false;
 
+        // Consume aggregated totals so duplicate rows cannot partially drain then fail.
+        var neededByItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < requirements.Count; i++)
         {
             GearUpgradeMaterialRequirement req = requirements[i];
-            if (!TryConsumeItem(req.ItemId, req.Amount))
+            if (string.IsNullOrWhiteSpace(req.ItemId) || req.Amount <= 0)
+                continue;
+
+            string id = req.ItemId.Trim();
+            neededByItemId.TryGetValue(id, out int soFar);
+            neededByItemId[id] = soFar + req.Amount;
+        }
+
+        var consumed = new List<KeyValuePair<string, int>>(neededByItemId.Count);
+        foreach (KeyValuePair<string, int> kv in neededByItemId)
+        {
+            if (!TryConsumeItem(kv.Key, kv.Value))
+            {
+                // Roll back anything already removed this attempt (race / mismatch).
+                PlayerStorage storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+                for (int r = 0; r < consumed.Count; r++)
+                {
+                    int left = consumed[r].Value;
+                    left -= AddPartial(consumed[r].Key, left, notifyItemGainPopup: false);
+                    if (left > 0 && storage != null)
+                        left -= storage.TryDepositAmountFromExternal(consumed[r].Key, left);
+                    if (left > 0)
+                        PendingLootRecoveryStore.Enqueue(consumed[r].Key, left);
+                }
+
                 return false;
+            }
+
+            consumed.Add(kv);
         }
 
         return true;
