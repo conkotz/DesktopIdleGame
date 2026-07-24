@@ -234,6 +234,13 @@ public class ItemDatabase : ScriptableObject
 
     public void LoadRuntimeEnhancedItemsFrom(SaveData data)
     {
+        // Destroy previous runtime ScriptableObject clones before clearing lookups.
+        foreach (var pair in _runtimeItems)
+        {
+            if (pair.Value)
+                Destroy(pair.Value);
+        }
+
         _runtimeItems.Clear();
         _runtimeBaseIds.Clear();
 
