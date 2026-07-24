@@ -1649,7 +1649,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
 
             if (IsPermanentlyComplete(q))
@@ -1694,7 +1694,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
             if (IsPermanentlyComplete(q))
                 continue;
@@ -1722,10 +1722,29 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             QuestDefinition q = all[i];
             if (!q || !q.restockMerchantStockOnRewardClaim)
                 continue;
-            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            if (!QuestMatchesRestockStockKey(q, stockKey))
                 continue;
             return true;
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Matches either the authored save-key field or the linked <see cref="QuestDefinition.restockMerchantStockAsset"/> key
+    /// so restock accept/UI still works when only the asset reference is wired.
+    /// </summary>
+    private static bool QuestMatchesRestockStockKey(QuestDefinition q, string stockKey)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(stockKey))
+            return false;
+
+        if (string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (q.restockMerchantStockAsset != null &&
+            string.Equals(q.restockMerchantStockAsset.StockSaveKey, stockKey, StringComparison.OrdinalIgnoreCase))
+            return true;
 
         return false;
     }
