@@ -659,6 +659,7 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
         /// <summary>
         /// Returns as many locked STOP/refund ingredients as inventory (then storage) can hold.
         /// Keeps any remainder so materials are never discarded when bags are full.
+        /// When inventory is missing (scene transition), still tries storage then pending loot.
         /// </summary>
         private void TryFlushPendingIngredientRefunds(bool logIfBlocked)
         {
@@ -666,12 +667,13 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                 return;
 
             Inventory inv = Inventory.ResolvePlayer();
-            if (!inv)
+            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (!inv && storage == null)
                 return;
 
-            PlayerStorage storage = UnityEngine.Object.FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
             var remaining = new List<BlacksmithingIngredient>(_lockedConsumedIngredients.Count);
             bool sentAnyToStorage = false;
+            bool sentAnyToPending = false;
 
             for (int i = 0; i < _lockedConsumedIngredients.Count; i++)
             {
@@ -680,8 +682,11 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                     continue;
 
                 int left = ing.Amount;
-                int toInv = inv.AddPartial(ing.ItemId, left, notifyItemGainPopup: false);
-                left -= toInv;
+                if (inv)
+                {
+                    int toInv = inv.AddPartial(ing.ItemId, left, notifyItemGainPopup: false);
+                    left -= toInv;
+                }
 
                 if (left > 0 && storage != null)
                 {
@@ -691,6 +696,15 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
                         left -= toStorage;
                         sentAnyToStorage = true;
                     }
+                }
+
+                // Inventory missing (or both bags full while inv is absent): park remainder so
+                // ResetToEmpty / wipe paths cannot silently destroy STOP leftovers.
+                if (left > 0 && !inv)
+                {
+                    PendingLootRecoveryStore.Enqueue(ing.ItemId, left);
+                    sentAnyToPending = true;
+                    left = 0;
                 }
 
                 if (left > 0)
@@ -705,6 +719,13 @@ public sealed class BlacksmithingRuntime : MonoBehaviour, ISaveable
 
             if (sentAnyToStorage)
                 GameLog.Add("Inventory was full — returned forge materials to storage.", GameLog.CannotMessageColor);
+
+            if (sentAnyToPending)
+            {
+                GameLog.Add(
+                    "Inventory unavailable — held remaining forge materials until you free space.",
+                    GameLog.CannotMessageColor);
+            }
 
             if (_lockedConsumedIngredients.Count > 0)
             {
