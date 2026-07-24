@@ -35,6 +35,12 @@ public class SaveManager : MonoBehaviour
     public static SaveManager Instance { get; private set; }
     public event Action OnSaveSystemReady;
 
+    /// <summary>True while <see cref="ApplyToPlayer"/> / new-game apply is rewriting runtime state.</summary>
+    public bool IsApplyingSaveData => _isApplyingSaveData;
+
+    /// <summary>Staged load exists but final apply has not completed yet.</summary>
+    public bool HasUnresolvedPendingLoad => _hasPendingLoad && !_didFinalApplyForCurrentLoad;
+
     [SerializeField] private bool autosave = true;
     [SerializeField] private float autosaveIntervalSeconds = 30f;
     [Tooltip("Wait after inventory changes before writing a save. Higher = fewer hitches while looting.")]
@@ -979,7 +985,57 @@ public class SaveManager : MonoBehaviour
         WorldObjectPositionStore.CopyFromSnapshot(data, _lastLoadedData);
         TownServiceUnlockStore.CopyFromSnapshot(data, _lastLoadedData);
         PendingLootRecoveryStore.CopyFromSnapshot(data, _lastLoadedData);
+        // Fallback seed: Inventory.SaveInto normally rewrites these from live registries.
+        // Preserve last snapshot so a missing Inventory/itemDb cannot wipe unique item defs.
+        SeedRuntimeItemRegistriesFromSnapshot(data, _lastLoadedData);
         return data;
+    }
+
+    private static void SeedRuntimeItemRegistriesFromSnapshot(SaveData target, SaveData source)
+    {
+        if (target == null || source == null)
+            return;
+
+        if (source.enhancedItems != null && source.enhancedItems.Count > 0)
+        {
+            target.enhancedItems ??= new List<SaveData.EnhancedItemData>();
+            target.enhancedItems.Clear();
+            for (int i = 0; i < source.enhancedItems.Count; i++)
+            {
+                SaveData.EnhancedItemData row = source.enhancedItems[i];
+                if (row != null)
+                    target.enhancedItems.Add(row);
+            }
+        }
+
+        if (source.mapEnhancementItems != null && source.mapEnhancementItems.Count > 0)
+        {
+            target.mapEnhancementItems ??= new List<SaveData.MapEnhancementItemData>();
+            target.mapEnhancementItems.Clear();
+            for (int i = 0; i < source.mapEnhancementItems.Count; i++)
+            {
+                SaveData.MapEnhancementItemData row = source.mapEnhancementItems[i];
+                if (row != null)
+                    target.mapEnhancementItems.Add(row);
+            }
+        }
+    }
+
+    private static void WriteRuntimeItemRegistriesInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (db == null)
+            db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (db == null)
+            db = Resources.Load<ItemDatabase>("ItemDatabase");
+
+        if (db != null)
+            db.SaveRuntimeEnhancedItemsInto(data);
+
+        MapEnhancementRegistry.SaveInto(data);
     }
 
     private List<ISaveable> GetDedupedSaveables()
@@ -1076,6 +1132,9 @@ public class SaveManager : MonoBehaviour
         UIWindowLockStore.WriteInto(data);
         TownServiceUnlockStore.WriteInto(data);
         PendingLootRecoveryStore.WriteInto(data);
+        // Always persist live registries here so unique gear / map enhancements survive even when
+        // Inventory.SaveInto skipped them (null itemDb) or Inventory was absent from saveables.
+        WriteRuntimeItemRegistriesInto(data);
 
         if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
             TryRecordGameplayMapExitPosition(data);
